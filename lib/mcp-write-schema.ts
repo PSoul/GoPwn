@@ -21,3 +21,8 @@ export const mcpDispatchSchema = z.object({
 export const mcpWorkflowSmokeSchema = z.object({
   scenario: z.enum(["baseline", "with-approval"]),
 })
+
+export const localValidationRunSchema = z.object({
+  labId: z.string().trim().min(1),
+  approvalScenario: z.enum(["none", "include-high-risk"]).optional(),
+})

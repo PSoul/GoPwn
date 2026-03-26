@@ -26,6 +26,7 @@ import type {
   McpRunRecord,
   McpSchedulerTaskRecord,
   McpToolRecord,
+  OrchestratorPlanRecord,
   PolicyRecord,
   ProjectDetailRecord,
   ProjectFindingRecord,
@@ -42,6 +43,7 @@ export type PrototypeStore = {
   evidenceRecords: EvidenceRecord[]
   globalApprovalControl: ApprovalControl
   mcpRuns: McpRunRecord[]
+  orchestratorPlans: Record<string, OrchestratorPlanRecord>
   schedulerTasks: McpSchedulerTaskRecord[]
   mcpTools: McpToolRecord[]
   projectDetails: ProjectDetailRecord[]
@@ -78,7 +80,7 @@ function buildSeedStore(): PrototypeStore {
   )
 
   return {
-    version: 6,
+    version: 7,
     auditLogs: cloneValue(auditLogs),
     approvalPolicies: cloneValue(approvalPolicies),
     approvals: cloneValue(approvals),
@@ -86,6 +88,7 @@ function buildSeedStore(): PrototypeStore {
     evidenceRecords: cloneValue(evidenceRecords),
     globalApprovalControl: cloneValue(globalApprovalControl),
     mcpRuns: cloneValue(mcpRuns),
+    orchestratorPlans: {},
     schedulerTasks: [],
     mcpTools: cloneValue(mcpTools),
     projectDetails: cloneValue(seededProjectDetails),
@@ -109,6 +112,7 @@ function normalizeStore(store: Partial<PrototypeStore>): PrototypeStore {
     evidenceRecords: Array.isArray(store.evidenceRecords) ? store.evidenceRecords : seeded.evidenceRecords,
     globalApprovalControl: store.globalApprovalControl ?? seeded.globalApprovalControl,
     mcpRuns: Array.isArray(store.mcpRuns) ? store.mcpRuns : seeded.mcpRuns,
+    orchestratorPlans: store.orchestratorPlans ?? seeded.orchestratorPlans,
     schedulerTasks: Array.isArray(store.schedulerTasks) ? store.schedulerTasks : seeded.schedulerTasks,
     mcpTools: Array.isArray(store.mcpTools) ? store.mcpTools : seeded.mcpTools,
     projectDetails: Array.isArray(store.projectDetails) ? store.projectDetails : seeded.projectDetails,

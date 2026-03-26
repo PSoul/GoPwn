@@ -2,6 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { ProjectMcpRunsPanel } from "@/components/projects/project-mcp-runs-panel"
+import { ProjectOrchestratorPanel } from "@/components/projects/project-orchestrator-panel"
 import { ProjectOperationsPanel } from "@/components/projects/project-operations-panel"
 import { ProjectTaskBoard } from "@/components/projects/project-task-board"
 import { PageHeader } from "@/components/shared/page-header"
@@ -17,12 +18,12 @@ export default async function ProjectOperationsPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const payload = getProjectOperationsPayload(projectId)
+  const payload = await getProjectOperationsPayload(projectId)
 
   if (!payload) {
     notFound()
   }
-  const { approvals, detail, mcpRuns, project } = payload
+  const { approvals, detail, mcpRuns, orchestrator, project } = payload
 
   return (
     <div className="space-y-5">
@@ -42,6 +43,8 @@ export default async function ProjectOperationsPage({
       />
 
       <ProjectOperationsPanel project={project} detail={detail} approvals={approvals} />
+
+      <ProjectOrchestratorPanel projectId={project.id} initialPayload={orchestrator} />
 
       <ProjectMcpRunsPanel
         projectId={project.id}

@@ -29,6 +29,7 @@ describe("project surface api routes", () => {
     expect(operationsPayload.approvals.length).toBeGreaterThan(0)
     expect(operationsPayload.mcpRuns.length).toBeGreaterThan(0)
     expect(operationsPayload.detail.approvalControl.enabled).toBe(true)
+    expect(operationsPayload.orchestrator.localLabs.length).toBeGreaterThan(0)
   })
 
   it("returns result-table payloads for domains, network, and findings", async () => {

@@ -69,3 +69,25 @@ test("settings hub leads into dedicated settings subpages", async ({ page }) => 
   await expect(page).toHaveURL(/\/settings\/mcp-tools$/)
   await expect(page.getByRole("heading", { name: "MCP 工具管理" })).toBeVisible()
 })
+
+test("project operations page can generate a local orchestrator plan", async ({ page }) => {
+  await loginAsResearcher(page)
+  await page.goto("/projects/proj-huayao/operations")
+
+  await expect(page.getByRole("heading", { name: "LLM 编排与本地闭环" })).toBeVisible()
+
+  const planResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/projects/proj-huayao/orchestrator/plan") &&
+      response.request().method() === "POST",
+    { timeout: 15_000 },
+  )
+
+  await page.getByRole("button", { name: "为 OWASP Juice Shop 生成计划" }).click()
+
+  const planResponse = await planResponsePromise
+  expect(planResponse.ok()).toBe(true)
+
+  await expect(page.getByText("已为 OWASP Juice Shop 刷新本地编排计划。")).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText("标准化本地靶场目标")).toBeVisible()
+})

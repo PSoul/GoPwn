@@ -28,9 +28,14 @@ import {
   listStoredEvidence,
 } from "@/lib/evidence-repository"
 import {
-  dispatchStoredMcpRun,
   listStoredMcpRuns,
 } from "@/lib/mcp-gateway-repository"
+import {
+  executeProjectLocalValidation,
+  generateProjectOrchestratorPlan,
+  getProjectOrchestratorPanelPayload,
+} from "@/lib/orchestrator-service"
+import { dispatchProjectMcpRunAndDrain } from "@/lib/project-mcp-dispatch-service"
 import {
   drainStoredSchedulerTasks,
   syncStoredSchedulerTaskAfterApprovalDecision,
@@ -68,6 +73,7 @@ import type {
   EvidenceCollectionPayload,
   EvidenceDetailPayload,
   LogCollectionPayload,
+  LocalValidationRunInput,
   McpDispatchInput,
   McpDispatchPayload,
   McpRunCollectionPayload,
@@ -82,6 +88,7 @@ import type {
   ProjectFlowPayload,
   ProjectFormPreset,
   ProjectInventoryPayload,
+  ProjectOrchestratorPanelPayload,
   ProjectMutationInput,
   ProjectOperationsPayload,
   ProjectOverviewPayload,
@@ -168,7 +175,7 @@ export function getProjectFlowPayload(projectId: string): ProjectFlowPayload | n
   return getProjectBase(projectId)
 }
 
-export function getProjectOperationsPayload(projectId: string): ProjectOperationsPayload | null {
+export async function getProjectOperationsPayload(projectId: string): Promise<ProjectOperationsPayload | null> {
   const base = getProjectBase(projectId)
 
   if (!base) {
@@ -179,6 +186,7 @@ export function getProjectOperationsPayload(projectId: string): ProjectOperation
     ...base,
     approvals: listStoredProjectApprovals(projectId),
     mcpRuns: listStoredMcpRuns(projectId),
+    orchestrator: await getProjectOrchestratorPanelPayload(projectId),
   }
 }
 
@@ -470,26 +478,14 @@ export function listProjectMcpRunsPayload(projectId: string): McpRunCollectionPa
 export async function dispatchProjectMcpRunPayload(
   projectId: string,
   input: McpDispatchInput,
-): McpDispatchPayload | null {
-  const payload = dispatchStoredMcpRun(projectId, input)
-
-  if (!payload || payload.approval || payload.run.status === "已阻塞") {
-    return payload
-  }
-
-  const drained = await drainStoredSchedulerTasks({ runId: payload.run.id })
-  const executedRun = drained.runs.at(-1)
-
-  return {
-    ...payload,
-    run: executedRun ?? payload.run,
-  }
+): Promise<McpDispatchPayload | null> {
+  return dispatchProjectMcpRunAndDrain(projectId, input)
 }
 
 export async function runProjectMcpWorkflowSmokePayload(
   projectId: string,
   input: McpWorkflowSmokeInput,
-): McpWorkflowSmokePayload | null {
+): Promise<McpWorkflowSmokePayload | null> {
   return runProjectSmokeWorkflow(projectId, input.scenario)
 }
 
@@ -500,4 +496,39 @@ export function listWorkLogsPayload(): LogCollectionPayload {
     items,
     total: items.length,
   }
+}
+
+export async function getProjectOrchestratorPayload(
+  projectId: string,
+): Promise<ProjectOrchestratorPanelPayload | null> {
+  const project = getStoredProjectById(projectId)
+
+  if (!project) {
+    return null
+  }
+
+  return getProjectOrchestratorPanelPayload(projectId)
+}
+
+export async function generateProjectOrchestratorPlanPayload(
+  projectId: string,
+  input: LocalValidationRunInput,
+) {
+  const project = getStoredProjectById(projectId)
+
+  if (!project) {
+    return null
+  }
+
+  return generateProjectOrchestratorPlan(projectId, input)
+}
+
+export async function executeProjectLocalValidationPayload(projectId: string, input: LocalValidationRunInput) {
+  const project = getStoredProjectById(projectId)
+
+  if (!project) {
+    return null
+  }
+
+  return executeProjectLocalValidation(projectId, input)
 }

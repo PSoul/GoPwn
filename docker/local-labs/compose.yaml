@@ -1,0 +1,17 @@
+name: llm-pentest-local-labs
+
+services:
+  juice-shop:
+    image: bkimminich/juice-shop:latest
+    container_name: llm-pentest-juice-shop
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  webgoat:
+    image: webgoat/webgoat:latest
+    container_name: llm-pentest-webgoat
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+    restart: unless-stopped

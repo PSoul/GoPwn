@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-26`
-- Current focus: Phase 5 is now landing on `codex/real-connectors-scheduler-core-2026-03-26`, replacing direct local execution with a connector registry, persisted scheduler tasks, approval-resume queueing, and the first real DNS / certificate intelligence connector family.
+- Current focus: Phase 6 is landing on `codex/llm-orchestrator-docker-validation-2026-03-26`, adding a real LLM-provider abstraction, local Docker validation targets, orchestrator APIs/UI, and MCP onboarding conventions.
 - Working mode: each major feature area uses its own isolated git branch/worktree so the existing branch is not disturbed.
 
 ## Phase 1: Frontend Prototype Closure
@@ -123,23 +123,47 @@
 
 ## Phase 6: Real LLM Orchestrator and Local Docker Validation
 
-- Status: Next
+- Status: Completed on `codex/llm-orchestrator-docker-validation-2026-03-26`
 - Goal: attach a real LLM orchestration provider, define MCP server onboarding conventions, and validate the end-to-end platform flow against local Docker-based vulnerable targets.
 
 ### Task Checklist
 
-- pending: add provider abstraction and config docs for real LLM orchestrator/reviewer endpoints without persisting live credentials
-- pending: define MCP server onboarding conventions, metadata, and minimal connector templates for future tool families
-- pending: add a small set of baseline MCP tools for full-platform flow validation beyond the current foundational chain
-- pending: create a local Docker-based validation harness using open-source vulnerable labs/targets for safe end-to-end testing
-- pending: add automated API/E2E checks that prove LLM -> MCP -> scheduler -> evidence/result persistence works on the local validation stack
+- completed: add an OpenAI-compatible LLM provider abstraction with environment-only configuration, status reporting, timeout handling, and JSON-plan parsing
+- completed: add orchestrator service APIs for plan generation and local validation execution, including persisted last-plan state per project
+- completed: expose orchestrator state on the project operations contract and operations page
+- completed: add a project-side orchestrator UI panel that can generate local plans and trigger local validation runs
+- completed: define MCP onboarding conventions and a reusable connector-template document for future tool families
+- completed: add a local Docker validation harness for OWASP Juice Shop and WebGoat under `docker/local-labs/compose.yaml`
+- completed: add automated API tests and browser E2E coverage proving the orchestrator panel and local validation path work end-to-end
+- next: move from prototype-grade orchestration toward production backend integration and real MCP server attachment
 
 ### Acceptance Criteria
 
-- platform can run against a real LLM provider through configuration only
-- MCP onboarding docs are explicit enough for follow-up sessions to add new tool families safely
-- at least one local Docker vulnerable target can be exercised end-to-end without touching external systems
-- API and browser E2E tests cover the orchestrated local validation path
+- met: platform can run against a real LLM provider through configuration only
+- met: MCP onboarding docs are explicit enough for follow-up sessions to add new tool families safely
+- met: at least one local Docker vulnerable target can be exercised end-to-end without touching external systems
+- met: API and browser E2E tests cover the orchestrated local validation path
+
+## Phase 7: Production Backend Integration and Real MCP Expansion
+
+- Status: Next
+- Goal: harden the prototype backend into a more production-like runtime and replace more simulated capability families with real MCP integrations.
+
+### Task Checklist
+
+- pending: replace or augment the file-backed prototype store with a database-backed persistence layer suitable for longer-running environments
+- pending: introduce a real MCP server/client attachment model so tool families can be registered and invoked outside the in-process prototype runtime
+- pending: wire project/task execution state to durable queues, cancellation, and better operator controls
+- pending: expand real connector families beyond DNS into Web/API reconnaissance and evidence capture
+- pending: refine the LLM provider configuration surface, secret handling guidance, and operational fallback behavior
+- pending: add local-lab-backed regression suites that can optionally run against real Docker targets in CI or controlled local environments
+
+### Acceptance Criteria
+
+- backend state is durable beyond a single prototype JSON store
+- at least one non-DNS external interaction family runs through a real MCP/server integration path
+- project execution, approvals, evidence, and findings remain auditable after backend hardening
+- the local Docker validation stack remains usable as a regression harness while the backend evolves
 
 ## Notes for Future LLM Sessions
 

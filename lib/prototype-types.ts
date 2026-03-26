@@ -376,6 +376,47 @@ export interface LlmSettingRecord {
   owner: string
 }
 
+export interface LlmProviderStatus {
+  provider: string
+  enabled: boolean
+  baseUrl: string
+  orchestratorModel: string
+  reviewerModel: string
+  note: string
+}
+
+export interface LocalLabRecord {
+  id: string
+  name: string
+  description: string
+  baseUrl: string
+  healthUrl: string
+  image: string
+  ports: string[]
+  status: "online" | "offline" | "unknown"
+}
+
+export interface OrchestratorPlanItem {
+  capability: string
+  requestedAction: string
+  target: string
+  riskLevel: "高" | "中" | "低"
+  rationale: string
+}
+
+export interface OrchestratorPlanRecord {
+  generatedAt: string
+  provider: string
+  summary: string
+  items: OrchestratorPlanItem[]
+}
+
+export interface ProjectOrchestratorPanelPayload {
+  provider: LlmProviderStatus
+  localLabs: LocalLabRecord[]
+  lastPlan: OrchestratorPlanRecord | null
+}
+
 export interface LogRecord {
   id: string
   category: string
@@ -421,6 +462,7 @@ export interface ProjectOperationsPayload {
   detail: ProjectDetailRecord
   approvals: ApprovalRecord[]
   mcpRuns: McpRunRecord[]
+  orchestrator: ProjectOrchestratorPanelPayload
 }
 
 export interface ProjectContextPayload {
@@ -545,6 +587,11 @@ export interface McpWorkflowSmokeInput {
   scenario: "baseline" | "with-approval"
 }
 
+export interface LocalValidationRunInput {
+  labId: string
+  approvalScenario?: "none" | "include-high-risk"
+}
+
 export interface McpWorkflowSmokePayload {
   workflowId: string
   status: "completed" | "waiting_approval" | "blocked"
@@ -559,4 +606,18 @@ export interface McpWorkflowSmokePayload {
     generatedFindings?: string[]
     reportDigest?: string[]
   }
+}
+
+export interface OrchestratorPlanPayload {
+  plan: OrchestratorPlanRecord
+  provider: LlmProviderStatus
+}
+
+export interface LocalValidationRunPayload {
+  provider: LlmProviderStatus
+  plan: OrchestratorPlanRecord
+  localLab: LocalLabRecord
+  runs: McpRunRecord[]
+  status: "completed" | "waiting_approval" | "blocked"
+  approval?: ApprovalRecord
 }
