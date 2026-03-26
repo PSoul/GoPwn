@@ -2,9 +2,11 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
 import { SystemControlPanel } from "@/components/settings/system-control-panel"
-import { approvalPolicies, globalApprovalControl, scopeRules, systemControlOverview } from "@/lib/prototype-data"
+import { getApprovalPolicyPayload } from "@/lib/prototype-api"
 
 export default function ApprovalPolicySettingsPage() {
+  const payload = getApprovalPolicyPayload()
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -19,10 +21,10 @@ export default function ApprovalPolicySettingsPage() {
         description="这里统一管理审批开关、默认放行模式、范围规则与紧急停止策略。"
       >
         <SystemControlPanel
-          overview={systemControlOverview}
-          approvalControl={globalApprovalControl}
-          approvalPolicies={approvalPolicies}
-          scopeRules={scopeRules}
+          overview={payload.overview}
+          approvalControl={payload.approvalControl}
+          approvalPolicies={payload.approvalPolicies}
+          scopeRules={payload.scopeRules}
         />
       </SectionCard>
     </div>

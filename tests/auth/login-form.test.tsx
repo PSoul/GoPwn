@@ -1,7 +1,15 @@
 import { render, screen } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import { LoginForm } from "@/components/auth/login-form"
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    refresh: vi.fn(),
+  }),
+  useSearchParams: () => new URLSearchParams(),
+}))
 
 describe("LoginForm", () => {
   it("renders account, password, captcha, and submit controls", () => {

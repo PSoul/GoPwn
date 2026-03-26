@@ -17,14 +17,20 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `app/page.tsx`
   Redirects `/` to `/dashboard`.
 - `app/login/page.tsx`
-  Platform account login entrance for researcher access.
+  Platform account login entrance for researcher access. When already authenticated, middleware now redirects it back to `/dashboard`.
 
 ### API Route Group
 
+- `app/api/auth/login/route.ts`
+  Login endpoint validating platform account, password, and captcha, then issuing the `prototype_session` cookie.
+- `app/api/auth/logout/route.ts`
+  Logout endpoint clearing the session cookie, recording an audit log entry, and redirecting browser form submissions back to `/login`.
 - `app/api/dashboard/route.ts`
   Dashboard summary endpoint returning metrics, lead project context, queue priorities, approvals, assets, evidence, tools, and task data.
 - `app/api/approvals/route.ts`
   Approval collection endpoint returning the global approval queue as `{ items, total }`.
+- `app/api/approvals/[approvalId]/route.ts`
+  Approval detail/mutation endpoint supporting persisted approval decisions (`已批准` / `已拒绝` / `已延后`).
 - `app/api/assets/route.ts`
   Asset collection endpoint returning the asset-center list as `{ items, total }`.
 - `app/api/assets/[assetId]/route.ts`
@@ -39,6 +45,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Project overview endpoint returning the overview contract for a single project, and now also supports persisted `PATCH` project updates.
 - `app/api/projects/[projectId]/archive/route.ts`
   Project archive endpoint that marks a project complete in persistent storage and emits a project audit-log entry.
+- `app/api/projects/[projectId]/approval-control/route.ts`
+  Project-level approval-control mutation endpoint for saving operations-page approval switch changes.
 - `app/api/projects/[projectId]/flow/route.ts`
   Project flow endpoint exposing current stage and timeline data.
 - `app/api/projects/[projectId]/operations/route.ts`
@@ -55,6 +63,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Settings hub category summary endpoint.
 - `app/api/settings/audit-logs/route.ts`
   Persistent audit-log collection endpoint returning `{ items, total }` for platform and operator actions.
+- `app/api/settings/approval-policy/route.ts`
+  Global approval-policy read/mutation endpoint returning the persisted settings payload and saving approval strategy changes.
 - `app/api/settings/system-status/route.ts`
   Settings system-health summary endpoint.
 
@@ -73,7 +83,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `app/(console)/projects/[projectId]/flow/page.tsx`
   Secondary project page dedicated to stage flow details, blockers, reflow, and next-step reasoning.
 - `app/(console)/projects/[projectId]/operations/page.tsx`
-  Secondary project page for approvals, approval mode switch, task board, and scheduler controls.
+  Secondary project page for approvals, persisted approval mode switch, task board, and scheduler controls.
 - `app/(console)/projects/[projectId]/context/page.tsx`
   Secondary project page for evidence, approvals, supplemental intelligence, asset-center context, and activity timeline.
 - `app/(console)/projects/[projectId]/results/domains/page.tsx`
@@ -85,7 +95,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `app/(console)/projects/[projectId]/edit/page.tsx`
   Project edit route reusing the same shared form as project creation.
 - `app/(console)/approvals/page.tsx`
-  Global approvals center for cross-project high-risk action decisions.
+  Global approvals center for cross-project high-risk action decisions, now backed by persisted queue filtering and decision actions.
 - `app/(console)/assets/page.tsx`
   Asset center with scope status, recognition profile, and project linkage.
 - `app/(console)/assets/[assetId]/page.tsx`
@@ -101,7 +111,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `app/(console)/settings/llm/page.tsx`
   Dedicated LLM model responsibility and budget page.
 - `app/(console)/settings/approval-policy/page.tsx`
-  Dedicated approval strategy page with approval switch, scope rules, and emergency stop.
+  Dedicated approval strategy page with persisted approval switch, scope rules, and emergency stop controls.
 - `app/(console)/settings/work-logs/page.tsx`
   Dedicated execution/work log page.
 - `app/(console)/settings/audit-logs/page.tsx`
@@ -115,6 +125,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 
 - `app/layout.tsx`
   Defines global metadata, theme provider, and stable template-aligned typography using `Inter`.
+- `middleware.ts`
+  Protects console routes and non-public APIs with session-cookie checks, redirects unauthenticated users to `/login`, and prevents authenticated users from re-entering the login page.
 - `app/globals.css`
   Global styling, tokens, and Tailwind-driven visual baseline.
 
@@ -152,7 +164,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 ### Auth
 
 - `components/auth/login-form.tsx`
-  Standard backend login form with account, password, and verification code fields.
+  Standard backend login form with account, password, and verification code fields, now wired to the real login API and post-login redirect flow.
 
 ### Projects
 
@@ -175,14 +187,16 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `components/projects/project-task-board.tsx`
   Task and scheduler board used on the dedicated operations page.
 - `components/projects/project-operations-panel.tsx`
-  Project-level approval switch, approval record summary, and operations overview block.
+  Project-level approval switch, note editor, persisted save flow, approval record summary, and operations overview block.
 
 ### Approvals
 
+- `components/approvals/approval-center-client.tsx`
+  Client-side approvals workbench that owns queue filtering, active-sheet selection, persisted decision actions, and queue statistics.
 - `components/approvals/approval-list.tsx`
-  Approval queue table with status/risk structure and entry actions.
+  Interactive approval queue table with active-row selection and empty-state handling.
 - `components/approvals/approval-detail-sheet.tsx`
-  Embedded approval decision detail panel showing rationale, parameters, blockers, prerequisites, and decision actions.
+  Embedded approval decision detail panel showing rationale, parameters, blockers, prerequisites, and persisted decision actions.
 
 ### Assets
 
@@ -211,7 +225,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `components/settings/llm-settings-panel.tsx`
   Panel grid for orchestrator/reviewer/extractor model configuration.
 - `components/settings/system-control-panel.tsx`
-  Approval switch, policy, scope rule, and emergency stop surface for the approval-policy page.
+  Client-side approval switch, strategy note editor, save actions, scope rule display, and emergency-stop surface for the approval-policy page.
 - `components/settings/settings-log-table.tsx`
   Generic table used by work logs and audit logs.
 - `components/settings/system-status-grid.tsx`
@@ -221,6 +235,14 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 
 - `lib/navigation.ts`
   Single source of truth for sidebar navigation and route title lookup.
+- `lib/approval-repository.ts`
+  Phase 3 approval/state repository handling persisted approval decisions, global approval strategy updates, project-level approval-control updates, queue reordering, project pending-approval sync, and audit-log emission.
+- `lib/approval-write-schema.ts`
+  Zod validation schemas for approval decisions and approval-control patch payloads.
+- `lib/auth-session.ts`
+  Stateless session-cookie helper using signed tokens for login protection, middleware checks, and logout parsing.
+- `lib/auth-repository.ts`
+  Seeded researcher-account validation plus login/logout audit-log recording for the Phase 3 auth slice.
 - `lib/prototype-types.ts`
   Domain model definitions for:
   - dashboard metrics, dashboard priorities, and dashboard API payloads
@@ -242,13 +264,13 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   - helper lookups such as `getProjectById`, `getProjectDetailById`, and project-specific filter helpers
   - Phase 3 seed content for bootstrapping the local persistent store
 - `lib/prototype-store.ts`
-  Local file-backed persistence bootstrap. Ensures `.prototype-store/prototype-store.json` exists, seeds it from Phase 2 mock data, and reads/writes the store for server-side usage.
+  Local file-backed persistence bootstrap. Ensures `.prototype-store/prototype-store.json` exists, seeds it from Phase 2 mock data, migrates older stores onto the expanded Phase 3 shape, and reads/writes the store for server-side usage.
 - `lib/project-repository.ts`
   Phase 3 repository layer for persisted projects and audit logs. Owns project creation, update, archive, default-detail generation, preset persistence, and audit-log emission.
 - `lib/project-write-schema.ts`
   Zod validation schema for project create/update request payloads.
 - `lib/prototype-api.ts`
-  Backend/service contract layer. Still serves read-only dashboard/approvals/assets/evidence/settings payloads, and Phase 3 now adds persisted project create/update/archive operations plus audit-log reads behind the same seam.
+  Backend/service contract layer. Still serves dashboard/assets/evidence/settings reads, and Phase 3 now adds persisted auth, project, approval, and approval-control operations behind the same seam.
 - `lib/utils.ts`
   Shared utility helpers used by UI primitives/components.
 
@@ -260,6 +282,10 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Verifies shared shell/navigation rendering.
 - `tests/auth/login-form.test.tsx`
   Verifies login route/form rendering.
+- `tests/auth/login-ui.test.tsx`
+  Verifies login form submission hits the auth API and redirects to the requested protected route.
+- `tests/auth/middleware.test.ts`
+  Verifies middleware redirects unauthenticated console requests, allows authenticated ones, and blocks protected APIs with `401`.
 - `tests/pages/dashboard-page.test.tsx`
   Smoke test for dashboard content.
 - `tests/pages/projects-page.test.tsx`
@@ -281,18 +307,28 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   API tests for project collection and project overview endpoints, including 404 handling.
 - `tests/api/project-mutations-api.test.ts`
   Phase 3 API tests for persisted project create, update, archive, and audit-log emission behavior.
+- `tests/api/approval-controls-api.test.ts`
+  API tests for approval decision persistence, global approval-policy updates, and project-level approval-control updates.
 - `tests/api/project-surfaces-api.test.ts`
   API tests for project flow, operations, context, and result-table endpoints.
 - `tests/api/operational-surfaces-api.test.ts`
   API tests for dashboard, approvals, assets, and evidence endpoints, including detail-route 404 handling.
 - `tests/api/settings-api.test.ts`
   API tests for settings section and system-status endpoints.
+- `tests/api/auth-api.test.ts`
+  API tests for login success/failure, session-cookie issuance, logout, and auth audit-log emission.
+- `tests/approvals/approval-center-client.test.tsx`
+  Client interaction test verifying the approvals workbench calls the approval mutation API and surfaces success feedback.
+- `tests/projects/project-operations-panel.test.tsx`
+  Client interaction test verifying project-level approval-control changes call the project mutation API and update local success state.
+- `tests/settings/system-control-panel.test.tsx`
+  Client interaction test verifying the approval-policy settings panel persists global strategy changes through the new API.
 - `playwright.config.ts`
   Playwright E2E configuration that boots the local Next.js dev server and runs browser smoke flows against the prototype routes.
 - `scripts/run-playwright.mjs`
   Wrapper that clears the dedicated Playwright web-server port before launching browser tests, avoiding stale local dev-server conflicts in repeated runs.
 - `e2e/prototype-smoke.spec.ts`
-  Browser-level smoke tests for `/login`, `/dashboard`, `/projects`, project result/context routes, and split settings navigation.
+  Browser-level smoke tests for `/login`, authenticated access to `/dashboard`, `/projects`, project result/context routes, and split settings navigation, now using a cold-start-safe login helper for parallel Playwright runs.
 
 ## 7. Visual Review Artifacts
 
@@ -315,13 +351,15 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `.impeccable.md`
   Saved design context used to preserve the agreed visual/interaction direction.
 - `roadmap.md`
-  Phase-based delivery tracker covering frontend closure, read-only backend/API integration, real backend persistence, and orchestration work, now including the first persisted project slice.
+  Phase-based delivery tracker covering frontend closure, read-only backend/API integration, real backend persistence, and orchestration work, now including auth plus persisted approval/control slices.
 - `docs/superpowers/plans/2026-03-26-frontend-prototype-implementation.md`
   Step-by-step implementation plan used during execution.
 - `docs/superpowers/specs/2026-03-26-frontend-prototype-design.md`
   Upstream product/spec reference from the approved design work.
 - `docs/prompts/2026-03-26-phase-03-real-backend-core-prompt.md`
   Handoff prompt for the next major phase after the read-only backend/API integration slice.
+- `docs/prompts/2026-03-26-phase-03b-persistence-expansion-prompt.md`
+  Handoff prompt for the next persistence slice covering assets, evidence, work logs, and task/scheduler realism.
 
 ## 10. Verification Commands
 

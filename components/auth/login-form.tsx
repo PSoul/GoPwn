@@ -1,3 +1,7 @@
+"use client"
+
+import { useState, useTransition } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { ShieldCheck, Siren, UserCircle2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -7,11 +11,58 @@ import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 
 export function LoginForm({ className, ...props }: React.ComponentProps<"section">) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [isRouting, startTransition] = useTransition()
+  const [account, setAccount] = useState("")
+  const [password, setPassword] = useState("")
+  const [captcha, setCaptcha] = useState("")
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const isBusy = isSubmitting || isRouting
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setErrorMessage(null)
+    setIsSubmitting(true)
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          account,
+          password,
+          captcha,
+          redirectTo: searchParams.get("from") || "/dashboard",
+        }),
+      })
+      const payload = (await response.json()) as { error?: string; redirectTo?: string }
+
+      if (!response.ok) {
+        setErrorMessage(payload.error ?? "登录失败，请稍后再试。")
+        return
+      }
+
+      startTransition(() => {
+        router.push(payload.redirectTo ?? "/dashboard")
+        router.refresh()
+      })
+    } catch {
+      setErrorMessage("登录失败，请稍后再试。")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <section className={cn("flex flex-col gap-6", className)} {...props}>
       <Card className="overflow-hidden rounded-[2rem] border-slate-200/80 bg-white/90 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.65)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/85">
         <CardContent className="grid p-0 lg:grid-cols-[1.1fr_0.9fr]">
-          <form className="flex flex-col justify-between p-8 lg:p-10">
+          <form className="flex flex-col justify-between p-8 lg:p-10" onSubmit={handleSubmit}>
             <div className="space-y-8">
               <div className="space-y-4">
                 <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-100 px-3 py-1 text-xs font-medium text-sky-700 dark:border-sky-900 dark:bg-sky-950/60 dark:text-sky-200">
@@ -29,7 +80,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"section
               <div className="space-y-5">
                 <div className="grid gap-2">
                   <Label htmlFor="account">账号</Label>
-                  <Input id="account" placeholder="researcher@company.local" className="h-12 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900" />
+                  <Input id="account" value={account} onChange={(event) => setAccount(event.target.value)} placeholder="researcher@company.local" className="h-12 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900" />
                 </div>
 
                 <div className="grid gap-2">
@@ -39,24 +90,43 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"section
                       忘记密码
                     </a>
                   </div>
-                  <Input id="password" type="password" className="h-12 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900" />
+                  <Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="h-12 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900" />
                 </div>
 
                 <div className="grid gap-2">
                   <Label htmlFor="captcha">验证码</Label>
                   <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
-                    <Input id="captcha" placeholder="请输入图形验证码" className="h-12 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900" />
+                    <Input id="captcha" value={captcha} onChange={(event) => setCaptcha(event.target.value)} placeholder="请输入图形验证码" className="h-12 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900" />
                     <div className="flex h-12 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-100 text-sm font-medium tracking-[0.35em] text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
                       7K2Q
                     </div>
                   </div>
                 </div>
+
+                {errorMessage ? (
+                  <div className="rounded-3xl border border-rose-200 bg-rose-50/90 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100">
+                    {errorMessage}
+                  </div>
+                ) : null}
+
+                <div className="rounded-3xl border border-slate-200/80 bg-slate-50/80 p-4 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
+                  <p className="font-medium text-slate-900 dark:text-slate-100">原型演示账号</p>
+                  <p className="mt-2">
+                    账号 <span className="rounded bg-white px-1.5 py-0.5 font-mono text-[13px] text-slate-900 dark:bg-slate-950 dark:text-slate-100">researcher@company.local</span>
+                  </p>
+                  <p className="mt-1">
+                    密码 <span className="rounded bg-white px-1.5 py-0.5 font-mono text-[13px] text-slate-900 dark:bg-slate-950 dark:text-slate-100">Prototype@2026</span>
+                  </p>
+                  <p className="mt-1">
+                    验证码 <span className="rounded bg-white px-1.5 py-0.5 font-mono text-[13px] text-slate-900 dark:bg-slate-950 dark:text-slate-100">7K2Q</span>
+                  </p>
+                </div>
               </div>
             </div>
 
             <div className="mt-8 space-y-4">
-              <Button type="submit" className="h-12 w-full rounded-2xl bg-slate-950 text-base hover:bg-slate-800 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400">
-                登录平台
+              <Button type="submit" disabled={isBusy} className="h-12 w-full rounded-2xl bg-slate-950 text-base hover:bg-slate-800 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400">
+                {isBusy ? "登录中..." : "登录平台"}
               </Button>
               <div className="flex flex-col gap-2 text-sm text-slate-500 dark:text-slate-400 sm:flex-row sm:items-center sm:justify-between">
                 <span>默认入口受平台审计与异常登录告警保护。</span>

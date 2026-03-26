@@ -408,3 +408,20 @@ export interface EvidenceCollectionPayload {
 export interface EvidenceDetailPayload {
   record: EvidenceRecord
 }
+
+export interface ApprovalDecisionInput {
+  decision: ApprovalRecord["status"]
+}
+
+export interface ApprovalControlPatch {
+  enabled?: boolean
+  autoApproveLowRisk?: boolean
+  note?: string
+}
+
+export interface ApprovalPolicyPayload {
+  overview: ControlSetting[]
+  approvalControl: ApprovalControl
+  approvalPolicies: PolicyRecord[]
+  scopeRules: PolicyRecord[]
+}

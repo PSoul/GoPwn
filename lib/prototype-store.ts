@@ -2,20 +2,36 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
 
 import {
+  approvalPolicies,
+  approvals,
+  globalApprovalControl,
   auditLogs,
   defaultProjectFormPreset,
   getProjectDetailById,
   getProjectFormPreset,
   projects,
+  scopeRules,
 } from "@/lib/prototype-data"
-import type { LogRecord, ProjectDetailRecord, ProjectFormPreset, ProjectRecord } from "@/lib/prototype-types"
+import type {
+  ApprovalControl,
+  ApprovalRecord,
+  LogRecord,
+  PolicyRecord,
+  ProjectDetailRecord,
+  ProjectFormPreset,
+  ProjectRecord,
+} from "@/lib/prototype-types"
 
 type PrototypeStore = {
   version: number
   auditLogs: LogRecord[]
+  approvalPolicies: PolicyRecord[]
+  approvals: ApprovalRecord[]
+  globalApprovalControl: ApprovalControl
   projectDetails: ProjectDetailRecord[]
   projectFormPresets: Record<string, ProjectFormPreset>
   projects: ProjectRecord[]
+  scopeRules: PolicyRecord[]
 }
 
 const STORE_DIRECTORY = ".prototype-store"
@@ -43,11 +59,31 @@ function buildSeedStore(): PrototypeStore {
   )
 
   return {
-    version: 1,
+    version: 2,
     auditLogs: cloneValue(auditLogs),
+    approvalPolicies: cloneValue(approvalPolicies),
+    approvals: cloneValue(approvals),
+    globalApprovalControl: cloneValue(globalApprovalControl),
     projectDetails: cloneValue(seededProjectDetails),
     projectFormPresets: cloneValue(seededProjectFormPresets),
     projects: cloneValue(projects),
+    scopeRules: cloneValue(scopeRules),
+  }
+}
+
+function normalizeStore(store: Partial<PrototypeStore>): PrototypeStore {
+  const seeded = buildSeedStore()
+
+  return {
+    version: Math.max(store.version ?? 1, seeded.version),
+    auditLogs: Array.isArray(store.auditLogs) ? store.auditLogs : seeded.auditLogs,
+    approvalPolicies: Array.isArray(store.approvalPolicies) ? store.approvalPolicies : seeded.approvalPolicies,
+    approvals: Array.isArray(store.approvals) ? store.approvals : seeded.approvals,
+    globalApprovalControl: store.globalApprovalControl ?? seeded.globalApprovalControl,
+    projectDetails: Array.isArray(store.projectDetails) ? store.projectDetails : seeded.projectDetails,
+    projectFormPresets: store.projectFormPresets ?? seeded.projectFormPresets,
+    projects: Array.isArray(store.projects) ? store.projects : seeded.projects,
+    scopeRules: Array.isArray(store.scopeRules) ? store.scopeRules : seeded.scopeRules,
   }
 }
 
@@ -66,7 +102,14 @@ function ensureStoreFile() {
 
 export function readPrototypeStore(): PrototypeStore {
   ensureStoreFile()
-  return JSON.parse(readFileSync(getStorePath(), "utf8")) as PrototypeStore
+  const rawStore = JSON.parse(readFileSync(getStorePath(), "utf8")) as Partial<PrototypeStore>
+  const store = normalizeStore(rawStore)
+
+  if (JSON.stringify(rawStore) !== JSON.stringify(store)) {
+    writePrototypeStore(store)
+  }
+
+  return store
 }
 
 export function writePrototypeStore(store: PrototypeStore) {

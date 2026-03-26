@@ -1,8 +1,12 @@
+"use client"
+
+import { useState } from "react"
 import { AlertTriangle, Ban, Gauge, ShieldCheck } from "lucide-react"
 
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
 import type { ApprovalControl, ControlSetting, PolicyRecord } from "@/lib/prototype-types"
 
 const overviewIcons = [Gauge, ShieldCheck, Gauge, AlertTriangle]
@@ -18,6 +22,40 @@ export function SystemControlPanel({
   approvalPolicies: PolicyRecord[]
   scopeRules: PolicyRecord[]
 }) {
+  const [control, setControl] = useState(approvalControl)
+  const [isSaving, setIsSaving] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  async function saveControl(patch: Partial<ApprovalControl> & { note?: string }) {
+    setIsSaving(true)
+    setMessage(null)
+    setErrorMessage(null)
+
+    try {
+      const response = await fetch("/api/settings/approval-policy", {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(patch),
+      })
+      const payload = (await response.json()) as { approvalControl?: ApprovalControl; error?: string }
+
+      if (!response.ok || !payload.approvalControl) {
+        setErrorMessage(payload.error ?? "全局审批策略保存失败，请稍后再试。")
+        return
+      }
+
+      setControl(payload.approvalControl)
+      setMessage(`全局审批策略已更新：${payload.approvalControl.mode}`)
+    } catch {
+      setErrorMessage("全局审批策略保存失败，请稍后再试。")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2">
@@ -50,17 +88,84 @@ export function SystemControlPanel({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold text-slate-950 dark:text-white">审批模式开关</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{approvalControl.description}</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{control.description}</p>
               </div>
-              <Switch defaultChecked={approvalControl.enabled} disabled aria-label="全局审批模式开关" />
+              <Switch
+                checked={control.enabled}
+                aria-label="全局审批模式开关"
+                onCheckedChange={(checked) => setControl((current) => ({ ...current, enabled: checked }))}
+              />
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
-              <StatusBadge tone={approvalControl.enabled ? "warning" : "neutral"}>{approvalControl.mode}</StatusBadge>
-              <StatusBadge tone={approvalControl.autoApproveLowRisk ? "success" : "warning"}>
-                低风险自动放行：{approvalControl.autoApproveLowRisk ? "开启" : "关闭"}
+              <StatusBadge tone={control.enabled ? "warning" : "neutral"}>{control.mode}</StatusBadge>
+              <StatusBadge tone={control.autoApproveLowRisk ? "success" : "warning"}>
+                低风险自动放行：{control.autoApproveLowRisk ? "开启" : "关闭"}
               </StatusBadge>
             </div>
-            <p className="mt-4 text-xs leading-5 text-slate-500 dark:text-slate-400">{approvalControl.note}</p>
+            <div className="mt-5 flex items-center justify-between gap-4 rounded-3xl border border-slate-200/80 bg-slate-50/70 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/50">
+              <div>
+                <p className="text-sm font-medium text-slate-950 dark:text-white">低风险自动放行</p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">关闭后，低风险动作也会回到人工确认。</p>
+              </div>
+              <Switch
+                checked={control.autoApproveLowRisk}
+                aria-label="低风险自动放行"
+                onCheckedChange={(checked) => setControl((current) => ({ ...current, autoApproveLowRisk: checked }))}
+              />
+            </div>
+            <div className="mt-5 space-y-3">
+              <p className="text-sm font-medium text-slate-950 dark:text-white">策略备注</p>
+              <Textarea
+                aria-label="全局策略备注"
+                value={control.note}
+                onChange={(event) => setControl((current) => ({ ...current, note: event.target.value }))}
+                className="min-h-28 rounded-3xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
+              />
+            </div>
+
+            {message ? (
+              <div className="mt-4 rounded-3xl border border-emerald-200/80 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100">
+                {message}
+              </div>
+            ) : null}
+
+            {errorMessage ? (
+              <div className="mt-4 rounded-3xl border border-rose-200/80 bg-rose-50/80 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100">
+                {errorMessage}
+              </div>
+            ) : null}
+
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+              <Button
+                type="button"
+                disabled={isSaving}
+                className="rounded-full bg-slate-950 text-white hover:bg-slate-800 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
+                onClick={() =>
+                  saveControl({
+                    enabled: control.enabled,
+                    autoApproveLowRisk: control.autoApproveLowRisk,
+                    note: control.note,
+                  })
+                }
+              >
+                {isSaving ? "保存中..." : "保存全局策略"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSaving}
+                className="rounded-full"
+                onClick={() =>
+                  saveControl({
+                    enabled: true,
+                    autoApproveLowRisk: false,
+                    note: "进入巡检模式：仅允许人工复核后的动作继续推进，暂停低风险自动放行。",
+                  })
+                }
+              >
+                进入巡检模式
+              </Button>
+            </div>
           </div>
 
           <div className="rounded-3xl border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70">
@@ -133,11 +238,35 @@ export function SystemControlPanel({
             ))}
           </div>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <Button variant="destructive" className="rounded-full bg-rose-600 text-white hover:bg-rose-700">
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={isSaving}
+              className="rounded-full bg-rose-600 text-white hover:bg-rose-700"
+              onClick={() =>
+                saveControl({
+                  enabled: true,
+                  autoApproveLowRisk: false,
+                  note: "紧急停止已触发：暂停所有高风险受控动作，仅保留被动采集、资产归属和证据刷新。",
+                })
+              }
+            >
               立即停止高风险动作
             </Button>
-            <Button variant="outline" className="rounded-full border-rose-300 bg-white/80 dark:border-rose-800 dark:bg-slate-950/50">
-              进入巡检模式
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSaving}
+              className="rounded-full border-rose-300 bg-white/80 dark:border-rose-800 dark:bg-slate-950/50"
+              onClick={() =>
+                saveControl({
+                  enabled: true,
+                  autoApproveLowRisk: true,
+                  note: "审批策略已恢复默认：高风险动作继续审批，低风险动作恢复自动放行。",
+                })
+              }
+            >
+              恢复默认策略
             </Button>
           </div>
         </div>

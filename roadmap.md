@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-26`
-- Current focus: Phase 3 has started in a fresh isolated worktree, and the first persisted project-management slice is replacing prototype-only CRUD behavior for projects.
+- Current focus: Phase 3 is actively replacing prototype-only behavior with persisted project management, real login/session protection, and write-capable approval controls in a fresh isolated worktree.
 - Working mode: each major feature area uses its own isolated git branch/worktree so the existing branch is not disturbed.
 
 ## Phase 1: Frontend Prototype Closure
@@ -60,9 +60,11 @@
 - completed: add project create, update, and archive mutation APIs on top of the new repository layer
 - completed: persist audit-log entries for project create/update/archive actions and expose them through an audit-log API
 - completed: wire the project create/edit/archive UI flows to the new persisted APIs while preserving the current route structure and visual style
+- completed: add authenticated researcher login, signed session-cookie protection, and middleware-based console/API access control
+- completed: persist approval records plus global/project-level approval control state, with real decision/update APIs
+- completed: wire the approvals center, project operations page, and approval-policy settings page to the persisted approval/control APIs
 - in progress: expand persistence beyond projects into approvals, assets, evidence, work logs, and settings state
-- pending: add authenticated researcher access and session boundaries
-- pending: persist approval decisions and approval policy changes
+- in progress: expand persistence beyond approvals into assets, evidence, work logs, and broader settings state
 - pending: preserve the read-only contracts already proven in Phase 2 while swapping the remaining read models off static data
 
 ### Acceptance Criteria
@@ -70,6 +72,7 @@
 - platform state survives restart
 - core records are queryable and editable through the backend
 - approval and audit history are persisted, not mocked
+- approval decisions and approval-control changes are operable from the UI, not read-only
 
 ## Phase 4: Orchestration and MCP Execution
 

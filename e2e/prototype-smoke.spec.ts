@@ -1,5 +1,24 @@
 import { expect, test } from "@playwright/test"
 
+async function loginAsResearcher(page: import("@playwright/test").Page) {
+  await page.goto("/login")
+  await page.getByLabel("账号").fill("researcher@company.local")
+  await page.getByLabel("密码").fill("Prototype@2026")
+  await page.getByLabel("验证码").fill("7K2Q")
+  const loginResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/auth/login") &&
+      response.request().method() === "POST",
+    { timeout: 15_000 },
+  )
+
+  await page.getByRole("button", { name: "登录平台" }).click()
+
+  const loginResponse = await loginResponsePromise
+  expect(loginResponse.ok()).toBe(true)
+  await expect(page).toHaveURL(/\/dashboard$/, { timeout: 15_000 })
+}
+
 test("login page exposes standard platform account entry", async ({ page }) => {
   await page.goto("/login")
 
@@ -11,7 +30,7 @@ test("login page exposes standard platform account entry", async ({ page }) => {
 })
 
 test("dashboard and projects routes render the main console entry points", async ({ page }) => {
-  await page.goto("/dashboard")
+  await loginAsResearcher(page)
 
   await expect(page.getByText("平台控制面")).toBeVisible()
   await expect(page.getByText("今天优先处理")).toBeVisible()
@@ -24,6 +43,7 @@ test("dashboard and projects routes render the main console entry points", async
 })
 
 test("project overview links to dedicated results and context pages", async ({ page }) => {
+  await loginAsResearcher(page)
   await page.goto("/projects/proj-huayao")
 
   await expect(page.getByRole("heading", { name: "项目详情 · 华曜科技匿名外网面梳理" })).toBeVisible()
@@ -39,6 +59,7 @@ test("project overview links to dedicated results and context pages", async ({ p
 })
 
 test("settings hub leads into dedicated settings subpages", async ({ page }) => {
+  await loginAsResearcher(page)
   await page.goto("/settings")
 
   await expect(page.getByRole("heading", { name: "系统设置" })).toBeVisible()

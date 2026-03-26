@@ -55,6 +55,11 @@ export function AppHeader({ pathname, title }: { pathname: string; title?: strin
               <p className="text-[11px] text-slate-500 dark:text-slate-400">审计中</p>
             </div>
           </div>
+          <form action="/api/auth/logout" method="post">
+            <Button variant="outline" size="sm" className="rounded-full">
+              退出
+            </Button>
+          </form>
         </div>
       </div>
     </header>

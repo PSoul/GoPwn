@@ -1,3 +1,5 @@
+"use client"
+
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
 import type { ApprovalRecord } from "@/lib/prototype-types"
@@ -30,7 +32,15 @@ function getStatusTone(status: ApprovalRecord["status"]) {
   return "neutral" as const
 }
 
-export function ApprovalDetailSheet({ approval }: { approval: ApprovalRecord }) {
+export function ApprovalDetailSheet({
+  approval,
+  isSubmitting,
+  onDecision,
+}: {
+  approval: ApprovalRecord
+  isSubmitting: boolean
+  onDecision: (decision: ApprovalRecord["status"]) => void
+}) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -83,15 +93,36 @@ export function ApprovalDetailSheet({ approval }: { approval: ApprovalRecord }) 
         </div>
       </div>
 
+      <div className="rounded-3xl border border-slate-200/80 bg-slate-50/80 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
+        当前状态会被写入本地持久化存储，并同步进入项目活动与平台审计日志。
+      </div>
+
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-        <Button variant="outline" className="rounded-full border-slate-300 dark:border-slate-700">
-          延后处理
+        <Button
+          type="button"
+          variant="outline"
+          disabled={isSubmitting}
+          className="rounded-full border-slate-300 dark:border-slate-700"
+          onClick={() => onDecision("已延后")}
+        >
+          {isSubmitting ? "处理中..." : "延后处理"}
         </Button>
-        <Button variant="destructive" className="rounded-full bg-rose-600 text-white hover:bg-rose-700">
-          拒绝动作
+        <Button
+          type="button"
+          variant="destructive"
+          disabled={isSubmitting}
+          className="rounded-full bg-rose-600 text-white hover:bg-rose-700"
+          onClick={() => onDecision("已拒绝")}
+        >
+          {isSubmitting ? "处理中..." : "拒绝动作"}
         </Button>
-        <Button className="rounded-full bg-slate-950 text-white hover:bg-slate-800 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400">
-          批准并进入调度
+        <Button
+          type="button"
+          disabled={isSubmitting}
+          className="rounded-full bg-slate-950 text-white hover:bg-slate-800 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
+          onClick={() => onDecision("已批准")}
+        >
+          {isSubmitting ? "处理中..." : "批准并进入调度"}
         </Button>
       </div>
     </div>

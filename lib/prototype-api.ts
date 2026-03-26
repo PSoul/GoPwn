@@ -1,19 +1,28 @@
 import {
-  approvals,
-  assets,
   dashboardMetrics,
+  assets,
   dashboardPriorities,
   evidenceRecords,
   getAssetById,
-  getProjectApprovals,
   getProjectAssets,
   getEvidenceById,
   getProjectEvidence,
   mcpTools,
   projectTasks,
   settingsSections,
+  systemControlOverview,
   systemStatusCards,
 } from "@/lib/prototype-data"
+import {
+  getStoredGlobalApprovalControl,
+  listStoredApprovalPolicies,
+  listStoredApprovals,
+  listStoredProjectApprovals,
+  listStoredScopeRules,
+  updateStoredApprovalDecision,
+  updateStoredGlobalApprovalControl,
+  updateStoredProjectApprovalControl,
+} from "@/lib/approval-repository"
 import {
   archiveStoredProject,
   createStoredProject,
@@ -26,7 +35,10 @@ import {
 } from "@/lib/project-repository"
 import { getDefaultProjectFormPreset } from "@/lib/prototype-store"
 import type {
+  ApprovalControlPatch,
   ApprovalCollectionPayload,
+  ApprovalDecisionInput,
+  ApprovalPolicyPayload,
   AssetCollectionPayload,
   AssetDetailPayload,
   DashboardPayload,
@@ -47,6 +59,27 @@ import type {
   SettingsSectionsPayload,
   SystemStatusPayload,
 } from "@/lib/prototype-types"
+
+function buildDashboardMetrics(projects: ProjectRecord[], approvalTotal: number) {
+  return dashboardMetrics.map((metric) => {
+    if (metric.label === "项目总数") {
+      return {
+        ...metric,
+        value: String(projects.length),
+      }
+    }
+
+    if (metric.label === "待审批动作") {
+      return {
+        ...metric,
+        value: String(approvalTotal),
+        delta: `${projects.filter((project) => project.pendingApprovals > 0).length} 个项目受影响`,
+      }
+    }
+
+    return metric
+  })
+}
 
 function getProjectBase(projectId: string) {
   const project = getStoredProjectById(projectId)
@@ -85,7 +118,7 @@ export function getProjectOperationsPayload(projectId: string): ProjectOperation
 
   return {
     ...base,
-    approvals: getProjectApprovals(projectId),
+    approvals: listStoredProjectApprovals(projectId),
   }
 }
 
@@ -98,7 +131,7 @@ export function getProjectContextPayload(projectId: string): ProjectContextPaylo
 
   return {
     ...base,
-    approvals: getProjectApprovals(projectId),
+    approvals: listStoredProjectApprovals(projectId),
     assets: getProjectAssets(projectId),
     evidence: getProjectEvidence(projectId),
   }
@@ -136,8 +169,27 @@ export function getProjectFindingsPayload(projectId: string): ProjectFindingsPay
 }
 
 export function getSettingsSectionsPayload(): SettingsSectionsPayload {
+  const auditTotal = listStoredAuditLogs().length
+  const approvalControl = getStoredGlobalApprovalControl()
+
   return {
-    items: settingsSections,
+    items: settingsSections.map((section) => {
+      if (section.href === "/settings/approval-policy") {
+        return {
+          ...section,
+          metric: approvalControl.enabled ? "高风险审批开启" : "审批临时关闭",
+        }
+      }
+
+      if (section.href === "/settings/audit-logs") {
+        return {
+          ...section,
+          metric: `${auditTotal} 条审计记录`,
+        }
+      }
+
+      return section
+    }),
     total: settingsSections.length,
   }
 }
@@ -151,9 +203,10 @@ export function getSystemStatusPayload(): SystemStatusPayload {
 
 export function getDashboardPayload(): DashboardPayload {
   const projects = listStoredProjects()
+  const approvals = listStoredApprovals()
 
   return {
-    metrics: dashboardMetrics,
+    metrics: buildDashboardMetrics(projects, approvals.filter((approval) => approval.status === "待处理").length),
     priorities: dashboardPriorities,
     leadProject: projects[0],
     approvals,
@@ -166,6 +219,8 @@ export function getDashboardPayload(): DashboardPayload {
 }
 
 export function listApprovalsPayload(): ApprovalCollectionPayload {
+  const approvals = listStoredApprovals()
+
   return {
     items: approvals,
     total: approvals.length,
@@ -240,4 +295,35 @@ export function listAuditLogsPayload(): LogCollectionPayload {
     items,
     total: items.length,
   }
+}
+
+export function getApprovalPolicyPayload(): ApprovalPolicyPayload {
+  const approvalControl = getStoredGlobalApprovalControl()
+
+  return {
+    overview: systemControlOverview.map((item, index) =>
+      index === 3
+        ? {
+            ...item,
+            value: approvalControl.enabled ? "审批链路已开启" : "审批链路已关闭",
+            description: approvalControl.note,
+          }
+        : item,
+    ),
+    approvalControl,
+    approvalPolicies: listStoredApprovalPolicies(),
+    scopeRules: listStoredScopeRules(),
+  }
+}
+
+export function updateApprovalDecisionPayload(approvalId: string, input: ApprovalDecisionInput) {
+  return updateStoredApprovalDecision(approvalId, input)
+}
+
+export function updateGlobalApprovalControlPayload(patch: ApprovalControlPatch) {
+  return updateStoredGlobalApprovalControl(patch)
+}
+
+export function updateProjectApprovalControlPayload(projectId: string, patch: ApprovalControlPatch) {
+  return updateStoredProjectApprovalControl(projectId, patch)
 }
