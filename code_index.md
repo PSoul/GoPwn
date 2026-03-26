@@ -25,7 +25,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `app/(console)/layout.tsx`
   Shared authenticated shell for all console routes.
 - `app/(console)/dashboard/page.tsx`
-  Global dashboard showing priorities, running projects, MCP health, task states, recent assets, and recent evidence.
+  Global dashboard rebuilt into a template-aligned command surface: left control summary, middle current-path panel, right recent activity feed, and bottom priority cards for today's work.
 - `app/(console)/projects/page.tsx`
   Project list with structured queue/table view for project-level management.
 - `app/(console)/projects/new/page.tsx`
@@ -170,6 +170,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 ## 7. Template Incorporation Notes
 
 - The project was seeded from the provided backend/dashboard template to inherit the intended visual tone and shell structure.
+- The current dashboard composition was further tightened to follow the template's "few large sections, restrained hierarchy" rhythm instead of a many-card KPI wall.
 - The login experience was rebuilt from the provided login template direction, but adapted into the product-specific security assessment platform language.
 - Existing template-derived utility and UI primitives remain under `components/ui` and `components/kokonutui`, while product-specific pages were rewritten around the approved security-research workflow.
 

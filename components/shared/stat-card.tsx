@@ -1,4 +1,4 @@
-import { ArrowUpRight, type LucideIcon } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -28,23 +28,20 @@ export function StatCard({
   return (
     <div
       className={cn(
-        "rounded-[28px] border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-950",
+        "rounded-3xl border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-950",
         className,
       )}
     >
-      <div className="mb-8 flex items-start justify-between gap-4">
+      <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{label}</p>
-          <div className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 dark:text-white">{value}</div>
+          <div className="mt-2 text-[38px] font-semibold tracking-tight text-slate-950 dark:text-white">{value}</div>
         </div>
-        <div className={cn("rounded-xl p-2.5", toneMap[tone])}>
+        <div className={cn("rounded-xl p-2", toneMap[tone])}>
           <Icon className="h-5 w-5 text-slate-900 dark:text-slate-100" />
         </div>
       </div>
-      <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-        <ArrowUpRight className="h-4 w-4" />
-        <span>{delta}</span>
-      </div>
+      <div className="text-xs text-slate-500 dark:text-slate-400">{delta}</div>
     </div>
   )
 }
