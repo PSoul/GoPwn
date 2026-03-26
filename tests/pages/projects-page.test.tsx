@@ -1,5 +1,12 @@
 import { render, screen } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}))
 
 import EditProjectPage from "@/app/(console)/projects/[projectId]/edit/page"
 import ProjectsPage from "@/app/(console)/projects/page"

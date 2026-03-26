@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-26`
-- Current focus: the isolated backend/API branch has now completed the read-only integration slice for dashboard, approvals, assets, evidence, projects, and settings.
+- Current focus: Phase 3 has started in a fresh isolated worktree, and the first persisted project-management slice is replacing prototype-only CRUD behavior for projects.
 - Working mode: each major feature area uses its own isolated git branch/worktree so the existing branch is not disturbed.
 
 ## Phase 1: Frontend Prototype Closure
@@ -51,16 +51,19 @@
 
 ## Phase 3: Real Backend Core
 
-- Status: Ready to start on a new isolated branch
+- Status: In progress on `codex/real-backend-core-2026-03-26`
 - Goal: replace prototype-only mock behavior with persisted platform capabilities and write-capable platform flows.
 
 ### Task Checklist
 
-- introduce database-backed entities for projects, approvals, assets, evidence, logs, and settings
-- add authenticated researcher access and session boundaries
-- persist audit logs and approval actions
-- wire project CRUD and operational mutations to real storage
-- preserve the read-only contracts already proven in Phase 2 while swapping their data source
+- completed: introduce a local file-backed persistent store for projects, project details, form presets, and audit logs
+- completed: add project create, update, and archive mutation APIs on top of the new repository layer
+- completed: persist audit-log entries for project create/update/archive actions and expose them through an audit-log API
+- completed: wire the project create/edit/archive UI flows to the new persisted APIs while preserving the current route structure and visual style
+- in progress: expand persistence beyond projects into approvals, assets, evidence, work logs, and settings state
+- pending: add authenticated researcher access and session boundaries
+- pending: persist approval decisions and approval policy changes
+- pending: preserve the read-only contracts already proven in Phase 2 while swapping the remaining read models off static data
 
 ### Acceptance Criteria
 

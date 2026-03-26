@@ -47,21 +47,24 @@ type ProjectListClientProps = {
 }
 
 export function ProjectListClient({ projects }: ProjectListClientProps) {
+  const [projectItems, setProjectItems] = useState(projects)
   const [keyword, setKeyword] = useState("")
   const [stageFilter, setStageFilter] = useState("全部阶段")
   const [statusFilter, setStatusFilter] = useState("全部状态")
   const [pendingArchive, setPendingArchive] = useState<ProjectRecord | null>(null)
   const [lastArchivedProject, setLastArchivedProject] = useState<string | null>(null)
+  const [archiveError, setArchiveError] = useState<string | null>(null)
+  const [isArchiving, setIsArchiving] = useState(false)
 
   const stageOptions = useMemo(
-    () => ["全部阶段", ...Array.from(new Set(projects.map((project) => project.stage)))],
-    [projects],
+    () => ["全部阶段", ...Array.from(new Set(projectItems.map((project) => project.stage)))],
+    [projectItems],
   )
 
   const filteredProjects = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase()
 
-    return projects.filter((project) => {
+    return projectItems.filter((project) => {
       const matchesKeyword =
         normalizedKeyword.length === 0 ||
         [project.name, project.seed, project.code, project.targetSummary, project.riskSummary]
@@ -74,7 +77,7 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
 
       return matchesKeyword && matchesStage && matchesStatus
     })
-  }, [keyword, projects, stageFilter, statusFilter])
+  }, [keyword, projectItems, stageFilter, statusFilter])
 
   const summaryCards = [
     { label: "筛选结果", value: `${filteredProjects.length}`, note: "当前可见项目" },
@@ -94,6 +97,37 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
       note: "需研究员继续接管",
     },
   ]
+
+  async function handleArchiveConfirm() {
+    if (!pendingArchive) {
+      return
+    }
+
+    setArchiveError(null)
+    setIsArchiving(true)
+
+    try {
+      const response = await fetch(`/api/projects/${pendingArchive.id}/archive`, {
+        method: "POST",
+      })
+      const payload = (await response.json()) as { error?: string; project?: ProjectRecord }
+
+      if (!response.ok || !payload.project) {
+        setArchiveError(payload.error ?? "项目归档失败，请稍后再试。")
+        return
+      }
+
+      setProjectItems((current) =>
+        current.map((item) => (item.id === payload.project?.id ? payload.project : item)),
+      )
+      setLastArchivedProject(payload.project.name)
+      setPendingArchive(null)
+    } catch {
+      setArchiveError("项目归档失败，请稍后再试。")
+    } finally {
+      setIsArchiving(false)
+    }
+  }
 
   return (
     <SectionCard title="项目列表" description="项目列表现在支持真实搜索、筛选、详情跳转、编辑和关闭动作，作为项目模块的管理入口。">
@@ -151,7 +185,13 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
 
         {lastArchivedProject ? (
           <div className="rounded-[22px] border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/80 dark:bg-amber-950/30 dark:text-amber-100">
-            已记录原型动作：{lastArchivedProject} 已进入“关闭/归档”确认流程。当前阶段仍以原型展示为主，不会真的删除数据。
+            {lastArchivedProject} 已归档，并已写入本地持久化存储与审计日志。
+          </div>
+        ) : null}
+
+        {archiveError ? (
+          <div className="rounded-[22px] border border-rose-200 bg-rose-50/90 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100">
+            {archiveError}
           </div>
         ) : null}
 
@@ -252,21 +292,19 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>确认关闭项目</AlertDialogTitle>
             <AlertDialogDescription>
-              {pendingArchive?.name} 将被标记为“关闭/归档候选”。在这版前端原型里，我们保留数据，只记录管理动作，不做硬删除。
+              {pendingArchive?.name} 将被标记为归档完成。当前实现会保留数据本体，并把归档动作写入本地持久化存储与审计日志。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-xl">取消</AlertDialogCancel>
             <AlertDialogAction
+              disabled={isArchiving}
               className="rounded-xl bg-rose-600 text-white hover:bg-rose-700"
               onClick={() => {
-                if (pendingArchive) {
-                  setLastArchivedProject(pendingArchive.name)
-                }
-                setPendingArchive(null)
+                void handleArchiveConfirm()
               }}
             >
-              确认归档
+              {isArchiving ? "归档中..." : "确认归档"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

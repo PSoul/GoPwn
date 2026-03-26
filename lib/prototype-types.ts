@@ -316,6 +316,10 @@ export interface ApiErrorPayload {
   error: string
 }
 
+export type ProjectMutationInput = ProjectFormPreset
+
+export type ProjectPatchInput = Partial<ProjectMutationInput>
+
 export interface ProjectCollectionPayload {
   items: ProjectRecord[]
   total: number
@@ -362,6 +366,11 @@ export interface SettingsSectionsPayload {
 
 export interface SystemStatusPayload {
   items: SystemStatusRecord[]
+  total: number
+}
+
+export interface LogCollectionPayload {
+  items: LogRecord[]
   total: number
 }
 

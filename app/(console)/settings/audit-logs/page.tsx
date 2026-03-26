@@ -2,9 +2,11 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { SettingsLogTable } from "@/components/settings/settings-log-table"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
-import { auditLogs } from "@/lib/prototype-data"
+import { listAuditLogsPayload } from "@/lib/prototype-api"
 
 export default function AuditLogsSettingsPage() {
+  const { items: auditLogs } = listAuditLogsPayload()
+
   return (
     <div className="space-y-6">
       <PageHeader

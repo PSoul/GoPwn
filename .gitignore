@@ -6,6 +6,7 @@ dist/
 *.log
 tmp-review/
 .worktrees/
+.prototype-store/
 output/
 playwright-report/
 test-results/

@@ -6,19 +6,25 @@ import {
   evidenceRecords,
   getAssetById,
   getProjectApprovals,
-  getProjectAssetGroup,
   getProjectAssets,
-  getProjectById,
-  getProjectDetailById,
   getEvidenceById,
   getProjectEvidence,
-  leadProject,
   mcpTools,
   projectTasks,
-  projects,
   settingsSections,
   systemStatusCards,
 } from "@/lib/prototype-data"
+import {
+  archiveStoredProject,
+  createStoredProject,
+  getStoredProjectById,
+  getStoredProjectDetailById,
+  getStoredProjectFormPreset,
+  listStoredAuditLogs,
+  listStoredProjects,
+  updateStoredProject,
+} from "@/lib/project-repository"
+import { getDefaultProjectFormPreset } from "@/lib/prototype-store"
 import type {
   ApprovalCollectionPayload,
   AssetCollectionPayload,
@@ -26,20 +32,25 @@ import type {
   DashboardPayload,
   EvidenceCollectionPayload,
   EvidenceDetailPayload,
+  LogCollectionPayload,
   ProjectCollectionPayload,
   ProjectContextPayload,
   ProjectFindingsPayload,
   ProjectFlowPayload,
+  ProjectFormPreset,
   ProjectInventoryPayload,
+  ProjectMutationInput,
   ProjectOperationsPayload,
   ProjectOverviewPayload,
+  ProjectPatchInput,
+  ProjectRecord,
   SettingsSectionsPayload,
   SystemStatusPayload,
 } from "@/lib/prototype-types"
 
 function getProjectBase(projectId: string) {
-  const project = getProjectById(projectId)
-  const detail = getProjectDetailById(projectId)
+  const project = getStoredProjectById(projectId)
+  const detail = getStoredProjectDetailById(projectId)
 
   if (!project || !detail) {
     return null
@@ -49,6 +60,8 @@ function getProjectBase(projectId: string) {
 }
 
 export function listProjectsPayload(): ProjectCollectionPayload {
+  const projects = listStoredProjects()
+
   return {
     items: projects,
     total: projects.length,
@@ -95,10 +108,11 @@ export function getProjectInventoryPayload(
   projectId: string,
   groupTitle: string,
 ): ProjectInventoryPayload | null {
-  const project = getProjectById(projectId)
-  const group = getProjectAssetGroup(projectId, groupTitle)
+  const project = getStoredProjectById(projectId)
+  const detail = getStoredProjectDetailById(projectId)
+  const group = detail?.assetGroups.find((item) => item.title === groupTitle)
 
-  if (!project || !group) {
+  if (!project || !group || !detail) {
     return null
   }
 
@@ -136,10 +150,12 @@ export function getSystemStatusPayload(): SystemStatusPayload {
 }
 
 export function getDashboardPayload(): DashboardPayload {
+  const projects = listStoredProjects()
+
   return {
     metrics: dashboardMetrics,
     priorities: dashboardPriorities,
-    leadProject,
+    leadProject: projects[0],
     approvals,
     assets,
     evidence: evidenceRecords,
@@ -188,4 +204,40 @@ export function getEvidenceDetailPayload(evidenceId: string): EvidenceDetailPayl
   }
 
   return { record }
+}
+
+export function getProjectRecord(projectId: string): ProjectRecord | null {
+  return getStoredProjectById(projectId)
+}
+
+export function getProjectFormPresetValue(projectId?: string): ProjectFormPreset {
+  if (!projectId) {
+    return getDefaultProjectFormPreset()
+  }
+
+  return getStoredProjectFormPreset(projectId) ?? getDefaultProjectFormPreset()
+}
+
+export function createProjectOverviewPayload(input: ProjectMutationInput): ProjectOverviewPayload {
+  return createStoredProject(input)
+}
+
+export function updateProjectOverviewPayload(
+  projectId: string,
+  patch: ProjectPatchInput,
+): ProjectOverviewPayload | null {
+  return updateStoredProject(projectId, patch)
+}
+
+export function archiveProjectOverviewPayload(projectId: string): ProjectOverviewPayload | null {
+  return archiveStoredProject(projectId)
+}
+
+export function listAuditLogsPayload(): LogCollectionPayload {
+  const items = listStoredAuditLogs()
+
+  return {
+    items,
+    total: items.length,
+  }
 }

@@ -34,9 +34,11 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `app/api/evidence/[evidenceId]/route.ts`
   Evidence detail endpoint returning a single evidence record payload or a 404 JSON error.
 - `app/api/projects/route.ts`
-  Read-only project collection endpoint returning `{ items, total }`.
+  Project collection endpoint returning `{ items, total }`, and now also supports persisted `POST` project creation.
 - `app/api/projects/[projectId]/route.ts`
-  Project overview endpoint returning the overview contract for a single project.
+  Project overview endpoint returning the overview contract for a single project, and now also supports persisted `PATCH` project updates.
+- `app/api/projects/[projectId]/archive/route.ts`
+  Project archive endpoint that marks a project complete in persistent storage and emits a project audit-log entry.
 - `app/api/projects/[projectId]/flow/route.ts`
   Project flow endpoint exposing current stage and timeline data.
 - `app/api/projects/[projectId]/operations/route.ts`
@@ -51,6 +53,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Project findings result-table endpoint.
 - `app/api/settings/sections/route.ts`
   Settings hub category summary endpoint.
+- `app/api/settings/audit-logs/route.ts`
+  Persistent audit-log collection endpoint returning `{ items, total }` for platform and operator actions.
 - `app/api/settings/system-status/route.ts`
   Settings system-health summary endpoint.
 
@@ -153,9 +157,9 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 ### Projects
 
 - `components/projects/project-list-client.tsx`
-  Client-side project management list with live search, stage/status filters, action buttons, and archive confirmation dialog.
+  Client-side project management list with live search, stage/status filters, action buttons, and a real archive flow that calls the archive API and updates local UI state.
 - `components/projects/project-form.tsx`
-  Shared create/edit project form used by `/projects/new` and `/projects/[projectId]/edit`.
+  Shared create/edit project form used by `/projects/new` and `/projects/[projectId]/edit`, now wired to the persisted create/update project APIs.
 - `components/projects/project-summary.tsx`
   Compact project hero block with result metrics plus small entry cards for stage flow, operations, and evidence/context.
 - `components/projects/project-results-hub.tsx`
@@ -236,8 +240,15 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   - evidence records with raw output, timeline, and verdict
   - settings hub sections, LLM settings, work logs, audit logs, global approval control, and system status
   - helper lookups such as `getProjectById`, `getProjectDetailById`, and project-specific filter helpers
+  - Phase 3 seed content for bootstrapping the local persistent store
+- `lib/prototype-store.ts`
+  Local file-backed persistence bootstrap. Ensures `.prototype-store/prototype-store.json` exists, seeds it from Phase 2 mock data, and reads/writes the store for server-side usage.
+- `lib/project-repository.ts`
+  Phase 3 repository layer for persisted projects and audit logs. Owns project creation, update, archive, default-detail generation, preset persistence, and audit-log emission.
+- `lib/project-write-schema.ts`
+  Zod validation schema for project create/update request payloads.
 - `lib/prototype-api.ts`
-  Read-only backend/service contract layer. Builds typed payloads for dashboard, approvals, assets, evidence, project overview, flow, operations, context, result tables, and settings summaries. Shared by both route handlers and the migrated console pages.
+  Backend/service contract layer. Still serves read-only dashboard/approvals/assets/evidence/settings payloads, and Phase 3 now adds persisted project create/update/archive operations plus audit-log reads behind the same seam.
 - `lib/utils.ts`
   Shared utility helpers used by UI primitives/components.
 
@@ -253,6 +264,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Smoke test for dashboard content.
 - `tests/pages/projects-page.test.tsx`
   Smoke tests for project list, project creation form, and project edit form.
+- `tests/pages/project-mutations-ui.test.tsx`
+  UI interaction tests verifying that the project form calls create APIs and the project list archive flow calls the archive API.
 - `tests/pages/project-detail-page.test.tsx`
   Smoke tests for:
   - project overview links to dedicated result pages and context route
@@ -266,6 +279,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Smoke tests for evidence list/detail, settings hub, and each split settings subpage.
 - `tests/api/projects-api.test.ts`
   API tests for project collection and project overview endpoints, including 404 handling.
+- `tests/api/project-mutations-api.test.ts`
+  Phase 3 API tests for persisted project create, update, archive, and audit-log emission behavior.
 - `tests/api/project-surfaces-api.test.ts`
   API tests for project flow, operations, context, and result-table endpoints.
 - `tests/api/operational-surfaces-api.test.ts`
@@ -300,7 +315,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `.impeccable.md`
   Saved design context used to preserve the agreed visual/interaction direction.
 - `roadmap.md`
-  Phase-based delivery tracker covering frontend closure, read-only backend/API integration, real backend persistence, and orchestration work.
+  Phase-based delivery tracker covering frontend closure, read-only backend/API integration, real backend persistence, and orchestration work, now including the first persisted project slice.
 - `docs/superpowers/plans/2026-03-26-frontend-prototype-implementation.md`
   Step-by-step implementation plan used during execution.
 - `docs/superpowers/specs/2026-03-26-frontend-prototype-design.md`
