@@ -1,20 +1,12 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
-import { ProjectKnowledgeTabs } from "@/components/projects/project-knowledge-tabs"
-import { ProjectStageFlow } from "@/components/projects/project-stage-flow"
+import { ProjectResultsHub } from "@/components/projects/project-results-hub"
 import { ProjectSummary } from "@/components/projects/project-summary"
-import { ProjectTaskBoard } from "@/components/projects/project-task-board"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import {
-  getProjectApprovals,
-  getProjectAssets,
-  getProjectById,
-  getProjectDetailById,
-  getProjectEvidence,
-} from "@/lib/prototype-data"
+import { getProjectById, getProjectDetailById } from "@/lib/prototype-data"
 
 export default async function ProjectDetailPage({
   params,
@@ -29,15 +21,11 @@ export default async function ProjectDetailPage({
     notFound()
   }
 
-  const approvals = getProjectApprovals(projectId)
-  const assets = getProjectAssets(projectId)
-  const evidence = getProjectEvidence(projectId)
-
   return (
     <div className="space-y-5">
       <PageHeader
         title={`项目详情 · ${project.name}`}
-        description="项目详情页现在会根据 projectId 读取真实项目数据，围绕阶段推进、阻塞说明、任务接管和沉淀信息组织。"
+        description="项目详情继续收束为结果优先的总览入口：先看资产、服务和漏洞结果，再按需进入阶段流转、任务调度或证据上下文。"
         actions={
           <>
             <StatusBadge tone={project.status === "已阻塞" ? "danger" : project.status === "已完成" ? "success" : "info"}>
@@ -54,9 +42,7 @@ export default async function ProjectDetailPage({
       />
 
       <ProjectSummary project={project} detail={detail} />
-      <ProjectStageFlow detail={detail} />
-      <ProjectTaskBoard tasks={detail.tasks} />
-      <ProjectKnowledgeTabs detail={detail} approvals={approvals} assets={assets} evidence={evidence} />
+      <ProjectResultsHub project={project} detail={detail} />
     </div>
   )
 }

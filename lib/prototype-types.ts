@@ -89,6 +89,57 @@ export interface ProjectKnowledgeItem {
   tone: Tone
 }
 
+export interface ProjectResultMetric {
+  label: string
+  value: string
+  note: string
+  tone: Tone
+}
+
+export interface ProjectInventoryItem {
+  primary: string
+  secondary: string
+  meta: string
+  status: string
+  tone: Tone
+}
+
+export interface ProjectInventoryGroup {
+  title: string
+  description: string
+  count: string
+  items: ProjectInventoryItem[]
+}
+
+export interface ProjectFindingRecord {
+  id: string
+  projectId: string
+  severity: "高危" | "中危" | "低危" | "情报"
+  status: "待验证" | "已确认" | "待复核" | "已缓解"
+  title: string
+  summary: string
+  affectedSurface: string
+  evidenceId: string
+  owner: string
+  updatedAt: string
+}
+
+export interface ProjectStageSnapshot {
+  title: string
+  summary: string
+  blocker: string
+  owner: string
+  updatedAt: string
+}
+
+export interface ApprovalControl {
+  enabled: boolean
+  mode: string
+  autoApproveLowRisk: boolean
+  description: string
+  note: string
+}
+
 export interface ProjectDetailRecord {
   projectId: string
   target: string
@@ -104,6 +155,11 @@ export interface ProjectDetailRecord {
   entries: ProjectKnowledgeItem[]
   scheduler: ProjectKnowledgeItem[]
   activity: ProjectKnowledgeItem[]
+  resultMetrics: ProjectResultMetric[]
+  assetGroups: ProjectInventoryGroup[]
+  findings: ProjectFindingRecord[]
+  currentStage: ProjectStageSnapshot
+  approvalControl: ApprovalControl
 }
 
 export interface ProjectFormPreset {
@@ -216,4 +272,36 @@ export interface PolicyRecord {
   description: string
   owner: string
   status: string
+}
+
+export interface SettingsSectionRecord {
+  title: string
+  href: string
+  description: string
+  metric: string
+  tone: Tone
+}
+
+export interface LlmSettingRecord {
+  title: string
+  value: string
+  description: string
+  owner: string
+}
+
+export interface LogRecord {
+  id: string
+  category: string
+  summary: string
+  projectName?: string
+  actor: string
+  timestamp: string
+  status: string
+}
+
+export interface SystemStatusRecord {
+  title: string
+  value: string
+  description: string
+  tone: Tone
 }

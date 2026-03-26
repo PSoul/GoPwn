@@ -2,14 +2,13 @@
 
 ## 1. Project Purpose
 
-This workspace is a Next.js App Router frontend prototype for an authorized external security assessment platform. The product is positioned as a B-end research console, not a chat application. Its UX core is a "flow command console" that helps a single researcher:
+This workspace is a Next.js App Router frontend prototype for an authorized external security assessment platform. The product is positioned as a B-end research console, not a chat application. The current prototype now follows a clearer split:
 
-- understand global project status
-- manage project stages and blockers
-- process high-risk approvals
-- inspect asset profiles and relations
-- review evidence chains and conclusions
-- control MCP capabilities and platform safeguards
+- dashboard shell and overall visual rhythm come from the provided backend template
+- login uses the provided login template direction
+- project detail has been refocused from "process first" to "results first"
+- stage flow and task/scheduling have been demoted into project-level secondary routes
+- settings have been split into a settings hub plus dedicated subpages
 
 ## 2. Routing Map
 
@@ -25,15 +24,27 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `app/(console)/layout.tsx`
   Shared authenticated shell for all console routes.
 - `app/(console)/dashboard/page.tsx`
-  Global dashboard rebuilt into a template-aligned command surface: left control summary, middle current-path panel, right recent activity feed, and bottom priority cards for today's work.
+  Template-aligned dashboard with command-surface composition and current work priorities.
 - `app/(console)/projects/page.tsx`
-  Project management entry with searchable/filterable list, visible CRUD-style actions, and project-level summary metrics.
+  Project management entry with search, filters, action buttons, and CRUD-style prototype operations.
 - `app/(console)/projects/new/page.tsx`
-  New project entry using the shared project form component.
+  Project creation page using the shared project form.
 - `app/(console)/projects/[projectId]/page.tsx`
-  Project detail "flow hub" that reads data by `projectId` and renders summary, stage flow, task board, and knowledge tabs for the selected project.
+  Project overview page. It now acts as a compact summary + results hub instead of rendering all assets/findings/context directly inline.
+- `app/(console)/projects/[projectId]/flow/page.tsx`
+  Secondary project page dedicated to stage flow details, blockers, reflow, and next-step reasoning.
+- `app/(console)/projects/[projectId]/operations/page.tsx`
+  Secondary project page for approvals, approval mode switch, task board, and scheduler controls.
+- `app/(console)/projects/[projectId]/context/page.tsx`
+  Secondary project page for evidence, approvals, supplemental intelligence, asset-center context, and activity timeline.
+- `app/(console)/projects/[projectId]/results/domains/page.tsx`
+  Full-page table for domains and Web entry points.
+- `app/(console)/projects/[projectId]/results/network/page.tsx`
+  Full-page table for IP, port, and service results.
+- `app/(console)/projects/[projectId]/results/findings/page.tsx`
+  Full-page findings/vulnerability table.
 - `app/(console)/projects/[projectId]/edit/page.tsx`
-  Project edit route reusing the same shared form as project creation, prefilled from the selected project.
+  Project edit route reusing the same shared form as project creation.
 - `app/(console)/approvals/page.tsx`
   Global approvals center for cross-project high-risk action decisions.
 - `app/(console)/assets/page.tsx`
@@ -45,14 +56,26 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `app/(console)/evidence/[evidenceId]/page.tsx`
   Evidence detail page ordered as raw output -> screenshot -> structured summary -> linked context -> verdict.
 - `app/(console)/settings/page.tsx`
-  System control console for MCP tools, approval policy, scope rules, and emergency stop.
+  Settings hub with category links and system status preview.
+- `app/(console)/settings/mcp-tools/page.tsx`
+  Dedicated MCP capability/tool management page.
+- `app/(console)/settings/llm/page.tsx`
+  Dedicated LLM model responsibility and budget page.
+- `app/(console)/settings/approval-policy/page.tsx`
+  Dedicated approval strategy page with approval switch, scope rules, and emergency stop.
+- `app/(console)/settings/work-logs/page.tsx`
+  Dedicated execution/work log page.
+- `app/(console)/settings/audit-logs/page.tsx`
+  Dedicated audit/event log page.
+- `app/(console)/settings/system-status/page.tsx`
+  Dedicated platform health/status page.
 
 ## 3. Layout and Shared UI
 
 ### Root Layout
 
 - `app/layout.tsx`
-  Defines global metadata, theme provider, and typography using `Fira_Sans` + `Fira_Code`.
+  Defines global metadata, theme provider, and stable template-aligned typography using `Inter`.
 - `app/globals.css`
   Global styling, tokens, and Tailwind-driven visual baseline.
 
@@ -99,13 +122,21 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `components/projects/project-form.tsx`
   Shared create/edit project form used by `/projects/new` and `/projects/[projectId]/edit`.
 - `components/projects/project-summary.tsx`
-  Top summary block for project detail, including strategy baseline and tags.
-- `components/projects/project-stage-flow.tsx`
-  Stage progression visualization driven by per-project timeline data with blocking, next-step, and reflow callouts.
-- `components/projects/project-task-board.tsx`
-  Task and scheduler board for the selected project, including owners, linked targets, and update times.
+  Compact project hero block with result metrics plus small entry cards for stage flow, operations, and evidence/context.
+- `components/projects/project-results-hub.tsx`
+  Three-card results entry surface linking to dedicated domain/Web, network, and findings table pages.
+- `components/projects/project-inventory-table.tsx`
+  Shared full-width result table used by domain/Web and network result pages.
+- `components/projects/project-findings-table.tsx`
+  Full-width findings table used by the dedicated findings page.
 - `components/projects/project-knowledge-tabs.tsx`
-  Structured project knowledge surface that combines project-specific discoveries, assets, approvals, evidence, and scheduler items.
+  Full context surface for evidence, approvals, supplemental intelligence, asset center entries, and activity timeline on the dedicated context route.
+- `components/projects/project-stage-flow.tsx`
+  Full stage progression visualization used on the dedicated flow page.
+- `components/projects/project-task-board.tsx`
+  Task and scheduler board used on the dedicated operations page.
+- `components/projects/project-operations-panel.tsx`
+  Project-level approval switch, approval record summary, and operations overview block.
 
 ### Approvals
 
@@ -132,25 +163,41 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 
 ### Settings
 
+- `components/settings/settings-subnav.tsx`
+  Shared settings secondary navigation used by the hub and all subpages.
+- `components/settings/settings-hub-grid.tsx`
+  Card grid linking to each settings category.
 - `components/settings/mcp-tool-table.tsx`
   MCP capability/tool table with health, risk, concurrency, rate, timeout, and retry information.
+- `components/settings/llm-settings-panel.tsx`
+  Panel grid for orchestrator/reviewer/extractor model configuration.
 - `components/settings/system-control-panel.tsx`
-  System-level control console for overview metrics, approval policy, scope rules, and emergency stop actions.
+  Approval switch, policy, scope rule, and emergency stop surface for the approval-policy page.
+- `components/settings/settings-log-table.tsx`
+  Generic table used by work logs and audit logs.
+- `components/settings/system-status-grid.tsx`
+  Grid of system health cards for the settings hub and system-status page.
 
 ## 5. Data and Type Layer
 
 - `lib/navigation.ts`
   Single source of truth for sidebar navigation and route title lookup.
 - `lib/prototype-types.ts`
-  Domain model definitions for projects, project detail data, project form presets, approvals, assets, evidence, MCP tools, control settings, and policies.
+  Domain model definitions for:
+  - projects and project detail records
+  - result metrics, asset inventory groups, findings, and stage snapshots
+  - approval control state
+  - approvals, assets, evidence, and MCP tools
+  - settings hub sections, LLM settings, work logs, audit logs, and system status cards
 - `lib/prototype-data.ts`
-  Chinese mock datasets for all pages, including:
+  Centralized Chinese mock data for all pages, including:
   - dashboard metrics and priorities
-  - projects, per-project detail records, and project form presets
+  - project list data and form presets
+  - project-detail results-first data such as asset groups, findings, result metrics, stage snapshots, and per-project approval controls
   - approvals with rationale/parameters/stop conditions
   - assets with ownership, confidence, relations, and linked evidence
   - evidence records with raw output, timeline, and verdict
-  - MCP tool states, control overview, approval policies, and scope rules
+  - settings hub sections, LLM settings, work logs, audit logs, global approval control, and system status
   - helper lookups such as `getProjectById`, `getProjectDetailById`, and project-specific filter helpers
 - `lib/utils.ts`
   Shared utility helpers used by UI primitives/components.
@@ -168,29 +215,51 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `tests/pages/projects-page.test.tsx`
   Smoke tests for project list, project creation form, and project edit form.
 - `tests/pages/project-detail-page.test.tsx`
-  Smoke test for project detail flow hub with dynamic `projectId` rendering.
+  Smoke tests for:
+  - project overview links to dedicated result pages and context route
+  - dedicated project result tables
+  - dedicated project flow page
+  - dedicated project operations page
+  - dedicated project context page
 - `tests/pages/approvals-assets-page.test.tsx`
   Smoke tests for approvals center, asset list, and asset detail profile.
 - `tests/pages/evidence-settings-page.test.tsx`
-  Smoke tests for evidence list/detail and settings control console.
+  Smoke tests for evidence list/detail, settings hub, and each split settings subpage.
+- `playwright.config.ts`
+  Playwright E2E configuration that boots the local Next.js dev server and runs browser smoke flows against the prototype routes.
+- `scripts/run-playwright.mjs`
+  Wrapper that clears the dedicated Playwright web-server port before launching browser tests, avoiding stale local dev-server conflicts in repeated runs.
+- `e2e/prototype-smoke.spec.ts`
+  Browser-level smoke tests for `/login`, `/dashboard`, `/projects`, project result/context routes, and split settings navigation.
 
-## 7. Template Incorporation Notes
+## 7. Visual Review Artifacts
+
+- `output/playwright/project-overview-results-hub.png`
+  Full-page screenshot of the compact project overview plus results hub.
+- `output/playwright/project-network-table.png`
+  Full-page screenshot of the dedicated network results table.
+- `output/playwright/settings-hub-split.png`
+  Full-page screenshot of the split settings hub page.
+
+## 8. Template Incorporation Notes
 
 - The project was seeded from the provided backend/dashboard template to inherit the intended visual tone and shell structure.
-- The current dashboard composition was further tightened to follow the template's "few large sections, restrained hierarchy" rhythm instead of a many-card KPI wall.
-- The login experience was rebuilt from the provided login template direction, but adapted into the product-specific security assessment platform language.
-- Existing template-derived utility and UI primitives remain under `components/ui` and `components/kokonutui`, while product-specific pages were rewritten around the approved security-research workflow.
+- The dashboard shell, sidebar, and top chrome were already tightened to better match the supplied backend template.
+- The login experience was rebuilt from the provided login template direction, but adapted into product-specific language.
+- The current iteration keeps the template shell aesthetic while replacing generic dashboard content with LLM pentest platform-specific information architecture.
 
-## 8. Supporting Docs
+## 9. Supporting Docs
 
 - `.impeccable.md`
   Saved design context used to preserve the agreed visual/interaction direction.
+- `roadmap.md`
+  Phase-based delivery tracker covering frontend closure, backend/API integration, real backend persistence, and orchestration work.
 - `docs/superpowers/plans/2026-03-26-frontend-prototype-implementation.md`
   Step-by-step implementation plan used during execution.
-- `D:/dev/llmpentest0326/docs/superpowers/specs/2026-03-26-frontend-prototype-design.md`
-  Upstream product/spec design reference from the main workspace.
+- `docs/superpowers/specs/2026-03-26-frontend-prototype-design.md`
+  Upstream product/spec reference from the approved design work.
 
-## 9. Verification Commands
+## 10. Verification Commands
 
 Use these commands from the worktree root:
 
@@ -198,4 +267,5 @@ Use these commands from the worktree root:
 npx vitest run
 npm run lint
 npm run build
+npm run e2e
 ```

@@ -5,3 +5,8 @@ coverage/
 dist/
 *.log
 tmp-review/
+.worktrees/
+output/
+playwright-report/
+test-results/
+*.txt

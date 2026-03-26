@@ -2,16 +2,19 @@ import { AlertTriangle, Ban, Gauge, ShieldCheck } from "lucide-react"
 
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import type { ControlSetting, PolicyRecord } from "@/lib/prototype-types"
+import { Switch } from "@/components/ui/switch"
+import type { ApprovalControl, ControlSetting, PolicyRecord } from "@/lib/prototype-types"
 
 const overviewIcons = [Gauge, ShieldCheck, Gauge, AlertTriangle]
 
 export function SystemControlPanel({
   overview,
+  approvalControl,
   approvalPolicies,
   scopeRules,
 }: {
   overview: ControlSetting[]
+  approvalControl: ApprovalControl
   approvalPolicies: PolicyRecord[]
   scopeRules: PolicyRecord[]
 }) {
@@ -41,8 +44,25 @@ export function SystemControlPanel({
         })}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <div className="space-y-4">
+          <div className="rounded-3xl border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-950 dark:text-white">审批模式开关</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{approvalControl.description}</p>
+              </div>
+              <Switch defaultChecked={approvalControl.enabled} disabled aria-label="全局审批模式开关" />
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <StatusBadge tone={approvalControl.enabled ? "warning" : "neutral"}>{approvalControl.mode}</StatusBadge>
+              <StatusBadge tone={approvalControl.autoApproveLowRisk ? "success" : "warning"}>
+                低风险自动放行：{approvalControl.autoApproveLowRisk ? "开启" : "关闭"}
+              </StatusBadge>
+            </div>
+            <p className="mt-4 text-xs leading-5 text-slate-500 dark:text-slate-400">{approvalControl.note}</p>
+          </div>
+
           <div className="rounded-3xl border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70">
             <div className="mb-4 flex items-center justify-between gap-3">
               <h3 className="text-lg font-semibold text-slate-950 dark:text-white">审批策略</h3>
@@ -96,13 +116,13 @@ export function SystemControlPanel({
             </div>
           </div>
           <p className="mt-4 text-sm leading-7 text-slate-700 dark:text-slate-200">
-            当 MCP 工具健康异常、目标环境波动明显或授权语境发生变化时，研究员需要能一键切断高风险动作调度。
+            当 MCP 工具健康异常、目标环境波动明显或授权语境发生变化时，研究员需要能一键切断高风险动作调度，但不必影响正常的工作日志和被动结果采集。
           </p>
           <div className="mt-6 space-y-3">
             {[
               "暂停所有高风险受控验证任务",
-              "仅保留被动收集与归属判断能力",
-              "要求恢复前完成工具巡检与人工复核",
+              "仅保留被动收集、资产归属和证据刷新",
+              "恢复前要求完成工具巡检与人工复核",
             ].map((item) => (
               <div
                 key={item}

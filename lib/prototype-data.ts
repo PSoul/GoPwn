@@ -1,15 +1,24 @@
 import type {
+  ApprovalControl,
   ApprovalRecord,
   AssetRecord,
   ControlSetting,
   EvidenceRecord,
+  LlmSettingRecord,
+  LogRecord,
   McpToolRecord,
   MetricCard,
   PolicyRecord,
   ProjectDetailRecord,
+  ProjectFindingRecord,
   ProjectFormPreset,
+  ProjectInventoryGroup,
   ProjectKnowledgeItem,
   ProjectRecord,
+  ProjectResultMetric,
+  ProjectStageSnapshot,
+  SettingsSectionRecord,
+  SystemStatusRecord,
   TaskRecord,
   TimelineStage,
 } from "@/lib/prototype-types"
@@ -494,6 +503,306 @@ const allProjectTasks: TaskRecord[] = [
   },
 ]
 
+const projectResultMetrics = {
+  huayao: [
+    { label: "已纳入域名", value: "3", note: "主域、后台子域、静态资源域", tone: "success" },
+    { label: "开放端口", value: "4", note: "80/443 为主，补采 2 个历史端口", tone: "info" },
+    { label: "漏洞线索", value: "3", note: "1 个登录链路，2 个资产暴露候选", tone: "warning" },
+    { label: "证据锚点", value: "12", note: "截图、响应头、跳转链路已归档", tone: "neutral" },
+  ] satisfies ProjectResultMetric[],
+  xingtu: [
+    { label: "已纳入域名", value: "2", note: "门户域名与运维子域", tone: "success" },
+    { label: "开放端口", value: "3", note: "Web、GraphQL、SSH 暴露面", tone: "info" },
+    { label: "漏洞线索", value: "2", note: "GraphQL 与 SSH 版本信息", tone: "warning" },
+    { label: "证据锚点", value: "6", note: "Banner、入口识别、夜间窗口记录", tone: "neutral" },
+  ] satisfies ProjectResultMetric[],
+  yunlan: [
+    { label: "已纳入域名", value: "2", note: "开放 API 域名与文档入口", tone: "success" },
+    { label: "开放端口", value: "5", note: "HTTPS 入口和匿名 API 路径", tone: "info" },
+    { label: "漏洞线索", value: "3", note: "文档暴露、trace id、权限缺失候选", tone: "danger" },
+    { label: "证据锚点", value: "9", note: "OpenAPI 片段与错误响应已归档", tone: "neutral" },
+  ] satisfies ProjectResultMetric[],
+}
+
+const projectAssetGroups = {
+  huayao: [
+    {
+      title: "域名 / Web 入口",
+      description: "先看本项目已经落地的可用入口和归属状态。",
+      count: "3 条",
+      items: [
+        { primary: "huayao.com", secondary: "主域名，作为归属锚点", meta: "根域", status: "已纳入", tone: "success" },
+        { primary: "admin.huayao.com/login", secondary: "统一管理平台登录入口，可匿名到达", meta: "后台入口", status: "已纳入", tone: "success" },
+        { primary: "assets.huayao.com/static", secondary: "静态资源目录结构可见，疑似附件出口", meta: "资源域名", status: "待复核", tone: "warning" },
+      ],
+    },
+    {
+      title: "IP / 端口 / 服务",
+      description: "按网络面收拢已确认的服务与端口画像。",
+      count: "4 条",
+      items: [
+        { primary: "47.98.21.34:443", secondary: "nginx 1.22 -> Next.js 前端入口", meta: "admin.huayao.com", status: "开放", tone: "info" },
+        { primary: "47.98.21.34:80", secondary: "HTTP 跳转到 HTTPS，保留明文入口线索", meta: "重定向", status: "开放", tone: "info" },
+        { primary: "47.98.21.35:443", secondary: "静态资源 CDN 出口，归属仍在补采", meta: "assets.huayao.com", status: "待复核", tone: "warning" },
+      ],
+    },
+    {
+      title: "指纹 / Headers",
+      description: "项目当前最值得关注的技术栈和响应头线索。",
+      count: "4 条",
+      items: [
+        { primary: "server: nginx/1.22", secondary: "反向代理层稳定暴露版本线索", meta: "响应头", status: "已归档", tone: "neutral" },
+        { primary: "x-powered-by: Next.js", secondary: "前端渲染框架已识别，可回看路由结构", meta: "响应头", status: "已归档", tone: "neutral" },
+        { primary: "legacy-auth 组件命名", secondary: "页面静态资源命名沿用旧认证组件", meta: "框架线索", status: "高价值", tone: "warning" },
+      ],
+    },
+    {
+      title: "证据锚点",
+      description: "可以直接回看和复核的关键结果锚点。",
+      count: "3 条",
+      items: [
+        { primary: "302 -> /dashboard", secondary: "登录后管理台路径已经暴露", meta: "跳转链路", status: "已建链", tone: "success" },
+        { primary: "EV-20260326-009", secondary: "后台登录页截图与响应头已归档", meta: "证据记录", status: "可复核", tone: "info" },
+        { primary: "APR-20260326-014", secondary: "认证绕过候选动作等待放行", meta: "审批记录", status: "待处理", tone: "danger" },
+      ],
+    },
+  ] satisfies ProjectInventoryGroup[],
+  xingtu: [
+    {
+      title: "域名 / Web 入口",
+      description: "主站与开放接口入口当前已经收集到的结果。",
+      count: "2 条",
+      items: [
+        { primary: "portal.xingtuedu.cn", secondary: "门户站点主入口，已完成低风险画像", meta: "主域", status: "已纳入", tone: "success" },
+        { primary: "portal.xingtuedu.cn/graphql", secondary: "GraphQL 入口已确认可达", meta: "接口入口", status: "待验证", tone: "warning" },
+      ],
+    },
+    {
+      title: "IP / 端口 / 服务",
+      description: "项目当前已经定位出的网络暴露面。",
+      count: "3 条",
+      items: [
+        { primary: "ops.xingtuedu.cn:22", secondary: "OpenSSH 8.4 版本线索", meta: "SSH 暴露", status: "待归属", tone: "warning" },
+        { primary: "portal.xingtuedu.cn:443", secondary: "React 单页应用入口", meta: "HTTPS", status: "开放", tone: "info" },
+      ],
+    },
+    {
+      title: "指纹 / Headers",
+      description: "当前足以支持后续验证决策的技术栈线索。",
+      count: "3 条",
+      items: [
+        { primary: "apollo-operation-name", secondary: "GraphQL 请求特征已被动捕获", meta: "Header", status: "已归档", tone: "neutral" },
+        { primary: "x-request-id", secondary: "统一链路追踪头在开放接口中可见", meta: "追踪头", status: "已归档", tone: "info" },
+        { primary: "React + GraphQL", secondary: "前后端技术栈已初步确认", meta: "技术栈", status: "稳定", tone: "success" },
+      ],
+    },
+    {
+      title: "证据锚点",
+      description: "用于串联 GraphQL 与 SSH 结果的关键证据。",
+      count: "2 条",
+      items: [
+        { primary: "EV-20260326-011", secondary: "SSH Banner 版本回显截图", meta: "证据记录", status: "可复核", tone: "info" },
+        { primary: "APR-20260326-012", secondary: "GraphQL 暴露验证已延后到夜间窗口", meta: "审批记录", status: "已延后", tone: "warning" },
+      ],
+    },
+  ] satisfies ProjectInventoryGroup[],
+  yunlan: [
+    {
+      title: "域名 / API 入口",
+      description: "优先展示已经确认与项目相关的匿名 API 结果面。",
+      count: "3 条",
+      items: [
+        { primary: "api.yunlanmed.com/v1", secondary: "开放 API 基础路径，归属已基本确认", meta: "主 API", status: "待确认", tone: "warning" },
+        { primary: "GET /v1/openapi.json", secondary: "OpenAPI 文档匿名可访问", meta: "文档入口", status: "已确认", tone: "danger" },
+        { primary: "swagger-ui", secondary: "文档可视化页面已抓到截图", meta: "可视入口", status: "已归档", tone: "info" },
+      ],
+    },
+    {
+      title: "IP / 端口 / 服务",
+      description: "已经落地的服务和路径证据，用于后续人工复核。",
+      count: "5 条",
+      items: [
+        { primary: "203.107.18.43:443", secondary: "Spring Boot API 入口", meta: "HTTPS", status: "开放", tone: "info" },
+        { primary: "203.107.18.43:8443", secondary: "文档服务旁路端口，指向 swagger-ui", meta: "文档服务", status: "开放", tone: "warning" },
+        { primary: "/v1/report/list", secondary: "匿名请求返回 401 + trace id", meta: "报表接口", status: "待验证", tone: "danger" },
+      ],
+    },
+    {
+      title: "指纹 / Headers",
+      description: "用于判断问题是否需要继续审批推进的关键信息。",
+      count: "4 条",
+      items: [
+        { primary: "server: undertow", secondary: "Java 服务栈线索稳定", meta: "响应头", status: "已归档", tone: "neutral" },
+        { primary: "x-trace-id", secondary: "匿名错误响应暴露业务追踪标识", meta: "敏感线索", status: "高价值", tone: "danger" },
+        { primary: "Spring Boot / OpenAPI", secondary: "接口和文档链路都指向同一服务栈", meta: "技术栈", status: "稳定", tone: "success" },
+      ],
+    },
+    {
+      title: "证据锚点",
+      description: "关键发现已经对应到了证据和审批记录。",
+      count: "3 条",
+      items: [
+        { primary: "EV-20260326-010", secondary: "OpenAPI 片段与错误响应采样", meta: "证据记录", status: "可复核", tone: "info" },
+        { primary: "APR-20260326-015", secondary: "敏感接口权限校验等待审批", meta: "审批记录", status: "待处理", tone: "danger" },
+        { primary: "trace id 回显", secondary: "后续可辅助关联日志与归因", meta: "分析锚点", status: "已归档", tone: "warning" },
+      ],
+    },
+  ] satisfies ProjectInventoryGroup[],
+}
+
+const projectFindings = {
+  huayao: [
+    {
+      id: "finding-h-01",
+      projectId: "proj-huayao",
+      severity: "中危",
+      status: "待复核",
+      title: "后台登录入口暴露管理端标识",
+      summary: "匿名可抵达登录页，且可从跳转链路确认存在独立管理台，适合作为后续验证主入口。",
+      affectedSurface: "admin.huayao.com/login",
+      evidenceId: "EV-20260326-009",
+      owner: "证据中心",
+      updatedAt: "今天 11:46",
+    },
+    {
+      id: "finding-h-02",
+      projectId: "proj-huayao",
+      severity: "中危",
+      status: "待验证",
+      title: "legacy-auth 旧认证组件线索",
+      summary: "静态资源命名仍保留旧认证组件特征，存在历史弱鉴权问题面，建议审批后做只读确认。",
+      affectedSurface: "admin.huayao.com/static/auth",
+      evidenceId: "EV-20260326-009",
+      owner: "审批中心",
+      updatedAt: "今天 12:06",
+    },
+    {
+      id: "finding-h-03",
+      projectId: "proj-huayao",
+      severity: "低危",
+      status: "待复核",
+      title: "静态资源域名疑似附件出口暴露",
+      summary: "静态资源域名目录结构清晰，若确认存在对象存储映射，可能引出附件访问控制问题。",
+      affectedSurface: "assets.huayao.com/static",
+      evidenceId: "EV-20260326-012",
+      owner: "资产中心",
+      updatedAt: "今天 12:18",
+    },
+  ] satisfies ProjectFindingRecord[],
+  xingtu: [
+    {
+      id: "finding-x-01",
+      projectId: "proj-xingtu",
+      severity: "中危",
+      status: "待验证",
+      title: "GraphQL 入口可能暴露 schema",
+      summary: "入口可达且响应特征明显，需要在授权夜间窗口内确认 introspection 是否开启。",
+      affectedSurface: "portal.xingtuedu.cn/graphql",
+      evidenceId: "APR-20260326-012",
+      owner: "审批中心",
+      updatedAt: "今天 10:22",
+    },
+    {
+      id: "finding-x-02",
+      projectId: "proj-xingtu",
+      severity: "情报",
+      status: "待复核",
+      title: "SSH Banner 直接暴露版本信息",
+      summary: "公网开放的 SSH Banner 暴露 OpenSSH 8.4 版本线索，但需先确认归属后再继续判断风险。",
+      affectedSurface: "ops.xingtuedu.cn:22",
+      evidenceId: "EV-20260326-011",
+      owner: "资产中心",
+      updatedAt: "今天 09:20",
+    },
+  ] satisfies ProjectFindingRecord[],
+  yunlan: [
+    {
+      id: "finding-y-01",
+      projectId: "proj-yunlan",
+      severity: "中危",
+      status: "已确认",
+      title: "OpenAPI 文档匿名暴露",
+      summary: "文档入口可直接访问，已经足以证明接口结构和业务词汇对外暴露。",
+      affectedSurface: "GET /v1/openapi.json",
+      evidenceId: "EV-20260326-010",
+      owner: "证据中心",
+      updatedAt: "昨天 17:08",
+    },
+    {
+      id: "finding-y-02",
+      projectId: "proj-yunlan",
+      severity: "低危",
+      status: "待复核",
+      title: "匿名错误响应暴露 trace id",
+      summary: "业务 trace id 可被外部采样到，为后续关联审计日志和回溯链路提供了可能。",
+      affectedSurface: "/v1/report/list",
+      evidenceId: "EV-20260326-010",
+      owner: "证据中心",
+      updatedAt: "昨天 17:01",
+    },
+    {
+      id: "finding-y-03",
+      projectId: "proj-yunlan",
+      severity: "高危",
+      status: "待验证",
+      title: "敏感报表接口存在权限缺失候选",
+      summary: "接口结构已被文档和错误响应共同指向，但是否存在匿名只读访问仍需审批后验证确认。",
+      affectedSurface: "GET /v1/report/list",
+      evidenceId: "APR-20260326-015",
+      owner: "审批中心",
+      updatedAt: "今天 11:24",
+    },
+  ] satisfies ProjectFindingRecord[],
+}
+
+const projectStageSnapshots = {
+  huayao: {
+    title: "待验证项生成",
+    summary: "结果面已经基本成形，当前只是卡在是否允许继续进入登录链路验证。",
+    blocker: "认证绕过候选动作需要审批通过，capture-evidence 也需要恢复稳定。",
+    owner: "审批中心",
+    updatedAt: "今天 12:06",
+  } satisfies ProjectStageSnapshot,
+  xingtu: {
+    title: "发现与指纹识别",
+    summary: "项目当前不缺结果，缺的是对 GraphQL 暴露和运维节点归属的最终确认。",
+    blocker: "夜间窗口未确认前，不推进 schema 暴露验证。",
+    owner: "项目负责人",
+    updatedAt: "今天 10:22",
+  } satisfies ProjectStageSnapshot,
+  yunlan: {
+    title: "审批前排队",
+    summary: "开放 API 结果已经很清楚，现在主要是决定是否继续做高风险只读权限校验。",
+    blocker: "3 个高风险动作等待审批，主路径被显式挂起。",
+    owner: "审批中心",
+    updatedAt: "今天 11:24",
+  } satisfies ProjectStageSnapshot,
+}
+
+const projectApprovalControls = {
+  huayao: {
+    enabled: true,
+    mode: "高风险审批，低风险直行",
+    autoApproveLowRisk: true,
+    description: "只对认证绕过、权限探测和敏感验证动作弹出审批，其余结果采集与被动识别默认放行。",
+    note: "即便关闭审批闸门，所有 MCP 调用仍然保留审计日志与停止条件。",
+  } satisfies ApprovalControl,
+  xingtu: {
+    enabled: true,
+    mode: "窗口敏感动作审批",
+    autoApproveLowRisk: true,
+    description: "与时间窗口相关的 schema 验证需要人工确认，其余低风险入口识别直接执行。",
+    note: "当前项目更偏向归属判断，不需要把审批放到主界面中心。",
+  } satisfies ApprovalControl,
+  yunlan: {
+    enabled: true,
+    mode: "高风险动作逐项审批",
+    autoApproveLowRisk: false,
+    description: "涉及敏感接口权限校验时必须人工放行，其余只读文档与证据采集可以继续。",
+    note: "建议保留审批，但允许低风险日志抓取和文档刷新自动通过。",
+  } satisfies ApprovalControl,
+}
+
 export const projectDetails: ProjectDetailRecord[] = [
   {
     projectId: "proj-huayao",
@@ -529,6 +838,11 @@ export const projectDetails: ProjectDetailRecord[] = [
         tone: "info",
       },
     ],
+    resultMetrics: projectResultMetrics.huayao,
+    assetGroups: projectAssetGroups.huayao,
+    findings: projectFindings.huayao,
+    currentStage: projectStageSnapshots.huayao,
+    approvalControl: projectApprovalControls.huayao,
   },
   {
     projectId: "proj-xingtu",
@@ -558,6 +872,11 @@ export const projectDetails: ProjectDetailRecord[] = [
         tone: "info",
       },
     ],
+    resultMetrics: projectResultMetrics.xingtu,
+    assetGroups: projectAssetGroups.xingtu,
+    findings: projectFindings.xingtu,
+    currentStage: projectStageSnapshots.xingtu,
+    approvalControl: projectApprovalControls.xingtu,
   },
   {
     projectId: "proj-yunlan",
@@ -587,6 +906,11 @@ export const projectDetails: ProjectDetailRecord[] = [
         tone: "info",
       },
     ],
+    resultMetrics: projectResultMetrics.yunlan,
+    assetGroups: projectAssetGroups.yunlan,
+    findings: projectFindings.yunlan,
+    currentStage: projectStageSnapshots.yunlan,
+    approvalControl: projectApprovalControls.yunlan,
   },
 ]
 
@@ -954,6 +1278,189 @@ export const scopeRules: PolicyRecord[] = [
   },
 ]
 
+export const settingsSections: SettingsSectionRecord[] = [
+  {
+    title: "MCP 工具管理",
+    href: "/settings/mcp-tools",
+    description: "查看能力分类、风险等级、启停状态与工具健康，确认哪些 MCP 正在参与当前平台执行。",
+    metric: `${mcpTools.length} 个工具`,
+    tone: "info",
+  },
+  {
+    title: "LLM 设置",
+    href: "/settings/llm",
+    description: "管理编排模型、审阅模型、上下文预算、默认推理强度和失败回退策略。",
+    metric: "3 套模型配置",
+    tone: "success",
+  },
+  {
+    title: "审批策略",
+    href: "/settings/approval-policy",
+    description: "把审批开关、默认放行策略、范围规则和紧急停止放在单独子页集中管理。",
+    metric: "高风险审批开启",
+    tone: "warning",
+  },
+  {
+    title: "工作日志",
+    href: "/settings/work-logs",
+    description: "按项目查看 LLM 与 MCP 的执行记录，回看日常运行到底做了什么。",
+    metric: "今日 18 条",
+    tone: "neutral",
+  },
+  {
+    title: "审计日志",
+    href: "/settings/audit-logs",
+    description: "追踪审批、配置调整、系统切换和人工接管动作，确保操作全链路可回溯。",
+    metric: "4 条高价值变更",
+    tone: "danger",
+  },
+  {
+    title: "系统状态",
+    href: "/settings/system-status",
+    description: "集中查看调度队列、浏览器池、日志存储、截图链路和 MCP 网关的当前健康状态。",
+    metric: "1 个异常",
+    tone: "info",
+  },
+]
+
+export const globalApprovalControl: ApprovalControl = {
+  enabled: true,
+  mode: "高风险审批，低风险自动通过",
+  autoApproveLowRisk: true,
+  description: "大部分 MCP 调用直接执行并写入审计，只有高风险验证、敏感路径探测和需要突破默认约束的动作才进入审批。",
+  note: "审批关闭时不等于完全失控，系统仍保留审计、速率限制、超时和紧急停止。",
+}
+
+export const llmSettings: LlmSettingRecord[] = [
+  {
+    title: "主编排模型",
+    value: "GPT-5.4 Orchestrator",
+    description: "负责拆解目标、调度 MCP 工具调用顺序，并决定何时需要人工审批或回流补采。",
+    owner: "平台默认",
+  },
+  {
+    title: "结果审阅模型",
+    value: "GPT-5.3 Reviewer",
+    description: "聚焦证据归纳、结果复核、冲突线索比对和输出结构化 finding 草案。",
+    owner: "证据中心",
+  },
+  {
+    title: "轻量提取模型",
+    value: "gpt-5.1-codex-mini",
+    description: "用于 headers、端口指纹、页面结构等轻量抽取场景，降低主链路延迟。",
+    owner: "调度策略",
+  },
+  {
+    title: "上下文预算",
+    value: "单项目 96k / 审批摘要 16k",
+    description: "结果型页面优先保留资产、漏洞和证据摘要，阶段过程只在二级页展开。",
+    owner: "系统策略",
+  },
+]
+
+export const workLogs: LogRecord[] = [
+  {
+    id: "work-001",
+    category: "结果采集",
+    summary: "完成 admin.huayao.com 登录页截图、响应头抓取和 302 链路归档。",
+    projectName: "华曜科技匿名外网面梳理",
+    actor: "capture-evidence / header-parser",
+    timestamp: "今天 11:46",
+    status: "已完成",
+  },
+  {
+    id: "work-002",
+    category: "资产归属",
+    summary: "新增 ops.xingtuedu.cn SSH 暴露面，已进入归属复核待办。",
+    projectName: "星图教育开放资产评估",
+    actor: "asset-correlator",
+    timestamp: "今天 09:20",
+    status: "待复核",
+  },
+  {
+    id: "work-003",
+    category: "证据整理",
+    summary: "OpenAPI 文档片段与匿名错误响应已合并为同一证据包。",
+    projectName: "云岚医械公网暴露面验证",
+    actor: "evidence-merger",
+    timestamp: "昨天 17:08",
+    status: "已完成",
+  },
+  {
+    id: "work-004",
+    category: "调度控制",
+    summary: "夜间 GraphQL schema 校验被延后到授权窗口，保留自动重试但不继续推进。",
+    projectName: "星图教育开放资产评估",
+    actor: "scheduler",
+    timestamp: "今天 10:22",
+    status: "已延后",
+  },
+]
+
+export const auditLogs: LogRecord[] = [
+  {
+    id: "audit-001",
+    category: "审批决策",
+    summary: "敏感接口权限校验候选单进入审批队列，等待人工确认只读约束。",
+    projectName: "云岚医械公网暴露面验证",
+    actor: "审批中心",
+    timestamp: "今天 11:24",
+    status: "待处理",
+  },
+  {
+    id: "audit-002",
+    category: "系统切换",
+    summary: "capture-evidence 健康检查异常后，平台自动切换到审慎模式。",
+    actor: "system-guard",
+    timestamp: "今天 12:12",
+    status: "已触发",
+  },
+  {
+    id: "audit-003",
+    category: "策略变更",
+    summary: "低风险 MCP 调用维持自动通过，但高风险认证类动作继续强制审批。",
+    actor: "平台负责人",
+    timestamp: "今天 09:00",
+    status: "已生效",
+  },
+  {
+    id: "audit-004",
+    category: "人工接管",
+    summary: "研究员手动暂停登录链路验证，等待确认对象存储归属后再恢复。",
+    projectName: "华曜科技匿名外网面梳理",
+    actor: "研究员席位 A",
+    timestamp: "今天 12:18",
+    status: "已记录",
+  },
+]
+
+export const systemStatusCards: SystemStatusRecord[] = [
+  {
+    title: "MCP 网关",
+    value: "3 / 4 正常",
+    description: "capture-evidence 当前健康异常，已影响证据截图链路。",
+    tone: "danger",
+  },
+  {
+    title: "调度队列",
+    value: "18 条待执行",
+    description: "低风险队列继续流转，高风险动作等待审批或窗口确认。",
+    tone: "info",
+  },
+  {
+    title: "浏览器池",
+    value: "5 / 6 可用",
+    description: "一台截图节点降级，当前仍可支撑日常证据采集。",
+    tone: "warning",
+  },
+  {
+    title: "日志存储",
+    value: "健康",
+    description: "工作日志、审计日志和原始证据写入均保持稳定。",
+    tone: "success",
+  },
+]
+
 const projectFormPresetMap: Record<string, ProjectFormPreset> = Object.fromEntries(
   projects.map((project) => [
     project.id,
@@ -1043,4 +1550,8 @@ export function getProjectAssets(projectId: string) {
 
 export function getProjectEvidence(projectId: string) {
   return evidenceRecords.filter((record) => record.projectId === projectId)
+}
+
+export function getProjectAssetGroup(projectId: string, groupTitle: string) {
+  return getProjectDetailById(projectId)?.assetGroups.find((group) => group.title === groupTitle)
 }
