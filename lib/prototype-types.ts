@@ -36,14 +36,32 @@ export interface MetricCard {
 
 export interface ProjectRecord {
   id: string
+  code: string
   name: string
   seed: string
   targetType: string
+  targetSummary: string
+  owner: string
+  priority: "高" | "中" | "低"
   stage: ProjectStage
   status: ProjectStatus
   pendingApprovals: number
+  openTasks: number
+  assetCount: number
+  evidenceCount: number
+  createdAt: string
   lastUpdated: string
+  lastActor: string
   riskSummary: string
+  summary: string
+  authorizationSummary: string
+  scopeSummary: string
+  forbiddenActions: string
+  defaultConcurrency: string
+  rateLimit: string
+  timeout: string
+  approvalMode: string
+  tags: string[]
 }
 
 export interface TimelineStage {
@@ -54,14 +72,61 @@ export interface TimelineStage {
 
 export interface TaskRecord {
   id: string
+  projectId: string
   title: string
   status: TaskStatus
   reason: string
   priority: "P1" | "P2" | "P3"
+  owner: string
+  updatedAt: string
+  linkedTarget?: string
+}
+
+export interface ProjectKnowledgeItem {
+  title: string
+  detail: string
+  meta: string
+  tone: Tone
+}
+
+export interface ProjectDetailRecord {
+  projectId: string
+  target: string
+  blockingReason: string
+  nextStep: string
+  reflowNotice: string
+  currentFocus: string
+  timeline: TimelineStage[]
+  tasks: TaskRecord[]
+  discoveredInfo: ProjectKnowledgeItem[]
+  serviceSurface: ProjectKnowledgeItem[]
+  fingerprints: ProjectKnowledgeItem[]
+  entries: ProjectKnowledgeItem[]
+  scheduler: ProjectKnowledgeItem[]
+  activity: ProjectKnowledgeItem[]
+}
+
+export interface ProjectFormPreset {
+  name: string
+  seed: string
+  targetType: string
+  owner: string
+  priority: "高" | "中" | "低"
+  targetSummary: string
+  authorizationSummary: string
+  scopeSummary: string
+  forbiddenActions: string
+  defaultConcurrency: string
+  rateLimit: string
+  timeout: string
+  approvalMode: string
+  tags: string
+  deliveryNotes: string
 }
 
 export interface ApprovalRecord {
   id: string
+  projectId: string
   projectName: string
   target: string
   actionType: string
@@ -89,6 +154,7 @@ export interface AssetRelation {
 
 export interface AssetRecord {
   id: string
+  projectId: string
   projectName: string
   type: string
   label: string
@@ -107,6 +173,7 @@ export interface AssetRecord {
 
 export interface EvidenceRecord {
   id: string
+  projectId: string
   projectName: string
   title: string
   source: string

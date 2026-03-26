@@ -27,11 +27,13 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `app/(console)/dashboard/page.tsx`
   Global dashboard rebuilt into a template-aligned command surface: left control summary, middle current-path panel, right recent activity feed, and bottom priority cards for today's work.
 - `app/(console)/projects/page.tsx`
-  Project list with structured queue/table view for project-level management.
+  Project management entry with searchable/filterable list, visible CRUD-style actions, and project-level summary metrics.
 - `app/(console)/projects/new/page.tsx`
-  New project creation form and onboarding entry.
+  New project entry using the shared project form component.
 - `app/(console)/projects/[projectId]/page.tsx`
-  Project detail "flow hub" with stage flow, task board, and knowledge tabs.
+  Project detail "flow hub" that reads data by `projectId` and renders summary, stage flow, task board, and knowledge tabs for the selected project.
+- `app/(console)/projects/[projectId]/edit/page.tsx`
+  Project edit route reusing the same shared form as project creation, prefilled from the selected project.
 - `app/(console)/approvals/page.tsx`
   Global approvals center for cross-project high-risk action decisions.
 - `app/(console)/assets/page.tsx`
@@ -92,14 +94,18 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 
 ### Projects
 
+- `components/projects/project-list-client.tsx`
+  Client-side project management list with live search, stage/status filters, action buttons, and archive confirmation dialog.
+- `components/projects/project-form.tsx`
+  Shared create/edit project form used by `/projects/new` and `/projects/[projectId]/edit`.
 - `components/projects/project-summary.tsx`
-  Top summary block for project detail.
+  Top summary block for project detail, including strategy baseline and tags.
 - `components/projects/project-stage-flow.tsx`
-  Stage progression visualization with current, blocked, and reflow states.
+  Stage progression visualization driven by per-project timeline data with blocking, next-step, and reflow callouts.
 - `components/projects/project-task-board.tsx`
-  Task and scheduler state board for current project work.
+  Task and scheduler board for the selected project, including owners, linked targets, and update times.
 - `components/projects/project-knowledge-tabs.tsx`
-  Structured project knowledge surface for supporting data.
+  Structured project knowledge surface that combines project-specific discoveries, assets, approvals, evidence, and scheduler items.
 
 ### Approvals
 
@@ -136,15 +142,16 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `lib/navigation.ts`
   Single source of truth for sidebar navigation and route title lookup.
 - `lib/prototype-types.ts`
-  Domain model definitions for projects, approvals, assets, evidence, MCP tools, control settings, and policies.
+  Domain model definitions for projects, project detail data, project form presets, approvals, assets, evidence, MCP tools, control settings, and policies.
 - `lib/prototype-data.ts`
   Chinese mock datasets for all pages, including:
   - dashboard metrics and priorities
-  - projects and project detail data
+  - projects, per-project detail records, and project form presets
   - approvals with rationale/parameters/stop conditions
   - assets with ownership, confidence, relations, and linked evidence
   - evidence records with raw output, timeline, and verdict
   - MCP tool states, control overview, approval policies, and scope rules
+  - helper lookups such as `getProjectById`, `getProjectDetailById`, and project-specific filter helpers
 - `lib/utils.ts`
   Shared utility helpers used by UI primitives/components.
 
@@ -159,9 +166,9 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `tests/pages/dashboard-page.test.tsx`
   Smoke test for dashboard content.
 - `tests/pages/projects-page.test.tsx`
-  Smoke test for project list page.
+  Smoke tests for project list, project creation form, and project edit form.
 - `tests/pages/project-detail-page.test.tsx`
-  Smoke test for project detail flow hub.
+  Smoke test for project detail flow hub with dynamic `projectId` rendering.
 - `tests/pages/approvals-assets-page.test.tsx`
   Smoke tests for approvals center, asset list, and asset detail profile.
 - `tests/pages/evidence-settings-page.test.tsx`
