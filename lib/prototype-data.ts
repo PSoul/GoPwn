@@ -53,6 +53,19 @@ export const projects: ProjectRecord[] = [
   },
 ]
 
+export const projectDetailSummary = {
+  name: "华曜科技匿名外网面梳理",
+  target: "huayao.com / admin.huayao.com",
+  currentStage: "待验证项生成",
+  status: "运行中",
+  pendingApprovals: 2,
+  riskSummary: "发现 1 个高危候选登录入口，1 个待确认 API 入口",
+  lastUpdated: "今天 12:10",
+  blockingReason: "2 个高风险验证项待审批，主路径暂停进入受控 PoC 验证。",
+  nextStep: "优先处理管理后台与 API 入口审批，随后恢复受控验证。",
+  reflowNotice: "发现新管理入口 admin.huayao.com，已回流至持续信息收集并补充前置任务。",
+}
+
 export const projectTimeline: TimelineStage[] = [
   { title: "授权与范围定义", state: "done", note: "授权说明与范围规则已锁定" },
   { title: "种子目标接收", state: "done", note: "域名与种子 URL 已标准化" },
