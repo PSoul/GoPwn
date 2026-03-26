@@ -16,16 +16,16 @@ export function SectionCard({
   return (
     <section
       className={cn(
-        "rounded-3xl border border-slate-200/80 bg-white/90 p-6 shadow-[0_12px_50px_-32px_rgba(15,23,42,0.45)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/80",
+        "rounded-[28px] border border-slate-200/80 bg-white p-6 dark:border-slate-800 dark:bg-slate-950",
         className,
       )}
     >
       <div className="mb-5 flex flex-col gap-1">
         {eyebrow ? (
-          <span className="text-[11px] uppercase tracking-[0.24em] text-sky-600 dark:text-sky-300">{eyebrow}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{eyebrow}</span>
         ) : null}
-        <h2 className="text-xl font-semibold text-slate-950 dark:text-white">{title}</h2>
-        {description ? <p className="max-w-3xl text-sm text-slate-600 dark:text-slate-300">{description}</p> : null}
+        <h2 className="text-[28px] font-semibold leading-none text-slate-950 dark:text-white">{title}</h2>
+        {description ? <p className="max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">{description}</p> : null}
       </div>
       {children}
     </section>

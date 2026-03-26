@@ -1,14 +1,13 @@
 import { ArrowUpRight, type LucideIcon } from "lucide-react"
 
-import { StatusBadge } from "@/components/shared/status-badge"
 import { cn } from "@/lib/utils"
 
 const toneMap = {
-  neutral: "from-slate-100 to-white dark:from-slate-900 dark:to-slate-950",
-  info: "from-sky-100 to-white dark:from-sky-950/80 dark:to-slate-950",
-  success: "from-emerald-100 to-white dark:from-emerald-950/80 dark:to-slate-950",
-  warning: "from-amber-100 to-white dark:from-amber-950/80 dark:to-slate-950",
-  danger: "from-rose-100 to-white dark:from-rose-950/80 dark:to-slate-950",
+  neutral: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
+  info: "bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-200",
+  success: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-200",
+  warning: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-200",
+  danger: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-200",
 } as const
 
 export function StatCard({
@@ -29,23 +28,22 @@ export function StatCard({
   return (
     <div
       className={cn(
-        "rounded-3xl border border-slate-200/80 bg-gradient-to-br p-5 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.55)] dark:border-slate-800",
-        toneMap[tone],
+        "rounded-[28px] border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-950",
         className,
       )}
     >
-      <div className="mb-5 flex items-start justify-between">
-        <div className="rounded-2xl border border-white/70 bg-white/80 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{label}</p>
+          <div className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 dark:text-white">{value}</div>
+        </div>
+        <div className={cn("rounded-xl p-2.5", toneMap[tone])}>
           <Icon className="h-5 w-5 text-slate-900 dark:text-slate-100" />
         </div>
-        <StatusBadge tone={tone}>{label}</StatusBadge>
       </div>
-      <div className="space-y-2">
-        <div className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">{value}</div>
-        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-          <ArrowUpRight className="h-4 w-4" />
-          <span>{delta}</span>
-        </div>
+      <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+        <ArrowUpRight className="h-4 w-4" />
+        <span>{delta}</span>
       </div>
     </div>
   )

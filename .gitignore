@@ -4,3 +4,4 @@ out/
 coverage/
 dist/
 *.log
+tmp-review/

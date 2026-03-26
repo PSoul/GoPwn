@@ -25,8 +25,9 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="Dashboard"
         title="仪表盘"
-        description="先处理真正阻塞项目推进的事项，再回到资产沉淀和证据复核。首页只保留最该被研究员第一眼看到的信息。"
+        description="优先清理审批阻塞，再处理新增资产与证据复核。"
         actions={
           <>
             <StatusBadge tone="danger">6 个待审批动作</StatusBadge>

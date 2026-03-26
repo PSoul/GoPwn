@@ -1,13 +1,11 @@
 "use client"
 
 import Link from "next/link"
-import { ShieldCheck, Sparkles } from "lucide-react"
+import { ShieldCheck } from "lucide-react"
 
-import { StatusBadge } from "@/components/shared/status-badge"
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -16,68 +14,67 @@ import {
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
 } from "@/components/ui/sidebar"
-import { getNavigationTitle, prototypeNavigation } from "@/lib/navigation"
+import { prototypeNavigation } from "@/lib/navigation"
 
 export function AppSidebar({ pathname }: { pathname: string }) {
+  const groups = [
+    { label: "总览", items: prototypeNavigation.filter((item) => item.section === "总览") },
+    { label: "执行", items: prototypeNavigation.filter((item) => item.section === "执行") },
+    { label: "系统", items: prototypeNavigation.filter((item) => item.section === "系统") },
+  ]
+
   return (
-    <Sidebar collapsible="icon" variant="inset" className="border-r border-slate-200/70 dark:border-slate-800">
-      <SidebarHeader className="px-4 py-4">
-        <Link href="/dashboard" className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/80">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-600 text-white shadow-lg shadow-sky-600/25">
-            <ShieldCheck className="h-5 w-5" />
+    <Sidebar collapsible="offcanvas" variant="sidebar" className="border-r border-slate-200/80 dark:border-slate-800">
+      <SidebarHeader className="h-16 justify-center border-b border-slate-200/80 px-6 py-0 dark:border-slate-800">
+        <Link href="/dashboard" className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+            <ShieldCheck className="h-4 w-4" />
           </div>
-          <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-            <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">授权外网安全评估平台</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">LLM 编排内核 · MCP 控制台</p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-lg font-semibold text-slate-950 dark:text-white">平台控制台</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">授权外网安全评估平台</p>
           </div>
         </Link>
       </SidebarHeader>
 
-      <SidebarContent className="px-2">
-        <SidebarGroup>
-          <SidebarGroupLabel>主导航</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {prototypeNavigation.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+      <SidebarContent className="px-4 py-5">
+        {groups.map((group) => (
+          <SidebarGroup key={group.label} className="px-0 py-0">
+            <SidebarGroupLabel className="mb-2 px-0 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+              {group.label}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-1.5">
+                {group.items.map((item) => {
+                  const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
 
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild isActive={isActive} tooltip={item.title} className="h-11 rounded-2xl">
-                      <Link href={item.href}>
-                        <item.icon className="h-4 w-4" />
-                        <div className="flex min-w-0 flex-1 flex-col items-start group-data-[collapsible=icon]:hidden">
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        tooltip={item.title}
+                        className="h-10 rounded-md px-3 text-[15px] font-medium data-[active=true]:bg-slate-100 data-[active=true]:text-slate-950 dark:data-[active=true]:bg-slate-800 dark:data-[active=true]:text-white"
+                      >
+                        <Link href={item.href}>
+                          <item.icon className="h-4 w-4" />
                           <span>{item.title}</span>
-                          <span className="truncate text-[11px] font-normal text-slate-500 dark:text-slate-400">
-                            {item.description}
-                          </span>
-                        </div>
-                      </Link>
-                    </SidebarMenuButton>
-                    {item.badge ? <SidebarMenuBadge>{item.badge}</SidebarMenuBadge> : null}
-                  </SidebarMenuItem>
-                )
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                        </Link>
+                      </SidebarMenuButton>
+                      {item.badge ? (
+                        <SidebarMenuBadge className="right-2 rounded-full bg-slate-100 px-1.5 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                          {item.badge}
+                        </SidebarMenuBadge>
+                      ) : null}
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
-
-      <SidebarFooter className="p-4">
-        <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-sky-100 via-white to-white p-4 shadow-sm dark:border-slate-800 dark:from-sky-950/50 dark:via-slate-950 dark:to-slate-950">
-          <div className="mb-3 flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-sky-600 dark:text-sky-300" />
-            <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{getNavigationTitle(pathname)}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <StatusBadge tone="danger">6 个待审批动作</StatusBadge>
-            <StatusBadge tone="warning">2 个阻塞项目</StatusBadge>
-          </div>
-        </div>
-      </SidebarFooter>
-      <SidebarRail />
     </Sidebar>
   )
 }
