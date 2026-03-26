@@ -87,6 +87,24 @@ export const projectTasks: TaskRecord[] = [
   },
 ]
 
+export const dashboardPriorities = [
+  {
+    title: "审批阻塞优先清理",
+    detail: "华曜科技项目有 2 个高风险验证项待处理，已阻塞主路径进入受控 PoC 验证。",
+    tone: "danger" as const,
+  },
+  {
+    title: "新入口回流补采",
+    detail: "发现 admin.huayao.com 与 assets.huayao.com，需补做范围判定和信息收集。",
+    tone: "warning" as const,
+  },
+  {
+    title: "MCP 工具异常需要巡检",
+    detail: "capture-evidence 当前健康检查异常，影响证据截图链路。",
+    tone: "info" as const,
+  },
+]
+
 export const approvals: ApprovalRecord[] = [
   {
     id: "APR-20260326-014",
