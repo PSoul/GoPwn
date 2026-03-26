@@ -312,6 +312,37 @@ export interface McpRunRecord {
   requestedBy: string
   createdAt: string
   updatedAt: string
+  connectorMode?: "local" | "real"
+  linkedApprovalId?: string
+  summaryLines: string[]
+}
+
+export type McpSchedulerTaskStatus =
+  | "ready"
+  | "waiting_approval"
+  | "running"
+  | "retry_scheduled"
+  | "delayed"
+  | "completed"
+  | "failed"
+  | "cancelled"
+
+export interface McpSchedulerTaskRecord {
+  id: string
+  runId: string
+  projectId: string
+  projectName: string
+  capability: string
+  target: string
+  toolName: string
+  connectorMode: "local" | "real"
+  status: McpSchedulerTaskStatus
+  attempts: number
+  maxAttempts: number
+  queuedAt: string
+  availableAt: string
+  updatedAt: string
+  lastError?: string
   linkedApprovalId?: string
   summaryLines: string[]
 }

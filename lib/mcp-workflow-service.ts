@@ -1,5 +1,5 @@
-import { executeStoredMcpRun } from "@/lib/mcp-execution-service"
 import { dispatchStoredMcpRun } from "@/lib/mcp-gateway-repository"
+import { drainStoredSchedulerTasks } from "@/lib/mcp-scheduler-service"
 import { getStoredProjectById } from "@/lib/project-repository"
 import type {
   McpDispatchInput,
@@ -11,7 +11,7 @@ function buildWorkflowId() {
   return `workflow-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`
 }
 
-export function runProjectSmokeWorkflow(
+export async function runProjectSmokeWorkflow(
   projectId: string,
   scenario: "baseline" | "with-approval",
 ): McpWorkflowSmokePayload | null {
@@ -25,7 +25,7 @@ export function runProjectSmokeWorkflow(
   const outputs: McpWorkflowSmokePayload["outputs"] = {}
   const runs: McpRunRecord[] = []
 
-  function executeStep(input: McpDispatchInput) {
+  async function executeStep(input: McpDispatchInput) {
     const payload = dispatchStoredMcpRun(projectId, input)
 
     if (!payload) {
@@ -53,17 +53,17 @@ export function runProjectSmokeWorkflow(
       }
     }
 
-    const executed = executeStoredMcpRun(payload.run.id, outputs)
-    const updatedRun = executed?.run ?? payload.run
-
-    if (executed) {
-      Object.assign(outputs, executed.outputs)
-    }
+    const drained = await drainStoredSchedulerTasks({
+      priorOutputs: outputs,
+      runId: payload.run.id,
+    })
+    const updatedRun = drained.runs.at(-1) ?? payload.run
+    Object.assign(outputs, drained.outputs)
 
     runs.push(updatedRun)
 
     return {
-      status: "completed" as const,
+      status: drained.status === "completed" ? ("completed" as const) : ("blocked" as const),
       run: updatedRun,
     }
   }
@@ -90,7 +90,7 @@ export function runProjectSmokeWorkflow(
   ]
 
   for (const step of baselineSteps) {
-    const result = executeStep(step)
+    const result = await executeStep(step)
 
     if (result.status === "waiting_approval") {
       return {
@@ -116,7 +116,7 @@ export function runProjectSmokeWorkflow(
 
   if (scenario === "with-approval") {
     const approvalTarget = outputs.webEntries?.[0] ?? project.seed
-    const result = executeStep({
+    const result = await executeStep({
       capability: "受控验证类",
       requestedAction: "受控登录绕过验证",
       target: approvalTarget,
@@ -145,7 +145,7 @@ export function runProjectSmokeWorkflow(
     }
   }
 
-  const reportResult = executeStep({
+  const reportResult = await executeStep({
     capability: "报告导出类",
     requestedAction: "导出基础流程测试报告",
     target: project.code,

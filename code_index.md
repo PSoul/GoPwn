@@ -259,15 +259,27 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Seeded researcher-account validation plus login/logout audit-log recording for the Phase 3 auth slice.
 - `lib/evidence-repository.ts`
   Persisted evidence repository for list/detail access and execution-result upserts.
+- `lib/mcp-connectors/types.ts`
+  Shared connector contracts defining execution context, connector mode (`local` / `real`), success/failure result shapes, and the raw-output contract consumed by the normalization layer.
+- `lib/mcp-connectors/registry.ts`
+  Connector selection registry. Chooses the best implementation for a run, preferring the real DNS connector when the target supports it and falling back to local foundational connectors otherwise.
+- `lib/mcp-connectors/local-foundational-connectors.ts`
+  Extracted local foundational connector implementations for `seed-normalizer`, `dns-census`, `web-surface-map`, `auth-guard-check`, and `report-exporter`. These preserve deterministic smoke-run behavior behind the new connector abstraction.
+- `lib/mcp-connectors/real-dns-intelligence-connector.ts`
+  First real connector family. Uses Node built-ins (`dns/promises` and `tls`) to collect DNS records, reverse lookups, and certificate metadata, while exposing test adapters so CI stays deterministic.
 - `lib/mcp-execution-service.ts`
-  Execution normalization layer for local foundational MCP tools. Converts tool-level structured output into platform assets, evidence, work logs, and findings, updates run summaries, and refreshes project result state.
+  Execution normalization layer behind the connector registry. Resolves the selected connector, executes it, converts connector-level structured output into platform assets/evidence/work logs/findings, updates run summaries, and refreshes project result state.
+- `lib/mcp-scheduler-repository.ts`
+  Persisted scheduler-task repository. Stores queue state for ready, waiting-approval, delayed, retry-scheduled, running, completed, failed, and cancelled work.
+- `lib/mcp-scheduler-service.ts`
+  Scheduler loop and task transition service. Creates per-run scheduler tasks, drains ready work, applies retry/delay transitions, and resumes approval-gated runs through the same executor path.
 - `lib/prototype-types.ts`
   Domain model definitions for:
   - dashboard metrics, dashboard priorities, and dashboard API payloads
   - projects and project detail records
   - result metrics, asset inventory groups, findings, and stage snapshots
   - approval control state
-  - approvals, assets, evidence, MCP tools, MCP run records, and MCP workflow smoke payloads
+  - approvals, assets, evidence, MCP tools, MCP run records, scheduler-task records, and MCP workflow smoke payloads
   - settings hub sections, LLM settings, work logs, audit logs, and system status cards
   - API payload types for dashboard, approvals, assets, evidence, project collections, project surface contracts, MCP dispatch contracts, and settings summaries
 - `lib/prototype-data.ts`
@@ -284,15 +296,15 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `lib/project-results-repository.ts`
   Derived project-results layer. Rebuilds project result metrics, result-table groups, current stage snapshot, activity feed, and findings view from persisted assets, evidence, work logs, approvals, and MCP run state.
 - `lib/prototype-store.ts`
-  Local file-backed persistence bootstrap. Ensures `.prototype-store/prototype-store.json` exists, seeds it from mock data, migrates older stores onto the expanded Phase 4B shape, and now persists assets, evidence, work logs, and project findings in addition to projects, approvals, tools, runs, and audit logs.
+  Local file-backed persistence bootstrap. Ensures `.prototype-store/prototype-store.json` exists, seeds it from mock data, migrates older stores onto the expanded Phase 5 shape, and now persists scheduler tasks in addition to projects, approvals, tools, runs, assets, evidence, work logs, and audit logs.
 - `lib/prototype-record-utils.ts`
   Shared record helpers for timestamp formatting, stable execution-derived IDs, and count-display formatting.
 - `lib/mcp-gateway-repository.ts`
-  Persisted MCP gateway layer. Owns project-level MCP run records, capability-to-tool selection, approval requirement decisions, approval record creation for gated actions, blocked-run handling, run updates, and approval-result synchronization back into MCP runs.
+  Persisted MCP gateway layer. Owns project-level MCP run records, capability-to-tool selection, approval requirement decisions, approval record creation for gated actions, blocked-run handling, initial queued-run creation, and approval-result synchronization back into MCP runs.
 - `lib/mcp-repository.ts`
   Persisted MCP registry repository for tool listing, tool updates, and health-check state changes.
 - `lib/mcp-workflow-service.ts`
-  Local foundational MCP workflow runner used for smoke tests. Chains seed normalization, passive discovery, Web mapping, optional approval-gated validation, and report export through the shared execution-normalization path.
+  Scheduler-backed MCP workflow runner used for smoke tests. Chains seed normalization, passive discovery, Web mapping, optional approval-gated validation, and report export through the same queue/connector/normalization path used by normal project dispatch.
 - `lib/mcp-write-schema.ts`
   Zod validation schemas for MCP tool patch payloads, project-level MCP dispatch payloads, and workflow smoke-run payloads.
 - `lib/project-repository.ts`
@@ -300,7 +312,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `lib/project-write-schema.ts`
   Zod validation schema for project create/update request payloads.
 - `lib/prototype-api.ts`
-  Backend/service contract layer. Serves dashboard/assets/evidence/work-log/settings reads, persisted auth/project/approval operations, MCP registry payloads, project-level MCP dispatch/read contracts, approval-resume execution, and the workflow smoke-run contract behind the same seam.
+  Backend/service contract layer. Serves dashboard/assets/evidence/work-log/settings reads, persisted auth/project/approval operations, MCP registry payloads, project-level MCP dispatch/read contracts, scheduler-driven approval resume execution, and the workflow smoke-run contract behind the same seam.
 - `lib/utils.ts`
   Shared utility helpers used by UI primitives/components.
 - `lib/work-log-repository.ts`
@@ -353,6 +365,12 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   API tests for project-level MCP dispatch. Covers low-risk immediate execution, high-risk approval-gated dispatch, approval-linked resume execution, and result persistence into project context and work logs.
 - `tests/api/mcp-workflow-smoke-api.test.ts`
   API tests for the runnable foundational MCP workflow, covering both a fully automatic baseline path, persisted result emission, work-log generation, and a path that correctly halts at a high-risk approval boundary.
+- `tests/lib/mcp-connectors.test.ts`
+  Unit tests for connector selection and the first real DNS connector family, including deterministic mocked Node DNS/TLS adapter results.
+- `tests/lib/mcp-scheduler-service.test.ts`
+  Unit tests for scheduler task creation, delayed approval handling, and approved-task resume execution.
+- `tests/lib/mcp-scheduler-retry.test.ts`
+  Unit test for the scheduler retry path using a mocked execution-service response to verify `retry_scheduled` transitions.
 - `tests/approvals/approval-center-client.test.tsx`
   Client interaction test verifying the approvals workbench calls the approval mutation API and surfaces success feedback.
 - `tests/projects/project-operations-panel.test.tsx`
@@ -389,15 +407,19 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `.impeccable.md`
   Saved design context used to preserve the agreed visual/interaction direction.
 - `roadmap.md`
-  Phase-based delivery tracker covering frontend closure, read-only backend/API integration, real backend persistence, and orchestration work, now including persisted MCP registry, project-level dispatch execution, foundational runnable workflow smoke testing, and execution-result normalization.
+  Phase-based delivery tracker covering frontend closure, read-only backend/API integration, real backend persistence, orchestration work, and now the connector/scheduler phase including the first real DNS connector family.
 - `docs/superpowers/plans/2026-03-26-frontend-prototype-implementation.md`
   Step-by-step implementation plan used during execution.
 - `docs/superpowers/plans/2026-03-26-execution-results-core-implementation.md`
   Step-by-step implementation plan for the execution-results slice covering assets/evidence/work-log persistence and approval resume execution.
+- `docs/superpowers/plans/2026-03-26-real-connectors-scheduler-implementation.md`
+  Step-by-step implementation plan for the Phase 5 connector abstraction, scheduler loop, approval resume, retry handling, and real DNS connector slice.
 - `docs/superpowers/specs/2026-03-26-frontend-prototype-design.md`
   Upstream product/spec reference from the approved design work.
 - `docs/prompts/2026-03-26-phase-03-real-backend-core-prompt.md`
   Handoff prompt for the next major phase after the read-only backend/API integration slice.
+- `docs/prompts/2026-03-26-phase-06-llm-orchestrator-docker-validation-prompt.md`
+  Handoff prompt for the next isolated branch/worktree, focused on real LLM provider wiring, MCP onboarding conventions, and local Docker vulnerable-target validation.
 - `docs/prompts/2026-03-26-phase-03b-persistence-expansion-prompt.md`
   Handoff prompt for the next persistence slice covering assets, evidence, work logs, and task/scheduler realism.
 - `docs/prompts/2026-03-26-phase-04b-execution-results-prompt.md`

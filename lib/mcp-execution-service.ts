@@ -1,11 +1,20 @@
 import { getStoredApprovalById } from "@/lib/approval-repository"
 import { getStoredAssetById, listStoredAssets, upsertStoredAssets } from "@/lib/asset-repository"
-import { getStoredEvidenceById, listStoredEvidence, upsertStoredEvidence } from "@/lib/evidence-repository"
+import { resolveMcpConnector } from "@/lib/mcp-connectors/registry"
+import {
+  getHostFromTarget,
+  getRootDomain,
+} from "@/lib/mcp-connectors/local-foundational-connectors"
+import type {
+  McpConnectorExecutionContext,
+  McpConnectorResult,
+} from "@/lib/mcp-connectors/types"
+import { getStoredEvidenceById, upsertStoredEvidence } from "@/lib/evidence-repository"
 import {
   getStoredMcpRunById,
-  listStoredMcpRuns,
   updateStoredMcpRun,
 } from "@/lib/mcp-gateway-repository"
+import { getStoredMcpToolById } from "@/lib/mcp-repository"
 import { buildStableRecordId, formatDayStamp, formatTimestamp } from "@/lib/prototype-record-utils"
 import {
   refreshStoredProjectResults,
@@ -14,7 +23,6 @@ import {
 import { getStoredProjectById } from "@/lib/project-repository"
 import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
 import type {
-  ApprovalRecord,
   AssetRecord,
   EvidenceRecord,
   LogRecord,
@@ -25,59 +33,12 @@ import type {
 } from "@/lib/prototype-types"
 import { upsertStoredWorkLogs } from "@/lib/work-log-repository"
 
-type LocalToolExecutionContext = {
-  approval: ApprovalRecord | null
-  priorOutputs: McpWorkflowSmokePayload["outputs"]
-  project: ProjectRecord
-  run: McpRunRecord
-}
-
-type LocalToolRawResult = {
-  outputs: Partial<McpWorkflowSmokePayload["outputs"]>
-  structuredContent: Record<string, unknown>
-  summaryLines: string[]
-}
-
 type NormalizedExecutionArtifacts = {
   actor: string
   assets: AssetRecord[]
   evidence: EvidenceRecord[]
   findings: ProjectFindingRecord[]
   workLogs: LogRecord[]
-}
-
-function normalizeSeed(seed: string) {
-  const cleaned = seed.trim().toLowerCase().replace(/^https?:\/\//, "")
-  const [hostWithMaybePath] = cleaned.split("?")
-  const [host] = hostWithMaybePath.split("/")
-
-  return {
-    cleaned,
-    host,
-    normalizedTargets: Array.from(new Set([cleaned, host].filter(Boolean))),
-  }
-}
-
-function getRootDomain(host: string) {
-  const parts = host.split(".").filter(Boolean)
-
-  if (parts.length >= 2) {
-    return parts.slice(-2).join(".")
-  }
-
-  return host
-}
-
-function getHostFromTarget(target: string) {
-  if (target.startsWith("http://") || target.startsWith("https://")) {
-    try {
-      return new URL(target).host
-    } catch {
-      return normalizeSeed(target).host
-    }
-  }
-
-  return normalizeSeed(target).host
 }
 
 function mergeRelations(
@@ -105,154 +66,9 @@ function buildExecutionAuditLog(project: ProjectRecord, run: McpRunRecord, statu
   }
 }
 
-function buildLocalToolRawResult(context: LocalToolExecutionContext): LocalToolRawResult {
-  const { priorOutputs, project, run } = context
-
-  if (run.toolName === "seed-normalizer") {
-    const normalized = normalizeSeed(run.target || project.seed).normalizedTargets
-
-    return {
-      outputs: {
-        normalizedTargets: normalized,
-      },
-      structuredContent: {
-        host: normalizeSeed(run.target || project.seed).host,
-        normalizedTargets: normalized,
-      },
-      summaryLines: [
-        `标准化得到 ${normalized.length} 个种子目标。`,
-        normalized.join(" / "),
-      ],
-    }
-  }
-
-  if (run.toolName === "dns-census") {
-    const host = getHostFromTarget(run.target || project.seed)
-    const root = getRootDomain(host)
-    const discoveredSubdomains = Array.from(new Set([host, `admin.${root}`, `assets.${root}`]))
-
-    return {
-      outputs: {
-        discoveredSubdomains,
-      },
-      structuredContent: {
-        discoveredSubdomains,
-        rootDomain: root,
-        source: host,
-      },
-      summaryLines: [
-        `被动发现 ${discoveredSubdomains.length} 个候选域名或子域。`,
-        discoveredSubdomains.join(" / "),
-      ],
-    }
-  }
-
-  if (run.toolName === "web-surface-map") {
-    const targets = priorOutputs.discoveredSubdomains?.length
-      ? priorOutputs.discoveredSubdomains
-      : [getHostFromTarget(run.target || project.seed)]
-    const webEntries = targets.map((target, index) => ({
-      url: index === 0 ? `https://${target}/login` : `https://${target}/dashboard`,
-      title: index === 0 ? `${project.name} 统一入口` : `${project.name} 管理台`,
-      statusCode: index === 0 ? 200 : 302,
-      headers: [
-        "server: nginx",
-        "x-powered-by: Next.js",
-        index === 0 ? "x-frame-options: deny" : "location: /dashboard",
-      ],
-      fingerprint: index === 0 ? "Next.js + nginx 登录入口" : "管理台跳转入口",
-    }))
-
-    return {
-      outputs: {
-        webEntries: webEntries.map((entry) => entry.url),
-      },
-      structuredContent: {
-        webEntries,
-      },
-      summaryLines: [
-        `识别到 ${webEntries.length} 个 Web 入口。`,
-        webEntries.map((entry) => entry.url).join(" / "),
-      ],
-    }
-  }
-
-  if (run.toolName === "auth-guard-check") {
-    const validatedTarget = run.target
-    const findingTitle = run.requestedAction.includes("登录")
-      ? "登录链路存在受控认证绕过候选"
-      : "匿名接口存在鉴权防护缺口候选"
-    const responseSignals = run.requestedAction.includes("登录")
-      ? [
-          "GET /login -> 200",
-          "POST /login?preview=1 返回 legacy-auth 调试头",
-          "跳转链路暴露 dashboard 前置上下文标识",
-        ]
-      : [
-          "GET /report/list -> 200",
-          "响应头暴露内部 trace id",
-          "匿名请求可抵达预期资源模型",
-        ]
-
-    return {
-      outputs: {
-        validatedTargets: [validatedTarget],
-        generatedFindings: [findingTitle],
-      },
-      structuredContent: {
-        validatedTarget,
-        finding: {
-          affectedSurface: validatedTarget,
-          severity: "高危",
-          status: "待复核",
-          summary: "审批通过后的受控验证命中高价值异常响应，需要继续结合证据和人工复核形成最终结论。",
-          title: findingTitle,
-        },
-        responseSignals,
-        verdict: "当前结果先进入漏洞与发现列表，等待研究员继续复核证据。",
-      },
-      summaryLines: [
-        "审批通过后的受控验证已执行，产生了新的高价值结果。",
-        findingTitle,
-      ],
-    }
-  }
-
-  if (run.toolName === "report-exporter") {
-    const currentAssets = listStoredAssets(project.id).length
-    const currentEvidence = listStoredEvidence(project.id).length
-    const currentFindings = refreshStoredProjectResults(project.id)?.detail.findings.length ?? 0
-    const reportDigest = [
-      `种子目标 ${priorOutputs.normalizedTargets?.length ?? 0} 个`,
-      `域名与入口 ${currentAssets} 条`,
-      `证据锚点 ${currentEvidence} 条`,
-      `漏洞与发现 ${currentFindings} 条`,
-    ]
-
-    return {
-      outputs: {
-        reportDigest,
-      },
-      structuredContent: {
-        reportDigest,
-      },
-      summaryLines: [
-        "已生成基础流程测试报告摘要。",
-        reportDigest.join("；"),
-      ],
-    }
-  }
-
-  return {
-    outputs: {},
-    structuredContent: {},
-    summaryLines: [`${run.toolName} 已执行，但当前没有定义额外的本地结果展开逻辑。`],
-  }
-}
-
 function normalizeExecutionArtifacts(
-  context: LocalToolExecutionContext,
-  rawResult: LocalToolRawResult,
+  context: McpConnectorExecutionContext,
+  rawResult: Extract<McpConnectorResult, { status: "succeeded" }>,
 ): NormalizedExecutionArtifacts {
   const timestamp = formatTimestamp()
   const linkedApprovalId = context.run.linkedApprovalId ?? ""
@@ -284,7 +100,15 @@ function normalizeExecutionArtifacts(
 
   if (context.run.toolName === "dns-census") {
     const discoveredSubdomains = (rawResult.structuredContent.discoveredSubdomains as string[]) ?? []
-    const assets = discoveredSubdomains.map((host) => {
+    const resolvedAddresses = (rawResult.structuredContent.resolvedAddresses as string[]) ?? []
+    const certificate = rawResult.structuredContent.certificate as
+      | {
+          fingerprint256?: string
+          subjectaltname?: string
+          valid_to?: string
+        }
+      | undefined
+    const domainAssets = discoveredSubdomains.map((host) => {
       const assetId = buildStableRecordId("asset", context.project.id, "domain", host)
       const existingAsset = existingAssets.get(assetId)
 
@@ -300,10 +124,15 @@ function normalizeExecutionArtifacts(
         host,
         ownership: `${context.project.name} 结果面候选域名`,
         confidence: "0.78",
-        exposure: "由被动子域与证书情报补采发现，可继续衔接 Web 入口识别。",
+        exposure:
+          resolvedAddresses.length > 0
+            ? `解析地址 ${resolvedAddresses.join(" / ")}；可继续衔接 Web 入口识别。`
+            : "由被动子域与证书情报补采发现，可继续衔接 Web 入口识别。",
         linkedEvidenceId: evidenceId,
         linkedTaskTitle: context.run.requestedAction,
-        issueLead: "建议继续补采 Web 面入口、响应头和服务指纹。",
+        issueLead: certificate?.fingerprint256
+          ? `证书指纹 ${certificate.fingerprint256.slice(0, 18)}...`
+          : "建议继续补采 Web 面入口、响应头和服务指纹。",
         relations: mergeRelations(existingAsset?.relations, [
           {
             id: buildStableRecordId("asset-rel", host, "evidence"),
@@ -315,6 +144,38 @@ function normalizeExecutionArtifacts(
         ]),
       } satisfies AssetRecord
     })
+    const ipAssets = resolvedAddresses.map((address) => {
+      const assetId = buildStableRecordId("asset", context.project.id, "ip", address)
+      const existingAsset = existingAssets.get(assetId)
+
+      return {
+        id: assetId,
+        projectId: context.project.id,
+        projectName: context.project.name,
+        type: "ip",
+        label: address,
+        profile: "DNS 解析命中地址",
+        scopeStatus: "已纳入",
+        lastSeen: timestamp,
+        host: address,
+        ownership: `${context.project.name} 解析结果`,
+        confidence: "0.74",
+        exposure: discoveredSubdomains.length > 0 ? `来源于 ${discoveredSubdomains[0]} 的解析结果。` : "来源于 DNS 解析结果。",
+        linkedEvidenceId: evidenceId,
+        linkedTaskTitle: context.run.requestedAction,
+        issueLead: "可继续衔接端口与服务识别。",
+        relations: mergeRelations(existingAsset?.relations, [
+          {
+            id: buildStableRecordId("asset-rel", address, "evidence"),
+            label: evidenceId,
+            type: "evidence",
+            relation: "解析证据",
+            scopeStatus: "已纳入",
+          },
+        ]),
+      } satisfies AssetRecord
+    })
+    const assets = [...domainAssets, ...ipAssets]
 
     return {
       actor,
@@ -329,11 +190,13 @@ function normalizeExecutionArtifacts(
           confidence: "0.78",
           conclusion: "情报已归档",
           linkedApprovalId,
-          rawOutput: discoveredSubdomains.map((item) => `subdomain=${item}`),
+          rawOutput: rawResult.rawOutput,
           screenshotNote: "当前为被动情报结果，无页面截图。",
           structuredSummary: [
-            `被动发现 ${discoveredSubdomains.length} 条域名或子域结果。`,
-            "结果已同步进入域名 / Web 入口表格，可继续向 Web 与服务识别流转。",
+            `被动发现 ${discoveredSubdomains.length} 条域名或子域结果，解析地址 ${resolvedAddresses.length} 条。`,
+            certificate?.valid_to
+              ? `TLS 证书已获取，有效期至 ${certificate.valid_to}。`
+              : "结果已同步进入域名 / Web 入口表格，可继续向 Web 与服务识别流转。",
           ],
           linkedTaskTitle: context.run.requestedAction,
           linkedAssetLabel: discoveredSubdomains[0] ?? context.run.target,
@@ -346,7 +209,7 @@ function normalizeExecutionArtifacts(
         {
           id: `work-${context.run.id}`,
           category: "资产发现",
-          summary: `被动情报新增 ${discoveredSubdomains.length} 条域名 / 子域结果。`,
+          summary: `被动情报新增 ${discoveredSubdomains.length} 条域名 / 子域结果，解析地址 ${resolvedAddresses.length} 条。`,
           projectName: context.project.name,
           actor,
           timestamp,
@@ -609,7 +472,7 @@ function updateProjectExecutionMeta(project: ProjectRecord, run: McpRunRecord) {
   writePrototypeStore(store)
 }
 
-export function executeStoredMcpRun(
+export async function executeStoredMcpRun(
   runId: string,
   priorOutputs: McpWorkflowSmokePayload["outputs"] = {},
 ) {
@@ -626,13 +489,35 @@ export function executeStoredMcpRun(
   }
 
   const approval = run.linkedApprovalId ? getStoredApprovalById(run.linkedApprovalId) : null
-  const executionContext: LocalToolExecutionContext = {
+  const executionContext: McpConnectorExecutionContext = {
     approval,
     priorOutputs,
     project,
     run,
+    tool: run.toolId ? getStoredMcpToolById(run.toolId) : null,
   }
-  const rawResult = buildLocalToolRawResult(executionContext)
+  const connector = resolveMcpConnector(executionContext)
+
+  if (!connector) {
+    return {
+      status: "failed" as const,
+      connectorKey: "unresolved-connector",
+      mode: run.connectorMode ?? "local",
+      errorMessage: `未找到 ${run.toolName} 的连接器实现。`,
+      summaryLines: [`${run.toolName} 当前没有可用连接器实现，无法继续执行。`],
+      run,
+    }
+  }
+
+  const rawResult = await connector.execute(executionContext)
+
+  if (rawResult.status !== "succeeded") {
+    return {
+      ...rawResult,
+      run,
+    }
+  }
+
   const artifacts = normalizeExecutionArtifacts(executionContext, rawResult)
 
   upsertStoredAssets(artifacts.assets)
@@ -642,6 +527,7 @@ export function executeStoredMcpRun(
   updateProjectExecutionMeta(project, run)
 
   const persistedRun = updateStoredMcpRun(run.id, {
+    connectorMode: rawResult.mode,
     status: "已执行",
     summaryLines: Array.from(
       new Set([
@@ -650,6 +536,7 @@ export function executeStoredMcpRun(
         artifacts.assets.length > 0 ? `资产中心已新增或刷新 ${artifacts.assets.length} 条记录。` : "",
         artifacts.evidence.length > 0 ? `证据中心已新增或刷新 ${artifacts.evidence.length} 条记录。` : "",
         artifacts.findings.length > 0 ? `漏洞与发现已新增 ${artifacts.findings.length} 条。` : "",
+        rawResult.mode === "real" ? "本次执行由真实连接器完成采集。" : "本次执行由本地基础连接器完成。",
         run.linkedApprovalId ? "审批已批准后的执行结果已回流到平台记录。" : "",
       ].filter(Boolean)),
     ),
@@ -658,6 +545,9 @@ export function executeStoredMcpRun(
   refreshStoredProjectResults(project.id)
 
   return {
+    status: "succeeded" as const,
+    connectorKey: rawResult.connectorKey,
+    mode: rawResult.mode,
     outputs: {
       ...priorOutputs,
       ...rawResult.outputs,
@@ -666,14 +556,16 @@ export function executeStoredMcpRun(
   }
 }
 
-export function resumeStoredApprovedMcpRun(approvalId: string) {
+export async function resumeStoredApprovedMcpRun(approvalId: string) {
   const approval = getStoredApprovalById(approvalId)
 
   if (!approval || approval.status !== "已批准") {
     return null
   }
 
-  const run = listStoredMcpRuns().find((item) => item.linkedApprovalId === approvalId)
+  const run = getStoredMcpRunById(
+    readPrototypeStore().mcpRuns.find((item) => item.linkedApprovalId === approvalId)?.id ?? "",
+  )
 
   if (!run) {
     return null

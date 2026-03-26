@@ -26,7 +26,7 @@ export async function PATCH(request: Request, { params }: ApprovalRouteContext) 
     return Response.json({ error: "Invalid approval decision payload" }, { status: 400 })
   }
 
-  const payload = updateApprovalDecisionPayload(approvalId, parsed.data)
+  const payload = await updateApprovalDecisionPayload(approvalId, parsed.data)
 
   if (!payload) {
     return Response.json({ error: `Approval '${approvalId}' not found` }, { status: 404 })

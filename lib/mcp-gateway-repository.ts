@@ -1,4 +1,5 @@
 import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
+import { createStoredSchedulerTaskFromRun } from "@/lib/mcp-scheduler-repository"
 import type {
   ApprovalRecord,
   McpDispatchInput,
@@ -289,6 +290,7 @@ export function dispatchStoredMcpRun(projectId: string, input: McpDispatchInput)
       createAuditLog(`MCP 调度阻塞：${project.name} -> ${input.requestedAction}`, "已阻塞", project.name),
     )
     writePrototypeStore(store)
+    createStoredSchedulerTaskFromRun(blockedRun)
 
     return { run: blockedRun }
   }
@@ -338,6 +340,7 @@ export function dispatchStoredMcpRun(projectId: string, input: McpDispatchInput)
       createAuditLog(`MCP 调度待审批：${project.name} -> ${input.requestedAction}`, "待审批", project.name),
     )
     writePrototypeStore(store)
+    createStoredSchedulerTaskFromRun(pendingRun, enabledTool.retry)
 
     return {
       run: pendingRun,
@@ -349,11 +352,11 @@ export function dispatchStoredMcpRun(projectId: string, input: McpDispatchInput)
     input,
     project,
     tool: enabledTool,
-    status: "已执行",
+    status: "执行中",
     dispatchMode: "自动执行",
     summaryLines: [
-      `已通过 ${enabledTool.toolName} 自动执行 ${input.requestedAction}。`,
-      "结构化结果已回流到项目结果与证据链路，可继续由编排内核推进后续阶段。",
+      `${input.requestedAction} 已进入调度队列，准备调用 ${enabledTool.toolName}。`,
+      "调度器将按连接器策略执行并把结构化结果回流到项目结果与证据链路。",
     ],
   })
 
@@ -371,9 +374,10 @@ export function dispatchStoredMcpRun(projectId: string, input: McpDispatchInput)
     "success",
   )
   store.auditLogs.unshift(
-    createAuditLog(`MCP 已执行：${project.name} -> ${input.requestedAction}`, "已执行", project.name),
+    createAuditLog(`MCP 已入调度：${project.name} -> ${input.requestedAction}`, "执行中", project.name),
   )
   writePrototypeStore(store)
+  createStoredSchedulerTaskFromRun(executedRun, enabledTool.retry)
 
   return { run: executedRun }
 }
@@ -388,10 +392,10 @@ export function syncStoredMcpRunsAfterApprovalDecision(approval: ApprovalRecord)
 
   const currentRun = store.mcpRuns[runIndex]
   const nextStatus: McpRunRecord["status"] =
-    approval.status === "已批准" ? "已执行" : approval.status === "已延后" ? "已延后" : "已拒绝"
+    approval.status === "已批准" ? "执行中" : approval.status === "已延后" ? "已延后" : "已拒绝"
   const nextSummary =
     approval.status === "已批准"
-      ? `审批已批准，MCP 网关已恢复调用 ${currentRun.toolName} 执行。`
+      ? `审批已批准，${currentRun.toolName} 已回到调度队列等待执行。`
       : approval.status === "已延后"
         ? "审批已延后，MCP 调度继续停留在待窗口确认状态。"
         : "审批已拒绝，MCP 调度已终止，不再向目标继续推进。"

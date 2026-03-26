@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-26`
-- Current focus: Phase 4B has completed execution-result persistence in an isolated worktree. The next focus is replacing local foundational runners with real connector families and a more explicit scheduler/task loop.
+- Current focus: Phase 5 is now landing on `codex/real-connectors-scheduler-core-2026-03-26`, replacing direct local execution with a connector registry, persisted scheduler tasks, approval-resume queueing, and the first real DNS / certificate intelligence connector family.
 - Working mode: each major feature area uses its own isolated git branch/worktree so the existing branch is not disturbed.
 
 ## Phase 1: Frontend Prototype Closure
@@ -100,24 +100,46 @@
 
 ## Phase 5: Real Connectors and Scheduler Loop
 
-- Status: Next
+- Status: In progress on `codex/real-connectors-scheduler-core-2026-03-26`
 - Goal: replace local foundational MCP simulators with real connector adapters and make the platform scheduler capable of driving them safely.
 
 ### Task Checklist
 
-- pending: introduce a connector abstraction that can route one capability family to local mocks or real MCP servers
-- pending: define MCP tool result contracts for real connector payloads, including raw output, structured content, and normalization hints
-- pending: add a real task/scheduler loop that can queue retries, delays, approval resumes, and stop conditions
-- pending: keep the current file-backed prototype store as the state layer until a later database phase is warranted
-- pending: land at least one real connector family end-to-end, recommended starting with DNS / 子域 / 证书情报类
+- completed: introduce a connector abstraction that can route one capability family to local mocks or real connectors
+- completed: define connector result contracts for raw output, structured content, retryability, and normalization hints
+- completed: add a persisted scheduler-task loop that can queue ready work, approval waits, delays, approval resumes, and retries
+- completed: keep the current file-backed prototype store as the state layer while expanding it with scheduler task records
+- completed: land the first real connector family end-to-end for `DNS / 子域 / 证书情报类` using Node DNS/TLS APIs
+- completed: route workflow smoke runs and approval resumes through the same scheduler/execution path instead of ad hoc direct execution
+- completed: add focused unit tests for connector selection, scheduler transitions, approval resume, and retry scheduling
 - pending: add prompt/config docs for optionally wiring a real LLM endpoint into orchestrator testing without hardcoding credentials
 
 ### Acceptance Criteria
 
-- at least one real MCP connector can replace its local mock without changing the UI contract
-- scheduler can safely replay queued work after approvals and delays
+- met: at least one real MCP connector can replace its local mock without changing the UI contract
+- met: scheduler can safely replay queued work after approvals and delays
 - raw connector output remains auditable while normalized platform records stay stable
 - full `npm run test:all` remains green after the first real connector family lands
+
+## Phase 6: Real LLM Orchestrator and Local Docker Validation
+
+- Status: Next
+- Goal: attach a real LLM orchestration provider, define MCP server onboarding conventions, and validate the end-to-end platform flow against local Docker-based vulnerable targets.
+
+### Task Checklist
+
+- pending: add provider abstraction and config docs for real LLM orchestrator/reviewer endpoints without persisting live credentials
+- pending: define MCP server onboarding conventions, metadata, and minimal connector templates for future tool families
+- pending: add a small set of baseline MCP tools for full-platform flow validation beyond the current foundational chain
+- pending: create a local Docker-based validation harness using open-source vulnerable labs/targets for safe end-to-end testing
+- pending: add automated API/E2E checks that prove LLM -> MCP -> scheduler -> evidence/result persistence works on the local validation stack
+
+### Acceptance Criteria
+
+- platform can run against a real LLM provider through configuration only
+- MCP onboarding docs are explicit enough for follow-up sessions to add new tool families safely
+- at least one local Docker vulnerable target can be exercised end-to-end without touching external systems
+- API and browser E2E tests cover the orchestrated local validation path
 
 ## Notes for Future LLM Sessions
 

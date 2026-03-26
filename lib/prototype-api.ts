@@ -28,13 +28,13 @@ import {
   listStoredEvidence,
 } from "@/lib/evidence-repository"
 import {
-  executeStoredMcpRun,
-  resumeStoredApprovedMcpRun,
-} from "@/lib/mcp-execution-service"
-import {
   dispatchStoredMcpRun,
   listStoredMcpRuns,
 } from "@/lib/mcp-gateway-repository"
+import {
+  drainStoredSchedulerTasks,
+  syncStoredSchedulerTaskAfterApprovalDecision,
+} from "@/lib/mcp-scheduler-service"
 import { runProjectSmokeWorkflow } from "@/lib/mcp-workflow-service"
 import {
   getStoredMcpToolById,
@@ -401,11 +401,23 @@ export function getApprovalPolicyPayload(): ApprovalPolicyPayload {
   }
 }
 
-export function updateApprovalDecisionPayload(approvalId: string, input: ApprovalDecisionInput) {
+export async function updateApprovalDecisionPayload(approvalId: string, input: ApprovalDecisionInput) {
   const approval = updateStoredApprovalDecision(approvalId, input)
 
-  if (approval?.status === "已批准") {
-    resumeStoredApprovedMcpRun(approval.id)
+  if (!approval) {
+    return approval
+  }
+
+  syncStoredSchedulerTaskAfterApprovalDecision(approval)
+
+  if (approval.status === "已批准") {
+    const linkedRunId = listStoredMcpRuns().find((item) => item.linkedApprovalId === approval.id)?.id
+
+    if (linkedRunId) {
+      await drainStoredSchedulerTasks({
+        runId: linkedRunId,
+      })
+    }
   }
 
   return approval
@@ -455,25 +467,26 @@ export function listProjectMcpRunsPayload(projectId: string): McpRunCollectionPa
   }
 }
 
-export function dispatchProjectMcpRunPayload(
+export async function dispatchProjectMcpRunPayload(
   projectId: string,
   input: McpDispatchInput,
 ): McpDispatchPayload | null {
   const payload = dispatchStoredMcpRun(projectId, input)
 
-  if (!payload || payload.approval || payload.run.status !== "已执行") {
+  if (!payload || payload.approval || payload.run.status === "已阻塞") {
     return payload
   }
 
-  const executed = executeStoredMcpRun(payload.run.id)
+  const drained = await drainStoredSchedulerTasks({ runId: payload.run.id })
+  const executedRun = drained.runs.at(-1)
 
   return {
     ...payload,
-    run: executed?.run ?? payload.run,
+    run: executedRun ?? payload.run,
   }
 }
 
-export function runProjectMcpWorkflowSmokePayload(
+export async function runProjectMcpWorkflowSmokePayload(
   projectId: string,
   input: McpWorkflowSmokeInput,
 ): McpWorkflowSmokePayload | null {

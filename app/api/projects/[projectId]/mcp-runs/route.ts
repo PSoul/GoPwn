@@ -25,7 +25,7 @@ export async function POST(request: Request, { params }: ProjectRouteContext) {
     return Response.json({ error: "Invalid MCP dispatch payload" }, { status: 400 })
   }
 
-  const payload = dispatchProjectMcpRunPayload(projectId, parsed.data)
+  const payload = await dispatchProjectMcpRunPayload(projectId, parsed.data)
 
   if (!payload) {
     return Response.json({ error: `Project '${projectId}' not found` }, { status: 404 })

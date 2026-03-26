@@ -14,7 +14,7 @@ export async function POST(request: Request, { params }: ProjectRouteContext) {
     return Response.json({ error: "Invalid MCP workflow smoke payload" }, { status: 400 })
   }
 
-  const payload = runProjectMcpWorkflowSmokePayload(projectId, parsed.data)
+  const payload = await runProjectMcpWorkflowSmokePayload(projectId, parsed.data)
 
   if (!payload) {
     return Response.json({ error: `Project '${projectId}' not found` }, { status: 404 })
