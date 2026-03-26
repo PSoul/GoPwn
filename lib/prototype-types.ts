@@ -13,6 +13,8 @@ export type ProjectStage =
 
 export type ProjectStatus = "运行中" | "待处理" | "已阻塞" | "已完成"
 
+export type Tone = "neutral" | "info" | "success" | "warning" | "danger"
+
 export type TaskStatus =
   | "pending"
   | "ready"
@@ -29,7 +31,7 @@ export interface MetricCard {
   label: string
   value: string
   delta: string
-  tone: "neutral" | "info" | "success" | "warning" | "danger"
+  tone: Tone
 }
 
 export interface ProjectRecord {
@@ -69,6 +71,20 @@ export interface ApprovalRecord {
   mcpCapability: string
   tool: string
   status: "待处理" | "已批准" | "已拒绝" | "已延后"
+  parameterSummary: string
+  prerequisites: string[]
+  stopCondition: string
+  blockingImpact: string
+  queuePosition: number
+  submittedAt: string
+}
+
+export interface AssetRelation {
+  id: string
+  label: string
+  type: string
+  relation: string
+  scopeStatus: "已纳入" | "待确认" | "待复核"
 }
 
 export interface AssetRecord {
@@ -79,6 +95,14 @@ export interface AssetRecord {
   profile: string
   scopeStatus: "已纳入" | "待确认" | "待复核"
   lastSeen: string
+  host: string
+  ownership: string
+  confidence: string
+  exposure: string
+  linkedEvidenceId: string
+  linkedTaskTitle: string
+  issueLead: string
+  relations: AssetRelation[]
 }
 
 export interface EvidenceRecord {
@@ -89,6 +113,13 @@ export interface EvidenceRecord {
   confidence: string
   conclusion: string
   linkedApprovalId: string
+  rawOutput: string[]
+  screenshotNote: string
+  structuredSummary: string[]
+  linkedTaskTitle: string
+  linkedAssetLabel: string
+  timeline: string[]
+  verdict: string
 }
 
 export interface McpToolRecord {
@@ -98,4 +129,24 @@ export interface McpToolRecord {
   version: string
   riskLevel: "高" | "中" | "低"
   status: "启用" | "禁用" | "异常"
+  category: string
+  defaultConcurrency: string
+  rateLimit: string
+  timeout: string
+  retry: string
+  lastCheck: string
+}
+
+export interface ControlSetting {
+  label: string
+  value: string
+  description: string
+  tone: Tone
+}
+
+export interface PolicyRecord {
+  title: string
+  description: string
+  owner: string
+  status: string
 }
