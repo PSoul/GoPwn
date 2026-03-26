@@ -4,11 +4,13 @@ import { ThemeProvider } from "@/components/theme-provider"
 
 const firaSans = Fira_Sans({
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-sans",
 })
 
 const firaCode = Fira_Code({
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-mono",
 })
 
