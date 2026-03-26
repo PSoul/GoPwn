@@ -1,21 +1,28 @@
 import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
-import { McpToolTable } from "@/components/settings/mcp-tool-table"
+import { McpGatewayClient } from "@/components/settings/mcp-gateway-client"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
-import { mcpTools } from "@/lib/prototype-data"
+import { getMcpSettingsPayload } from "@/lib/prototype-api"
 
 export default function McpToolsSettingsPage() {
+  const payload = getMcpSettingsPayload()
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="MCP 工具管理"
-        description="集中管理工具风险级别、启停状态、并发与速率限制，明确平台当前到底能调什么工具。"
+        description="集中管理 MCP 工具注册信息、能力族、启停状态、默认限制与接入规范，先把网关骨架立起来。"
       />
 
       <SettingsSubnav currentHref="/settings/mcp-tools" />
 
-      <SectionCard title="能力与工具面板" description="风险高、健康异常或策略受限的工具会先在这里被识别出来。">
-        <McpToolTable tools={mcpTools} />
+      <SectionCard title="MCP 网关视图" description="这里不只展示工具列表，而是明确平台如何按能力契约、边界规则和注册规范来管理 MCP。">
+        <McpGatewayClient
+          initialTools={payload.tools}
+          capabilities={payload.capabilities}
+          boundaryRules={payload.boundaryRules}
+          registrationFields={payload.registrationFields}
+        />
       </SectionCard>
     </div>
   )

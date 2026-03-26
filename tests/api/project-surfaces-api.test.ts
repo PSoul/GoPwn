@@ -27,6 +27,7 @@ describe("project surface api routes", () => {
 
     expect(operationsResponse.status).toBe(200)
     expect(operationsPayload.approvals.length).toBeGreaterThan(0)
+    expect(operationsPayload.mcpRuns.length).toBeGreaterThan(0)
     expect(operationsPayload.detail.approvalControl.enabled).toBe(true)
   })
 

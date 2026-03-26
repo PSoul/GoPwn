@@ -1,0 +1,72 @@
+import { mkdtempSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
+import path from "node:path"
+
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
+
+import { POST as postWorkflowSmokeRun } from "@/app/api/projects/[projectId]/mcp-workflow/smoke-run/route"
+import { GET as getProjectMcpRuns } from "@/app/api/projects/[projectId]/mcp-runs/route"
+
+const buildProjectContext = (projectId: string) => ({
+  params: Promise.resolve({ projectId }),
+})
+
+describe("project MCP workflow smoke api route", () => {
+  let tempDir: string
+
+  beforeEach(() => {
+    tempDir = mkdtempSync(path.join(tmpdir(), "llm-pentest-mcp-workflow-store-"))
+    process.env.PROTOTYPE_DATA_DIR = tempDir
+  })
+
+  afterEach(() => {
+    delete process.env.PROTOTYPE_DATA_DIR
+    rmSync(tempDir, { force: true, recursive: true })
+  })
+
+  it("completes the baseline local MCP workflow with foundational tools", async () => {
+    const response = await postWorkflowSmokeRun(
+      new Request("http://localhost/api/projects/proj-huayao/mcp-workflow/smoke-run", {
+        method: "POST",
+        body: JSON.stringify({ scenario: "baseline" }),
+        headers: { "content-type": "application/json" },
+      }),
+      buildProjectContext("proj-huayao"),
+    )
+    const payload = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(payload.status).toBe("completed")
+    expect(payload.outputs.normalizedTargets.length).toBeGreaterThan(0)
+    expect(payload.outputs.discoveredSubdomains.length).toBeGreaterThan(0)
+    expect(payload.outputs.webEntries.length).toBeGreaterThan(0)
+    expect(payload.outputs.reportDigest.length).toBeGreaterThan(0)
+
+    const runsResponse = await getProjectMcpRuns(
+      new Request("http://localhost/api/projects/proj-huayao/mcp-runs"),
+      buildProjectContext("proj-huayao"),
+    )
+    const runsPayload = await runsResponse.json()
+
+    expect(runsResponse.status).toBe(200)
+    expect(runsPayload.items.slice(0, 4).every((item: { status: string }) => item.status === "已执行")).toBe(true)
+  })
+
+  it("halts the approval scenario at the high-risk MCP step", async () => {
+    const response = await postWorkflowSmokeRun(
+      new Request("http://localhost/api/projects/proj-huayao/mcp-workflow/smoke-run", {
+        method: "POST",
+        body: JSON.stringify({ scenario: "with-approval" }),
+        headers: { "content-type": "application/json" },
+      }),
+      buildProjectContext("proj-huayao"),
+    )
+    const payload = await response.json()
+
+    expect(response.status).toBe(202)
+    expect(payload.status).toBe("waiting_approval")
+    expect(payload.blockedRun.status).toBe("待审批")
+    expect(payload.approval.status).toBe("待处理")
+    expect(payload.outputs.webEntries.length).toBeGreaterThan(0)
+  })
+})

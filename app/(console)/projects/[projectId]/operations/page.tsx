@@ -1,12 +1,14 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
+import { ProjectMcpRunsPanel } from "@/components/projects/project-mcp-runs-panel"
 import { ProjectOperationsPanel } from "@/components/projects/project-operations-panel"
 import { ProjectTaskBoard } from "@/components/projects/project-task-board"
 import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
+import { mcpCapabilityRecords } from "@/lib/prototype-data"
 import { getProjectOperationsPayload } from "@/lib/prototype-api"
 
 export default async function ProjectOperationsPage({
@@ -20,7 +22,7 @@ export default async function ProjectOperationsPage({
   if (!payload) {
     notFound()
   }
-  const { approvals, detail, project } = payload
+  const { approvals, detail, mcpRuns, project } = payload
 
   return (
     <div className="space-y-5">
@@ -40,6 +42,13 @@ export default async function ProjectOperationsPage({
       />
 
       <ProjectOperationsPanel project={project} detail={detail} approvals={approvals} />
+
+      <ProjectMcpRunsPanel
+        projectId={project.id}
+        defaultTarget={project.seed}
+        capabilities={mcpCapabilityRecords.map((item) => item.name)}
+        initialRuns={mcpRuns}
+      />
 
       <ProjectTaskBoard tasks={detail.tasks} />
 

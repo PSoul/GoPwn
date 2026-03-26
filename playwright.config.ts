@@ -5,7 +5,10 @@ const baseURL = `http://127.0.0.1:${port}`
 
 export default defineConfig({
   testDir: "./e2e",
-  fullyParallel: true,
+  // The prototype currently uses a shared file-backed store, so browser smoke
+  // runs must stay serial to avoid cross-test state races.
+  fullyParallel: false,
+  workers: 1,
   retries: process.env.CI ? 2 : 0,
   reporter: "list",
   use: {

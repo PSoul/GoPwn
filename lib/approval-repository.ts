@@ -1,3 +1,4 @@
+import { syncStoredMcpRunsAfterApprovalDecision } from "@/lib/mcp-gateway-repository"
 import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
 import type {
   ApprovalControl,
@@ -196,6 +197,7 @@ export function updateStoredApprovalDecision(approvalId: string, input: Approval
     ),
   )
   writePrototypeStore(store)
+  syncStoredMcpRunsAfterApprovalDecision(nextApproval)
 
   return store.approvals.find((approval) => approval.id === approvalId) ?? nextApproval
 }

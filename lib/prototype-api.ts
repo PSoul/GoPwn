@@ -7,8 +7,10 @@ import {
   getProjectAssets,
   getEvidenceById,
   getProjectEvidence,
-  mcpTools,
+  mcpBoundaryRules,
+  mcpCapabilityRecords,
   projectTasks,
+  mcpRegistrationFields,
   settingsSections,
   systemControlOverview,
   systemStatusCards,
@@ -23,6 +25,17 @@ import {
   updateStoredGlobalApprovalControl,
   updateStoredProjectApprovalControl,
 } from "@/lib/approval-repository"
+import {
+  dispatchStoredMcpRun,
+  listStoredMcpRuns,
+} from "@/lib/mcp-gateway-repository"
+import { runProjectSmokeWorkflow } from "@/lib/mcp-workflow-service"
+import {
+  getStoredMcpToolById,
+  listStoredMcpTools,
+  runStoredMcpHealthCheck,
+  updateStoredMcpTool,
+} from "@/lib/mcp-repository"
 import {
   archiveStoredProject,
   createStoredProject,
@@ -45,6 +58,14 @@ import type {
   EvidenceCollectionPayload,
   EvidenceDetailPayload,
   LogCollectionPayload,
+  McpDispatchInput,
+  McpDispatchPayload,
+  McpRunCollectionPayload,
+  McpSettingsPayload,
+  McpToolPatchInput,
+  McpToolRecord,
+  McpWorkflowSmokeInput,
+  McpWorkflowSmokePayload,
   ProjectCollectionPayload,
   ProjectContextPayload,
   ProjectFindingsPayload,
@@ -78,6 +99,34 @@ function buildDashboardMetrics(projects: ProjectRecord[], approvalTotal: number)
     }
 
     return metric
+  })
+}
+
+function buildMcpSettingsMetric(tools: McpToolRecord[]) {
+  const enabledCount = tools.filter((tool) => tool.status === "启用").length
+  const abnormalCount = tools.filter((tool) => tool.status === "异常").length
+
+  return `${enabledCount} 启用 / ${abnormalCount} 异常`
+}
+
+function buildSystemStatusPayloadFromTools(tools: McpToolRecord[]) {
+  const enabledCount = tools.filter((tool) => tool.status === "启用").length
+  const abnormalTools = tools.filter((tool) => tool.status === "异常")
+
+  return systemStatusCards.map((card) => {
+    if (card.title !== "MCP 网关") {
+      return card
+    }
+
+    return {
+      ...card,
+      value: `${enabledCount} / ${tools.length} 正常`,
+      description:
+        abnormalTools.length > 0
+          ? `${abnormalTools.map((tool) => tool.toolName).join("、")} 当前异常，已影响对应链路。`
+          : "所有已注册 MCP 工具当前均处于健康状态。",
+      tone: abnormalTools.length > 0 ? "danger" : "success",
+    }
   })
 }
 
@@ -119,6 +168,7 @@ export function getProjectOperationsPayload(projectId: string): ProjectOperation
   return {
     ...base,
     approvals: listStoredProjectApprovals(projectId),
+    mcpRuns: listStoredMcpRuns(projectId),
   }
 }
 
@@ -171,9 +221,17 @@ export function getProjectFindingsPayload(projectId: string): ProjectFindingsPay
 export function getSettingsSectionsPayload(): SettingsSectionsPayload {
   const auditTotal = listStoredAuditLogs().length
   const approvalControl = getStoredGlobalApprovalControl()
+  const mcpTools = listStoredMcpTools()
 
   return {
     items: settingsSections.map((section) => {
+      if (section.href === "/settings/mcp-tools") {
+        return {
+          ...section,
+          metric: buildMcpSettingsMetric(mcpTools),
+        }
+      }
+
       if (section.href === "/settings/approval-policy") {
         return {
           ...section,
@@ -195,15 +253,18 @@ export function getSettingsSectionsPayload(): SettingsSectionsPayload {
 }
 
 export function getSystemStatusPayload(): SystemStatusPayload {
+  const items = buildSystemStatusPayloadFromTools(listStoredMcpTools())
+
   return {
-    items: systemStatusCards,
-    total: systemStatusCards.length,
+    items,
+    total: items.length,
   }
 }
 
 export function getDashboardPayload(): DashboardPayload {
   const projects = listStoredProjects()
   const approvals = listStoredApprovals()
+  const mcpTools = listStoredMcpTools()
 
   return {
     metrics: buildDashboardMetrics(projects, approvals.filter((approval) => approval.status === "待处理").length),
@@ -326,4 +387,54 @@ export function updateGlobalApprovalControlPayload(patch: ApprovalControlPatch) 
 
 export function updateProjectApprovalControlPayload(projectId: string, patch: ApprovalControlPatch) {
   return updateStoredProjectApprovalControl(projectId, patch)
+}
+
+export function getMcpSettingsPayload(): McpSettingsPayload {
+  return {
+    tools: listStoredMcpTools(),
+    capabilities: mcpCapabilityRecords,
+    boundaryRules: mcpBoundaryRules,
+    registrationFields: mcpRegistrationFields,
+  }
+}
+
+export function getMcpToolPayload(toolId: string) {
+  return getStoredMcpToolById(toolId)
+}
+
+export function updateMcpToolPayload(toolId: string, patch: McpToolPatchInput) {
+  return updateStoredMcpTool(toolId, patch)
+}
+
+export function runMcpHealthCheckPayload(toolId: string) {
+  return runStoredMcpHealthCheck(toolId)
+}
+
+export function listProjectMcpRunsPayload(projectId: string): McpRunCollectionPayload | null {
+  const project = getStoredProjectById(projectId)
+
+  if (!project) {
+    return null
+  }
+
+  const items = listStoredMcpRuns(projectId)
+
+  return {
+    items,
+    total: items.length,
+  }
+}
+
+export function dispatchProjectMcpRunPayload(
+  projectId: string,
+  input: McpDispatchInput,
+): McpDispatchPayload | null {
+  return dispatchStoredMcpRun(projectId, input)
+}
+
+export function runProjectMcpWorkflowSmokePayload(
+  projectId: string,
+  input: McpWorkflowSmokeInput,
+): McpWorkflowSmokePayload | null {
+  return runProjectSmokeWorkflow(projectId, input.scenario)
 }

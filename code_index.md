@@ -9,6 +9,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - project detail has been refocused from "process first" to "results first"
 - stage flow and task/scheduling have been demoted into project-level secondary routes
 - settings have been split into a settings hub plus dedicated subpages
+- MCP is now a first-class platform surface with a persisted registry, project-side dispatch records, and approval-linked execution state
 
 ## 2. Routing Map
 
@@ -50,7 +51,11 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `app/api/projects/[projectId]/flow/route.ts`
   Project flow endpoint exposing current stage and timeline data.
 - `app/api/projects/[projectId]/operations/route.ts`
-  Project operations endpoint exposing task-stage context plus project approvals.
+  Project operations endpoint exposing task-stage context, project approvals, and recent MCP run records.
+- `app/api/projects/[projectId]/mcp-runs/route.ts`
+  Project-level MCP dispatch endpoint. `GET` returns persisted run records and `POST` accepts a capability-first dispatch request, then either auto-executes it or routes it into approval.
+- `app/api/projects/[projectId]/mcp-workflow/smoke-run/route.ts`
+  Runnable workflow-smoke endpoint for end-to-end MCP verification. Executes a foundational low-risk chain locally and can optionally stop at a high-risk approval checkpoint.
 - `app/api/projects/[projectId]/context/route.ts`
   Project context endpoint exposing evidence, approvals, assets, and activity-support data.
 - `app/api/projects/[projectId]/results/domains/route.ts`
@@ -188,6 +193,10 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Task and scheduler board used on the dedicated operations page.
 - `components/projects/project-operations-panel.tsx`
   Project-level approval switch, note editor, persisted save flow, approval record summary, and operations overview block.
+- `components/projects/project-mcp-runs-panel.tsx`
+  Project-level MCP dispatch console showing how the LLM requests a capability, how the gateway chooses a tool, and whether the request auto-executes or enters approval. It also exposes one-click workflow smoke runs for end-to-end MCP path verification.
+- `components/projects/project-mcp-runs-panel.tsx`
+  Project-level MCP dispatch console showing how the LLM requests a capability, how the gateway chooses a tool, and whether the request auto-executes or enters approval. Also renders recent MCP run history for the project.
 
 ### Approvals
 
@@ -222,6 +231,10 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Card grid linking to each settings category.
 - `components/settings/mcp-tool-table.tsx`
   MCP capability/tool table with health, risk, concurrency, rate, timeout, and retry information.
+- `components/settings/mcp-gateway-client.tsx`
+  Interactive MCP registry control plane with search, capability overview, boundary rules, registration checklist, tool detail editing, and health-check actions.
+- `components/settings/mcp-gateway-client.tsx`
+  Interactive MCP registry control plane with search, capability overview, boundary rules, registration checklist, tool detail editing, and health-check actions.
 - `components/settings/llm-settings-panel.tsx`
   Panel grid for orchestrator/reviewer/extractor model configuration.
 - `components/settings/system-control-panel.tsx`
@@ -236,7 +249,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `lib/navigation.ts`
   Single source of truth for sidebar navigation and route title lookup.
 - `lib/approval-repository.ts`
-  Phase 3 approval/state repository handling persisted approval decisions, global approval strategy updates, project-level approval-control updates, queue reordering, project pending-approval sync, and audit-log emission.
+  Approval/state repository handling persisted approval decisions, global approval strategy updates, project-level approval-control updates, queue reordering, project pending-approval sync, audit-log emission, and approval-to-MCP-run state propagation.
 - `lib/approval-write-schema.ts`
   Zod validation schemas for approval decisions and approval-control patch payloads.
 - `lib/auth-session.ts`
@@ -249,9 +262,9 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   - projects and project detail records
   - result metrics, asset inventory groups, findings, and stage snapshots
   - approval control state
-  - approvals, assets, evidence, and MCP tools
+  - approvals, assets, evidence, MCP tools, MCP run records, and MCP workflow smoke payloads
   - settings hub sections, LLM settings, work logs, audit logs, and system status cards
-  - API payload types for dashboard, approvals, assets, evidence, project collections, project surface contracts, and settings summaries
+  - API payload types for dashboard, approvals, assets, evidence, project collections, project surface contracts, MCP dispatch contracts, and settings summaries
 - `lib/prototype-data.ts`
   Centralized Chinese mock data for all pages, including:
   - dashboard metrics and priorities
@@ -260,24 +273,32 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   - approvals with rationale/parameters/stop conditions
   - assets with ownership, confidence, relations, and linked evidence
   - evidence records with raw output, timeline, and verdict
-  - settings hub sections, LLM settings, work logs, audit logs, global approval control, and system status
+  - settings hub sections, LLM settings, work logs, audit logs, global approval control, system status, and MCP run seeds
   - helper lookups such as `getProjectById`, `getProjectDetailById`, and project-specific filter helpers
-  - Phase 3 seed content for bootstrapping the local persistent store
+  - Phase 3/4 seed content for bootstrapping the local persistent store
 - `lib/prototype-store.ts`
-  Local file-backed persistence bootstrap. Ensures `.prototype-store/prototype-store.json` exists, seeds it from Phase 2 mock data, migrates older stores onto the expanded Phase 3 shape, and reads/writes the store for server-side usage.
+  Local file-backed persistence bootstrap. Ensures `.prototype-store/prototype-store.json` exists, seeds it from mock data, migrates older stores onto the expanded Phase 4 shape, and reads/writes the store for server-side usage.
+- `lib/mcp-gateway-repository.ts`
+  Persisted MCP execution layer. Owns project-level MCP run records, capability-to-tool selection, approval requirement decisions, approval record creation for gated actions, blocked-run handling, run-summary updates, and approval-result synchronization back into MCP runs.
+- `lib/mcp-repository.ts`
+  Persisted MCP registry repository for tool listing, tool updates, and health-check state changes.
+- `lib/mcp-workflow-service.ts`
+  Local foundational MCP workflow runner used for smoke tests. Chains seed normalization, passive discovery, Web mapping, optional approval-gated validation, and report export into a deterministic end-to-end flow.
+- `lib/mcp-write-schema.ts`
+  Zod validation schemas for MCP tool patch payloads, project-level MCP dispatch payloads, and workflow smoke-run payloads.
 - `lib/project-repository.ts`
   Phase 3 repository layer for persisted projects and audit logs. Owns project creation, update, archive, default-detail generation, preset persistence, and audit-log emission.
 - `lib/project-write-schema.ts`
   Zod validation schema for project create/update request payloads.
 - `lib/prototype-api.ts`
-  Backend/service contract layer. Still serves dashboard/assets/evidence/settings reads, and Phase 3 now adds persisted auth, project, approval, and approval-control operations behind the same seam.
+  Backend/service contract layer. Serves dashboard/assets/evidence/settings reads, persisted auth/project/approval operations, MCP registry payloads, project-level MCP dispatch/read contracts, and the workflow smoke-run contract behind the same seam.
 - `lib/utils.ts`
   Shared utility helpers used by UI primitives/components.
 
 ## 6. Tests
 
 - `tests/setup.ts`
-  Shared Vitest + Testing Library setup.
+  Shared Vitest + Testing Library setup, now including explicit DOM cleanup after each test to prevent UI-state leakage between client tests.
 - `tests/layout/app-shell.test.tsx`
   Verifies shared shell/navigation rendering.
 - `tests/auth/login-form.test.tsx`
@@ -310,13 +331,17 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `tests/api/approval-controls-api.test.ts`
   API tests for approval decision persistence, global approval-policy updates, and project-level approval-control updates.
 - `tests/api/project-surfaces-api.test.ts`
-  API tests for project flow, operations, context, and result-table endpoints.
+  API tests for project flow, operations, context, and result-table endpoints, including MCP run presence on the operations contract.
 - `tests/api/operational-surfaces-api.test.ts`
   API tests for dashboard, approvals, assets, and evidence endpoints, including detail-route 404 handling.
 - `tests/api/settings-api.test.ts`
   API tests for settings section and system-status endpoints.
 - `tests/api/auth-api.test.ts`
   API tests for login success/failure, session-cookie issuance, logout, and auth audit-log emission.
+- `tests/api/mcp-runs-api.test.ts`
+  API tests for project-level MCP dispatch. Covers both low-risk immediate execution and high-risk approval-gated dispatch that later resumes after approval.
+- `tests/api/mcp-workflow-smoke-api.test.ts`
+  API tests for the runnable foundational MCP workflow, covering both a fully automatic baseline path and a path that correctly halts at a high-risk approval boundary.
 - `tests/approvals/approval-center-client.test.tsx`
   Client interaction test verifying the approvals workbench calls the approval mutation API and surfaces success feedback.
 - `tests/projects/project-operations-panel.test.tsx`
@@ -338,6 +363,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Full-page screenshot of the dedicated network results table.
 - `output/playwright/settings-hub-split.png`
   Full-page screenshot of the split settings hub page.
+- `output/playwright/project-operations-mcp-workflow.png`
+  Full-page screenshot of the project operations page after MCP dispatch history and workflow smoke controls were added.
 
 ## 8. Template Incorporation Notes
 
@@ -351,7 +378,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `.impeccable.md`
   Saved design context used to preserve the agreed visual/interaction direction.
 - `roadmap.md`
-  Phase-based delivery tracker covering frontend closure, read-only backend/API integration, real backend persistence, and orchestration work, now including auth plus persisted approval/control slices.
+  Phase-based delivery tracker covering frontend closure, read-only backend/API integration, real backend persistence, and orchestration work, now including the persisted MCP registry, project-level dispatch execution, and foundational runnable workflow smoke testing.
 - `docs/superpowers/plans/2026-03-26-frontend-prototype-implementation.md`
   Step-by-step implementation plan used during execution.
 - `docs/superpowers/specs/2026-03-26-frontend-prototype-design.md`
@@ -360,6 +387,10 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Handoff prompt for the next major phase after the read-only backend/API integration slice.
 - `docs/prompts/2026-03-26-phase-03b-persistence-expansion-prompt.md`
   Handoff prompt for the next persistence slice covering assets, evidence, work logs, and task/scheduler realism.
+- `docs/prompts/2026-03-26-phase-04b-execution-results-prompt.md`
+  Handoff prompt for the next slice that turns MCP execution outputs into persisted assets, evidence, work logs, and resumable approved runs.
+- `docs/superpowers/specs/2026-03-26-mcp-gateway-registry-spec.md`
+  MCP gateway registry and execution spec describing the current capability-first dispatch model, approval linkage, foundational runnable tools, and next backend integration targets.
 
 ## 10. Verification Commands
 

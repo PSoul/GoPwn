@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-26`
-- Current focus: Phase 3 is actively replacing prototype-only behavior with persisted project management, real login/session protection, and write-capable approval controls in a fresh isolated worktree.
+- Current focus: Phase 4 is actively turning MCP from a registry/settings concept into a runnable execution layer with project-level dispatch records and workflow smoke tests in a fresh isolated worktree.
 - Working mode: each major feature area uses its own isolated git branch/worktree so the existing branch is not disturbed.
 
 ## Phase 1: Frontend Prototype Closure
@@ -51,7 +51,7 @@
 
 ## Phase 3: Real Backend Core
 
-- Status: In progress on `codex/real-backend-core-2026-03-26`
+- Status: Completed on `codex/real-backend-core-2026-03-26`
 - Goal: replace prototype-only mock behavior with persisted platform capabilities and write-capable platform flows.
 
 ### Task Checklist
@@ -63,8 +63,7 @@
 - completed: add authenticated researcher login, signed session-cookie protection, and middleware-based console/API access control
 - completed: persist approval records plus global/project-level approval control state, with real decision/update APIs
 - completed: wire the approvals center, project operations page, and approval-policy settings page to the persisted approval/control APIs
-- in progress: expand persistence beyond projects into approvals, assets, evidence, work logs, and settings state
-- in progress: expand persistence beyond approvals into assets, evidence, work logs, and broader settings state
+- completed: expand persistence into approvals plus global/project approval-control state
 - pending: preserve the read-only contracts already proven in Phase 2 while swapping the remaining read models off static data
 
 ### Acceptance Criteria
@@ -76,21 +75,25 @@
 
 ## Phase 4: Orchestration and MCP Execution
 
-- Status: Planned
+- Status: In progress on `codex/mcp-gateway-core-2026-03-26`
 - Goal: connect real LLM/MCP orchestration while preserving approval and audit controls.
 
 ### Task Checklist
 
-- define provider abstraction for LLM orchestration and reviewer models
-- implement MCP tool registry, health checks, and controlled execution boundaries
-- add task queue, retries, rate limiting, and emergency stop controls
-- connect evidence generation and approval gating to real execution records
+- completed: implement persisted MCP tool registry, health checks, capability metadata, boundary rules, and registration checklist controls
+- completed: add project-level MCP dispatch records with capability-first routing, tool selection, blocked-run handling, and approval-linked execution state
+- completed: add foundational runnable local MCP tools and a smoke workflow that validates both full low-risk execution and approval-gated interruption
+- in progress: add richer task queue, retries, rate limiting, and emergency stop controls that drive actual execution rather than only settings state
+- pending: define provider abstraction for real LLM orchestration and reviewer models
+- pending: connect execution outputs into persisted assets, evidence, work logs, and project result surfaces
+- pending: replace local foundational runners with real MCP connectors incrementally, one capability family at a time
 
 ### Acceptance Criteria
 
 - controlled execution can be triggered end-to-end from the platform
 - high-risk actions cannot bypass approval
 - audit chain covers planning, execution, evidence, and operator intervention
+- at least one foundational workflow can be smoke-tested locally before real MCP connectors are attached
 
 ## Notes for Future LLM Sessions
 

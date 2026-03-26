@@ -9,6 +9,8 @@ import {
   defaultProjectFormPreset,
   getProjectDetailById,
   getProjectFormPreset,
+  mcpRuns,
+  mcpTools,
   projects,
   scopeRules,
 } from "@/lib/prototype-data"
@@ -16,6 +18,8 @@ import type {
   ApprovalControl,
   ApprovalRecord,
   LogRecord,
+  McpRunRecord,
+  McpToolRecord,
   PolicyRecord,
   ProjectDetailRecord,
   ProjectFormPreset,
@@ -28,6 +32,8 @@ type PrototypeStore = {
   approvalPolicies: PolicyRecord[]
   approvals: ApprovalRecord[]
   globalApprovalControl: ApprovalControl
+  mcpRuns: McpRunRecord[]
+  mcpTools: McpToolRecord[]
   projectDetails: ProjectDetailRecord[]
   projectFormPresets: Record<string, ProjectFormPreset>
   projects: ProjectRecord[]
@@ -59,11 +65,13 @@ function buildSeedStore(): PrototypeStore {
   )
 
   return {
-    version: 2,
+    version: 4,
     auditLogs: cloneValue(auditLogs),
     approvalPolicies: cloneValue(approvalPolicies),
     approvals: cloneValue(approvals),
     globalApprovalControl: cloneValue(globalApprovalControl),
+    mcpRuns: cloneValue(mcpRuns),
+    mcpTools: cloneValue(mcpTools),
     projectDetails: cloneValue(seededProjectDetails),
     projectFormPresets: cloneValue(seededProjectFormPresets),
     projects: cloneValue(projects),
@@ -80,6 +88,8 @@ function normalizeStore(store: Partial<PrototypeStore>): PrototypeStore {
     approvalPolicies: Array.isArray(store.approvalPolicies) ? store.approvalPolicies : seeded.approvalPolicies,
     approvals: Array.isArray(store.approvals) ? store.approvals : seeded.approvals,
     globalApprovalControl: store.globalApprovalControl ?? seeded.globalApprovalControl,
+    mcpRuns: Array.isArray(store.mcpRuns) ? store.mcpRuns : seeded.mcpRuns,
+    mcpTools: Array.isArray(store.mcpTools) ? store.mcpTools : seeded.mcpTools,
     projectDetails: Array.isArray(store.projectDetails) ? store.projectDetails : seeded.projectDetails,
     projectFormPresets: store.projectFormPresets ?? seeded.projectFormPresets,
     projects: Array.isArray(store.projects) ? store.projects : seeded.projects,

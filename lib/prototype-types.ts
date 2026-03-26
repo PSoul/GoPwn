@@ -259,11 +259,61 @@ export interface McpToolRecord {
   riskLevel: "高" | "中" | "低"
   status: "启用" | "禁用" | "异常"
   category: string
+  description: string
+  inputMode: string
+  outputMode: string
+  boundary: "外部目标交互" | "平台内部处理"
+  requiresApproval: boolean
+  endpoint: string
+  owner: string
   defaultConcurrency: string
   rateLimit: string
   timeout: string
   retry: string
   lastCheck: string
+  notes: string
+}
+
+export interface McpCapabilityRecord {
+  id: string
+  name: string
+  description: string
+  defaultRiskLevel: "高" | "中" | "低"
+  defaultApprovalRule: string
+  boundary: "外部目标交互" | "平台内部处理"
+  mappedStages: string[]
+  connectedTools: string[]
+}
+
+export interface McpBoundaryRule {
+  title: string
+  description: string
+  type: "外部目标交互" | "平台内部处理"
+}
+
+export interface McpRegistrationField {
+  label: string
+  description: string
+}
+
+export interface McpRunRecord {
+  id: string
+  projectId: string
+  projectName: string
+  capability: string
+  toolId: string
+  toolName: string
+  requestedAction: string
+  target: string
+  riskLevel: "高" | "中" | "低"
+  boundary: "外部目标交互" | "平台内部处理"
+  dispatchMode: "自动执行" | "审批后执行" | "阻塞"
+  status: "待审批" | "执行中" | "已执行" | "已阻塞" | "已拒绝" | "已延后"
+  requestedBy: string
+  createdAt: string
+  updatedAt: string
+  linkedApprovalId?: string
+  summaryLines: string[]
 }
 
 export interface ControlSetting {
@@ -339,6 +389,7 @@ export interface ProjectOperationsPayload {
   project: ProjectRecord
   detail: ProjectDetailRecord
   approvals: ApprovalRecord[]
+  mcpRuns: McpRunRecord[]
 }
 
 export interface ProjectContextPayload {
@@ -424,4 +475,55 @@ export interface ApprovalPolicyPayload {
   approvalControl: ApprovalControl
   approvalPolicies: PolicyRecord[]
   scopeRules: PolicyRecord[]
+}
+
+export interface McpToolPatchInput {
+  status?: McpToolRecord["status"]
+  defaultConcurrency?: string
+  rateLimit?: string
+  timeout?: string
+  retry?: string
+  notes?: string
+}
+
+export interface McpSettingsPayload {
+  tools: McpToolRecord[]
+  capabilities: McpCapabilityRecord[]
+  boundaryRules: McpBoundaryRule[]
+  registrationFields: McpRegistrationField[]
+}
+
+export interface McpDispatchInput {
+  capability: string
+  requestedAction: string
+  target: string
+  riskLevel: "高" | "中" | "低"
+}
+
+export interface McpDispatchPayload {
+  run: McpRunRecord
+  approval?: ApprovalRecord
+}
+
+export interface McpRunCollectionPayload {
+  items: McpRunRecord[]
+  total: number
+}
+
+export interface McpWorkflowSmokeInput {
+  scenario: "baseline" | "with-approval"
+}
+
+export interface McpWorkflowSmokePayload {
+  workflowId: string
+  status: "completed" | "waiting_approval" | "blocked"
+  runs: McpRunRecord[]
+  blockedRun?: McpRunRecord
+  approval?: ApprovalRecord
+  outputs: {
+    normalizedTargets?: string[]
+    discoveredSubdomains?: string[]
+    webEntries?: string[]
+    reportDigest?: string[]
+  }
 }
