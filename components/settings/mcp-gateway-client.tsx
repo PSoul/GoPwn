@@ -13,6 +13,8 @@ import type {
   McpBoundaryRule,
   McpCapabilityRecord,
   McpRegistrationField,
+  McpServerInvocationRecord,
+  McpServerRecord,
   McpToolRecord,
 } from "@/lib/prototype-types"
 
@@ -20,11 +22,15 @@ const statusChoices: McpToolRecord["status"][] = ["启用", "禁用", "异常"]
 
 export function McpGatewayClient({
   initialTools,
+  initialServers,
+  initialInvocations,
   capabilities,
   boundaryRules,
   registrationFields,
 }: {
   initialTools: McpToolRecord[]
+  initialServers: McpServerRecord[]
+  initialInvocations: McpServerInvocationRecord[]
   capabilities: McpCapabilityRecord[]
   boundaryRules: McpBoundaryRule[]
   registrationFields: McpRegistrationField[]
@@ -44,6 +50,7 @@ export function McpGatewayClient({
   const enabledCount = tools.filter((tool) => tool.status === "启用").length
   const abnormalCount = tools.filter((tool) => tool.status === "异常").length
   const coveredCapabilityCount = new Set(tools.map((tool) => tool.capability)).size
+  const connectedServerCount = initialServers.filter((server) => server.enabled).length
 
   useEffect(() => {
     if (filteredTools.length === 0) {
@@ -313,6 +320,79 @@ export function McpGatewayClient({
           )}
         </SectionCard>
       </div>
+
+      <SectionCard
+        title="已连接 MCP 服务器"
+        description="这里展示真实 MCP server 注册表和最近一次实际调用，让我们能快速确认哪些能力已经从原型接线升级到了真实 stdio 链路。"
+      >
+        <div className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
+          <div className="space-y-4">
+            <div className="rounded-3xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">已接入 server</p>
+              <p className="mt-2 text-3xl font-semibold text-slate-950 dark:text-white">{connectedServerCount}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">真实 MCP server 会优先承接对应能力族，没有命中时才回退到本地原型 connector。</p>
+            </div>
+
+            <div className="space-y-3">
+              {initialServers.map((server) => (
+                <div
+                  key={server.id}
+                  className="rounded-3xl border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950 dark:text-white">{server.serverName}</p>
+                      <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                        {server.transport} · {[server.command, ...server.args].join(" ")}
+                      </p>
+                      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{server.endpoint}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <StatusBadge tone={server.enabled ? "success" : "neutral"}>{server.enabled ? "已启用" : "已停用"}</StatusBadge>
+                      <StatusBadge tone={server.status === "异常" ? "danger" : server.status === "已连接" ? "success" : "neutral"}>
+                        {server.status}
+                      </StatusBadge>
+                    </div>
+                  </div>
+                  <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">绑定工具：{server.toolBindings.join("、")}</p>
+                  <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                    最近心跳：{server.lastSeen} · {server.notes}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {initialInvocations.length > 0 ? (
+              initialInvocations.map((invocation) => (
+                <div
+                  key={invocation.id}
+                  className="rounded-3xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950 dark:text-white">{invocation.toolName}</p>
+                      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{invocation.target}</p>
+                    </div>
+                    <StatusBadge tone={invocation.status === "succeeded" ? "success" : invocation.status === "timeout" ? "warning" : "danger"}>
+                      {invocation.status}
+                    </StatusBadge>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{invocation.summary}</p>
+                  <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                    {invocation.createdAt} · {invocation.durationMs} ms
+                  </p>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50/80 px-6 py-12 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
+                真实 MCP server 已注册，但还没有产生调用记录。
+              </div>
+            )}
+          </div>
+        </div>
+      </SectionCard>
 
       <div className="grid gap-6 xl:grid-cols-[1.04fr_0.96fr]">
         <SectionCard title="MCP 能力族" description="平台调度时优先看能力契约，工具只是实现承载位。">

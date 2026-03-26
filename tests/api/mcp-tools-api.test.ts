@@ -32,6 +32,8 @@ describe("mcp tools api routes", () => {
 
     expect(response.status).toBe(200)
     expect(payload.tools.length).toBeGreaterThan(0)
+    expect(payload.servers.length).toBeGreaterThan(0)
+    expect(payload.servers.some((item: { serverName: string }) => item.serverName === "web-surface-stdio")).toBe(true)
     expect(payload.capabilities.some((item: { name: string }) => item.name === "受控验证类")).toBe(true)
     expect(payload.registrationFields.some((item: { label: string }) => item.label === "工具名称")).toBe(true)
   })

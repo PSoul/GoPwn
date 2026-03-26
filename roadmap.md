@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-26`
-- Current focus: Phase 6 is landing on `codex/llm-orchestrator-docker-validation-2026-03-26`, adding a real LLM-provider abstraction, local Docker validation targets, orchestrator APIs/UI, and MCP onboarding conventions.
+- Current focus: the first Phase 7 slice is landing on `codex/production-backend-real-mcp-2026-03-26`, adding a SQLite-backed MCP server registry, a real stdio MCP server/client path for Web surface probing, and settings exposure for connected MCP servers.
 - Working mode: each major feature area uses its own isolated git branch/worktree so the existing branch is not disturbed.
 
 ## Phase 1: Frontend Prototype Closure
@@ -146,22 +146,24 @@
 
 ## Phase 7: Production Backend Integration and Real MCP Expansion
 
-- Status: Next
+- Status: In progress on `codex/production-backend-real-mcp-2026-03-26`
 - Goal: harden the prototype backend into a more production-like runtime and replace more simulated capability families with real MCP integrations.
 
 ### Task Checklist
 
-- pending: replace or augment the file-backed prototype store with a database-backed persistence layer suitable for longer-running environments
-- pending: introduce a real MCP server/client attachment model so tool families can be registered and invoked outside the in-process prototype runtime
+- completed: augment the prototype backend with a SQLite-backed persistence layer dedicated to external MCP server metadata and invocation logs
+- completed: introduce a real MCP stdio server/client attachment model using the official TypeScript SDK for the `Web 页面探测类` capability
+- completed: expose the connected MCP server registry and recent invocation history in the MCP settings API and settings UI
+- in progress: replace or augment more of the file-backed prototype runtime with database-backed persistence suitable for longer-running environments
 - pending: wire project/task execution state to durable queues, cancellation, and better operator controls
-- pending: expand real connector families beyond DNS into Web/API reconnaissance and evidence capture
+- pending: expand real connector families beyond DNS + Web surface probing into API reconnaissance and evidence capture
 - pending: refine the LLM provider configuration surface, secret handling guidance, and operational fallback behavior
 - pending: add local-lab-backed regression suites that can optionally run against real Docker targets in CI or controlled local environments
 
 ### Acceptance Criteria
 
-- backend state is durable beyond a single prototype JSON store
-- at least one non-DNS external interaction family runs through a real MCP/server integration path
+- partially met: backend state now includes a durable SQLite slice for external MCP server registry metadata and real-call audit history
+- met: at least one non-DNS external interaction family runs through a real MCP/server integration path
 - project execution, approvals, evidence, and findings remain auditable after backend hardening
 - the local Docker validation stack remains usable as a regression harness while the backend evolves
 

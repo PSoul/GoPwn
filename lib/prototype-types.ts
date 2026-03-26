@@ -296,6 +296,35 @@ export interface McpRegistrationField {
   description: string
 }
 
+export type McpServerTransport = "stdio" | "streamable_http" | "sse"
+
+export type McpServerStatus = "已连接" | "停用" | "异常"
+
+export interface McpServerRecord {
+  id: string
+  serverName: string
+  transport: McpServerTransport
+  command: string
+  args: string[]
+  endpoint: string
+  enabled: boolean
+  status: McpServerStatus
+  toolBindings: string[]
+  notes: string
+  lastSeen: string
+}
+
+export interface McpServerInvocationRecord {
+  id: string
+  serverId: string
+  toolName: string
+  status: "succeeded" | "failed" | "timeout"
+  target: string
+  summary: string
+  durationMs: number
+  createdAt: string
+}
+
 export interface McpRunRecord {
   id: string
   projectId: string
@@ -561,6 +590,8 @@ export interface McpToolPatchInput {
 
 export interface McpSettingsPayload {
   tools: McpToolRecord[]
+  servers: McpServerRecord[]
+  recentInvocations: McpServerInvocationRecord[]
   capabilities: McpCapabilityRecord[]
   boundaryRules: McpBoundaryRule[]
   registrationFields: McpRegistrationField[]

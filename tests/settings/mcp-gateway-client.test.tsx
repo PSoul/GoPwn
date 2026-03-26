@@ -3,6 +3,36 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { McpGatewayClient } from "@/components/settings/mcp-gateway-client"
 import { mcpBoundaryRules, mcpCapabilityRecords, mcpRegistrationFields, mcpTools } from "@/lib/prototype-data"
+import type { McpServerInvocationRecord, McpServerRecord } from "@/lib/prototype-types"
+
+const serverFixtures: McpServerRecord[] = [
+  {
+    id: "mcp-server-web-surface-stdio",
+    serverName: "web-surface-stdio",
+    transport: "stdio",
+    command: "node",
+    args: ["scripts/mcp/web-surface-server.mjs"],
+    endpoint: "stdio://web-surface-stdio",
+    enabled: true,
+    status: "已连接",
+    toolBindings: ["web-surface-map"],
+    notes: "真实 Web 页面探测 MCP server",
+    lastSeen: "2026-03-26 23:59",
+  },
+]
+
+const invocationFixtures: McpServerInvocationRecord[] = [
+  {
+    id: "mcp-invoke-001",
+    serverId: "mcp-server-web-surface-stdio",
+    toolName: "probe_web_surface",
+    status: "succeeded",
+    target: "http://127.0.0.1:3000/login",
+    summary: "页面入口探测完成",
+    durationMs: 120,
+    createdAt: "2026-03-26 23:59",
+  },
+]
 
 describe("McpGatewayClient", () => {
   beforeEach(() => {
@@ -28,6 +58,8 @@ describe("McpGatewayClient", () => {
     render(
       <McpGatewayClient
         initialTools={mcpTools}
+        initialServers={serverFixtures}
+        initialInvocations={invocationFixtures}
         capabilities={mcpCapabilityRecords}
         boundaryRules={mcpBoundaryRules}
         registrationFields={mcpRegistrationFields}
@@ -68,6 +100,8 @@ describe("McpGatewayClient", () => {
     render(
       <McpGatewayClient
         initialTools={mcpTools}
+        initialServers={serverFixtures}
+        initialInvocations={invocationFixtures}
         capabilities={mcpCapabilityRecords}
         boundaryRules={mcpBoundaryRules}
         registrationFields={mcpRegistrationFields}
@@ -91,5 +125,22 @@ describe("McpGatewayClient", () => {
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(`/api/settings/mcp-tools/${mcpTools[2].id}/health-check`, expect.objectContaining({ method: "POST" }))
     })
+  })
+
+  it("renders the connected MCP server registry", () => {
+    render(
+      <McpGatewayClient
+        initialTools={mcpTools}
+        initialServers={serverFixtures}
+        initialInvocations={invocationFixtures}
+        capabilities={mcpCapabilityRecords}
+        boundaryRules={mcpBoundaryRules}
+        registrationFields={mcpRegistrationFields}
+      />,
+    )
+
+    expect(screen.getByText("已连接 MCP 服务器")).toBeInTheDocument()
+    expect(screen.getByText("web-surface-stdio")).toBeInTheDocument()
+    expect(screen.getByText("probe_web_surface")).toBeInTheDocument()
   })
 })

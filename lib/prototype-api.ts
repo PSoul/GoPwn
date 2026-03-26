@@ -31,6 +31,10 @@ import {
   listStoredMcpRuns,
 } from "@/lib/mcp-gateway-repository"
 import {
+  listStoredMcpServerInvocations,
+  listStoredMcpServers,
+} from "@/lib/mcp-server-repository"
+import {
   executeProjectLocalValidation,
   generateProjectOrchestratorPlan,
   getProjectOrchestratorPanelPayload,
@@ -442,6 +446,8 @@ export function updateProjectApprovalControlPayload(projectId: string, patch: Ap
 export function getMcpSettingsPayload(): McpSettingsPayload {
   return {
     tools: listStoredMcpTools(),
+    servers: listStoredMcpServers(),
+    recentInvocations: listStoredMcpServerInvocations(undefined, 6),
     capabilities: mcpCapabilityRecords,
     boundaryRules: mcpBoundaryRules,
     registrationFields: mcpRegistrationFields,

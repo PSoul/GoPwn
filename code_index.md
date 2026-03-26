@@ -13,6 +13,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - foundational MCP execution now persists normalized outputs into assets, evidence, work logs, and findings so approved runs materially advance project state
 - the operations page now includes an orchestrator console for local lab planning and validation rehearsal
 - the backend now includes a configurable OpenAI-compatible LLM provider layer plus local Docker lab support
+- Phase 7 has started by adding a SQLite-backed MCP server registry plus a real stdio MCP server/client execution path for Web surface probing
 
 ## 2. Routing Map
 
@@ -79,6 +80,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Persistent work-log collection endpoint returning execution/playback records for daily LLM + MCP activity.
 - `app/api/settings/approval-policy/route.ts`
   Global approval-policy read/mutation endpoint returning the persisted settings payload and saving approval strategy changes.
+- `app/api/settings/mcp-tools/route.ts`
+  MCP settings endpoint now returns both the persisted tool registry and the SQLite-backed real MCP server registry plus recent invocation records.
 - `app/api/settings/system-status/route.ts`
   Settings system-health summary endpoint.
 
@@ -121,7 +124,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `app/(console)/settings/page.tsx`
   Settings hub with category links and system status preview.
 - `app/(console)/settings/mcp-tools/page.tsx`
-  Dedicated MCP capability/tool management page.
+  Dedicated MCP capability/tool management page, now also surfacing connected real MCP servers and their recent invocation history.
 - `app/(console)/settings/llm/page.tsx`
   Dedicated LLM model responsibility and budget page.
 - `app/(console)/settings/approval-policy/page.tsx`
@@ -241,7 +244,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `components/settings/mcp-tool-table.tsx`
   MCP capability/tool table with health, risk, concurrency, rate, timeout, and retry information.
 - `components/settings/mcp-gateway-client.tsx`
-  Interactive MCP registry control plane with search, capability overview, boundary rules, registration checklist, tool detail editing, and health-check actions.
+  Interactive MCP registry control plane with search, capability overview, boundary rules, registration checklist, tool detail editing, health-check actions, plus a compact connected-MCP-server registry and recent real-call feed.
 - `components/settings/llm-settings-panel.tsx`
   Panel grid for orchestrator/reviewer/extractor model configuration.
 - `components/settings/system-control-panel.tsx`
@@ -278,11 +281,15 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `lib/mcp-connectors/types.ts`
   Shared connector contracts defining execution context, connector mode (`local` / `real`), success/failure result shapes, and the raw-output contract consumed by the normalization layer.
 - `lib/mcp-connectors/registry.ts`
-  Connector selection registry. Chooses the best implementation for a run, preferring the real DNS connector when the target supports it and falling back to local foundational connectors otherwise.
+  Connector selection registry. Chooses the best implementation for a run, now preferring the real DNS connector or the real Web-surface stdio MCP connector when their targets and server-registry state support it, and falling back to local foundational connectors otherwise.
 - `lib/mcp-connectors/local-foundational-connectors.ts`
   Extracted local foundational connector implementations for `seed-normalizer`, `dns-census`, `web-surface-map`, `auth-guard-check`, and `report-exporter`. These preserve deterministic smoke-run behavior behind the new connector abstraction.
 - `lib/mcp-connectors/real-dns-intelligence-connector.ts`
   First real connector family. Uses Node built-ins (`dns/promises` and `tls`) to collect DNS records, reverse lookups, and certificate metadata, while exposing test adapters so CI stays deterministic.
+- `lib/mcp-connectors/real-web-surface-mcp-connector.ts`
+  Second real connector family. Routes `web-surface-map` through the SQLite-backed MCP server registry, calls a real stdio MCP subprocess, and normalizes the returned `webEntries` back into the platform connector contract.
+- `lib/mcp-client-service.ts`
+  Thin real-MCP client runtime. Spawns a stdio MCP subprocess through the official TypeScript SDK, lists/calls tools with timeout/error handling, and persists invocation logs into SQLite.
 - `lib/mcp-execution-service.ts`
   Execution normalization layer behind the connector registry. Resolves the selected connector, executes it, converts connector-level structured output into platform assets/evidence/work logs/findings, updates run summaries, and refreshes project result state.
 - `lib/mcp-scheduler-repository.ts`
@@ -295,7 +302,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   - projects and project detail records
   - result metrics, asset inventory groups, findings, and stage snapshots
   - approval control state
-  - approvals, assets, evidence, MCP tools, MCP run records, scheduler-task records, and MCP workflow smoke payloads
+  - approvals, assets, evidence, MCP tools, external MCP server registry records, MCP run records, scheduler-task records, and MCP workflow smoke payloads
   - settings hub sections, LLM settings, work logs, audit logs, and system status cards
   - API payload types for dashboard, approvals, assets, evidence, project collections, project surface contracts, MCP dispatch contracts, and settings summaries
 - `lib/prototype-data.ts`
@@ -319,6 +326,10 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Persisted MCP gateway layer. Owns project-level MCP run records, capability-to-tool selection, approval requirement decisions, approval record creation for gated actions, blocked-run handling, initial queued-run creation, and approval-result synchronization back into MCP runs.
 - `lib/mcp-repository.ts`
   Persisted MCP registry repository for tool listing, tool updates, and health-check state changes.
+- `lib/mcp-server-sqlite.ts`
+  Low-level SQLite bootstrap for external MCP servers. Owns schema creation, seed insertion for the first stdio server, row mappers, and database-path management under the prototype store.
+- `lib/mcp-server-repository.ts`
+  High-level repository for external MCP server metadata and invocation logs. Lists seeded servers, resolves tool bindings, and appends or reads recent invocation records.
 - `lib/mcp-workflow-service.ts`
   Scheduler-backed MCP workflow runner used for smoke tests. Chains seed normalization, passive discovery, Web mapping, optional approval-gated validation, and report export through the same queue/connector/normalization path used by normal project dispatch.
 - `lib/mcp-write-schema.ts`
@@ -383,12 +394,18 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   API tests for settings section and system-status endpoints.
 - `tests/api/auth-api.test.ts`
   API tests for login success/failure, session-cookie issuance, logout, and auth audit-log emission.
+- `tests/api/mcp-tools-api.test.ts`
+  API tests for persisted MCP tool updates, health checks, and the Phase 7 MCP settings payload that now includes the real server registry.
 - `tests/api/mcp-runs-api.test.ts`
   API tests for project-level MCP dispatch. Covers low-risk immediate execution, high-risk approval-gated dispatch, approval-linked resume execution, and result persistence into project context and work logs.
 - `tests/api/mcp-workflow-smoke-api.test.ts`
   API tests for the runnable foundational MCP workflow, covering both a fully automatic baseline path, persisted result emission, work-log generation, and a path that correctly halts at a high-risk approval boundary.
 - `tests/lib/mcp-connectors.test.ts`
   Unit tests for connector selection and the first real DNS connector family, including deterministic mocked Node DNS/TLS adapter results.
+- `tests/lib/mcp-server-repository.test.ts`
+  Unit tests for the SQLite-backed MCP server registry seed and invocation-log persistence.
+- `tests/lib/real-web-surface-mcp-connector.test.ts`
+  Unit test proving `web-surface-map` can execute through a real stdio MCP subprocess and return normalized `webEntries`.
 - `tests/lib/mcp-scheduler-service.test.ts`
   Unit tests for scheduler task creation, delayed approval handling, and approved-task resume execution.
 - `tests/lib/mcp-scheduler-retry.test.ts`
@@ -401,10 +418,14 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Client interaction tests for plan generation and local validation actions inside the new orchestrator panel.
 - `tests/settings/system-control-panel.test.tsx`
   Client interaction test verifying the approval-policy settings panel persists global strategy changes through the new API.
+- `tests/settings/mcp-gateway-client.test.tsx`
+  Client interaction test for tool editing plus the connected-MCP-server registry block and recent invocation rendering on the settings page.
 - `playwright.config.ts`
   Playwright E2E configuration that boots the local Next.js dev server and runs browser smoke flows against the prototype routes.
 - `scripts/run-playwright.mjs`
   Wrapper that clears the dedicated Playwright web-server port before launching browser tests, avoiding stale local dev-server conflicts in repeated runs.
+- `scripts/mcp/web-surface-server.mjs`
+  Real local stdio MCP server for the Phase 7 slice. Exposes a safe read-only `probe_web_surface` tool that fetches a target URL, extracts title/status/headers, and returns structured `webEntries`.
 - `e2e/prototype-smoke.spec.ts`
   Browser-level smoke tests for `/login`, authenticated access to `/dashboard`, `/projects`, project result/context routes, split settings navigation, and the operations-page orchestrator-plan flow.
 
@@ -431,7 +452,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `.impeccable.md`
   Saved design context used to preserve the agreed visual/interaction direction.
 - `roadmap.md`
-  Phase-based delivery tracker covering frontend closure, backend integration, persistence, MCP execution, real connectors/scheduler, and the Phase 6 orchestrator/local-Docker validation slice.
+  Phase-based delivery tracker covering frontend closure, backend integration, persistence, MCP execution, real connectors/scheduler, the Phase 6 orchestrator/local-Docker validation slice, and the current Phase 7 real-MCP backend hardening slice.
 - `docker/local-labs/compose.yaml`
   Local Docker validation harness for OWASP Juice Shop and WebGoat, used to exercise the platform against safe, local-only vulnerable targets.
 - `docs/operations/local-docker-labs.md`
@@ -448,6 +469,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Step-by-step implementation plan for the Phase 5 connector abstraction, scheduler loop, approval resume, retry handling, and real DNS connector slice.
 - `docs/superpowers/plans/2026-03-26-llm-orchestrator-docker-validation-implementation.md`
   Step-by-step implementation plan for the Phase 6 provider abstraction, orchestrator APIs/UI, MCP onboarding docs, and local Docker validation harness.
+- `docs/superpowers/plans/2026-03-26-production-backend-real-mcp-implementation.md`
+  Step-by-step implementation plan for the first Phase 7 slice covering SQLite-backed MCP server persistence, real stdio MCP execution, and settings-page registry exposure.
 - `docs/superpowers/specs/2026-03-26-frontend-prototype-design.md`
   Upstream product/spec reference from the approved design work.
 - `docs/prompts/2026-03-26-phase-03-real-backend-core-prompt.md`
