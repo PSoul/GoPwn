@@ -1,13 +1,25 @@
 import Link from "next/link"
+import { notFound } from "next/navigation"
 
 import { EvidenceDetail } from "@/components/evidence/evidence-detail"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { evidenceRecords } from "@/lib/prototype-data"
+import { getEvidenceDetailPayload } from "@/lib/prototype-api"
 
-export default function EvidenceDetailPage() {
-  const record = evidenceRecords[0]
+export default async function EvidenceDetailPage({
+  params,
+}: {
+  params: Promise<{ evidenceId: string }>
+}) {
+  const { evidenceId } = await params
+  const payload = getEvidenceDetailPayload(evidenceId)
+
+  if (!payload) {
+    notFound()
+  }
+
+  const { record } = payload
 
   return (
     <div className="space-y-6">

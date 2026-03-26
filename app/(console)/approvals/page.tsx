@@ -7,11 +7,12 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { approvals } from "@/lib/prototype-data"
+import { listApprovalsPayload } from "@/lib/prototype-api"
 
 const statIcons = [ClipboardCheck, ShieldAlert, TimerReset, Workflow]
 
 export default function ApprovalsPage() {
+  const { items: approvals } = listApprovalsPayload()
   const pendingCount = approvals.filter((item) => item.status === "待处理").length
   const highRiskCount = approvals.filter((item) => item.riskLevel === "高").length
   const blockedProjects = new Set(

@@ -1555,3 +1555,11 @@ export function getProjectEvidence(projectId: string) {
 export function getProjectAssetGroup(projectId: string, groupTitle: string) {
   return getProjectDetailById(projectId)?.assetGroups.find((group) => group.title === groupTitle)
 }
+
+export function getAssetById(assetId: string) {
+  return assets.find((asset) => asset.id === assetId)
+}
+
+export function getEvidenceById(evidenceId: string) {
+  return evidenceRecords.find((record) => record.id === evidenceId)
+}

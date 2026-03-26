@@ -6,11 +6,12 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { evidenceRecords } from "@/lib/prototype-data"
+import { listEvidencePayload } from "@/lib/prototype-api"
 
 const statIcons = [Files, FileCheck2, ShieldAlert, Waypoints]
 
 export default function EvidencePage() {
+  const { items: evidenceRecords } = listEvidencePayload()
   const linkedApprovals = new Set(evidenceRecords.map((item) => item.linkedApprovalId)).size
 
   const stats = [

@@ -6,11 +6,12 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { assets } from "@/lib/prototype-data"
+import { listAssetsPayload } from "@/lib/prototype-api"
 
 const statIcons = [Boxes, Network, ShieldCheck, FolderKanban]
 
 export default function AssetsPage() {
+  const { items: assets } = listAssetsPayload()
   const inScopeCount = assets.filter((item) => item.scopeStatus === "已纳入").length
   const pendingCount = assets.filter((item) => item.scopeStatus === "待确认").length
   const reviewCount = assets.filter((item) => item.scopeStatus === "待复核").length

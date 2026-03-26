@@ -12,12 +12,14 @@ import SystemStatusSettingsPage from "@/app/(console)/settings/system-status/pag
 import WorkLogsSettingsPage from "@/app/(console)/settings/work-logs/page"
 
 describe("Evidence and settings pages", () => {
-  it("renders the evidence list and detail flow", () => {
+  it("renders the evidence list and detail flow", async () => {
     render(<EvidencePage />)
     expect(screen.getByText("证据与结果")).toBeInTheDocument()
+    cleanup()
 
-    render(<EvidenceDetailPage />)
+    render(await EvidenceDetailPage({ params: Promise.resolve({ evidenceId: "EV-20260326-010" }) }))
     expect(screen.getByText("原始输出")).toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: "证据详情 · EV-20260326-010" })).toBeInTheDocument()
   })
 
   it("renders the settings hub", () => {

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { cleanup, render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
 import ApprovalsPage from "@/app/(console)/approvals/page"
@@ -13,11 +13,13 @@ describe("Approvals and assets pages", () => {
     expect(screen.getByText("待处理审批")).toBeInTheDocument()
   })
 
-  it("renders asset list and asset detail profile", () => {
+  it("renders asset list and asset detail profile", async () => {
     render(<AssetsPage />)
     expect(screen.getByText("资产中心")).toBeInTheDocument()
+    cleanup()
 
-    render(<AssetDetailPage />)
+    render(await AssetDetailPage({ params: Promise.resolve({ assetId: "asset-api" }) }))
     expect(screen.getByText("当前识别画像")).toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: "资产详情 · api.yunlanmed.com" })).toBeInTheDocument()
   })
 })

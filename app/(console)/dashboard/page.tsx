@@ -12,7 +12,7 @@ import {
 
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { approvals, assets, dashboardMetrics, dashboardPriorities, evidenceRecords, mcpTools, projectTasks, projects } from "@/lib/prototype-data"
+import { getDashboardPayload } from "@/lib/prototype-api"
 import type { Tone } from "@/lib/prototype-types"
 import { cn } from "@/lib/utils"
 
@@ -72,8 +72,8 @@ type FocusCard = {
 }
 
 export default function DashboardPage() {
-  const approvalMetric = dashboardMetrics.find((metric) => metric.label === "待审批动作") ?? dashboardMetrics[0]
-  const leadProject = projects[0]
+  const { approvals, assets, evidence, leadProject, mcpTools, metrics, priorities, projectTasks } = getDashboardPayload()
+  const approvalMetric = metrics.find((metric) => metric.label === "待审批动作") ?? metrics[0]
   const exceptionTool = mcpTools.find((tool) => tool.status === "异常") ?? mcpTools[0]
 
   const queueItems: QueueItem[] = [
@@ -110,10 +110,10 @@ export default function DashboardPage() {
       icon: Network,
     },
     {
-      title: evidenceRecords[0].title,
-      subtitle: evidenceRecords[0].projectName,
-      meta: evidenceRecords[0].source,
-      status: evidenceRecords[0].conclusion,
+      title: evidence[0].title,
+      subtitle: evidence[0].projectName,
+      meta: evidence[0].source,
+      status: evidence[0].conclusion,
       tone: "warning",
       icon: ShieldAlert,
     },
@@ -129,8 +129,8 @@ export default function DashboardPage() {
 
   const focusCards: FocusCard[] = [
     {
-      title: dashboardPriorities[0].title,
-      subtitle: dashboardPriorities[0].detail,
+      title: priorities[0].title,
+      subtitle: priorities[0].detail,
       badge: "进行中",
       tone: "danger",
       icon: ClipboardCheck,
@@ -143,8 +143,8 @@ export default function DashboardPage() {
       cta: "进入审批中心",
     },
     {
-      title: dashboardPriorities[1].title,
-      subtitle: dashboardPriorities[1].detail,
+      title: priorities[1].title,
+      subtitle: priorities[1].detail,
       badge: "待确认",
       tone: "warning",
       icon: Network,
@@ -190,7 +190,7 @@ export default function DashboardPage() {
               </p>
 
               <div className="mt-4 space-y-1">
-                {dashboardMetrics.map((metric) => {
+                {metrics.map((metric) => {
                   const Icon = metricIcons[metric.label]
 
                   return (
@@ -238,10 +238,10 @@ export default function DashboardPage() {
                 <StatusBadge tone={leadProject.status === "已阻塞" ? "danger" : "info"}>{leadProject.status}</StatusBadge>
               </div>
 
-              <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">{dashboardPriorities[0].detail}</p>
+              <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">{priorities[0].detail}</p>
 
               <div className="mt-4 space-y-2.5">
-                {dashboardPriorities.map((item, index) => (
+                {priorities.map((item, index) => (
                   <div
                     key={item.title}
                     className="flex items-start justify-between gap-3 rounded-xl border border-slate-200/80 px-3 py-3 dark:border-slate-800"

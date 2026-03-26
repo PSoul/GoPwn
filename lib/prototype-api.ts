@@ -1,15 +1,31 @@
 import {
+  approvals,
+  assets,
+  dashboardMetrics,
+  dashboardPriorities,
+  evidenceRecords,
+  getAssetById,
   getProjectApprovals,
   getProjectAssetGroup,
   getProjectAssets,
   getProjectById,
   getProjectDetailById,
+  getEvidenceById,
   getProjectEvidence,
+  leadProject,
+  mcpTools,
+  projectTasks,
   projects,
   settingsSections,
   systemStatusCards,
 } from "@/lib/prototype-data"
 import type {
+  ApprovalCollectionPayload,
+  AssetCollectionPayload,
+  AssetDetailPayload,
+  DashboardPayload,
+  EvidenceCollectionPayload,
+  EvidenceDetailPayload,
   ProjectCollectionPayload,
   ProjectContextPayload,
   ProjectFindingsPayload,
@@ -117,4 +133,59 @@ export function getSystemStatusPayload(): SystemStatusPayload {
     items: systemStatusCards,
     total: systemStatusCards.length,
   }
+}
+
+export function getDashboardPayload(): DashboardPayload {
+  return {
+    metrics: dashboardMetrics,
+    priorities: dashboardPriorities,
+    leadProject,
+    approvals,
+    assets,
+    evidence: evidenceRecords,
+    mcpTools,
+    projectTasks,
+    projects,
+  }
+}
+
+export function listApprovalsPayload(): ApprovalCollectionPayload {
+  return {
+    items: approvals,
+    total: approvals.length,
+  }
+}
+
+export function listAssetsPayload(): AssetCollectionPayload {
+  return {
+    items: assets,
+    total: assets.length,
+  }
+}
+
+export function getAssetDetailPayload(assetId: string): AssetDetailPayload | null {
+  const asset = getAssetById(assetId)
+
+  if (!asset) {
+    return null
+  }
+
+  return { asset }
+}
+
+export function listEvidencePayload(): EvidenceCollectionPayload {
+  return {
+    items: evidenceRecords,
+    total: evidenceRecords.length,
+  }
+}
+
+export function getEvidenceDetailPayload(evidenceId: string): EvidenceDetailPayload | null {
+  const record = getEvidenceById(evidenceId)
+
+  if (!record) {
+    return null
+  }
+
+  return { record }
 }

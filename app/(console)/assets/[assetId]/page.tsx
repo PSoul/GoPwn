@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { notFound } from "next/navigation"
 
 import { AssetProfilePanel } from "@/components/assets/asset-profile-panel"
 import { AssetRelations } from "@/components/assets/asset-relations"
@@ -6,10 +7,21 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { assets } from "@/lib/prototype-data"
+import { getAssetDetailPayload } from "@/lib/prototype-api"
 
-export default function AssetDetailPage() {
-  const asset = assets[0]
+export default async function AssetDetailPage({
+  params,
+}: {
+  params: Promise<{ assetId: string }>
+}) {
+  const { assetId } = await params
+  const payload = getAssetDetailPayload(assetId)
+
+  if (!payload) {
+    notFound()
+  }
+
+  const { asset } = payload
 
   return (
     <div className="space-y-6">

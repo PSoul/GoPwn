@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-26`
-- Current focus: an isolated backend/API branch is active and has landed the first read-only contract slice for projects and settings.
+- Current focus: the isolated backend/API branch has now completed the read-only integration slice for dashboard, approvals, assets, evidence, projects, and settings.
 - Working mode: each major feature area uses its own isolated git branch/worktree so the existing branch is not disturbed.
 
 ## Phase 1: Frontend Prototype Closure
@@ -28,37 +28,39 @@
 
 ## Phase 2: Mock Backend API and Integration Slice
 
-- Status: In progress on `codex/backend-integration-2026-03-26`
-- Goal: add a first backend/API layer inside the Next.js app and begin frontend/backend contract alignment.
+- Status: Completed on `codex/backend-integration-2026-03-26`
+- Goal: add a first backend/API layer inside the Next.js app and complete the initial read-only frontend/backend contract alignment.
 
 ### Task Checklist
 
 - completed: create route handlers for project list, project overview, project flow, project operations, project context, project result tables, and settings summary data
+- completed: extend the same route-handler/service-layer approach to dashboard, approvals, assets, asset detail, evidence, and evidence detail
 - completed: extract a shared service layer so mock data and route handlers use one contract
 - completed: add API tests for key JSON endpoints
-- completed: keep the frontend stable while preparing it for data access migration by switching the related pages onto the new service layer
-- in progress: update `code_index.md`, `roadmap.md`, and handoff prompt files after the backend slice lands
-- next: extend the same contract approach to approvals, assets, evidence, and dashboard data
-- next: add write-capable project CRUD endpoints before moving into persistent storage
+- completed: keep the frontend stable while preparing it for data access migration by switching dashboard, approvals, assets, evidence, projects, and settings pages onto the new service layer
+- completed: update `code_index.md` and `roadmap.md` after the slice landed
+- next: start a fresh isolated branch/worktree for persisted entities and write-capable flows
 
 ### Acceptance Criteria
 
 - API routes return stable JSON payloads for the main project and settings views
+- API routes also cover the console-level dashboard, approvals, assets, and evidence surfaces
 - API tests pass locally
 - frontend can be evolved against the new contract without reworking the route structure
 - the full frontend regression suite still passes on the backend branch
 
 ## Phase 3: Real Backend Core
 
-- Status: Planned
-- Goal: replace prototype-only mock behavior with persisted platform capabilities.
+- Status: Ready to start on a new isolated branch
+- Goal: replace prototype-only mock behavior with persisted platform capabilities and write-capable platform flows.
 
 ### Task Checklist
 
 - introduce database-backed entities for projects, approvals, assets, evidence, logs, and settings
 - add authenticated researcher access and session boundaries
 - persist audit logs and approval actions
-- wire project CRUD to real storage
+- wire project CRUD and operational mutations to real storage
+- preserve the read-only contracts already proven in Phase 2 while swapping their data source
 
 ### Acceptance Criteria
 

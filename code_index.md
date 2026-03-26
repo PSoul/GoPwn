@@ -21,6 +21,18 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 
 ### API Route Group
 
+- `app/api/dashboard/route.ts`
+  Dashboard summary endpoint returning metrics, lead project context, queue priorities, approvals, assets, evidence, tools, and task data.
+- `app/api/approvals/route.ts`
+  Approval collection endpoint returning the global approval queue as `{ items, total }`.
+- `app/api/assets/route.ts`
+  Asset collection endpoint returning the asset-center list as `{ items, total }`.
+- `app/api/assets/[assetId]/route.ts`
+  Asset detail endpoint returning a single typed asset payload or a 404 JSON error.
+- `app/api/evidence/route.ts`
+  Evidence collection endpoint returning the evidence/review queue as `{ items, total }`.
+- `app/api/evidence/[evidenceId]/route.ts`
+  Evidence detail endpoint returning a single evidence record payload or a 404 JSON error.
 - `app/api/projects/route.ts`
   Read-only project collection endpoint returning `{ items, total }`.
 - `app/api/projects/[projectId]/route.ts`
@@ -207,12 +219,13 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Single source of truth for sidebar navigation and route title lookup.
 - `lib/prototype-types.ts`
   Domain model definitions for:
+  - dashboard metrics, dashboard priorities, and dashboard API payloads
   - projects and project detail records
   - result metrics, asset inventory groups, findings, and stage snapshots
   - approval control state
   - approvals, assets, evidence, and MCP tools
   - settings hub sections, LLM settings, work logs, audit logs, and system status cards
-  - API payload types for project collections, project surface contracts, and settings summaries
+  - API payload types for dashboard, approvals, assets, evidence, project collections, project surface contracts, and settings summaries
 - `lib/prototype-data.ts`
   Centralized Chinese mock data for all pages, including:
   - dashboard metrics and priorities
@@ -224,7 +237,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   - settings hub sections, LLM settings, work logs, audit logs, global approval control, and system status
   - helper lookups such as `getProjectById`, `getProjectDetailById`, and project-specific filter helpers
 - `lib/prototype-api.ts`
-  First backend/service contract layer. Builds typed read-only payloads for project overview, flow, operations, context, result tables, and settings summaries. Shared by both route handlers and the first migrated console pages.
+  Read-only backend/service contract layer. Builds typed payloads for dashboard, approvals, assets, evidence, project overview, flow, operations, context, result tables, and settings summaries. Shared by both route handlers and the migrated console pages.
 - `lib/utils.ts`
   Shared utility helpers used by UI primitives/components.
 
@@ -255,6 +268,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   API tests for project collection and project overview endpoints, including 404 handling.
 - `tests/api/project-surfaces-api.test.ts`
   API tests for project flow, operations, context, and result-table endpoints.
+- `tests/api/operational-surfaces-api.test.ts`
+  API tests for dashboard, approvals, assets, and evidence endpoints, including detail-route 404 handling.
 - `tests/api/settings-api.test.ts`
   API tests for settings section and system-status endpoints.
 - `playwright.config.ts`
@@ -285,13 +300,13 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `.impeccable.md`
   Saved design context used to preserve the agreed visual/interaction direction.
 - `roadmap.md`
-  Phase-based delivery tracker covering frontend closure, backend/API integration, real backend persistence, and orchestration work.
+  Phase-based delivery tracker covering frontend closure, read-only backend/API integration, real backend persistence, and orchestration work.
 - `docs/superpowers/plans/2026-03-26-frontend-prototype-implementation.md`
   Step-by-step implementation plan used during execution.
 - `docs/superpowers/specs/2026-03-26-frontend-prototype-design.md`
   Upstream product/spec reference from the approved design work.
 - `docs/prompts/2026-03-26-phase-03-real-backend-core-prompt.md`
-  Handoff prompt for the next major phase after the initial read-only backend/API slice.
+  Handoff prompt for the next major phase after the read-only backend/API integration slice.
 
 ## 10. Verification Commands
 

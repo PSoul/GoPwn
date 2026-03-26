@@ -34,6 +34,12 @@ export interface MetricCard {
   tone: Tone
 }
 
+export interface DashboardPriorityRecord {
+  title: string
+  detail: string
+  tone: Tone
+}
+
 export interface ProjectRecord {
   id: string
   code: string
@@ -357,4 +363,39 @@ export interface SettingsSectionsPayload {
 export interface SystemStatusPayload {
   items: SystemStatusRecord[]
   total: number
+}
+
+export interface DashboardPayload {
+  metrics: MetricCard[]
+  priorities: DashboardPriorityRecord[]
+  leadProject: ProjectRecord
+  approvals: ApprovalRecord[]
+  assets: AssetRecord[]
+  evidence: EvidenceRecord[]
+  mcpTools: McpToolRecord[]
+  projectTasks: TaskRecord[]
+  projects: ProjectRecord[]
+}
+
+export interface ApprovalCollectionPayload {
+  items: ApprovalRecord[]
+  total: number
+}
+
+export interface AssetCollectionPayload {
+  items: AssetRecord[]
+  total: number
+}
+
+export interface AssetDetailPayload {
+  asset: AssetRecord
+}
+
+export interface EvidenceCollectionPayload {
+  items: EvidenceRecord[]
+  total: number
+}
+
+export interface EvidenceDetailPayload {
+  record: EvidenceRecord
 }
