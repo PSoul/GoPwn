@@ -19,6 +19,29 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `app/login/page.tsx`
   Platform account login entrance for researcher access.
 
+### API Route Group
+
+- `app/api/projects/route.ts`
+  Read-only project collection endpoint returning `{ items, total }`.
+- `app/api/projects/[projectId]/route.ts`
+  Project overview endpoint returning the overview contract for a single project.
+- `app/api/projects/[projectId]/flow/route.ts`
+  Project flow endpoint exposing current stage and timeline data.
+- `app/api/projects/[projectId]/operations/route.ts`
+  Project operations endpoint exposing task-stage context plus project approvals.
+- `app/api/projects/[projectId]/context/route.ts`
+  Project context endpoint exposing evidence, approvals, assets, and activity-support data.
+- `app/api/projects/[projectId]/results/domains/route.ts`
+  Project domains/Web entry result-table endpoint.
+- `app/api/projects/[projectId]/results/network/route.ts`
+  Project IP/port/service result-table endpoint.
+- `app/api/projects/[projectId]/results/findings/route.ts`
+  Project findings result-table endpoint.
+- `app/api/settings/sections/route.ts`
+  Settings hub category summary endpoint.
+- `app/api/settings/system-status/route.ts`
+  Settings system-health summary endpoint.
+
 ### Console Route Group
 
 - `app/(console)/layout.tsx`
@@ -189,6 +212,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   - approval control state
   - approvals, assets, evidence, and MCP tools
   - settings hub sections, LLM settings, work logs, audit logs, and system status cards
+  - API payload types for project collections, project surface contracts, and settings summaries
 - `lib/prototype-data.ts`
   Centralized Chinese mock data for all pages, including:
   - dashboard metrics and priorities
@@ -199,6 +223,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   - evidence records with raw output, timeline, and verdict
   - settings hub sections, LLM settings, work logs, audit logs, global approval control, and system status
   - helper lookups such as `getProjectById`, `getProjectDetailById`, and project-specific filter helpers
+- `lib/prototype-api.ts`
+  First backend/service contract layer. Builds typed read-only payloads for project overview, flow, operations, context, result tables, and settings summaries. Shared by both route handlers and the first migrated console pages.
 - `lib/utils.ts`
   Shared utility helpers used by UI primitives/components.
 
@@ -225,6 +251,12 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Smoke tests for approvals center, asset list, and asset detail profile.
 - `tests/pages/evidence-settings-page.test.tsx`
   Smoke tests for evidence list/detail, settings hub, and each split settings subpage.
+- `tests/api/projects-api.test.ts`
+  API tests for project collection and project overview endpoints, including 404 handling.
+- `tests/api/project-surfaces-api.test.ts`
+  API tests for project flow, operations, context, and result-table endpoints.
+- `tests/api/settings-api.test.ts`
+  API tests for settings section and system-status endpoints.
 - `playwright.config.ts`
   Playwright E2E configuration that boots the local Next.js dev server and runs browser smoke flows against the prototype routes.
 - `scripts/run-playwright.mjs`
@@ -258,6 +290,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Step-by-step implementation plan used during execution.
 - `docs/superpowers/specs/2026-03-26-frontend-prototype-design.md`
   Upstream product/spec reference from the approved design work.
+- `docs/prompts/2026-03-26-phase-03-real-backend-core-prompt.md`
+  Handoff prompt for the next major phase after the initial read-only backend/API slice.
 
 ## 10. Verification Commands
 

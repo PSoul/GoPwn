@@ -4,9 +4,11 @@ import { Plus } from "lucide-react"
 import { ProjectListClient } from "@/components/projects/project-list-client"
 import { PageHeader } from "@/components/shared/page-header"
 import { Button } from "@/components/ui/button"
-import { projects } from "@/lib/prototype-data"
+import { listProjectsPayload } from "@/lib/prototype-api"
 
 export default function ProjectsPage() {
+  const { items } = listProjectsPayload()
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -22,7 +24,7 @@ export default function ProjectsPage() {
         }
       />
 
-      <ProjectListClient projects={projects} />
+      <ProjectListClient projects={items} />
     </div>
   )
 }

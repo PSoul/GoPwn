@@ -6,7 +6,7 @@ import { ProjectSummary } from "@/components/projects/project-summary"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { getProjectById, getProjectDetailById } from "@/lib/prototype-data"
+import { getProjectOverviewPayload } from "@/lib/prototype-api"
 
 export default async function ProjectDetailPage({
   params,
@@ -14,12 +14,13 @@ export default async function ProjectDetailPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const project = getProjectById(projectId)
-  const detail = getProjectDetailById(projectId)
+  const payload = getProjectOverviewPayload(projectId)
 
-  if (!project || !detail) {
+  if (!payload) {
     notFound()
   }
+
+  const { project, detail } = payload
 
   return (
     <div className="space-y-5">

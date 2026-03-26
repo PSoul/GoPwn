@@ -305,3 +305,56 @@ export interface SystemStatusRecord {
   description: string
   tone: Tone
 }
+
+export interface ApiErrorPayload {
+  error: string
+}
+
+export interface ProjectCollectionPayload {
+  items: ProjectRecord[]
+  total: number
+}
+
+export interface ProjectOverviewPayload {
+  project: ProjectRecord
+  detail: ProjectDetailRecord
+}
+
+export interface ProjectFlowPayload {
+  project: ProjectRecord
+  detail: ProjectDetailRecord
+}
+
+export interface ProjectOperationsPayload {
+  project: ProjectRecord
+  detail: ProjectDetailRecord
+  approvals: ApprovalRecord[]
+}
+
+export interface ProjectContextPayload {
+  project: ProjectRecord
+  detail: ProjectDetailRecord
+  approvals: ApprovalRecord[]
+  assets: AssetRecord[]
+  evidence: EvidenceRecord[]
+}
+
+export interface ProjectInventoryPayload {
+  project: ProjectRecord
+  group: ProjectInventoryGroup
+}
+
+export interface ProjectFindingsPayload {
+  project: ProjectRecord
+  findings: ProjectFindingRecord[]
+}
+
+export interface SettingsSectionsPayload {
+  items: SettingsSectionRecord[]
+  total: number
+}
+
+export interface SystemStatusPayload {
+  items: SystemStatusRecord[]
+  total: number
+}

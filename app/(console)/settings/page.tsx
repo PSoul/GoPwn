@@ -3,9 +3,12 @@ import { SectionCard } from "@/components/shared/section-card"
 import { SettingsHubGrid } from "@/components/settings/settings-hub-grid"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
 import { SystemStatusGrid } from "@/components/settings/system-status-grid"
-import { settingsSections, systemStatusCards } from "@/lib/prototype-data"
+import { getSettingsSectionsPayload, getSystemStatusPayload } from "@/lib/prototype-api"
 
 export default function SettingsPage() {
+  const { items: sections } = getSettingsSectionsPayload()
+  const { items: statusCards } = getSystemStatusPayload()
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -20,7 +23,7 @@ export default function SettingsPage() {
         eyebrow="Settings Hub"
         description="不同设置子类分别进入独立页面，保证研究员能在明确语境里处理工具、模型、审批、日志和系统状态。"
       >
-        <SettingsHubGrid sections={settingsSections} />
+        <SettingsHubGrid sections={sections} />
       </SectionCard>
 
       <SectionCard
@@ -28,7 +31,7 @@ export default function SettingsPage() {
         eyebrow="Health Snapshot"
         description="在设置中心先看到核心健康摘要，再决定是否深入到具体子页。"
       >
-        <SystemStatusGrid items={systemStatusCards} />
+        <SystemStatusGrid items={statusCards} />
       </SectionCard>
     </div>
   )

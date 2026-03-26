@@ -6,13 +6,7 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import {
-  getProjectApprovals,
-  getProjectAssets,
-  getProjectById,
-  getProjectDetailById,
-  getProjectEvidence,
-} from "@/lib/prototype-data"
+import { getProjectContextPayload } from "@/lib/prototype-api"
 
 export default async function ProjectContextPage({
   params,
@@ -20,16 +14,12 @@ export default async function ProjectContextPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const project = getProjectById(projectId)
-  const detail = getProjectDetailById(projectId)
+  const payload = getProjectContextPayload(projectId)
 
-  if (!project || !detail) {
+  if (!payload) {
     notFound()
   }
-
-  const approvals = getProjectApprovals(projectId)
-  const assets = getProjectAssets(projectId)
-  const evidence = getProjectEvidence(projectId)
+  const { approvals, assets, detail, evidence, project } = payload
 
   return (
     <div className="space-y-5">

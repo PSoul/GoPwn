@@ -5,7 +5,7 @@ import { ProjectFindingsTable } from "@/components/projects/project-findings-tab
 import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { Button } from "@/components/ui/button"
-import { getProjectById, getProjectDetailById } from "@/lib/prototype-data"
+import { getProjectFindingsPayload } from "@/lib/prototype-api"
 
 export default async function ProjectFindingsResultsPage({
   params,
@@ -13,12 +13,13 @@ export default async function ProjectFindingsResultsPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const project = getProjectById(projectId)
-  const detail = getProjectDetailById(projectId)
+  const payload = getProjectFindingsPayload(projectId)
 
-  if (!project || !detail) {
+  if (!payload) {
     notFound()
   }
+
+  const { findings, project } = payload
 
   return (
     <div className="space-y-5">
@@ -33,7 +34,7 @@ export default async function ProjectFindingsResultsPage({
       />
 
       <SectionCard title={project.name} description="问题结果按表格呈现，方便后续扩展排序、筛选和批量处理。">
-        <ProjectFindingsTable findings={detail.findings} />
+        <ProjectFindingsTable findings={findings} />
       </SectionCard>
     </div>
   )

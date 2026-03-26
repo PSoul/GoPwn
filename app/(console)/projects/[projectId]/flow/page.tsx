@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { getProjectById, getProjectDetailById } from "@/lib/prototype-data"
+import { getProjectFlowPayload } from "@/lib/prototype-api"
 
 export default async function ProjectFlowPage({
   params,
@@ -14,12 +14,13 @@ export default async function ProjectFlowPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const project = getProjectById(projectId)
-  const detail = getProjectDetailById(projectId)
+  const payload = getProjectFlowPayload(projectId)
 
-  if (!project || !detail) {
+  if (!payload) {
     notFound()
   }
+
+  const { project, detail } = payload
 
   return (
     <div className="space-y-5">

@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-26`
-- Current focus: frontend prototype is verified; the next major step is isolated backend/API and integration work.
+- Current focus: an isolated backend/API branch is active and has landed the first read-only contract slice for projects and settings.
 - Working mode: each major feature area uses its own isolated git branch/worktree so the existing branch is not disturbed.
 
 ## Phase 1: Frontend Prototype Closure
@@ -28,22 +28,25 @@
 
 ## Phase 2: Mock Backend API and Integration Slice
 
-- Status: Next in a new isolated branch/worktree
+- Status: In progress on `codex/backend-integration-2026-03-26`
 - Goal: add a first backend/API layer inside the Next.js app and begin frontend/backend contract alignment.
 
 ### Task Checklist
 
-- create route handlers for projects, project detail, project result tables, and settings summary data
-- extract a shared service layer so mock data and route handlers use one contract
-- add API tests for key JSON endpoints
-- keep the frontend stable while preparing it for data access migration
-- update `code_index.md` and this roadmap after the backend slice lands
+- completed: create route handlers for project list, project overview, project flow, project operations, project context, project result tables, and settings summary data
+- completed: extract a shared service layer so mock data and route handlers use one contract
+- completed: add API tests for key JSON endpoints
+- completed: keep the frontend stable while preparing it for data access migration by switching the related pages onto the new service layer
+- in progress: update `code_index.md`, `roadmap.md`, and handoff prompt files after the backend slice lands
+- next: extend the same contract approach to approvals, assets, evidence, and dashboard data
+- next: add write-capable project CRUD endpoints before moving into persistent storage
 
 ### Acceptance Criteria
 
 - API routes return stable JSON payloads for the main project and settings views
 - API tests pass locally
 - frontend can be evolved against the new contract without reworking the route structure
+- the full frontend regression suite still passes on the backend branch
 
 ## Phase 3: Real Backend Core
 

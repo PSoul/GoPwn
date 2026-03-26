@@ -5,7 +5,7 @@ import { ProjectInventoryTable } from "@/components/projects/project-inventory-t
 import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { Button } from "@/components/ui/button"
-import { getProjectAssetGroup, getProjectById } from "@/lib/prototype-data"
+import { getProjectInventoryPayload } from "@/lib/prototype-api"
 
 export default async function ProjectDomainsResultsPage({
   params,
@@ -13,12 +13,13 @@ export default async function ProjectDomainsResultsPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const project = getProjectById(projectId)
-  const group = getProjectAssetGroup(projectId, "域名 / Web 入口")
+  const payload = getProjectInventoryPayload(projectId, "域名 / Web 入口")
 
-  if (!project || !group) {
+  if (!payload) {
     notFound()
   }
+
+  const { group, project } = payload
 
   return (
     <div className="space-y-5">
