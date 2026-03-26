@@ -2,9 +2,11 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { SettingsLogTable } from "@/components/settings/settings-log-table"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
-import { workLogs } from "@/lib/prototype-data"
+import { listWorkLogsPayload } from "@/lib/prototype-api"
 
 export default function WorkLogsSettingsPage() {
+  const { items: workLogs } = listWorkLogsPayload()
+
   return (
     <div className="space-y-6">
       <PageHeader

@@ -1,12 +1,6 @@
 import {
   dashboardMetrics,
-  assets,
   dashboardPriorities,
-  evidenceRecords,
-  getAssetById,
-  getProjectAssets,
-  getEvidenceById,
-  getProjectEvidence,
   mcpBoundaryRules,
   mcpCapabilityRecords,
   projectTasks,
@@ -26,6 +20,18 @@ import {
   updateStoredProjectApprovalControl,
 } from "@/lib/approval-repository"
 import {
+  getStoredAssetById,
+  listStoredAssets,
+} from "@/lib/asset-repository"
+import {
+  getStoredEvidenceById,
+  listStoredEvidence,
+} from "@/lib/evidence-repository"
+import {
+  executeStoredMcpRun,
+  resumeStoredApprovedMcpRun,
+} from "@/lib/mcp-execution-service"
+import {
   dispatchStoredMcpRun,
   listStoredMcpRuns,
 } from "@/lib/mcp-gateway-repository"
@@ -37,6 +43,9 @@ import {
   updateStoredMcpTool,
 } from "@/lib/mcp-repository"
 import {
+  listStoredProjectFindings,
+} from "@/lib/project-results-repository"
+import {
   archiveStoredProject,
   createStoredProject,
   getStoredProjectById,
@@ -47,6 +56,7 @@ import {
   updateStoredProject,
 } from "@/lib/project-repository"
 import { getDefaultProjectFormPreset } from "@/lib/prototype-store"
+import { listStoredWorkLogs } from "@/lib/work-log-repository"
 import type {
   ApprovalControlPatch,
   ApprovalCollectionPayload,
@@ -182,8 +192,8 @@ export function getProjectContextPayload(projectId: string): ProjectContextPaylo
   return {
     ...base,
     approvals: listStoredProjectApprovals(projectId),
-    assets: getProjectAssets(projectId),
-    evidence: getProjectEvidence(projectId),
+    assets: listStoredAssets(projectId),
+    evidence: listStoredEvidence(projectId),
   }
 }
 
@@ -214,7 +224,7 @@ export function getProjectFindingsPayload(projectId: string): ProjectFindingsPay
 
   return {
     project: base.project,
-    findings: base.detail.findings,
+    findings: listStoredProjectFindings(projectId),
   }
 }
 
@@ -222,6 +232,7 @@ export function getSettingsSectionsPayload(): SettingsSectionsPayload {
   const auditTotal = listStoredAuditLogs().length
   const approvalControl = getStoredGlobalApprovalControl()
   const mcpTools = listStoredMcpTools()
+  const workLogTotal = listStoredWorkLogs().length
 
   return {
     items: settingsSections.map((section) => {
@@ -246,6 +257,13 @@ export function getSettingsSectionsPayload(): SettingsSectionsPayload {
         }
       }
 
+      if (section.href === "/settings/work-logs") {
+        return {
+          ...section,
+          metric: `${workLogTotal} 条工作日志`,
+        }
+      }
+
       return section
     }),
     total: settingsSections.length,
@@ -265,6 +283,8 @@ export function getDashboardPayload(): DashboardPayload {
   const projects = listStoredProjects()
   const approvals = listStoredApprovals()
   const mcpTools = listStoredMcpTools()
+  const assets = listStoredAssets()
+  const evidence = listStoredEvidence()
 
   return {
     metrics: buildDashboardMetrics(projects, approvals.filter((approval) => approval.status === "待处理").length),
@@ -272,7 +292,7 @@ export function getDashboardPayload(): DashboardPayload {
     leadProject: projects[0],
     approvals,
     assets,
-    evidence: evidenceRecords,
+    evidence,
     mcpTools,
     projectTasks,
     projects,
@@ -289,14 +309,16 @@ export function listApprovalsPayload(): ApprovalCollectionPayload {
 }
 
 export function listAssetsPayload(): AssetCollectionPayload {
+  const items = listStoredAssets()
+
   return {
-    items: assets,
-    total: assets.length,
+    items,
+    total: items.length,
   }
 }
 
 export function getAssetDetailPayload(assetId: string): AssetDetailPayload | null {
-  const asset = getAssetById(assetId)
+  const asset = getStoredAssetById(assetId)
 
   if (!asset) {
     return null
@@ -306,14 +328,16 @@ export function getAssetDetailPayload(assetId: string): AssetDetailPayload | nul
 }
 
 export function listEvidencePayload(): EvidenceCollectionPayload {
+  const items = listStoredEvidence()
+
   return {
-    items: evidenceRecords,
-    total: evidenceRecords.length,
+    items,
+    total: items.length,
   }
 }
 
 export function getEvidenceDetailPayload(evidenceId: string): EvidenceDetailPayload | null {
-  const record = getEvidenceById(evidenceId)
+  const record = getStoredEvidenceById(evidenceId)
 
   if (!record) {
     return null
@@ -378,7 +402,13 @@ export function getApprovalPolicyPayload(): ApprovalPolicyPayload {
 }
 
 export function updateApprovalDecisionPayload(approvalId: string, input: ApprovalDecisionInput) {
-  return updateStoredApprovalDecision(approvalId, input)
+  const approval = updateStoredApprovalDecision(approvalId, input)
+
+  if (approval?.status === "已批准") {
+    resumeStoredApprovedMcpRun(approval.id)
+  }
+
+  return approval
 }
 
 export function updateGlobalApprovalControlPayload(patch: ApprovalControlPatch) {
@@ -429,7 +459,18 @@ export function dispatchProjectMcpRunPayload(
   projectId: string,
   input: McpDispatchInput,
 ): McpDispatchPayload | null {
-  return dispatchStoredMcpRun(projectId, input)
+  const payload = dispatchStoredMcpRun(projectId, input)
+
+  if (!payload || payload.approval || payload.run.status !== "已执行") {
+    return payload
+  }
+
+  const executed = executeStoredMcpRun(payload.run.id)
+
+  return {
+    ...payload,
+    run: executed?.run ?? payload.run,
+  }
 }
 
 export function runProjectMcpWorkflowSmokePayload(
@@ -437,4 +478,13 @@ export function runProjectMcpWorkflowSmokePayload(
   input: McpWorkflowSmokeInput,
 ): McpWorkflowSmokePayload | null {
   return runProjectSmokeWorkflow(projectId, input.scenario)
+}
+
+export function listWorkLogsPayload(): LogCollectionPayload {
+  const items = listStoredWorkLogs()
+
+  return {
+    items,
+    total: items.length,
+  }
 }

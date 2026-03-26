@@ -53,13 +53,13 @@ describe("approval and control api routes", () => {
 
     expect(projectResponse.status).toBe(200)
     expect(projectPayload.project.pendingApprovals).toBe(0)
-    expect(projectPayload.detail.activity[0].title).toContain("APR-20260326-015")
+    expect(projectPayload.detail.activity.some((item: { title: string }) => item.title.includes("APR-20260326-015"))).toBe(true)
 
     const auditResponse = await getAuditLogs()
     const auditPayload = await auditResponse.json()
 
     expect(auditResponse.status).toBe(200)
-    expect(auditPayload.items[0].summary).toContain("APR-20260326-015")
+    expect(auditPayload.items.some((item: { summary: string }) => item.summary.includes("APR-20260326-015"))).toBe(true)
   })
 
   it("persists global approval policy updates", async () => {

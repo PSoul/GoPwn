@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-26`
-- Current focus: Phase 4 is actively turning MCP from a registry/settings concept into a runnable execution layer with project-level dispatch records and workflow smoke tests in a fresh isolated worktree.
+- Current focus: Phase 4B has completed execution-result persistence in an isolated worktree. The next focus is replacing local foundational runners with real connector families and a more explicit scheduler/task loop.
 - Working mode: each major feature area uses its own isolated git branch/worktree so the existing branch is not disturbed.
 
 ## Phase 1: Frontend Prototype Closure
@@ -75,7 +75,7 @@
 
 ## Phase 4: Orchestration and MCP Execution
 
-- Status: In progress on `codex/mcp-gateway-core-2026-03-26`
+- Status: In progress across `codex/mcp-gateway-core-2026-03-26` and `codex/execution-results-core-2026-03-26`
 - Goal: connect real LLM/MCP orchestration while preserving approval and audit controls.
 
 ### Task Checklist
@@ -83,9 +83,11 @@
 - completed: implement persisted MCP tool registry, health checks, capability metadata, boundary rules, and registration checklist controls
 - completed: add project-level MCP dispatch records with capability-first routing, tool selection, blocked-run handling, and approval-linked execution state
 - completed: add foundational runnable local MCP tools and a smoke workflow that validates both full low-risk execution and approval-gated interruption
+- completed: normalize foundational MCP execution outputs into persisted assets, evidence, work logs, and findings
+- completed: make approved MCP runs resume into execution and refresh project result state instead of only flipping approval display state
+- completed: expose execution-derived results through asset, evidence, project context, dashboard, and work-log surfaces
 - in progress: add richer task queue, retries, rate limiting, and emergency stop controls that drive actual execution rather than only settings state
 - pending: define provider abstraction for real LLM orchestration and reviewer models
-- pending: connect execution outputs into persisted assets, evidence, work logs, and project result surfaces
 - pending: replace local foundational runners with real MCP connectors incrementally, one capability family at a time
 
 ### Acceptance Criteria
@@ -94,6 +96,28 @@
 - high-risk actions cannot bypass approval
 - audit chain covers planning, execution, evidence, and operator intervention
 - at least one foundational workflow can be smoke-tested locally before real MCP connectors are attached
+- approved high-risk runs advance project assets, evidence, work logs, and findings in persisted state
+
+## Phase 5: Real Connectors and Scheduler Loop
+
+- Status: Next
+- Goal: replace local foundational MCP simulators with real connector adapters and make the platform scheduler capable of driving them safely.
+
+### Task Checklist
+
+- pending: introduce a connector abstraction that can route one capability family to local mocks or real MCP servers
+- pending: define MCP tool result contracts for real connector payloads, including raw output, structured content, and normalization hints
+- pending: add a real task/scheduler loop that can queue retries, delays, approval resumes, and stop conditions
+- pending: keep the current file-backed prototype store as the state layer until a later database phase is warranted
+- pending: land at least one real connector family end-to-end, recommended starting with DNS / 子域 / 证书情报类
+- pending: add prompt/config docs for optionally wiring a real LLM endpoint into orchestrator testing without hardcoding credentials
+
+### Acceptance Criteria
+
+- at least one real MCP connector can replace its local mock without changing the UI contract
+- scheduler can safely replay queued work after approvals and delays
+- raw connector output remains auditable while normalized platform records stay stable
+- full `npm run test:all` remains green after the first real connector family lands
 
 ## Notes for Future LLM Sessions
 
@@ -101,3 +125,4 @@
 - Read this roadmap second for phase boundaries and current priorities.
 - Treat the provided backend template as the primary visual reference.
 - Do not develop major new work on an existing branch when a new isolated branch/worktree is requested.
+- Keep the "LLM = brain, MCP = limbs" boundary explicit: external interactions should flow through MCP, while normalization and platform-side aggregation can stay internal.

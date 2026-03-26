@@ -213,7 +213,14 @@ export function listStoredMcpRuns(projectId?: string) {
   return runs.filter((run) => run.projectId === projectId)
 }
 
-export function updateStoredMcpRunResult(runId: string, summaryLines: string[]) {
+export function getStoredMcpRunById(runId: string) {
+  return readPrototypeStore().mcpRuns.find((run) => run.id === runId) ?? null
+}
+
+export function updateStoredMcpRun(
+  runId: string,
+  patch: Partial<Pick<McpRunRecord, "status" | "summaryLines" | "updatedAt">>,
+) {
   const store = readPrototypeStore()
   const runIndex = store.mcpRuns.findIndex((run) => run.id === runId)
 
@@ -223,14 +230,18 @@ export function updateStoredMcpRunResult(runId: string, summaryLines: string[]) 
 
   const nextRun: McpRunRecord = {
     ...store.mcpRuns[runIndex],
-    summaryLines,
-    updatedAt: formatTimestamp(),
+    ...patch,
+    updatedAt: patch.updatedAt ?? formatTimestamp(),
   }
 
   store.mcpRuns[runIndex] = nextRun
   writePrototypeStore(store)
 
   return nextRun
+}
+
+export function updateStoredMcpRunResult(runId: string, summaryLines: string[]) {
+  return updateStoredMcpRun(runId, { summaryLines })
 }
 
 export function dispatchStoredMcpRun(projectId: string, input: McpDispatchInput): McpDispatchPayload | null {
@@ -264,6 +275,7 @@ export function dispatchStoredMcpRun(projectId: string, input: McpDispatchInput)
     store.mcpRuns.unshift(blockedRun)
     store.projects[projectIndex] = {
       ...project,
+      status: "已阻塞",
       lastUpdated: formatTimestamp(),
       lastActor: "MCP 网关 · 阻塞",
     }
@@ -311,6 +323,7 @@ export function dispatchStoredMcpRun(projectId: string, input: McpDispatchInput)
     const pendingCountByProjectId = updateProjectPendingCounts(store.approvals)
     store.projects[projectIndex] = {
       ...project,
+      status: "已阻塞",
       pendingApprovals: pendingCountByProjectId[project.id] ?? 0,
       lastUpdated: formatTimestamp(),
       lastActor: "MCP 网关 · 待审批",
@@ -347,6 +360,7 @@ export function dispatchStoredMcpRun(projectId: string, input: McpDispatchInput)
   store.mcpRuns.unshift(executedRun)
   store.projects[projectIndex] = {
     ...project,
+    status: project.status === "已完成" ? project.status : "运行中",
     lastUpdated: formatTimestamp(),
     lastActor: "MCP 网关 · 已执行",
   }

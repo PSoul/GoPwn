@@ -4,8 +4,10 @@ import path from "node:path"
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
+import { GET as getProjectContext } from "@/app/api/projects/[projectId]/context/route"
 import { POST as postWorkflowSmokeRun } from "@/app/api/projects/[projectId]/mcp-workflow/smoke-run/route"
 import { GET as getProjectMcpRuns } from "@/app/api/projects/[projectId]/mcp-runs/route"
+import { GET as getWorkLogs } from "@/app/api/settings/work-logs/route"
 
 const buildProjectContext = (projectId: string) => ({
   params: Promise.resolve({ projectId }),
@@ -50,6 +52,23 @@ describe("project MCP workflow smoke api route", () => {
 
     expect(runsResponse.status).toBe(200)
     expect(runsPayload.items.slice(0, 4).every((item: { status: string }) => item.status === "已执行")).toBe(true)
+
+    const contextResponse = await getProjectContext(
+      new Request("http://localhost/api/projects/proj-huayao/context"),
+      buildProjectContext("proj-huayao"),
+    )
+    const contextPayload = await contextResponse.json()
+
+    expect(contextResponse.status).toBe(200)
+    expect(contextPayload.assets.length).toBeGreaterThan(0)
+    expect(contextPayload.evidence.length).toBeGreaterThan(0)
+    expect(contextPayload.detail.assetGroups.some((group: { count: string }) => group.count !== "0 项")).toBe(true)
+
+    const workLogsResponse = await getWorkLogs()
+    const workLogsPayload = await workLogsResponse.json()
+
+    expect(workLogsResponse.status).toBe(200)
+    expect(workLogsPayload.items.some((item: { category: string }) => item.category === "报告导出")).toBe(true)
   })
 
   it("halts the approval scenario at the high-risk MCP step", async () => {

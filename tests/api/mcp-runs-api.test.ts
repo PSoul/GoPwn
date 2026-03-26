@@ -5,8 +5,10 @@ import path from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 import { PATCH as patchApproval } from "@/app/api/approvals/[approvalId]/route"
+import { GET as getProjectContext } from "@/app/api/projects/[projectId]/context/route"
 import { GET as getProjectDetail } from "@/app/api/projects/[projectId]/route"
 import { GET as getProjectMcpRuns, POST as postProjectMcpRun } from "@/app/api/projects/[projectId]/mcp-runs/route"
+import { GET as getWorkLogs } from "@/app/api/settings/work-logs/route"
 
 const buildProjectContext = (projectId: string) => ({
   params: Promise.resolve({ projectId }),
@@ -58,6 +60,21 @@ describe("project MCP run api routes", () => {
     expect(readResponse.status).toBe(200)
     expect(readPayload.items[0].target).toBe("admin.huayao.com")
     expect(readPayload.items[0].summaryLines[0]).toContain("补采证书与子域情报")
+
+    const contextResponse = await getProjectContext(
+      new Request("http://localhost/api/projects/proj-huayao/context"),
+      buildProjectContext("proj-huayao"),
+    )
+    const contextPayload = await contextResponse.json()
+
+    expect(contextResponse.status).toBe(200)
+    expect(contextPayload.evidence.some((item: { title: string }) => item.title === "被动域名与子域情报回流")).toBe(true)
+
+    const workLogsResponse = await getWorkLogs()
+    const workLogsPayload = await workLogsResponse.json()
+
+    expect(workLogsResponse.status).toBe(200)
+    expect(workLogsPayload.items.some((item: { actor: string }) => item.actor === "dns-census")).toBe(true)
   })
 
   it("queues high-risk MCP actions for approval and resumes them after approval", async () => {
@@ -112,5 +129,16 @@ describe("project MCP run api routes", () => {
     expect(readRunsResponse.status).toBe(200)
     expect(resumedRun.status).toBe("已执行")
     expect(resumedRun.summaryLines.at(-1)).toContain("审批已批准")
+
+    const contextResponse = await getProjectContext(
+      new Request("http://localhost/api/projects/proj-yunlan/context"),
+      buildProjectContext("proj-yunlan"),
+    )
+    const contextPayload = await contextResponse.json()
+
+    expect(contextResponse.status).toBe(200)
+    expect(contextPayload.detail.findings.some((item: { title: string }) => item.title.includes("鉴权"))).toBe(true)
+    expect(contextPayload.evidence.some((item: { source: string }) => item.source === "受控验证类")).toBe(true)
+    expect(contextPayload.assets.some((item: { label: string }) => item.label === "api.yunlanmed.com/v1")).toBe(true)
   })
 })

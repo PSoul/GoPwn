@@ -524,6 +524,8 @@ export interface McpWorkflowSmokePayload {
     normalizedTargets?: string[]
     discoveredSubdomains?: string[]
     webEntries?: string[]
+    validatedTargets?: string[]
+    generatedFindings?: string[]
     reportDigest?: string[]
   }
 }

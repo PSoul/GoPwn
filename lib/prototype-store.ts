@@ -4,6 +4,8 @@ import path from "node:path"
 import {
   approvalPolicies,
   approvals,
+  assets,
+  evidenceRecords,
   globalApprovalControl,
   auditLogs,
   defaultProjectFormPreset,
@@ -13,31 +15,39 @@ import {
   mcpTools,
   projects,
   scopeRules,
+  workLogs,
 } from "@/lib/prototype-data"
 import type {
   ApprovalControl,
   ApprovalRecord,
+  AssetRecord,
+  EvidenceRecord,
   LogRecord,
   McpRunRecord,
   McpToolRecord,
   PolicyRecord,
   ProjectDetailRecord,
+  ProjectFindingRecord,
   ProjectFormPreset,
   ProjectRecord,
 } from "@/lib/prototype-types"
 
-type PrototypeStore = {
+export type PrototypeStore = {
   version: number
   auditLogs: LogRecord[]
   approvalPolicies: PolicyRecord[]
   approvals: ApprovalRecord[]
+  assets: AssetRecord[]
+  evidenceRecords: EvidenceRecord[]
   globalApprovalControl: ApprovalControl
   mcpRuns: McpRunRecord[]
   mcpTools: McpToolRecord[]
   projectDetails: ProjectDetailRecord[]
+  projectFindings: ProjectFindingRecord[]
   projectFormPresets: Record<string, ProjectFormPreset>
   projects: ProjectRecord[]
   scopeRules: PolicyRecord[]
+  workLogs: LogRecord[]
 }
 
 const STORE_DIRECTORY = ".prototype-store"
@@ -59,23 +69,28 @@ function buildSeedStore(): PrototypeStore {
   const seededProjectDetails = projects
     .map((project) => getProjectDetailById(project.id))
     .filter((detail): detail is ProjectDetailRecord => Boolean(detail))
+  const seededProjectFindings = seededProjectDetails.flatMap((detail) => detail.findings)
 
   const seededProjectFormPresets = Object.fromEntries(
     projects.map((project) => [project.id, getProjectFormPreset(project.id)]),
   )
 
   return {
-    version: 4,
+    version: 5,
     auditLogs: cloneValue(auditLogs),
     approvalPolicies: cloneValue(approvalPolicies),
     approvals: cloneValue(approvals),
+    assets: cloneValue(assets),
+    evidenceRecords: cloneValue(evidenceRecords),
     globalApprovalControl: cloneValue(globalApprovalControl),
     mcpRuns: cloneValue(mcpRuns),
     mcpTools: cloneValue(mcpTools),
     projectDetails: cloneValue(seededProjectDetails),
+    projectFindings: cloneValue(seededProjectFindings),
     projectFormPresets: cloneValue(seededProjectFormPresets),
     projects: cloneValue(projects),
     scopeRules: cloneValue(scopeRules),
+    workLogs: cloneValue(workLogs),
   }
 }
 
@@ -87,13 +102,17 @@ function normalizeStore(store: Partial<PrototypeStore>): PrototypeStore {
     auditLogs: Array.isArray(store.auditLogs) ? store.auditLogs : seeded.auditLogs,
     approvalPolicies: Array.isArray(store.approvalPolicies) ? store.approvalPolicies : seeded.approvalPolicies,
     approvals: Array.isArray(store.approvals) ? store.approvals : seeded.approvals,
+    assets: Array.isArray(store.assets) ? store.assets : seeded.assets,
+    evidenceRecords: Array.isArray(store.evidenceRecords) ? store.evidenceRecords : seeded.evidenceRecords,
     globalApprovalControl: store.globalApprovalControl ?? seeded.globalApprovalControl,
     mcpRuns: Array.isArray(store.mcpRuns) ? store.mcpRuns : seeded.mcpRuns,
     mcpTools: Array.isArray(store.mcpTools) ? store.mcpTools : seeded.mcpTools,
     projectDetails: Array.isArray(store.projectDetails) ? store.projectDetails : seeded.projectDetails,
+    projectFindings: Array.isArray(store.projectFindings) ? store.projectFindings : seeded.projectFindings,
     projectFormPresets: store.projectFormPresets ?? seeded.projectFormPresets,
     projects: Array.isArray(store.projects) ? store.projects : seeded.projects,
     scopeRules: Array.isArray(store.scopeRules) ? store.scopeRules : seeded.scopeRules,
+    workLogs: Array.isArray(store.workLogs) ? store.workLogs : seeded.workLogs,
   }
 }
 

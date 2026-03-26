@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useTransition } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { ShieldCheck, Siren, UserCircle2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -11,16 +11,14 @@ import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 
 export function LoginForm({ className, ...props }: React.ComponentProps<"section">) {
-  const router = useRouter()
   const searchParams = useSearchParams()
-  const [isRouting, startTransition] = useTransition()
   const [account, setAccount] = useState("")
   const [password, setPassword] = useState("")
   const [captcha, setCaptcha] = useState("")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const isBusy = isSubmitting || isRouting
+  const isBusy = isSubmitting
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -47,10 +45,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"section
         return
       }
 
-      startTransition(() => {
-        router.push(payload.redirectTo ?? "/dashboard")
-        router.refresh()
-      })
+      window.location.assign(payload.redirectTo ?? "/dashboard")
     } catch {
       setErrorMessage("登录失败，请稍后再试。")
     } finally {

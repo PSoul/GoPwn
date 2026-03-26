@@ -1,7 +1,5 @@
-import {
-  dispatchStoredMcpRun,
-  updateStoredMcpRunResult,
-} from "@/lib/mcp-gateway-repository"
+import { executeStoredMcpRun } from "@/lib/mcp-execution-service"
+import { dispatchStoredMcpRun } from "@/lib/mcp-gateway-repository"
 import { getStoredProjectById } from "@/lib/project-repository"
 import type {
   McpDispatchInput,
@@ -11,102 +9,6 @@ import type {
 
 function buildWorkflowId() {
   return `workflow-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`
-}
-
-function normalizeSeed(seed: string) {
-  const cleaned = seed.trim().toLowerCase().replace(/^https?:\/\//, "")
-  const [hostWithMaybePath] = cleaned.split("?")
-  const [host] = hostWithMaybePath.split("/")
-
-  return {
-    host,
-    normalizedTargets: Array.from(new Set([cleaned, host].filter(Boolean))),
-  }
-}
-
-function getRootDomain(host: string) {
-  const parts = host.split(".").filter(Boolean)
-
-  if (parts.length >= 2) {
-    return parts.slice(-2).join(".")
-  }
-
-  return host
-}
-
-function runLocalTool(toolName: string, context: {
-  seed: string
-  outputs: McpWorkflowSmokePayload["outputs"]
-}) {
-  if (toolName === "seed-normalizer") {
-    const normalized = normalizeSeed(context.seed).normalizedTargets
-
-    return {
-      outputs: {
-        normalizedTargets: normalized,
-      },
-      summaryLines: [
-        `标准化得到 ${normalized.length} 个种子目标。`,
-        normalized.join(" / "),
-      ],
-    }
-  }
-
-  if (toolName === "dns-census") {
-    const host = normalizeSeed(context.seed).host
-    const root = getRootDomain(host)
-    const discoveredSubdomains = Array.from(new Set([`admin.${root}`, `assets.${root}`]))
-
-    return {
-      outputs: {
-        discoveredSubdomains,
-      },
-      summaryLines: [
-        `被动发现 ${discoveredSubdomains.length} 个候选子域。`,
-        discoveredSubdomains.join(" / "),
-      ],
-    }
-  }
-
-  if (toolName === "web-surface-map") {
-    const targets = context.outputs.discoveredSubdomains ?? [normalizeSeed(context.seed).host]
-    const webEntries = targets.map((target, index) =>
-      index === 0 ? `https://${target}/login` : `https://${target}/dashboard`,
-    )
-
-    return {
-      outputs: {
-        webEntries,
-      },
-      summaryLines: [
-        `识别到 ${webEntries.length} 个 Web 入口。`,
-        webEntries.join(" / "),
-      ],
-    }
-  }
-
-  if (toolName === "report-exporter") {
-    const reportDigest = [
-      `种子目标 ${context.outputs.normalizedTargets?.length ?? 0} 个`,
-      `发现子域 ${context.outputs.discoveredSubdomains?.length ?? 0} 个`,
-      `入口 ${context.outputs.webEntries?.length ?? 0} 个`,
-    ]
-
-    return {
-      outputs: {
-        reportDigest,
-      },
-      summaryLines: [
-        "已生成基础流程测试报告摘要。",
-        reportDigest.join("；"),
-      ],
-    }
-  }
-
-  return {
-    outputs: {},
-    summaryLines: [`${toolName} 已执行，但当前没有定义额外的本地结果展开逻辑。`],
-  }
 }
 
 export function runProjectSmokeWorkflow(
@@ -151,14 +53,13 @@ export function runProjectSmokeWorkflow(
       }
     }
 
-    const toolOutput = runLocalTool(payload.run.toolName, {
-      seed: project.seed,
-      outputs,
-    })
-    Object.assign(outputs, toolOutput.outputs)
+    const executed = executeStoredMcpRun(payload.run.id, outputs)
+    const updatedRun = executed?.run ?? payload.run
 
-    const updatedRun =
-      updateStoredMcpRunResult(payload.run.id, toolOutput.summaryLines) ?? payload.run
+    if (executed) {
+      Object.assign(outputs, executed.outputs)
+    }
+
     runs.push(updatedRun)
 
     return {

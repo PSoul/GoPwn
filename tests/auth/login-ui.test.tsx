@@ -3,22 +3,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { LoginForm } from "@/components/auth/login-form"
 
-const push = vi.fn()
-const refresh = vi.fn()
+const assign = vi.fn()
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
-    push,
-    refresh,
+    push: vi.fn(),
+    refresh: vi.fn(),
   }),
   useSearchParams: () => new URLSearchParams("from=/projects"),
 }))
 
 describe("login ui", () => {
   beforeEach(() => {
-    push.mockReset()
-    refresh.mockReset()
+    assign.mockReset()
     global.fetch = vi.fn() as unknown as typeof fetch
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        assign,
+      },
+    })
   })
 
   it("submits credentials to the auth api and redirects to the requested route", async () => {
@@ -49,7 +53,7 @@ describe("login ui", () => {
     })
 
     await waitFor(() => {
-      expect(push).toHaveBeenCalledWith("/projects")
+      expect(assign).toHaveBeenCalledWith("/projects")
     })
   })
 })
