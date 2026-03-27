@@ -58,6 +58,31 @@ test("project overview links to dedicated results and context pages", async ({ p
   await expect(page.getByText("项目证据与上下文")).toBeVisible()
 })
 
+test("create project routes to the new detail page", async ({ page }) => {
+  await loginAsResearcher(page)
+  await page.goto("/projects/new")
+
+  const createResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/projects") &&
+      response.request().method() === "POST",
+    { timeout: 15_000 },
+  )
+
+  await page.getByRole("button", { name: "创建项目" }).click()
+
+  const createResponse = await createResponsePromise
+  expect(createResponse.ok()).toBe(true)
+
+  const payload = (await createResponse.json()) as { project?: { id?: string } }
+  const projectId = payload.project?.id ?? ""
+  const projectIdPattern = /^proj-\d{8}-[a-f0-9]{8}$/
+
+  expect(projectId).toMatch(projectIdPattern)
+  await expect(page).toHaveURL(new RegExp(`/projects/${projectId}$`), { timeout: 15_000 })
+  await expect(page.getByRole("heading", { name: /项目详情 ·/ })).toBeVisible({ timeout: 15_000 })
+})
+
 test("settings hub leads into dedicated settings subpages", async ({ page }) => {
   await loginAsResearcher(page)
   await page.goto("/settings")

@@ -33,6 +33,7 @@ import type {
   ProjectFormPreset,
   ProjectRecord,
 } from "@/lib/prototype-types"
+import { generateProjectId, isAsciiProjectId } from "@/lib/project-id"
 
 export type PrototypeStore = {
   version: number
@@ -124,6 +125,201 @@ function normalizeStore(store: Partial<PrototypeStore>): PrototypeStore {
   }
 }
 
+function parseDayStamp(value?: string) {
+  if (!value) {
+    return null
+  }
+
+  const match = value.match(/(\d{4})-(\d{2})-(\d{2})/)
+  if (!match) {
+    return null
+  }
+
+  const [, year, month, day] = match
+  return new Date(Number(year), Number(month) - 1, Number(day))
+}
+
+function buildProjectIdMap(projects: ProjectRecord[]) {
+  const usedIds = new Set(projects.map((project) => project.id).filter((id) => isAsciiProjectId(id)))
+  const idMap = new Map<string, string>()
+
+  for (const project of projects) {
+    if (isAsciiProjectId(project.id)) {
+      continue
+    }
+
+    const baseDate = parseDayStamp(project.createdAt) ?? new Date()
+    let nextId = generateProjectId(baseDate)
+
+    while (usedIds.has(nextId)) {
+      nextId = generateProjectId(baseDate)
+    }
+
+    idMap.set(project.id, nextId)
+    usedIds.add(nextId)
+  }
+
+  return idMap
+}
+
+function assertNoLegacyProjectIds(store: PrototypeStore) {
+  const legacyIds = new Set<string>()
+  const recordLegacy = (id?: string) => {
+    if (id && !isAsciiProjectId(id)) {
+      legacyIds.add(id)
+    }
+  }
+
+  store.projects.forEach((project) => recordLegacy(project.id))
+  store.projectDetails.forEach((detail) => {
+    recordLegacy(detail.projectId)
+    detail.tasks.forEach((task) => recordLegacy(task.projectId))
+    detail.findings.forEach((finding) => recordLegacy(finding.projectId))
+  })
+  Object.keys(store.projectFormPresets).forEach((projectId) => recordLegacy(projectId))
+  Object.keys(store.orchestratorPlans).forEach((projectId) => recordLegacy(projectId))
+  store.approvals.forEach((approval) => recordLegacy(approval.projectId))
+  store.assets.forEach((asset) => recordLegacy(asset.projectId))
+  store.evidenceRecords.forEach((record) => recordLegacy(record.projectId))
+  store.mcpRuns.forEach((run) => recordLegacy(run.projectId))
+  store.schedulerTasks.forEach((task) => recordLegacy(task.projectId))
+  store.projectFindings.forEach((finding) => recordLegacy(finding.projectId))
+
+  if (legacyIds.size > 0) {
+    throw new Error(`Legacy project ids remain after migration: ${Array.from(legacyIds).join(", ")}`)
+  }
+}
+
+function migrateProjectIds(store: PrototypeStore): PrototypeStore {
+  const idMap = buildProjectIdMap(store.projects)
+
+  if (idMap.size === 0) {
+    assertNoLegacyProjectIds(store)
+    return store
+  }
+
+  const mapId = (value: string) => idMap.get(value) ?? value
+
+  const projects = store.projects.map((project) =>
+    idMap.has(project.id)
+      ? {
+          ...project,
+          id: mapId(project.id),
+        }
+      : project,
+  )
+
+  const projectDetails = store.projectDetails.map((detail) => {
+    const nextProjectId = mapId(detail.projectId)
+    const nextTasks = detail.tasks.map((task) =>
+      task.projectId === nextProjectId || !idMap.has(task.projectId)
+        ? task
+        : {
+            ...task,
+            projectId: mapId(task.projectId),
+          },
+    )
+    const nextFindings = detail.findings.map((finding) =>
+      finding.projectId === nextProjectId || !idMap.has(finding.projectId)
+        ? finding
+        : {
+            ...finding,
+            projectId: mapId(finding.projectId),
+          },
+    )
+
+    if (nextProjectId === detail.projectId && nextTasks === detail.tasks && nextFindings === detail.findings) {
+      return detail
+    }
+
+    return {
+      ...detail,
+      projectId: nextProjectId,
+      tasks: nextTasks,
+      findings: nextFindings,
+    }
+  })
+
+  const projectFormPresets = Object.fromEntries(
+    Object.entries(store.projectFormPresets).map(([projectId, preset]) => [mapId(projectId), preset]),
+  )
+
+  const approvals = store.approvals.map((approval) =>
+    idMap.has(approval.projectId)
+      ? {
+          ...approval,
+          projectId: mapId(approval.projectId),
+        }
+      : approval,
+  )
+
+  const assets = store.assets.map((asset) =>
+    idMap.has(asset.projectId)
+      ? {
+          ...asset,
+          projectId: mapId(asset.projectId),
+        }
+      : asset,
+  )
+
+  const evidenceRecords = store.evidenceRecords.map((record) =>
+    idMap.has(record.projectId)
+      ? {
+          ...record,
+          projectId: mapId(record.projectId),
+        }
+      : record,
+  )
+
+  const mcpRuns = store.mcpRuns.map((run) =>
+    idMap.has(run.projectId)
+      ? {
+          ...run,
+          projectId: mapId(run.projectId),
+        }
+      : run,
+  )
+
+  const schedulerTasks = store.schedulerTasks.map((task) =>
+    idMap.has(task.projectId)
+      ? {
+          ...task,
+          projectId: mapId(task.projectId),
+        }
+      : task,
+  )
+
+  const projectFindings = store.projectFindings.map((finding) =>
+    idMap.has(finding.projectId)
+      ? {
+          ...finding,
+          projectId: mapId(finding.projectId),
+        }
+      : finding,
+  )
+
+  const orchestratorPlans = Object.fromEntries(
+    Object.entries(store.orchestratorPlans).map(([projectId, plan]) => [mapId(projectId), plan]),
+  )
+
+  const migratedStore = {
+    ...store,
+    projects,
+    projectDetails,
+    projectFormPresets,
+    approvals,
+    assets,
+    evidenceRecords,
+    mcpRuns,
+    schedulerTasks,
+    projectFindings,
+    orchestratorPlans,
+  }
+
+  assertNoLegacyProjectIds(migratedStore)
+  return migratedStore
+}
+
 function ensureStoreFile() {
   const storeDirectory = getStoreDirectory()
   const storePath = getStorePath()
@@ -140,7 +336,8 @@ function ensureStoreFile() {
 export function readPrototypeStore(): PrototypeStore {
   ensureStoreFile()
   const rawStore = JSON.parse(readFileSync(getStorePath(), "utf8")) as Partial<PrototypeStore>
-  const store = normalizeStore(rawStore)
+  const normalized = normalizeStore(rawStore)
+  const store = migrateProjectIds(normalized)
 
   if (JSON.stringify(rawStore) !== JSON.stringify(store)) {
     writePrototypeStore(store)
