@@ -133,6 +133,63 @@
 - 不能为空对象
 - 至少要包含 `type`、`properties`、`items`、`oneOf`、`anyOf`、`allOf`、`$schema` 之一
 
+### `受控验证类` 推荐结果字段
+
+如果工具属于 `受控验证类`，建议 `outputSchema` 至少能表达以下结构，方便平台后续直接把结果沉淀到证据、发现和审计链路中：
+
+- `requestSummary`
+  - `method`
+  - `url`
+  - `headers`
+  - `bodyPreview`
+- `responseSummary`
+  - `statusCode`
+  - `finalUrl`
+  - `headers`
+  - `bodyPreview`
+  - `contentType`
+- `responseSignals`
+  - 匹配到的关键信号列表，例如状态码、响应头、目录暴露、关键字段等
+- `finding`
+  - `title`
+  - `summary`
+  - `severity`
+  - `status`
+  - `affectedSurface`
+- `verdict`
+  - 面向研究员的结论摘要
+
+这样可以保证工具不只是“返回原始响应”，而是返回平台可理解、可归档、可追踪的验证证据。
+
+### `HTTP / API 结构发现类` 推荐结果字段
+
+如果工具属于 `HTTP / API 结构发现类`，建议 `outputSchema` 至少能表达以下结构，方便平台把结构发现结果沉淀为资产、证据和项目上下文：
+
+- `webEntries`
+  - `url`
+  - `finalUrl`
+  - `title`
+  - `statusCode`
+  - `headers`
+  - `fingerprint`
+- `structureEntries`
+  - `kind`
+  - `label`
+  - `url`
+  - `confidence`
+  - `source`
+- `transport`
+  - `host`
+  - `docker`
+
+其中：
+
+- `webEntries` 用于描述本次实际探测到的基础入口和响应特征
+- `structureEntries` 用于描述从 HTML、响应头或其他低风险线索中识别出的 API / 文档 / 管理端点候选入口
+- `transport` 用于保留这是宿主机直连还是容器内 fallback 的采样方式
+
+这样平台就可以把“结构发现”从单纯运行记录提升为真正可复核的结果面资产与证据。
+
 ## 7. 注册成功后会写到哪里
 
 ### SQLite

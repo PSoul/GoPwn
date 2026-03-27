@@ -1,5 +1,6 @@
 import { getConfiguredLlmProviderStatus, resolveLlmProvider } from "@/lib/llm-provider/registry"
 import { buildLocalLabPlanSummary, getLocalLabById, listLocalLabs } from "@/lib/local-lab-catalog"
+import { findStoredEnabledMcpServerByToolBinding } from "@/lib/mcp-server-repository"
 import { dispatchProjectMcpRunAndDrain } from "@/lib/project-mcp-dispatch-service"
 import { formatTimestamp } from "@/lib/prototype-record-utils"
 import { getStoredProjectById } from "@/lib/project-repository"
@@ -14,8 +15,19 @@ import type {
 } from "@/lib/prototype-types"
 import { upsertStoredWorkLogs } from "@/lib/work-log-repository"
 
+function isWebGoatBaseUrl(baseUrl: string) {
+  return /\/webgoat\/?$/i.test(baseUrl)
+}
+
+function canUseHttpStructureDiscovery(baseUrl: string) {
+  return isWebGoatBaseUrl(baseUrl) && Boolean(findStoredEnabledMcpServerByToolBinding("graphql-surface-check"))
+}
+
 function buildFallbackPlanItems(baseUrl: string, approvalScenario: "none" | "include-high-risk" = "include-high-risk") {
-  const normalizedTarget = baseUrl
+  const normalizedTarget = baseUrl.replace(/\/+$/, "")
+  const webProbeTarget = isWebGoatBaseUrl(normalizedTarget) ? `${normalizedTarget}/login` : normalizedTarget
+  const actuatorTarget = `${normalizedTarget}/actuator`
+  const includeHttpStructure = canUseHttpStructureDiscovery(normalizedTarget)
   const items: OrchestratorPlanItem[] = [
     {
       capability: "目标解析类",
@@ -27,19 +39,31 @@ function buildFallbackPlanItems(baseUrl: string, approvalScenario: "none" | "inc
     {
       capability: "Web 页面探测类",
       requestedAction: "识别本地靶场入口与响应特征",
-      target: normalizedTarget,
+      target: webProbeTarget,
       riskLevel: "低",
       rationale: "先获取入口、标题和响应特征，确认调度与结果沉淀链路是通的。",
     },
   ]
 
+  if (includeHttpStructure) {
+    items.push({
+      capability: "HTTP / API 结构发现类",
+      requestedAction: "识别 WebGoat Actuator 结构入口",
+      target: actuatorTarget,
+      riskLevel: "低",
+      rationale: "先以低风险方式确认 Actuator 结构入口和暴露信号，再决定是否进入审批验证。",
+    })
+  }
+
   if (approvalScenario === "include-high-risk") {
     items.push({
       capability: "受控验证类",
-      requestedAction: "受控登录绕过验证",
-      target: `${normalizedTarget.replace(/\/+$/, "")}/login`,
+      requestedAction: isWebGoatBaseUrl(normalizedTarget) ? "验证 WebGoat Actuator 匿名暴露" : "受控登录绕过验证",
+      target: isWebGoatBaseUrl(normalizedTarget) ? actuatorTarget : `${normalizedTarget}/login`,
       riskLevel: "高",
-      rationale: "故意挂一条高风险动作，验证审批阻塞与恢复路径。",
+      rationale: isWebGoatBaseUrl(normalizedTarget)
+        ? "对本地 WebGoat 的 Spring Actuator 暴露面执行审批后受控验证，检查真实 finding 闭环。"
+        : "故意挂一条高风险动作，验证审批阻塞与恢复路径。",
     })
   }
 
@@ -52,13 +76,23 @@ function buildOrchestratorPrompt(input: {
   projectName: string
   projectStage: string
 }) {
+  const webGoatMode = isWebGoatBaseUrl(input.baseUrl)
+  const allowHttpStructure = canUseHttpStructureDiscovery(input.baseUrl)
+  const capabilityList = allowHttpStructure
+    ? "目标解析类、Web 页面探测类、HTTP / API 结构发现类、受控验证类"
+    : "目标解析类、Web 页面探测类、受控验证类"
+  const strategyLine =
+    webGoatMode && allowHttpStructure
+      ? "请返回最小闭环验证计划，优先选择目标解析类、Web 页面探测类、低风险的 HTTP / API 结构发现类，并在需要审批时把高风险受控验证指向 WebGoat 的 /actuator 暴露面。"
+      : "请返回最小闭环验证计划，优先选择目标解析类、Web 页面探测类、必要时再补一条高风险受控验证类。"
+
   return [
     `项目名称：${input.projectName}`,
     `项目阶段：${input.projectStage}`,
     `本地靶场 URL：${input.baseUrl}`,
     `审批场景：${input.approvalScenario === "include-high-risk" ? "需要包含一条高风险审批动作" : "只生成低风险动作"}`,
-    "请返回最小闭环验证计划，优先选择目标解析类、Web 页面探测类、必要时再补一条高风险受控验证类。",
-    "capability 只能使用：目标解析类、Web 页面探测类、受控验证类。",
+    strategyLine,
+    `capability 只能使用：${capabilityList}。`,
     "riskLevel 只能使用：高、中、低。",
     "target 必须直接填写可访问 URL。",
   ].join("\n")
@@ -121,6 +155,21 @@ function inferCanonicalCapability(rawItem: Partial<OrchestratorPlanItem>, fallba
   }
 
   if (
+    capabilityText.includes("http / api 结构") ||
+    capabilityText.includes("http/api 结构") ||
+    capabilityText.includes("graphql") ||
+    capabilityText.includes("openapi") ||
+    capabilityText.includes("swagger") ||
+    (capabilityText.includes("actuator") &&
+      !capabilityText.includes("验证") &&
+      !capabilityText.includes("绕过") &&
+      !capabilityText.includes("exploit") &&
+      !capabilityText.includes("poc"))
+  ) {
+    return "HTTP / API 结构发现类" as const
+  }
+
+  if (
     capabilityText.includes("高风险") ||
     capabilityText.includes("受控验证") ||
     capabilityText.includes("绕过") ||
@@ -159,6 +208,7 @@ function normalizeProviderPlanItems(
   approvalScenario: "none" | "include-high-risk",
 ) {
   const fallbackItems = buildFallbackPlanItems(baseUrl, approvalScenario)
+  const includeHttpStructure = canUseHttpStructureDiscovery(baseUrl)
   const normalizedItems = (items ?? []).map((item, index) =>
     buildNormalizedPlanItem(item, fallbackItems[Math.min(index, fallbackItems.length - 1)]),
   )
@@ -166,10 +216,12 @@ function normalizeProviderPlanItems(
     approvalScenario === "none"
       ? normalizedItems.filter((item) => item.capability !== "受控验证类" && item.riskLevel !== "高")
       : normalizedItems
-  const requiredCapabilities =
-    approvalScenario === "include-high-risk"
-      ? (["目标解析类", "Web 页面探测类", "受控验证类"] as const)
-      : (["目标解析类", "Web 页面探测类"] as const)
+  const requiredCapabilities = [
+    "目标解析类",
+    "Web 页面探测类",
+    ...(includeHttpStructure ? (["HTTP / API 结构发现类"] as const) : []),
+    ...(approvalScenario === "include-high-risk" ? (["受控验证类"] as const) : []),
+  ]
 
   for (const requiredCapability of requiredCapabilities) {
     if (filteredItems.some((item) => item.capability === requiredCapability)) {

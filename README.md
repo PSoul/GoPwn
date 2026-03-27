@@ -18,7 +18,7 @@
 - 当前版本：`v0.1.0`
 - 当前形态：可运行全栈原型
 - 当前主线：已完成 `Juice Shop` 与 `WebGoat` 两条本地真实闭环验证
-- 当前进行中：WebGoat 受控验证 MCP、更多真实 MCP 能力族、以及更 durable 的长期运行后端
+- 当前进行中：更多真实 MCP 能力族、证据采集与 API Recon 扩展、以及更 durable 的长期运行后端
 
 ### 已完成的核心能力
 
@@ -36,6 +36,9 @@
 - 本地 Docker 靶场验证链路
 - 平台内置基础 MCP 工具兜底（`seed-normalizer`、`report-exporter`）
 - 项目操作页内的真实报告导出闭环
+- 真实 `HTTP / API 结构发现类` stdio MCP
+- 真实 `HTTP / API 结构发现类` 结果归一化落库，能把 GraphQL / Swagger / Actuator 候选入口沉淀成资产与证据
+- 真实 `受控验证类` HTTP workbench stdio MCP
 
 ### 已确认跑通的真实闭环
 
@@ -47,10 +50,19 @@
 - 对应真实项目：`proj-20260327-c98173af`
 - 对应报告目录：`output/live-validation/2026-03-27T10-36-16-464Z-webgoat/`
 - 浏览器级导出截图：`output/playwright/webgoat-operations-report-export.png`
+- 已通过的样例：`WebGoat`（真实 finding / 报告导出闭环）
+- 对应真实项目：`proj-20260327-4e3a91b0`
+- 对应报告目录：`output/live-validation/2026-03-27T11-12-11-708Z-webgoat/`
+- 浏览器级 finding 截图：`output/playwright/webgoat-findings-page.png`
+- 浏览器级导出截图：`output/playwright/webgoat-operations-report-export-after-finding.png`
+- 已通过的样例：`WebGoat`（结构发现证据增强后的复验闭环）
+- 对应真实项目：`proj-20260327-af2ebd69`
+- 对应报告目录：`output/live-validation/2026-03-27T11-38-59-701Z-webgoat/`
+- 关键证据标题：`Web 入口与响应特征识别`、`HTTP / API 结构线索识别`、`Spring Actuator 管理端点匿名暴露`
 
 ### 当前主要缺口
 
-- `WebGoat` 已完成低风险真实闭环，但“受控验证类”仍缺真实 MCP，暂未形成真实漏洞发现闭环
+- `WebGoat` 的 HTTP 结构发现结果已经能回流为证据与候选资产，但还缺少独立的截图 / HTML 证据采集能力继续把证据链做厚
 - 本地靶场健康状态、runner 诊断、页面提示还没有完全统一
 - MCP 能力族目前仍偏少，真实接入还不够丰富
 - 后端持久化仍有一部分在文件存储层，尚未完全演进到更 durable 的长期运行形态
@@ -266,10 +278,13 @@ $env:LIVE_VALIDATION_STATE_MODE = "isolated"
 - [x] MCP Server 严格注册与工具合同校验
 - [x] 真实 DNS / 子域 / 证书情报类 connector
 - [x] 真实 Web 页面探测 stdio MCP connector
+- [x] 真实 HTTP / API 结构发现 stdio MCP connector
+- [x] 真实 HTTP 受控验证 stdio MCP connector
 - [x] 调度任务队列、pause / resume / retry / cancel
 - [x] Durable worker lease 与 orphan running task 恢复
 - [x] Cooperative cancellation 打通运行中任务停止链路
 - [x] 本地 Juice Shop 真实闭环验证
+- [x] 本地 WebGoat 真实 finding / 报告导出闭环验证
 - [x] `npm run test` 基线通过
 
 ## 13. TODO List
@@ -283,7 +298,8 @@ $env:LIVE_VALIDATION_STATE_MODE = "isolated"
 - [ ] 把当前 `WebGoat` 的“offline / 不可达”提示继续收敛成更可执行的环境诊断信息
 - [x] 为第二个靶场闭环补齐真实项目数据、证据沉淀与页面导出
 - [x] 补一条可复用的“第二靶场回归验证”脚本与文档
-- [ ] 为 `WebGoat` 接入真实 `受控验证类` MCP，把低风险识别闭环扩展成真实漏洞发现闭环
+- [x] 为 `WebGoat` 接入真实 `受控验证类` MCP，把低风险识别闭环扩展成真实漏洞发现闭环
+- [x] 把 `HTTP / API 结构发现类` 的结果从运行记录提升为真实资产与证据沉淀
 
 ### P1：运行时与后端稳定性
 
@@ -318,10 +334,10 @@ $env:LIVE_VALIDATION_STATE_MODE = "isolated"
 
 ### P2：新增真实 MCP 能力族
 
-- [ ] `HTTP / API 结构发现类`
+- [x] `HTTP / API 结构发现类`
 - [ ] `截图与证据采集类`
 - [ ] `端口探测类`
-- [ ] `受控验证类`
+- [x] `受控验证类`
 - [x] `报告导出类`
 
 这些能力族应继续遵守现有原则：
@@ -359,10 +375,10 @@ $env:LIVE_VALIDATION_STATE_MODE = "isolated"
 
 建议先按下面顺序继续推进：
 
-1. 打通 `WebGoat` 第二靶场闭环
-2. 统一本地靶场健康诊断语义
-3. 补第二靶场的自动化回归
-4. 接入第二个真实 MCP 能力族
+1. 统一本地靶场健康诊断语义
+2. 补 `截图与证据采集类`
+3. 补 `端口探测类` 或更强的 API Recon 能力
+4. 补第二靶场与真实 finding 的自动化回归
 5. 再继续扩大 durable backend 与运维观测能力
 
 ## 15. 备注

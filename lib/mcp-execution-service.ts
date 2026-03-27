@@ -73,6 +73,26 @@ function buildExecutionAuditLog(project: ProjectRecord, run: McpRunRecord, statu
   }
 }
 
+function buildHttpStructureIssueLead(kind: string) {
+  if (kind === "actuator") {
+    return "优先检查管理端点是否匿名暴露，并确认是否需要进入审批后的受控验证。"
+  }
+
+  if (kind === "graphql") {
+    return "优先确认 GraphQL 入口是否匿名开放，并补充 introspection / schema 线索。"
+  }
+
+  if (kind === "openapi" || kind === "swagger-ui") {
+    return "优先检查文档入口是否可匿名访问，并补齐接口截图与响应样本。"
+  }
+
+  return "建议继续补齐结构化请求样本、截图证据与可达性验证。"
+}
+
+function buildHttpStructureAssetType(kind: string) {
+  return kind === "actuator" ? "entry" : "api"
+}
+
 function normalizeExecutionArtifacts(
   context: McpConnectorExecutionContext,
   rawResult: Extract<McpConnectorResult, { status: "succeeded" }>,
@@ -306,6 +326,165 @@ function normalizeExecutionArtifacts(
           id: `work-${context.run.id}`,
           category: "Web 面识别",
           summary: `Web 入口与响应特征已入库，共 ${webEntries.length} 条。`,
+          projectName: context.project.name,
+          actor,
+          timestamp,
+          status: "已完成",
+        },
+      ],
+    }
+  }
+
+  if (context.run.toolName === "graphql-surface-check") {
+    const webEntries =
+      (rawResult.structuredContent.webEntries as Array<{
+        fingerprint?: string
+        finalUrl?: string
+        headers: string[]
+        statusCode: number
+        title: string
+        url: string
+      }>) ?? []
+    const structureEntries =
+      (rawResult.structuredContent.structureEntries as Array<{
+        kind: string
+        label: string
+        url: string
+        confidence: string
+        source: string
+      }>) ?? []
+    const transport = (rawResult.structuredContent.transport as string | undefined) ?? "host"
+    const primaryEntry = webEntries[0]
+    const webAssets = webEntries.map((entry) => {
+      const host = getHostFromTarget(entry.url)
+      const assetId = buildStableRecordId("asset", context.project.id, "entry", entry.url)
+      const existingAsset = existingAssets.get(assetId)
+
+      return {
+        id: assetId,
+        projectId: context.project.id,
+        projectName: context.project.name,
+        type: entry.url.includes("/graphql") ? "api" : "entry",
+        label: entry.url,
+        profile: `${entry.fingerprint || entry.title} · ${entry.statusCode}`,
+        scopeStatus: "已纳入",
+        lastSeen: timestamp,
+        host,
+        ownership: `${context.project.name} HTTP / API 结构发现`,
+        confidence: structureEntries[0]?.confidence ?? "0.68",
+        exposure: `基础入口标题 ${entry.title}；响应头 ${entry.headers.join(" / ") || "未采集关键响应头"}`,
+        linkedEvidenceId: evidenceId,
+        linkedTaskTitle: context.run.requestedAction,
+        issueLead: structureEntries.length > 0 ? `继续围绕 ${structureEntries[0].label} 候选入口补齐证据。` : "继续补采 API / 文档结构线索。",
+        relations: mergeRelations(existingAsset?.relations, [
+          {
+            id: buildStableRecordId("asset-rel", entry.url, "host"),
+            label: host,
+            type: "domain",
+            relation: "所属主机",
+            scopeStatus: "已纳入",
+          },
+          {
+            id: buildStableRecordId("asset-rel", entry.url, "evidence"),
+            label: evidenceId,
+            type: "evidence",
+            relation: "结构发现证据",
+            scopeStatus: "已纳入",
+          },
+        ]),
+      } satisfies AssetRecord
+    })
+    const structureAssets = structureEntries.map((entry) => {
+      const host = getHostFromTarget(entry.url)
+      const assetId = buildStableRecordId("asset", context.project.id, buildHttpStructureAssetType(entry.kind), entry.url)
+      const existingAsset = existingAssets.get(assetId)
+
+      return {
+        id: assetId,
+        projectId: context.project.id,
+        projectName: context.project.name,
+        type: buildHttpStructureAssetType(entry.kind),
+        label: entry.url,
+        profile: `${entry.label} · ${entry.kind}`,
+        scopeStatus: "已纳入",
+        lastSeen: timestamp,
+        host,
+        ownership: `${context.project.name} API / 文档候选入口`,
+        confidence: entry.confidence,
+        exposure: `由 ${entry.source} 线索识别，当前作为 ${entry.label} 候选入口回流。`,
+        linkedEvidenceId: evidenceId,
+        linkedTaskTitle: context.run.requestedAction,
+        issueLead: buildHttpStructureIssueLead(entry.kind),
+        relations: mergeRelations(existingAsset?.relations, [
+          {
+            id: buildStableRecordId("asset-rel", entry.url, "host"),
+            label: host,
+            type: "domain",
+            relation: "所属主机",
+            scopeStatus: "已纳入",
+          },
+          {
+            id: buildStableRecordId("asset-rel", entry.url, "evidence"),
+            label: evidenceId,
+            type: "evidence",
+            relation: "结构候选证据",
+            scopeStatus: "已纳入",
+          },
+        ]),
+      } satisfies AssetRecord
+    })
+    const candidateLabels = structureEntries.map((entry) => entry.label)
+    const candidateSummary =
+      structureEntries.length > 0
+        ? `识别到 ${structureEntries.length} 个 HTTP / API 结构候选入口：${candidateLabels.join(" / ")}。`
+        : "当前未识别到明确的 API / 文档候选入口。"
+
+    return {
+      actor,
+      assets: [...webAssets, ...structureAssets],
+      evidence: [
+        {
+          id: evidenceId,
+          projectId: context.project.id,
+          projectName: context.project.name,
+          title: "HTTP / API 结构线索识别",
+          source: "HTTP / API 结构发现类",
+          confidence: structureEntries[0]?.confidence ?? "0.68",
+          conclusion: structureEntries.length > 0 ? "结构线索已归档" : "暂未识别到明确入口",
+          linkedApprovalId,
+          rawOutput: [
+            primaryEntry ? `${primaryEntry.url} -> ${primaryEntry.statusCode}` : "",
+            ...(primaryEntry?.headers ?? []),
+            ...structureEntries.map(
+              (entry) => `${entry.label} (${entry.kind}) -> ${entry.url} [${entry.source} / ${entry.confidence}]`,
+            ),
+          ].filter(Boolean),
+          screenshotNote:
+            "当前为 HTTP / API 结构发现结果，页面截图和完整 HTML 证据可在后续截图与证据采集类接入后补齐。",
+          structuredSummary: [
+            candidateSummary,
+            primaryEntry
+              ? `基础入口 ${primaryEntry.title} 返回 HTTP ${primaryEntry.statusCode}，当前链路通过 ${transport === "docker" ? "容器内 fallback" : "宿主机直连"} 完成采集。`
+              : "本轮没有额外的基础入口摘要。",
+          ],
+          linkedTaskTitle: context.run.requestedAction,
+          linkedAssetLabel: structureEntries[0]?.url ?? primaryEntry?.url ?? context.run.target,
+          timeline: [`${timestamp} HTTP / API 结构发现归一化完成`],
+          verdict:
+            structureEntries.length > 0
+              ? "已识别可继续深挖的 API / 文档 / 管理端点线索，建议衔接截图证据、匿名可达性确认和必要的审批后验证。"
+              : "本轮结构发现没有形成明确入口，建议补充目录探测、页面探测或更具体的请求样本。",
+        },
+      ],
+      findings: [],
+      workLogs: [
+        {
+          id: `work-${context.run.id}`,
+          category: "HTTP / API 结构发现",
+          summary:
+            structureEntries.length > 0
+              ? `HTTP / API 结构发现已回流 ${structureEntries.length} 个候选入口。`
+              : "HTTP / API 结构发现已执行，但未识别到明确候选入口。",
           projectName: context.project.name,
           actor,
           timestamp,

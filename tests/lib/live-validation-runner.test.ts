@@ -185,9 +185,13 @@ describe("live validation runner helpers", () => {
     expect(result).toMatchObject({
       registered: true,
       serverName: "web-surface-stdio",
-      serverNames: expect.arrayContaining(["web-surface-stdio", "http-structure-stdio"]),
+      serverNames: expect.arrayContaining([
+        "web-surface-stdio",
+        "http-structure-stdio",
+        "http-validation-stdio",
+      ]),
     })
-    expect(requestJson).toHaveBeenCalledTimes(3)
+    expect(requestJson).toHaveBeenCalledTimes(4)
     expect(requestJson.mock.calls[1]?.[1]).toMatchObject({
       method: "POST",
       body: expect.objectContaining({
@@ -200,6 +204,13 @@ describe("live validation runner helpers", () => {
       method: "POST",
       body: expect.objectContaining({
         serverName: "http-structure-stdio",
+      }),
+    })
+    expect(requestJson.mock.calls[3]?.[1]).toMatchObject({
+      method: "POST",
+      body: expect.objectContaining({
+        serverName: "http-validation-stdio",
+        tools: [expect.objectContaining({ toolName: "auth-guard-check" })],
       }),
     })
   })

@@ -27,6 +27,12 @@ function isHttpTarget(target: string) {
   return /^https?:\/\//i.test(target)
 }
 
+function summarizeStructureEntry(
+  entry: NonNullable<HttpStructureStructuredContent["structureEntries"]>[number],
+) {
+  return `${entry.label} -> ${entry.url} (${entry.source} / ${entry.confidence})`
+}
+
 export const realHttpStructureMcpConnector: McpConnector = {
   key: "real-http-structure-mcp",
   mode: "real",
@@ -66,23 +72,33 @@ export const realHttpStructureMcpConnector: McpConnector = {
         target,
       })
       const structureEntries = result.structuredContent.structureEntries ?? []
+      const webEntries = result.structuredContent.webEntries ?? []
       const transport = result.structuredContent.transport ?? "host"
+      const discoveredEntryUrls = Array.from(
+        new Set([...webEntries.map((entry) => entry.url), ...structureEntries.map((entry) => entry.url)]),
+      )
 
       return {
         status: "succeeded",
         connectorKey: "real-http-structure-mcp",
         mode: "real",
-        outputs: {},
-        rawOutput: structureEntries.map((entry) => `${entry.kind}: ${entry.url}`),
+        outputs: {
+          webEntries: discoveredEntryUrls,
+        },
+        rawOutput: [
+          ...webEntries.flatMap((entry) => [`${entry.url} -> ${entry.statusCode}`, ...entry.headers]),
+          ...structureEntries.map(summarizeStructureEntry),
+        ],
         structuredContent: {
           structureEntries,
           transport,
-          webEntries: result.structuredContent.webEntries ?? [],
+          webEntries,
         },
         summaryLines: [
           structureEntries.length > 0
             ? `真实 MCP 已识别 ${structureEntries.length} 个 HTTP / API 结构候选入口。`
             : "真实 MCP 已执行 HTTP / API 结构发现，但未识别到明确入口。",
+          structureEntries[0] ? summarizeStructureEntry(structureEntries[0]) : "当前结果暂未给出更具体的结构候选入口。",
           transport === "docker" ? "当前结果通过容器内 fallback 获取。" : "当前结果通过宿主机直连获取。",
         ],
       }
@@ -102,4 +118,3 @@ export const realHttpStructureMcpConnector: McpConnector = {
     }
   },
 }
-

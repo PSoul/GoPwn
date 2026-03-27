@@ -6,6 +6,9 @@ const WEB_SURFACE_SERVER_SCRIPT = "scripts/mcp/web-surface-server.mjs"
 const HTTP_STRUCTURE_SERVER_NAME = "http-structure-stdio"
 const HTTP_STRUCTURE_TOOL_NAME = "graphql-surface-check"
 const HTTP_STRUCTURE_SERVER_SCRIPT = "scripts/mcp/http-structure-server.mjs"
+const HTTP_VALIDATION_SERVER_NAME = "http-validation-stdio"
+const HTTP_VALIDATION_TOOL_NAME = "auth-guard-check"
+const HTTP_VALIDATION_SERVER_SCRIPT = "scripts/mcp/http-validation-server.mjs"
 const DEFAULT_WEBGOAT_HOST_PORT = 18080
 
 function getConfiguredWebGoatHostPort() {
@@ -238,6 +241,80 @@ function buildHttpStructureRegistrationPayload() {
   }
 }
 
+function buildHttpValidationRegistrationPayload() {
+  return {
+    serverName: HTTP_VALIDATION_SERVER_NAME,
+    version: "1.0.0",
+    transport: "stdio",
+    command: "node",
+    args: [HTTP_VALIDATION_SERVER_SCRIPT],
+    endpoint: `stdio://${HTTP_VALIDATION_SERVER_NAME}`,
+    enabled: true,
+    notes: "真实 HTTP 受控验证 MCP server，用于 WebGoat 等靶场的审批后验证与证据沉淀。",
+    tools: [
+      {
+        toolName: HTTP_VALIDATION_TOOL_NAME,
+        title: "Run HTTP Validation",
+        description: "执行可审计的 HTTP 受控验证请求，并回传请求/响应摘要、证据信号和推荐 finding。",
+        version: "1.0.0",
+        capability: "受控验证类",
+        boundary: "外部目标交互",
+        riskLevel: "高",
+        requiresApproval: true,
+        resultMappings: ["findings", "evidence", "workLogs"],
+        inputSchema: {
+          type: "object",
+          properties: {
+            targetUrl: {
+              type: "string",
+              description: "需要执行受控验证的 HTTP 或 HTTPS URL。",
+            },
+            method: {
+              type: "string",
+            },
+            headers: {
+              type: "object",
+            },
+            body: {
+              type: "string",
+            },
+            validationProfile: {
+              type: "string",
+            },
+          },
+          required: ["targetUrl"],
+          additionalProperties: false,
+        },
+        outputSchema: {
+          type: "object",
+          properties: {
+            requestSummary: {
+              type: "object",
+            },
+            responseSummary: {
+              type: "object",
+            },
+            responseSignals: {
+              type: "array",
+              items: {
+                type: "string",
+              },
+            },
+            finding: {
+              type: "object",
+            },
+          },
+        },
+        defaultConcurrency: "1",
+        rateLimit: "2 req/min",
+        timeout: "20s",
+        retry: "1 次",
+        owner: "平台自动验证",
+      },
+    ],
+  }
+}
+
 export async function ensureLiveValidationProject({
   baseUrl,
   cookie,
@@ -303,6 +380,12 @@ export async function ensureWebSurfaceMcpRegistration({
   const hasHttpStructureToolContract = toolContracts.some(
     (contract) => contract.serverName === HTTP_STRUCTURE_SERVER_NAME && contract.toolName === HTTP_STRUCTURE_TOOL_NAME,
   )
+  const hasHttpValidationServer = servers.some(
+    (server) => server.serverName === HTTP_VALIDATION_SERVER_NAME && server.enabled,
+  )
+  const hasHttpValidationToolContract = toolContracts.some(
+    (contract) => contract.serverName === HTTP_VALIDATION_SERVER_NAME && contract.toolName === HTTP_VALIDATION_TOOL_NAME,
+  )
   const registeredServerNames = []
 
   if (!hasEnabledServer || !hasToolContract) {
@@ -325,12 +408,22 @@ export async function ensureWebSurfaceMcpRegistration({
     registeredServerNames.push(registrationResult?.payload?.server?.serverName ?? HTTP_STRUCTURE_SERVER_NAME)
   }
 
+  if (!hasHttpValidationServer || !hasHttpValidationToolContract) {
+    const registrationResult = await requestJson(`${baseUrl}/api/settings/mcp-servers/register`, {
+      method: "POST",
+      cookie,
+      body: buildHttpValidationRegistrationPayload(),
+    })
+
+    registeredServerNames.push(registrationResult?.payload?.server?.serverName ?? HTTP_VALIDATION_SERVER_NAME)
+  }
+
   return {
     registered: registeredServerNames.length > 0,
     serverName: WEB_SURFACE_SERVER_NAME,
     serverNames:
       registeredServerNames.length > 0
         ? registeredServerNames
-        : [WEB_SURFACE_SERVER_NAME, HTTP_STRUCTURE_SERVER_NAME],
+        : [WEB_SURFACE_SERVER_NAME, HTTP_STRUCTURE_SERVER_NAME, HTTP_VALIDATION_SERVER_NAME],
   }
 }

@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-27`
-- Current focus: `codex/second-local-lab-webgoat-2026-03-27` has now standardized WebGoat host publishing to `18080/19090`, added built-in fallback for internal MCP capabilities, completed a real low-risk WebGoat closure, and verified browser-side report export against the resulting project data.
+- Current focus: `codex/second-local-lab-webgoat-2026-03-27` has now added a real HTTP controlled-validation MCP, completed a full WebGoat finding closure against the exposed `/actuator` surface, normalized HTTP/API structure-discovery results into real assets/evidence/context, and verified the finding plus report export in the browser UI.
 - Working mode: each major feature area uses its own isolated git branch/worktree so the existing branch is not disturbed.
 
 ## Phase 1: Frontend Prototype Closure
@@ -170,9 +170,15 @@
 - completed: add built-in fallback for internal MCP capabilities (`目标解析类`, `报告导出类`) so empty workspaces do not block core closure flows
 - completed: execute a real low-risk WebGoat validation through the same live runner, keeping the resulting project in the workspace store and proving real MCP-backed result persistence
 - completed: verify browser-side report export from the WebGoat project operations page and capture a screenshot artifact under `output/playwright/`
+- completed: add a real stdio MCP server + connector for `受控验证类`, implemented as a generic auditable HTTP request workbench (`auth-guard-check`)
+- completed: extend live-validation bootstrapping so `web-surface-stdio`, `http-structure-stdio`, and `http-validation-stdio` can all auto-register in an empty workspace
+- completed: steer the WebGoat high-risk closure toward `/WebGoat/actuator`, then validate a real anonymous-management-surface finding through approval resume
+- completed: execute a real WebGoat high-risk closure in workspace mode, preserving one real finding (`Spring Actuator 管理端点匿名暴露`) plus matching evidence and report artifacts
+- completed: normalize `HTTP / API 结构发现类` output into persisted candidate assets and evidence/context records instead of leaving it mostly in run history
+- completed: verify the resulting WebGoat finding page and post-finding report export flow in the browser UI, capturing screenshots under `output/playwright/`
 - in progress: replace or augment more of the file-backed prototype runtime with database-backed persistence suitable for longer-running environments
 - pending: wire project/task execution state to durable queues, cancellation, and better operator controls
-- pending: expand real connector families beyond DNS + Web surface probing into API reconnaissance, evidence capture, and controlled validation
+- pending: expand real connector families beyond DNS + Web surface probing + HTTP controlled validation into API reconnaissance, evidence capture, and network discovery
 - pending: refine the LLM provider configuration surface further with masked secrets, profile validation UX, and clearer operational fallback behavior
 - pending: add local-lab-backed regression suites that can optionally run against real Docker targets in CI or controlled local environments
 
@@ -180,10 +186,11 @@
 
 - partially met: backend state now includes a durable SQLite slice for external MCP server registry metadata and real-call audit history
 - met: at least one non-DNS external interaction family runs through a real MCP/server integration path
-- met: at least two real LLM + real MCP + local Docker target validation flows (`Juice Shop`, low-risk `WebGoat`) have now been executed and captured as reusable artifacts
+- met: at least two real LLM + real MCP + local Docker target validation flows have now been executed and captured as reusable artifacts, including a real-finding WebGoat closure
 - met: a clean environment can now auto-bootstrap a real validation project instead of relying on older seed IDs
 - met: real closure data can now be preserved into the normal workspace runtime when workspace-mode persistence is selected
 - met: runtime settings and MCP registration surfaces no longer depend on static demo configuration
+- met: WebGoat can now move from low-risk discovery into approval-gated real controlled validation without falling back to synthetic findings
 - project execution, approvals, evidence, and findings remain auditable after backend hardening
 - the local Docker validation stack remains usable as a regression harness while the backend evolves
 
@@ -192,6 +199,12 @@
 - Real project id: `proj-20260327-f6a3fd0c`
 - Run artifact: `output/live-validation/2026-03-27T05-09-27-704Z-juice-shop/report.md`
 - Notes: this run used the real SiliconFlow-backed orchestrator, the real `web-surface-stdio` MCP path, approval resume, and workspace-mode persistence so the result stayed visible in normal UI routes.
+- Real project id: `proj-20260327-4e3a91b0`
+- Run artifact: `output/live-validation/2026-03-27T11-12-11-708Z-webgoat/report.md`
+- Notes: this run used the real SiliconFlow-backed orchestrator, real `web-surface-stdio` + `http-structure-stdio` + `http-validation-stdio` MCP paths, approval resume, workspace-mode persistence, one real finding, and browser-side verification of the finding page plus report export.
+- Real project id: `proj-20260327-af2ebd69`
+- Run artifact: `output/live-validation/2026-03-27T11-38-59-701Z-webgoat/report.md`
+- Notes: this rerun verified that `HTTP / API 结构发现类` output now persists as real evidence/context (`HTTP / API 结构线索识别`) alongside the WebGoat Actuator finding in the normal workspace store.
 
 ## Phase 8: Platform Stabilization and Durable Execution Controls
 
@@ -217,8 +230,8 @@
 
 - completed: stabilize WebGoat host-side reachability so the second lab can be validated through the same runner
 - completed: unify the default WebGoat port assumptions across compose, runner, API, and UI around `18080/19090`
+- completed: add another real MCP family by landing the HTTP controlled-validation path used for the WebGoat actuator closure
 - expand local-lab-backed regression coverage for real Docker targets in controlled environments
-- add another real MCP family such as API structure discovery, evidence capture, or controlled validation
 - add masked-secret mode for LLM settings while keeping a debug toggle for local development
 
 ### Acceptance Criteria
@@ -227,28 +240,26 @@
 - met: queued tasks can be cancelled and failed tasks can be retried from the project operations page
 - met: the operations API contract now carries real runtime scheduler state instead of only high-level task cards
 - partially met: operators can now issue stop requests for `running` tasks, recover orphan executions, block stale late writeback, and cooperatively interrupt the platform heartbeat, local connectors, real DNS/TLS checkpoints, and the real stdio Web-surface MCP path; broader remote rollback and additional connector families are still pending
-- met: WebGoat can now be validated through the same end-to-end runner in a low-risk closure path
-- pending: WebGoat still needs a real `受控验证类` MCP before it can produce a full real finding/PoC closure
+- met: WebGoat can now be validated through the same end-to-end runner in a real finding closure path, including approval resume and browser-side report export
 
 ## Recommended Next Phase
 
 - Name: `Phase 9 - Real Controlled Validation and API Recon`
 - Suggested branch/worktree: create a fresh isolated branch after this slice is merged or parked
-- Goal: build on the now-proven Juice Shop + WebGoat low-risk closures by adding real controlled-validation and API-recon MCP families, so WebGoat can progress from result discovery into true finding generation.
+- Goal: build on the now-proven Juice Shop + WebGoat real closures by expanding the next batch of MCP families, with evidence capture, richer API recon, and network discovery as the next practical priorities.
 
 ### Priority Tasks
 
-- add a real `受控验证类` MCP, preferably a generic HTTP request workbench capable of controlled GET/POST validation with auditable request/response capture
-- make the orchestrator prefer `HTTP / API 结构发现类` and later `受控验证类` when those tools are actually registered and healthy
+- add a real `截图与证据采集类` MCP so Web 页面探测 and受控验证 can produce richer screenshots/HTML evidence without manual inspection
+- add a next real family such as `端口探测类` or richer API recon so the platform can go beyond pure Web entry validation
 - expand regression coverage for long-running queue recovery, environment-blocked lab runs, report export, and second-lab execution
-- add another real MCP family such as API structure discovery or evidence capture once controlled validation is no longer the only remaining blocker
 
 ### Acceptance Criteria
 
 - running-task interruption and recovery are operator-visible and survive restarts more cleanly than the current file-backed baseline
-- WebGoat can move from low-risk real discovery into real controlled validation without falling back to synthetic findings
+- met in current slice: structure-discovery output is no longer just visible in run history and now lands as clearer evidence/context in project surfaces
+- at least one new real MCP family beyond the current DNS/Web/HTTP-validation trio is visible in the registry and usable from dispatch flows without destabilizing the queue
 - local-lab health, fallback, and diagnostics stay consistent across the runner, API, and operations UI
-- at least one additional MCP family is visible in the registry and usable from dispatch flows without destabilizing the queue
 
 ## Notes for Future LLM Sessions
 

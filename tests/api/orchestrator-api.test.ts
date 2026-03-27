@@ -1,5 +1,6 @@
 import { createServer } from "node:http"
 import { mkdtempSync, rmSync } from "node:fs"
+import type { AddressInfo } from "node:net"
 import { tmpdir } from "node:os"
 import path from "node:path"
 
@@ -11,6 +12,7 @@ import { POST as postLocalValidation } from "@/app/api/projects/[projectId]/orch
 import { POST as postOrchestratorPlan } from "@/app/api/projects/[projectId]/orchestrator/plan/route"
 import { GET as getProjectOperations } from "@/app/api/projects/[projectId]/operations/route"
 import { resetLocalLabCatalogTestAdapters, setLocalLabCatalogTestAdapters } from "@/lib/local-lab-catalog"
+import { registerStoredMcpServer } from "@/lib/mcp-server-repository"
 import { createStoredProjectFixture, seedWorkflowReadyMcpTools } from "@/tests/helpers/project-fixtures"
 
 const buildProjectContext = (projectId: string) => ({
@@ -20,6 +22,8 @@ const buildProjectContext = (projectId: string) => ({
 const buildApprovalContext = (approvalId: string) => ({
   params: Promise.resolve({ approvalId }),
 })
+
+const nativeFetch = globalThis.fetch
 
 describe("project orchestrator api routes", () => {
   let tempDir: string
@@ -327,6 +331,207 @@ describe("project orchestrator api routes", () => {
     expect(validationPayload.runs.some((item: { status: string }) => item.status === "已执行")).toBe(true)
 
     delete process.env.WEBGOAT_HOST_PORT
+  })
+
+  it("writes a real WebGoat actuator exposure finding after approval resumes", async () => {
+    seedWorkflowReadyMcpTools()
+
+    const targetServer = createServer((request, response) => {
+      if (request.url === "/WebGoat/actuator/health") {
+        response.writeHead(200, {
+          "content-type": "application/json",
+        })
+        response.end(JSON.stringify({ status: "UP" }))
+        return
+      }
+
+      if (request.url === "/WebGoat/actuator") {
+        response.writeHead(200, {
+          "content-type": "application/vnd.spring-boot.actuator.v3+json",
+          server: "vitest-spring",
+          "x-powered-by": "vitest-webgoat",
+        })
+        response.end(
+          JSON.stringify({
+            _links: {
+              self: { href: "http://127.0.0.1/WebGoat/actuator" },
+              health: { href: "http://127.0.0.1/WebGoat/actuator/health" },
+              env: { href: "http://127.0.0.1/WebGoat/actuator/env" },
+              configprops: { href: "http://127.0.0.1/WebGoat/actuator/configprops" },
+            },
+          }),
+        )
+        return
+      }
+
+      response.writeHead(200, {
+        "content-type": "text/html; charset=utf-8",
+      })
+      response.end("<html><head><title>WebGoat</title></head><body>ok</body></html>")
+    })
+    let startedTargetServer = false
+
+    await new Promise<void>((resolve, reject) => {
+      targetServer.once("error", reject)
+      targetServer.listen(0, "127.0.0.1", () => {
+        startedTargetServer = true
+        resolve()
+      })
+    })
+
+    const { port } = targetServer.address() as AddressInfo
+    process.env.WEBGOAT_HOST_PORT = String(port)
+    global.fetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+
+      if (url.includes(`127.0.0.1:${port}`)) {
+        return nativeFetch(input, init)
+      }
+
+      throw new Error(`Unexpected fetch in orchestrator api test: ${url}`)
+    }) as unknown as typeof fetch
+
+    registerStoredMcpServer({
+      serverName: "http-validation-stdio",
+      version: "1.0.0",
+      transport: "stdio",
+      command: "node",
+      args: ["scripts/mcp/http-validation-server.mjs"],
+      endpoint: "stdio://http-validation-stdio",
+      enabled: true,
+      notes: "真实 HTTP 受控验证 MCP server",
+      tools: [
+        {
+          toolName: "auth-guard-check",
+          title: "HTTP 受控验证",
+          description: "执行需要审批的高风险 HTTP 受控验证。",
+          version: "1.0.0",
+          capability: "受控验证类",
+          boundary: "外部目标交互",
+          riskLevel: "高",
+          requiresApproval: true,
+          resultMappings: ["findings", "evidence", "workLogs"],
+          inputSchema: {
+            type: "object",
+            properties: {
+              targetUrl: {
+                type: "string",
+              },
+            },
+            required: ["targetUrl"],
+            additionalProperties: false,
+          },
+          outputSchema: {
+            type: "object",
+            properties: {
+              responseSignals: {
+                type: "array",
+                items: {
+                  type: "string",
+                },
+              },
+            },
+          },
+          defaultConcurrency: "1",
+          rateLimit: "2 req/min",
+          timeout: "20s",
+          retry: "1 次",
+          owner: "测试夹具",
+        },
+      ],
+    })
+
+    try {
+      const fixture = createStoredProjectFixture({
+        seed: `http://127.0.0.1:${port}/WebGoat`,
+        targetType: "url",
+      })
+      const validationResponse = await postLocalValidation(
+        new Request(`http://localhost/api/projects/${fixture.project.id}/orchestrator/local-validation`, {
+          method: "POST",
+          body: JSON.stringify({
+            labId: "webgoat",
+            approvalScenario: "include-high-risk",
+          }),
+          headers: {
+            "content-type": "application/json",
+          },
+        }),
+        buildProjectContext(fixture.project.id),
+      )
+      const validationPayload = await validationResponse.json()
+
+      expect(validationResponse.status).toBe(202)
+      expect(validationPayload.status).toBe("waiting_approval")
+      expect(
+        validationPayload.plan.items.some(
+          (item: { capability: string; target: string }) =>
+            item.capability === "受控验证类" && item.target.endsWith("/WebGoat/actuator"),
+        ),
+      ).toBe(true)
+
+      const approvalResponse = await patchApproval(
+        new Request(`http://localhost/api/approvals/${validationPayload.approval.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ decision: "已批准" }),
+          headers: {
+            "content-type": "application/json",
+          },
+        }),
+        buildApprovalContext(validationPayload.approval.id),
+      )
+
+      expect(approvalResponse.status).toBe(200)
+
+      const contextAfterApproval = await getProjectContext(
+        new Request(`http://localhost/api/projects/${fixture.project.id}/context`),
+        buildProjectContext(fixture.project.id),
+      )
+      const contextPayload = await contextAfterApproval.json()
+
+      expect(contextAfterApproval.status).toBe(200)
+      expect(
+        contextPayload.detail.findings.some(
+          (item: { title: string; summary: string }) =>
+            item.title.includes("Actuator") && item.summary.includes("匿名请求"),
+        ),
+      ).toBe(true)
+      expect(
+        contextPayload.evidence.some(
+          (item: { source: string; verdict: string }) =>
+            item.source === "受控验证类" && item.verdict.includes("Spring Actuator"),
+        ),
+      ).toBe(true)
+
+      const operationsResponse = await getProjectOperations(
+        new Request(`http://localhost/api/projects/${fixture.project.id}/operations`),
+        buildProjectContext(fixture.project.id),
+      )
+      const operationsPayload = await operationsResponse.json()
+
+      expect(operationsResponse.status).toBe(200)
+      expect(
+        operationsPayload.mcpRuns.some(
+          (item: { toolName: string; connectorMode?: string; status: string }) =>
+            item.toolName === "auth-guard-check" && item.connectorMode === "real" && item.status === "已执行",
+        ),
+      ).toBe(true)
+    } finally {
+      delete process.env.WEBGOAT_HOST_PORT
+
+      if (startedTargetServer) {
+        await new Promise<void>((resolve, reject) => {
+          targetServer.close((error) => {
+            if (error) {
+              reject(error)
+              return
+            }
+
+            resolve()
+          })
+        })
+      }
+    }
   })
 
   it("drops provider-returned high-risk actions when approvalScenario is none", async () => {
