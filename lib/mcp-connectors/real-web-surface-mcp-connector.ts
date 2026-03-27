@@ -1,4 +1,5 @@
 import { callMcpServerTool } from "@/lib/mcp-client-service"
+import { resolveLocalLabHttpTarget } from "@/lib/local-lab-catalog"
 import { createExecutionAbortError, isExecutionAbortError, throwIfExecutionAborted } from "@/lib/mcp-execution-abort"
 import { findStoredEnabledMcpServerByToolBinding } from "@/lib/mcp-server-repository"
 import type { McpConnector, McpConnectorExecutionContext, McpConnectorResult } from "@/lib/mcp-connectors/types"
@@ -47,11 +48,14 @@ export const realWebSurfaceMcpConnector: McpConnector = {
     }
 
     try {
+      const localLabTarget = resolveLocalLabHttpTarget(target)
       const result = await callMcpServerTool<WebSurfaceStructuredContent>({
         server,
         toolName: "probe_web_surface",
         arguments: {
           targetUrl: target,
+          dockerContainerName: localLabTarget?.dockerContainerName,
+          internalTargetUrl: localLabTarget?.internalTargetUrl,
         },
         signal: context.signal,
         target,
@@ -69,7 +73,14 @@ export const realWebSurfaceMcpConnector: McpConnector = {
         structuredContent: {
           webEntries,
         },
-        summaryLines: webEntries.length > 0 ? [`真实 MCP 已完成 ${webEntries.length} 个 Web 页面入口探测。`, summarizeEntry(webEntries[0])] : ["真实 MCP 已执行，但未返回可用的页面入口结果。"],
+        summaryLines:
+          webEntries.length > 0
+            ? [
+                `真实 MCP 已完成 ${webEntries.length} 个 Web 页面入口探测。`,
+                summarizeEntry(webEntries[0]),
+                localLabTarget?.dockerContainerName ? `已为本地靶场注入 docker fallback 参数。` : "当前目标走宿主机直连探测。",
+              ]
+            : ["真实 MCP 已执行，但未返回可用的页面入口结果。"],
       }
     } catch (error) {
       if (isExecutionAbortError(error) || context.signal?.aborted) {

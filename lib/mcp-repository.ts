@@ -1,3 +1,4 @@
+import { getBuiltInMcpToolById } from "@/lib/built-in-mcp-tools"
 import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
 import type { McpToolPatchInput, McpToolRecord } from "@/lib/prototype-types"
 
@@ -27,7 +28,7 @@ export function listStoredMcpTools() {
 }
 
 export function getStoredMcpToolById(toolId: string) {
-  return readPrototypeStore().mcpTools.find((tool) => tool.id === toolId) ?? null
+  return readPrototypeStore().mcpTools.find((tool) => tool.id === toolId) ?? getBuiltInMcpToolById(toolId)
 }
 
 export function updateStoredMcpTool(toolId: string, patch: McpToolPatchInput) {

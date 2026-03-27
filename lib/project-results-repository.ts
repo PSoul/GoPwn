@@ -9,6 +9,8 @@ import type {
   ProjectInventoryGroup,
   ProjectKnowledgeItem,
   ProjectRecord,
+  ProjectReportExportPayload,
+  ProjectReportExportRecord,
   ProjectResultMetric,
   ProjectStage,
   ProjectStageSnapshot,
@@ -305,6 +307,90 @@ function buildTimeline(currentStage: ProjectStageSnapshot, blocked: boolean): Ti
             : "等待主路径或审批状态继续推进。",
     }
   })
+}
+
+function parseReportDigestFromLog(summary: string) {
+  const marker = "项目报告摘要已导出："
+  const digest = summary.includes(marker) ? summary.slice(summary.indexOf(marker) + marker.length).trim() : ""
+
+  if (!digest) {
+    return []
+  }
+
+  return digest
+    .split("；")
+    .map((line) => line.trim())
+    .filter(Boolean)
+}
+
+function toStoredProjectReportExportRecord(
+  run: McpRunRecord,
+  reportLogSummary: string | undefined,
+  assetCount: number,
+  evidenceCount: number,
+  findingCount: number,
+): ProjectReportExportRecord {
+  const digestLines = parseReportDigestFromLog(reportLogSummary ?? "")
+
+  return {
+    id: `report-${run.id}`,
+    projectId: run.projectId,
+    runId: run.id,
+    exportedAt: run.updatedAt,
+    summary:
+      reportLogSummary ??
+      run.summaryLines.at(-1) ??
+      `${run.requestedAction} 已执行完成，报告导出记录已回流。`,
+    digestLines: digestLines.length > 0 ? digestLines : run.summaryLines.slice(-3),
+    assetCount,
+    evidenceCount,
+    findingCount,
+  }
+}
+
+export function listStoredProjectReportExports(projectId: string): ProjectReportExportRecord[] {
+  const store = readPrototypeStore()
+  const project = store.projects.find((item) => item.id === projectId)
+
+  if (!project) {
+    return []
+  }
+
+  const projectRuns = store.mcpRuns.filter(
+    (run) => run.projectId === projectId && run.toolName === "report-exporter" && run.status === "已执行",
+  )
+  const projectLogs = store.workLogs.filter(
+    (log) => log.projectName === project.name && log.category === "报告导出",
+  )
+  const logByRunId = new Map(
+    projectLogs
+      .filter((log) => log.id.startsWith("work-run-"))
+      .map((log) => [log.id.replace(/^work-/, ""), log.summary]),
+  )
+  const assetCount = store.assets.filter((asset) => asset.projectId === projectId).length
+  const evidenceCount = store.evidenceRecords.filter((record) => record.projectId === projectId).length
+  const findingCount = store.projectFindings.filter((finding) => finding.projectId === projectId).length
+
+  return [...projectRuns]
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    .map((run) =>
+      toStoredProjectReportExportRecord(
+        run,
+        logByRunId.get(run.id),
+        assetCount,
+        evidenceCount,
+        findingCount,
+      ),
+    )
+}
+
+export function getStoredProjectReportExportPayload(projectId: string): ProjectReportExportPayload {
+  const records = listStoredProjectReportExports(projectId)
+
+  return {
+    latest: records[0] ?? null,
+    totalExports: records.length,
+  }
 }
 
 export function listStoredProjectFindings(projectId?: string) {

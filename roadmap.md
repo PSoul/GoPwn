@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-27`
-- Current focus: the cooperative-cancellation slice is landing on `codex/cooperative-cancellation-2026-03-27`, turning running-task stop requests into real abort propagation across the scheduler, execution service, local connectors, and the real stdio MCP path while the next isolated branch prepares second-lab closure work.
+- Current focus: `codex/second-local-lab-webgoat-2026-03-27` has now standardized WebGoat host publishing to `18080/19090`, added built-in fallback for internal MCP capabilities, completed a real low-risk WebGoat closure, and verified browser-side report export against the resulting project data.
 - Working mode: each major feature area uses its own isolated git branch/worktree so the existing branch is not disturbed.
 
 ## Phase 1: Frontend Prototype Closure
@@ -166,10 +166,13 @@
 - completed: add a strict MCP server registration contract, registration API, contract docs, and settings-page registration flow
 - completed: remove automatic demo MCP server seeding; new servers now appear only after explicit validated registration
 - completed: isolate Playwright browser runs behind a temporary prototype-store directory so E2E tests verify the empty-first runtime deterministically
-- in progress: stabilize WebGoat host-side reachability in the current Windows + Docker Desktop environment so the second lab can be validated with the same runner
+- completed: stabilize WebGoat host-side reachability in the current Windows + Docker Desktop environment by standardizing host publishing to `18080:8080` and `19090:9090`
+- completed: add built-in fallback for internal MCP capabilities (`目标解析类`, `报告导出类`) so empty workspaces do not block core closure flows
+- completed: execute a real low-risk WebGoat validation through the same live runner, keeping the resulting project in the workspace store and proving real MCP-backed result persistence
+- completed: verify browser-side report export from the WebGoat project operations page and capture a screenshot artifact under `output/playwright/`
 - in progress: replace or augment more of the file-backed prototype runtime with database-backed persistence suitable for longer-running environments
 - pending: wire project/task execution state to durable queues, cancellation, and better operator controls
-- pending: expand real connector families beyond DNS + Web surface probing into API reconnaissance and evidence capture
+- pending: expand real connector families beyond DNS + Web surface probing into API reconnaissance, evidence capture, and controlled validation
 - pending: refine the LLM provider configuration surface further with masked secrets, profile validation UX, and clearer operational fallback behavior
 - pending: add local-lab-backed regression suites that can optionally run against real Docker targets in CI or controlled local environments
 
@@ -177,7 +180,7 @@
 
 - partially met: backend state now includes a durable SQLite slice for external MCP server registry metadata and real-call audit history
 - met: at least one non-DNS external interaction family runs through a real MCP/server integration path
-- met: at least one real LLM + real MCP + local Docker target validation flow has now been executed and captured as a reusable artifact
+- met: at least two real LLM + real MCP + local Docker target validation flows (`Juice Shop`, low-risk `WebGoat`) have now been executed and captured as reusable artifacts
 - met: a clean environment can now auto-bootstrap a real validation project instead of relying on older seed IDs
 - met: real closure data can now be preserved into the normal workspace runtime when workspace-mode persistence is selected
 - met: runtime settings and MCP registration surfaces no longer depend on static demo configuration
@@ -212,10 +215,10 @@
 
 ### Priority Tasks
 
-- stabilize WebGoat host-side reachability so the second lab can be validated through the same runner
-- unify local-lab definitions plus environment diagnostics so the runner, API, and UI report the same lab-health truth for WebGoat and future targets
+- completed: stabilize WebGoat host-side reachability so the second lab can be validated through the same runner
+- completed: unify the default WebGoat port assumptions across compose, runner, API, and UI around `18080/19090`
 - expand local-lab-backed regression coverage for real Docker targets in controlled environments
-- add another real MCP family such as API structure discovery or evidence capture
+- add another real MCP family such as API structure discovery, evidence capture, or controlled validation
 - add masked-secret mode for LLM settings while keeping a debug toggle for local development
 
 ### Acceptance Criteria
@@ -224,26 +227,27 @@
 - met: queued tasks can be cancelled and failed tasks can be retried from the project operations page
 - met: the operations API contract now carries real runtime scheduler state instead of only high-level task cards
 - partially met: operators can now issue stop requests for `running` tasks, recover orphan executions, block stale late writeback, and cooperatively interrupt the platform heartbeat, local connectors, real DNS/TLS checkpoints, and the real stdio Web-surface MCP path; broader remote rollback and additional connector families are still pending
-- pending: WebGoat or another second local target can be validated through the same end-to-end runner
+- met: WebGoat can now be validated through the same end-to-end runner in a low-risk closure path
+- pending: WebGoat still needs a real `受控验证类` MCP before it can produce a full real finding/PoC closure
 
 ## Recommended Next Phase
 
-- Name: `Phase 9 - Second-Lab Validation and Lab Diagnostics`
+- Name: `Phase 9 - Real Controlled Validation and API Recon`
 - Suggested branch/worktree: create a fresh isolated branch after this slice is merged or parked
-- Goal: build on the now-proven real project closure path by validating a second local lab with clearer runtime diagnostics and a single source of truth for lab definitions before expanding additional MCP families.
+- Goal: build on the now-proven Juice Shop + WebGoat low-risk closures by adding real controlled-validation and API-recon MCP families, so WebGoat can progress from result discovery into true finding generation.
 
 ### Priority Tasks
 
-- stabilize WebGoat host-side reachability and validate it through the same orchestrator + MCP + approval path
-- unify local-lab catalog, runner defaults, and UI/API health semantics so WebGoat failures surface as actionable environment diagnostics instead of ambiguous `offline` states
-- expand regression coverage for long-running queue recovery, environment-blocked lab runs, and second-lab execution
-- add another real MCP family such as API structure discovery or evidence capture once runtime control is stable
+- add a real `受控验证类` MCP, preferably a generic HTTP request workbench capable of controlled GET/POST validation with auditable request/response capture
+- make the orchestrator prefer `HTTP / API 结构发现类` and later `受控验证类` when those tools are actually registered and healthy
+- expand regression coverage for long-running queue recovery, environment-blocked lab runs, report export, and second-lab execution
+- add another real MCP family such as API structure discovery or evidence capture once controlled validation is no longer the only remaining blocker
 
 ### Acceptance Criteria
 
 - running-task interruption and recovery are operator-visible and survive restarts more cleanly than the current file-backed baseline
-- WebGoat or another second local target can be validated through the same end-to-end runner
-- local-lab health, fallback, and diagnostics are consistent across the runner, API, and operations UI
+- WebGoat can move from low-risk real discovery into real controlled validation without falling back to synthetic findings
+- local-lab health, fallback, and diagnostics stay consistent across the runner, API, and operations UI
 - at least one additional MCP family is visible in the registry and usable from dispatch flows without destabilizing the queue
 
 ## Notes for Future LLM Sessions

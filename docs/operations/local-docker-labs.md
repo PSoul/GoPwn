@@ -14,9 +14,10 @@
   - 入口：`http://127.0.0.1:3000`
   - 镜像：`bkimminich/juice-shop`
 - `webgoat`
-  - 入口：`http://127.0.0.1:8080/WebGoat`
+  - 入口：默认 `http://127.0.0.1:18080/WebGoat`
   - 镜像：`webgoat/webgoat`
-  - 辅助端口：`9090`
+  - 辅助端口：宿主机默认 `19090` 映射到容器内 `9090`
+  - 平台默认按 `18080:8080` 启动；如需覆盖，请同步设置 `WEBGOAT_HOST_PORT`
 
 ## 启动
 
@@ -44,10 +45,24 @@ docker compose -f docker/local-labs/compose.yaml down
 
 ```powershell
 Invoke-WebRequest http://127.0.0.1:3000 | Select-Object StatusCode
-Invoke-WebRequest http://127.0.0.1:8080/WebGoat | Select-Object StatusCode
+Invoke-WebRequest http://127.0.0.1:18080/WebGoat | Select-Object StatusCode
 ```
 
 如果返回 `200`、`302` 或可预期的应用首页内容，平台中的本地靶场探测通常就能识别为 `online`。
+
+如果你怀疑原来的 `8080` 被其它进程占用，先检查：
+
+```powershell
+netstat -ano | findstr :8080
+```
+
+当前仓库已经默认把 WebGoat 的宿主机映射改为 `18080:8080`。如果你手工改成其它端口，请在启动平台或 live runner 前同步设置：
+
+```powershell
+$env:WEBGOAT_HOST_PORT = "18080"
+```
+
+这样 `catalog`、编排 API 与 live runner 都会统一指向对应的宿主机入口。当前默认入口为 `http://127.0.0.1:18080/WebGoat`。如果宿主机端口仍不可达，但容器内 `/WebGoat/actuator/health` 可达，平台会把状态标记为“容器内可达”，并继续允许 WebGoat 闭环调试。
 
 ## 命令行实流验证
 
@@ -72,6 +87,7 @@ npm run live:validate
 
 ```powershell
 $env:LIVE_VALIDATION_LAB_ID = "juice-shop"   # 或 webgoat
+$env:WEBGOAT_HOST_PORT = "18080"             # 可选；默认 compose 已使用 18080:8080，只有你手工改端口时才需要覆盖
 $env:LIVE_VALIDATION_PROJECT_ID = "proj-20260327-f6a3fd0c"  # 可选；不填时会自动创建真实项目
 $env:LIVE_VALIDATION_PORT = "3301"
 $env:LIVE_VALIDATION_AUTO_APPROVE = "1"      # 默认自动审批恢复
@@ -86,7 +102,7 @@ $env:LIVE_VALIDATION_STATE_DIR = "D:\\temp\\prototype-store-live" # 可选，手
 1. 拉起本地 Docker 靶场
 2. 启动 Next.js 运行时，并按 `LIVE_VALIDATION_STATE_MODE` 选择独立 store 或当前工作区 store
 3. 调用登录 API 获取研究员会话
-4. 如当前 store 还没有 `web-surface-stdio`，先自动完成 MCP 注册
+4. 如当前 store 还没有 `web-surface-stdio` 与 `http-structure-stdio`，先自动完成 MCP 注册
 5. 如果没有显式传入 `LIVE_VALIDATION_PROJECT_ID`，自动创建真实项目
 6. 调用编排计划 API
 7. 调用本地验证 API
@@ -148,5 +164,6 @@ $env:LIVE_VALIDATION_STATE_DIR = "D:\\temp\\prototype-store-live" # 可选，手
 - 不要把真实 API Key 写进仓库。真实 LLM 只通过环境变量注入。
 - SiliconFlow 这类真实模型端点可能明显慢于本地 mock。当前 runner 会把 `LLM_TIMEOUT_MS` 默认抬到 `300000`（5 分钟），避免真实编排在长响应下被过早中断。
 - 首次启动 `webgoat` 可能比 `juice-shop` 更慢，建议先等待容器稳定再在平台里点击执行。
-- 在当前这台 Windows + Docker Desktop 环境里，`webgoat` 容器内部已经可访问，但宿主机的 `127.0.0.1:8080` 端口暂时没有正常暴露；因此命令行 runner 对 `webgoat` 的主机侧健康检查会失败。这是当前环境问题，不是平台编排链路的协议错误。
+- 在当前这台 Windows + Docker Desktop 环境里，`webgoat` 可能出现“容器内可访问，但宿主机端口未正常暴露”的情况。平台现在会把这类状态标记为容器内可达，并允许 `web-surface` 与 `HTTP / API 结构发现` 通过 `docker exec wget` fallback 继续调试。
+- 如果你把 WebGoat 改绑到非默认端口，请记得同步设置 `WEBGOAT_HOST_PORT`；否则编排面板和 live runner 仍会按默认 `18080` 访问。
 - 当前 compose 主要服务本地验证，不承担生产级隔离或团队共享环境职责。

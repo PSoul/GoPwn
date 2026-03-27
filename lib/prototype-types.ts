@@ -483,6 +483,12 @@ export interface LocalLabRecord {
   image: string
   ports: string[]
   status: "online" | "offline" | "unknown"
+  availability: "host" | "container" | "none" | "unknown"
+  statusNote: string
+  dockerContainerName?: string
+  internalBaseUrl?: string
+  internalHealthUrl?: string
+  effectiveHostPort?: number
 }
 
 export interface OrchestratorPlanItem {
@@ -504,6 +510,23 @@ export interface ProjectOrchestratorPanelPayload {
   provider: LlmProviderStatus
   localLabs: LocalLabRecord[]
   lastPlan: OrchestratorPlanRecord | null
+}
+
+export interface ProjectReportExportRecord {
+  id: string
+  projectId: string
+  runId: string
+  exportedAt: string
+  summary: string
+  digestLines: string[]
+  assetCount: number
+  evidenceCount: number
+  findingCount: number
+}
+
+export interface ProjectReportExportPayload {
+  latest: ProjectReportExportRecord | null
+  totalExports: number
 }
 
 export interface LogRecord {
@@ -554,6 +577,7 @@ export interface ProjectOperationsPayload {
   schedulerControl: ProjectSchedulerControl
   schedulerTasks: McpSchedulerTaskRecord[]
   orchestrator: ProjectOrchestratorPanelPayload
+  reportExport: ProjectReportExportPayload
 }
 
 export interface ProjectContextPayload {
@@ -715,4 +739,9 @@ export interface LocalValidationRunPayload {
   runs: McpRunRecord[]
   status: "completed" | "waiting_approval" | "blocked"
   approval?: ApprovalRecord
+}
+
+export interface ProjectReportExportActionPayload {
+  dispatch: McpDispatchPayload
+  reportExport: ProjectReportExportPayload
 }

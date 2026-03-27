@@ -10,6 +10,7 @@ import { GET as getProjectContext } from "@/app/api/projects/[projectId]/context
 import { POST as postLocalValidation } from "@/app/api/projects/[projectId]/orchestrator/local-validation/route"
 import { POST as postOrchestratorPlan } from "@/app/api/projects/[projectId]/orchestrator/plan/route"
 import { GET as getProjectOperations } from "@/app/api/projects/[projectId]/operations/route"
+import { resetLocalLabCatalogTestAdapters, setLocalLabCatalogTestAdapters } from "@/lib/local-lab-catalog"
 import { createStoredProjectFixture, seedWorkflowReadyMcpTools } from "@/tests/helpers/project-fixtures"
 
 const buildProjectContext = (projectId: string) => ({
@@ -36,9 +37,10 @@ describe("project orchestrator api routes", () => {
     global.fetch = vi.fn(async (input: string | URL | Request) => {
       const url = String(input)
 
-      if (url.includes("127.0.0.1:3000") || url.includes("127.0.0.1:8080")) {
+      if (url.includes("127.0.0.1:3000") || url.includes("127.0.0.1:18080")) {
         return {
           ok: true,
+          status: 200,
           json: async () => ({}),
         } as Response
       }
@@ -49,6 +51,7 @@ describe("project orchestrator api routes", () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    resetLocalLabCatalogTestAdapters()
     delete process.env.PROTOTYPE_DATA_DIR
     rmSync(tempDir, { force: true, recursive: true })
   })
@@ -159,9 +162,10 @@ describe("project orchestrator api routes", () => {
     global.fetch = vi.fn(async (input: string | URL | Request) => {
       const url = String(input)
 
-      if (url.includes("127.0.0.1:3000") || url.includes("127.0.0.1:8080")) {
+      if (url.includes("127.0.0.1:3000") || url.includes("127.0.0.1:18080")) {
         return {
           ok: true,
+          status: 200,
           json: async () => ({}),
         } as Response
       }
@@ -273,5 +277,140 @@ describe("project orchestrator api routes", () => {
         })
       }
     }
+  })
+
+  it("allows WebGoat local validation to proceed when only the container-internal probe is reachable", async () => {
+    seedWorkflowReadyMcpTools()
+    process.env.WEBGOAT_HOST_PORT = "18080"
+    setLocalLabCatalogTestAdapters({
+      fetch: vi.fn(async (input: string | URL | Request) => {
+        const url = String(input)
+
+        if (url.includes("127.0.0.1:3000")) {
+          return new Response("", { status: 200 })
+        }
+
+        throw new Error(`connect ECONNREFUSED ${url}`)
+      }) as typeof fetch,
+      execFile: ((_file, args, callback) => {
+        if (args.join(" ").includes("llm-pentest-webgoat")) {
+          callback(null, { stdout: '{"status":"UP"}', stderr: "" })
+          return {} as never
+        }
+
+        callback(new Error("unexpected docker exec"))
+        return {} as never
+      }) as never,
+    })
+
+    const fixture = createStoredProjectFixture()
+    const validationResponse = await postLocalValidation(
+      new Request(`http://localhost/api/projects/${fixture.project.id}/orchestrator/local-validation`, {
+        method: "POST",
+        body: JSON.stringify({
+          labId: "webgoat",
+          approvalScenario: "none",
+        }),
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+      buildProjectContext(fixture.project.id),
+    )
+    const validationPayload = await validationResponse.json()
+
+    expect(validationResponse.status).toBe(200)
+    expect(validationPayload.status).toBe("completed")
+    expect(validationPayload.localLab.status).toBe("online")
+    expect(validationPayload.localLab.availability).toBe("container")
+    expect(validationPayload.localLab.statusNote).toContain("18080")
+    expect(validationPayload.runs.some((item: { status: string }) => item.status === "已执行")).toBe(true)
+
+    delete process.env.WEBGOAT_HOST_PORT
+  })
+
+  it("drops provider-returned high-risk actions when approvalScenario is none", async () => {
+    seedWorkflowReadyMcpTools()
+    process.env.WEBGOAT_HOST_PORT = "18080"
+    process.env.LLM_PROVIDER = "openai-compatible"
+    process.env.LLM_BASE_URL = "https://api.siliconflow.cn/v1"
+    process.env.LLM_API_KEY = "sk-test"
+    process.env.LLM_ORCHESTRATOR_MODEL = "Pro/deepseek-ai/DeepSeek-V3.2"
+    process.env.LLM_REVIEWER_MODEL = "Pro/deepseek-ai/DeepSeek-V3.2"
+
+    global.fetch = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+
+      if (url.includes("127.0.0.1:18080/WebGoat/actuator/health")) {
+        return new Response("", { status: 200 })
+      }
+
+      if (url === "https://api.siliconflow.cn/v1/chat/completions") {
+        return {
+          ok: true,
+          json: async () => ({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    summary: "先做低风险入口探测，再补一条高风险登录验证。",
+                    items: [
+                      {
+                        capability: "目标解析类",
+                        requestedAction: "确认 WebGoat 首页可达",
+                        target: "http://127.0.0.1:18080/WebGoat",
+                        riskLevel: "low",
+                        rationale: "建立低风险基线。",
+                      },
+                      {
+                        capability: "Web 页面探测类",
+                        requestedAction: "探测 WebGoat 登录页",
+                        target: "http://127.0.0.1:18080/WebGoat/login",
+                        riskLevel: "low",
+                        rationale: "识别登录入口。",
+                      },
+                      {
+                        capability: "受控验证类",
+                        requestedAction: "尝试默认凭据登录",
+                        target: "http://127.0.0.1:18080/WebGoat/login",
+                        riskLevel: "high",
+                        rationale: "验证默认口令。",
+                      },
+                    ],
+                  }),
+                },
+              },
+            ],
+          }),
+        } as Response
+      }
+
+      throw new Error(`Unexpected fetch in orchestrator api test: ${url}`)
+    }) as unknown as typeof fetch
+
+    const fixture = createStoredProjectFixture({
+      seed: "http://127.0.0.1:18080/WebGoat",
+      targetType: "url",
+    })
+    const planResponse = await postOrchestratorPlan(
+      new Request(`http://localhost/api/projects/${fixture.project.id}/orchestrator/plan`, {
+        method: "POST",
+        body: JSON.stringify({
+          labId: "webgoat",
+          approvalScenario: "none",
+        }),
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+      buildProjectContext(fixture.project.id),
+    )
+    const planPayload = await planResponse.json()
+
+    expect(planResponse.status).toBe(200)
+    expect(planPayload.plan.items.some((item: { capability: string }) => item.capability === "受控验证类")).toBe(false)
+    expect(planPayload.plan.items.every((item: { riskLevel: string }) => item.riskLevel !== "高")).toBe(true)
+
+    delete process.env.WEBGOAT_HOST_PORT
   })
 })

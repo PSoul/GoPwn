@@ -162,24 +162,28 @@ function normalizeProviderPlanItems(
   const normalizedItems = (items ?? []).map((item, index) =>
     buildNormalizedPlanItem(item, fallbackItems[Math.min(index, fallbackItems.length - 1)]),
   )
+  const filteredItems =
+    approvalScenario === "none"
+      ? normalizedItems.filter((item) => item.capability !== "受控验证类" && item.riskLevel !== "高")
+      : normalizedItems
   const requiredCapabilities =
     approvalScenario === "include-high-risk"
       ? (["目标解析类", "Web 页面探测类", "受控验证类"] as const)
       : (["目标解析类", "Web 页面探测类"] as const)
 
   for (const requiredCapability of requiredCapabilities) {
-    if (normalizedItems.some((item) => item.capability === requiredCapability)) {
+    if (filteredItems.some((item) => item.capability === requiredCapability)) {
       continue
     }
 
     const fallback = fallbackItems.find((item) => item.capability === requiredCapability)
 
     if (fallback) {
-      normalizedItems.push(fallback)
+      filteredItems.push(fallback)
     }
   }
 
-  return normalizedItems.filter((item, index, collection) => {
+  return filteredItems.filter((item, index, collection) => {
     const fingerprint = `${item.capability}::${item.target}`
 
     return collection.findIndex((candidate) => `${candidate.capability}::${candidate.target}` === fingerprint) === index
@@ -288,7 +292,7 @@ export async function executeProjectLocalValidation(
     {
       id: `work-orchestrator-plan-${projectId}-${Date.now()}`,
       category: "LLM 编排",
-      summary: `${localLab.name} 本地验证计划已生成，共 ${planPayload.plan.items.length} 条动作。`,
+      summary: `${localLab.name} 本地验证计划已生成，共 ${planPayload.plan.items.length} 条动作。${localLab.statusNote ? ` ${localLab.statusNote}` : ""}`,
       projectName: project.name,
       actor: planPayload.provider.enabled ? "orchestrator-provider" : "orchestrator-fallback",
       timestamp: formatTimestamp(),
@@ -304,6 +308,20 @@ export async function executeProjectLocalValidation(
       runs,
       status: "blocked",
     }
+  }
+
+  if (localLab.availability === "container") {
+    upsertStoredWorkLogs([
+      {
+        id: `work-local-lab-container-${projectId}-${Date.now()}`,
+        category: "本地靶场诊断",
+        summary: `${localLab.name} 当前通过容器内可达性继续闭环。${localLab.statusNote}`,
+        projectName: project.name,
+        actor: "local-lab-catalog",
+        timestamp: formatTimestamp(),
+        status: "已完成",
+      },
+    ])
   }
 
   for (const item of planPayload.plan.items) {

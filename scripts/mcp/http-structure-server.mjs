@@ -2,18 +2,18 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod"
 
-import { probeHttpTarget } from "./http-runtime.mjs"
+import { extractLinkedHttpStructure, probeHttpTarget } from "./http-runtime.mjs"
 
 const server = new McpServer({
-  name: "web-surface-stdio",
+  name: "http-structure-stdio",
   version: "0.1.0",
 })
 
 server.registerTool(
-  "probe_web_surface",
+  "discover_http_structure",
   {
-    title: "Probe Web Surface",
-    description: "Fetch a URL and return page title, status code, final URL, and selected response headers.",
+    title: "Discover HTTP Structure",
+    description: "Probe an HTTP target and infer likely API, Swagger, GraphQL, or actuator structure hints.",
     inputSchema: {
       targetUrl: z.string().url(),
       timeoutMs: z.number().int().min(1000).max(30000).optional(),
@@ -28,22 +28,28 @@ server.registerTool(
       dockerContainerName,
       internalTargetUrl,
     })
+    const structureEntries = extractLinkedHttpStructure({
+      html: probe.html,
+      targetUrl,
+      finalUrl: probe.webEntry.finalUrl,
+      headers: probe.webEntry.headers,
+    })
 
     return {
       content: [
         {
           type: "text",
-          text: `页面入口探测完成: ${probe.webEntry.title} (${probe.webEntry.statusCode})`,
+          text:
+            structureEntries.length > 0
+              ? `结构发现完成: ${structureEntries.length} 个候选入口`
+              : "结构发现完成: 暂未识别到明确的 API / 文档入口",
         },
       ],
       structuredContent: {
         targetUrl,
-        finalUrl: probe.webEntry.finalUrl,
-        statusCode: probe.webEntry.statusCode,
-        title: probe.webEntry.title,
-        headers: probe.webEntry.headers,
         transport: probe.transport,
         webEntries: [probe.webEntry],
+        structureEntries,
       },
     }
   },
@@ -52,3 +58,4 @@ server.registerTool(
 const transport = new StdioServerTransport()
 
 await server.connect(transport)
+

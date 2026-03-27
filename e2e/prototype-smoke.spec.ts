@@ -128,4 +128,17 @@ test("project operations page can generate a local orchestrator plan", async ({ 
 
   await expect(page.getByText("已为 OWASP Juice Shop 刷新本地编排计划。")).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText("标准化本地靶场目标")).toBeVisible()
+
+  const exportResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes(`/api/projects/${projectId}/report-export`) &&
+      response.request().method() === "POST",
+    { timeout: 15_000 },
+  )
+  await page.getByRole("button", { name: "导出项目报告" }).click()
+  const exportResponse = await exportResponsePromise
+  expect(exportResponse.ok()).toBe(true)
+
+  await expect(page.getByText("最近一次导出结果")).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole("button", { name: "导出项目报告" })).toBeVisible()
 })

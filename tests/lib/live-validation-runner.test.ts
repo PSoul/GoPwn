@@ -155,16 +155,18 @@ describe("live validation runner helpers", () => {
         return {
           payload: {
             servers: [],
+            toolContracts: [],
           },
         }
       }
 
       if (url.endsWith("/api/settings/mcp-servers/register") && options?.method === "POST") {
+        const body = options.body as { serverName?: string } | undefined
         return {
           payload: {
             server: {
-              id: "mcp-server-web-surface-stdio",
-              serverName: "web-surface-stdio",
+              id: `mcp-server-${body?.serverName ?? "unknown"}`,
+              serverName: body?.serverName ?? "unknown",
             },
           },
         }
@@ -180,17 +182,24 @@ describe("live validation runner helpers", () => {
       requestJson,
     })
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       registered: true,
       serverName: "web-surface-stdio",
+      serverNames: expect.arrayContaining(["web-surface-stdio", "http-structure-stdio"]),
     })
-    expect(requestJson).toHaveBeenCalledTimes(2)
+    expect(requestJson).toHaveBeenCalledTimes(3)
     expect(requestJson.mock.calls[1]?.[1]).toMatchObject({
       method: "POST",
       body: expect.objectContaining({
         serverName: "web-surface-stdio",
         command: "node",
         tools: [expect.objectContaining({ toolName: "web-surface-map" })],
+      }),
+    })
+    expect(requestJson.mock.calls[2]?.[1]).toMatchObject({
+      method: "POST",
+      body: expect.objectContaining({
+        serverName: "http-structure-stdio",
       }),
     })
   })

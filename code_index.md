@@ -21,6 +21,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - the current durable-execution follow-up slice lets operators request stop on already running tasks and prevents cancelled work from continuing result commit when the platform can still intercept before writeback
 - the current durable-worker slice adds lease-backed scheduler ownership, heartbeat-driven orphan recovery, stale-write fencing, and runtime queue observability for worker/lease metadata
 - the current cooperative-cancellation slice now propagates `AbortSignal` from running-task stop requests through the scheduler, execution service, deterministic local connectors, real DNS/TLS checkpoints, and the real stdio MCP Web-surface path so long-running work can stop early instead of only being fenced at writeback time
+- the current WebGoat-closure slice standardizes the second lab on host ports `18080/19090`, adds built-in fallback for internal MCP capabilities like target normalization and report export, and completes a real low-risk WebGoat closure artifact in the workspace store
+- the same slice also verifies browser-side report export from the WebGoat project operations page, proving that real project data can now be viewed and exported through the UI without relying on mock/demo state
 
 ## 2. Routing Map
 
@@ -71,6 +73,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Orchestrator-plan endpoint. `GET` returns current provider/local-lab/last-plan state, and `POST` generates a new plan for a selected local lab.
 - `app/api/projects/[projectId]/orchestrator/local-validation/route.ts`
   Local-validation endpoint. Starts a local lab validation run, returns completed/blocked/waiting-approval state, and persists the newest orchestrator plan.
+- `app/api/projects/[projectId]/report-export/route.ts`
+  Project-scoped report-export endpoint. Dispatches the built-in report exporter through the normal MCP gateway/scheduler path and returns the latest export summary for the operations page.
 - `app/api/projects/[projectId]/mcp-runs/route.ts`
   Project-level MCP dispatch endpoint. `GET` returns persisted run records and `POST` accepts a capability-first dispatch request, then either auto-executes it through the execution-normalization service or routes it into approval.
 - `app/api/projects/[projectId]/mcp-workflow/smoke-run/route.ts`
@@ -224,6 +228,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Client-side runtime queue panel for project-level scheduler pause/resume, queued-task cancel, running-task stop requests, failed-task retry, operator feedback/refresh, and durable-worker metadata such as `workerId`, lease expiry, heartbeat, and recovery count.
 - `components/projects/project-orchestrator-panel.tsx`
   Client-side orchestrator console for local lab selection, plan generation, local validation execution, provider state display, and last-plan review.
+- `components/projects/project-report-export-panel.tsx`
+  Client-side report-export card used on the project operations page. Triggers the project export route, shows export count/latest digest, and surfaces the last export timestamp from persisted runtime data.
 - `components/projects/project-mcp-runs-panel.tsx`
   Project-level MCP dispatch console showing how the LLM requests a capability, how the gateway chooses a tool, and whether the request auto-executes or enters approval. It also exposes one-click workflow smoke runs for end-to-end MCP path verification.
 
@@ -277,6 +283,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Single source of truth for sidebar navigation and route title lookup. Template-era hardcoded sidebar badges have been removed from config so the shell can refresh them from real dashboard metrics instead.
 - `lib/asset-repository.ts`
   Persisted asset repository for listing, detail lookup, and deterministic upsert of execution-derived asset records.
+- `lib/built-in-mcp-tools.ts`
+  Virtual built-in MCP tool catalog for platform-internal capabilities. Currently provides fallback tool records for `seed-normalizer` and `report-exporter` so empty workspaces can still complete target normalization and report export without explicit external MCP registration.
 - `lib/approval-repository.ts`
   Approval/state repository handling persisted approval decisions, global approval strategy updates, project-level approval-control updates, queue reordering, project pending-approval sync, audit-log emission, and approval-to-MCP-run state propagation.
 - `lib/approval-write-schema.ts`
@@ -352,9 +360,9 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `lib/prototype-record-utils.ts`
   Shared record helpers for timestamp formatting, stable execution-derived IDs, and count-display formatting.
 - `lib/mcp-gateway-repository.ts`
-  Persisted MCP gateway layer. Owns project-level MCP run records, capability-to-tool selection, approval requirement decisions, approval record creation for gated actions, blocked-run handling, initial queued-run creation, and approval-result synchronization back into MCP runs.
+  Persisted MCP gateway layer. Owns project-level MCP run records, capability-to-tool selection, approval requirement decisions, approval record creation for gated actions, blocked-run handling, initial queued-run creation, approval-result synchronization back into MCP runs, and the new built-in-tool fallback path for internal capabilities when no explicit store-backed tool exists.
 - `lib/mcp-repository.ts`
-  Persisted MCP registry repository for tool listing, tool updates, and health-check state changes.
+  Persisted MCP registry repository for tool listing, tool updates, and health-check state changes. `getStoredMcpToolById` now also resolves virtual built-in tools so scheduler/runtime code can treat them like ordinary tools.
 - `lib/mcp-server-sqlite.ts`
   Low-level SQLite bootstrap for external MCP servers. Owns schema creation, row mappers, and database-path management under the prototype store. Runtime no longer auto-seeds demo servers.
 - `lib/mcp-server-repository.ts`
@@ -364,7 +372,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `lib/mcp-write-schema.ts`
   Zod validation schemas for MCP tool patch payloads, project-level MCP dispatch payloads, workflow smoke-run payloads, and orchestrator local-validation payloads.
 - `lib/orchestrator-service.ts`
-  Phase 6/7 orchestration service. Generates LLM or fallback plans for local labs, normalizes real-provider output back onto the platform's supported capability/risk contract, clamps non-controlled capabilities back to safe low-risk execution defaults, persists the latest plan per project, and runs the local validation loop through the same MCP dispatch/scheduler path as normal work.
+  Phase 6/7 orchestration service. Generates LLM or fallback plans for local labs, normalizes real-provider output back onto the platform's supported capability/risk contract, clamps non-controlled capabilities back to safe low-risk execution defaults, now drops provider-returned high-risk actions when `approvalScenario=none`, persists the latest plan per project, and runs the local validation loop through the same MCP dispatch/scheduler path as normal work.
 - `lib/project-mcp-dispatch-service.ts`
   Shared helper that dispatches a project MCP run and immediately drains the scheduler when the run is auto-runnable, avoiding duplicated dispatch+drain logic.
 - `lib/project-repository.ts`
@@ -377,6 +385,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Backend/service contract layer. Serves dashboard/assets/evidence/work-log/settings reads, store-backed LLM settings, strict MCP registration, persisted auth/project/approval operations, project-level scheduler control/task actions, MCP registry payloads, project-level MCP dispatch/read contracts, orchestrator plan/local-validation contracts, scheduler-driven approval resume execution, and the workflow smoke-run contract behind the same seam.
 - `docs/operations/project-scheduler-runtime-controls.md`
   Operator-facing notes for the runtime scheduler queue, including pause/resume semantics, allowed task actions, durable-worker ownership, cooperative-cancellation boundaries, and the project-scoped API contracts that back the UI.
+- `lib/project-results-repository.ts`
+  Project-results aggregation layer. Builds the overview/result metrics, derives current stage from execution records, and now also exposes persisted report-export summaries for the operations page.
 - `lib/utils.ts`
   Shared utility helpers used by UI primitives/components.
 - `lib/work-log-repository.ts`
@@ -420,7 +430,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `tests/api/project-surfaces-api.test.ts`
   API tests for project flow, operations, context, and result-table endpoints, including MCP run presence and local-lab panel data on the operations contract.
 - `tests/api/orchestrator-api.test.ts`
-  API tests for Phase 6/7 orchestrator routes, covering fallback plan generation, operations-payload exposure of the last plan, local validation execution, approval pause, approval resume persistence, and the newer project-bootstrap / normalized-capability behavior used by live validation.
+  API tests for Phase 6/7 orchestrator routes, covering fallback plan generation, operations-payload exposure of the last plan, local validation execution, approval pause, approval resume persistence, provider-plan normalization, and the new guard that removes provider-returned high-risk actions when `approvalScenario=none`.
 - `tests/api/operational-surfaces-api.test.ts`
   API tests for dashboard, approvals, assets, and evidence endpoints, including detail-route 404 handling.
 - `tests/api/settings-api.test.ts`
@@ -456,7 +466,11 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `tests/lib/mcp-scheduler-retry.test.ts`
   Unit test for the scheduler retry path using a mocked execution-service response to verify `retry_scheduled` transitions.
 - `tests/lib/mcp-execution-service.test.ts`
-  Unit tests for execution writeback guards, covering both cancelled-task interception and stale-lease ownership fencing.
+  Unit tests for execution writeback guards, cancelled-task interception, stale-lease ownership fencing, and the new built-in-tool fallback path for target normalization/report export in fresh workspaces.
+- `tests/lib/http-runtime.test.ts`
+  Unit test for the shared HTTP runtime used by the HTTP-structure MCP server, including host failure plus container-internal fallback handling for WebGoat.
+- `tests/lib/local-lab-catalog.test.ts`
+  Unit tests for the local-lab catalog, covering `WEBGOAT_HOST_PORT`, host/container availability semantics, and WebGoat diagnostics.
 - `tests/lib/live-validation-report.test.ts`
   Focused test for the Phase 7 live-validation report builder, keeping the Markdown/JSON artifact structure deterministic for future runs and future LLM sessions.
 - `tests/approvals/approval-center-client.test.tsx`
@@ -465,6 +479,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Client interaction test verifying project-level approval-control changes call the project mutation API and update local success state.
 - `tests/projects/project-orchestrator-panel.test.tsx`
   Client interaction tests for plan generation and local validation actions inside the new orchestrator panel.
+- `tests/projects/project-report-export-panel.test.tsx`
+  Client interaction test verifying the operations-page report export card can trigger the export API and render the persisted latest export summary.
 - `tests/settings/system-control-panel.test.tsx`
   Client interaction test verifying the approval-policy settings panel persists global strategy changes through the new API.
 - `tests/settings/mcp-gateway-client.test.tsx`
@@ -476,13 +492,17 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `scripts/run-playwright.mjs`
   Wrapper that clears the dedicated Playwright web-server port and launches browser tests against an isolated temporary prototype-store directory, avoiding stale state between E2E runs.
 - `scripts/run-live-validation.mjs`
-  Phase 7 command-line live-validation runner. Starts local labs and the Next.js runtime, auto-registers the Web surface MCP server when needed, auto-creates a project when `LIVE_VALIDATION_PROJECT_ID` is absent, supports isolated or workspace-backed state persistence, auto-resumes approvals, and writes Markdown/JSON run artifacts plus server logs under `output/live-validation/`.
+  Phase 7 command-line live-validation runner. Starts local labs and the Next.js runtime, auto-registers the Web surface MCP server when needed, auto-creates a project when `LIVE_VALIDATION_PROJECT_ID` is absent, supports isolated or workspace-backed state persistence, auto-resumes approvals, respects `WEBGOAT_HOST_PORT`, and writes Markdown/JSON run artifacts plus server logs under `output/live-validation/`.
 - `scripts/lib/live-validation-runner.mjs`
-  Shared helper module for live validation. Owns lab definitions, project bootstrap, Web-surface MCP registration bootstrap, state-directory resolution, and server env defaults used by the top-level runner.
+  Shared helper module for live validation. Owns lab definitions, project bootstrap, Web-surface/HTTP-structure MCP registration bootstrap, state-directory resolution, and server env defaults used by the top-level runner.
 - `scripts/lib/live-validation-report.mjs`
   Pure report-builder module used by the live-validation runner to turn runtime results into deterministic Markdown and summary JSON structures.
 - `scripts/mcp/web-surface-server.mjs`
   Real local stdio MCP server for the Phase 7 slice. Exposes a safe read-only `probe_web_surface` tool that fetches a target URL, extracts title/status/headers, and returns structured `webEntries`.
+- `scripts/mcp/http-runtime.mjs`
+  Shared HTTP probing runtime for MCP servers. Supports host probing first, then optional `docker exec wget` fallback for WebGoat-style container-only access paths, and extracts normalized HTML/header/title data.
+- `scripts/mcp/http-structure-server.mjs`
+  Real local stdio MCP server exposing low-risk HTTP/API structure discovery. Uses the shared HTTP runtime to detect OpenAPI/Swagger/GraphQL/Actuator style entry points and can fall back through container execution when needed.
 - `e2e/prototype-smoke.spec.ts`
   Browser-level smoke tests for `/login`, authenticated access to `/dashboard`, `/projects`, project result/context routes, split settings navigation, and the operations-page orchestrator-plan flow.
 
@@ -496,6 +516,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Full-page screenshot of the split settings hub page.
 - `output/playwright/project-operations-mcp-workflow.png`
   Full-page screenshot of the project operations page after MCP dispatch history and workflow smoke controls were added.
+- `output/playwright/webgoat-operations-report-export.png`
+  Full-page screenshot proving the real WebGoat project can export a report from the operations page and render the latest export summary back into the UI.
 
 ## 8. Template Incorporation Notes
 
@@ -515,7 +537,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `docker/local-labs/compose.yaml`
   Local Docker validation harness for OWASP Juice Shop and WebGoat, used to exercise the platform against safe, local-only vulnerable targets.
 - `docs/operations/local-docker-labs.md`
-  Operator guide for launching the local Docker lab stack, using it from the project operations page, and running the command-line live-validation flow with real LLM credentials, auto project bootstrap, optional workspace-mode persistence, and real result review in normal project pages.
+  Operator guide for launching the local Docker lab stack, using it from the project operations page, and running the command-line live-validation flow with real LLM credentials, auto project bootstrap, optional workspace-mode persistence, real result review in normal project pages, and the standardized WebGoat `18080/19090` host-port mapping.
 - `docs/operations/llm-settings.md`
   Operator guide for `/settings/llm`, including editable fields, `/api/settings/llm` request/response shape, and the runtime store-first resolution order before environment-variable fallback.
 - `docs/operations/mcp-onboarding-guide.md`
@@ -557,7 +579,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `docs/prompts/2026-03-27-phase-09-real-project-closure-and-new-mcp-families-prompt.md`
   Recommended follow-up prompt for turning local-lab validation into a true project closure flow and adding another real MCP family.
 - `output/live-validation/`
-  Runtime-generated, git-ignored validation artifact directory. Successful local runs currently emit Markdown and JSON reports here, including the first confirmed Juice Shop real-provider validation sample from `2026-03-27`.
+  Runtime-generated, git-ignored validation artifact directory. Successful local runs currently emit Markdown and JSON reports here, including confirmed `Juice Shop` and low-risk `WebGoat` real-provider validation samples from `2026-03-27`.
 - `docs/superpowers/specs/2026-03-26-mcp-gateway-registry-spec.md`
   MCP gateway registry and execution spec describing the current capability-first dispatch model, approval linkage, foundational runnable tools, and next backend integration targets.
 

@@ -68,6 +68,7 @@ describe("ProjectDetailPage", () => {
     expect(screen.getByText("任务与调度详情")).toBeInTheDocument()
     expect(screen.getByText("审批模式开关")).toBeInTheDocument()
     expect(screen.getByText("调度运行控制")).toBeInTheDocument()
+    expect(screen.getByText("报告导出")).toBeInTheDocument()
     cleanup()
 
     render(await ProjectContextPage({ params: Promise.resolve({ projectId: fixture.project.id }) }))

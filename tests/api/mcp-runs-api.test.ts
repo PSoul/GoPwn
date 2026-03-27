@@ -9,7 +9,11 @@ import { GET as getProjectContext } from "@/app/api/projects/[projectId]/context
 import { GET as getProjectDetail } from "@/app/api/projects/[projectId]/route"
 import { GET as getProjectMcpRuns, POST as postProjectMcpRun } from "@/app/api/projects/[projectId]/mcp-runs/route"
 import { GET as getWorkLogs } from "@/app/api/settings/work-logs/route"
-import { createStoredProjectFixture, seedWorkflowReadyMcpTools } from "@/tests/helpers/project-fixtures"
+import {
+  createStoredProjectFixture,
+  seedWorkflowReadyMcpTools,
+  workflowReadyMcpToolFixtures,
+} from "@/tests/helpers/project-fixtures"
 
 const buildProjectContext = (projectId: string) => ({
   params: Promise.resolve({ projectId }),
@@ -145,5 +149,74 @@ describe("project MCP run api routes", () => {
     expect(contextPayload.detail.findings.some((item: { title: string }) => item.title.includes("鉴权"))).toBe(true)
     expect(contextPayload.evidence.some((item: { source: string }) => item.source === "受控验证类")).toBe(true)
     expect(contextPayload.assets.some((item: { label: string }) => item.label === "https://localhost/login")).toBe(true)
+  })
+
+  it("prefers the enabled tool whose metadata best matches the requested action within one capability", async () => {
+    seedWorkflowReadyMcpTools([
+      ...workflowReadyMcpToolFixtures,
+      {
+        id: "tool-http-request-workbench",
+        capability: "HTTP / API 结构发现类",
+        toolName: "http-request-workbench",
+        version: "1.0.0",
+        riskLevel: "中",
+        status: "启用",
+        category: "HTTP 工作台",
+        description: "发送自定义 HTTP 请求报文，返回状态、响应头、响应体摘要与证据。",
+        inputMode: "json",
+        outputMode: "json",
+        boundary: "外部目标交互",
+        requiresApproval: false,
+        endpoint: "mcp://http-request-workbench",
+        owner: "测试夹具",
+        defaultConcurrency: "1",
+        rateLimit: "10 req/min",
+        timeout: "20s",
+        retry: "1 次",
+        lastCheck: "2026-03-27 10:00",
+        notes: "适合发送自定义 HTTP 报文与结构化回包。",
+      },
+      {
+        id: "tool-http-path-prober",
+        capability: "HTTP / API 结构发现类",
+        toolName: "http-path-prober",
+        version: "1.0.0",
+        riskLevel: "中",
+        status: "启用",
+        category: "路径探测",
+        description: "批量探测常见路径和 API 文档暴露面。",
+        inputMode: "json",
+        outputMode: "json",
+        boundary: "外部目标交互",
+        requiresApproval: false,
+        endpoint: "mcp://http-path-prober",
+        owner: "测试夹具",
+        defaultConcurrency: "1",
+        rateLimit: "10 req/min",
+        timeout: "20s",
+        retry: "1 次",
+        lastCheck: "2026-03-27 10:00",
+        notes: "适合目录和路径探测。",
+      },
+    ])
+    const fixture = createStoredProjectFixture()
+    const response = await postProjectMcpRun(
+      new Request(`http://localhost/api/projects/${fixture.project.id}/mcp-runs`, {
+        method: "POST",
+        body: JSON.stringify({
+          capability: "HTTP / API 结构发现类",
+          requestedAction: "发送自定义 HTTP 请求报文",
+          target: "http://127.0.0.1:18080/WebGoat",
+          riskLevel: "高",
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+      buildProjectContext(fixture.project.id),
+    )
+    const payload = await response.json()
+
+    expect(response.status).toBe(202)
+    expect(payload.run.status).toBe("待审批")
+    expect(payload.run.toolName).toBe("http-request-workbench")
   })
 })

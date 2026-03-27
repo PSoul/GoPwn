@@ -7,6 +7,7 @@ import path from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 import { realWebSurfaceMcpConnector } from "@/lib/mcp-connectors/real-web-surface-mcp-connector"
+import { resetLocalLabCatalogTestAdapters, setLocalLabCatalogTestAdapters } from "@/lib/local-lab-catalog"
 import type { McpConnectorExecutionContext } from "@/lib/mcp-connectors/types"
 import { listStoredMcpServerInvocations, registerStoredMcpServer } from "@/lib/mcp-server-repository"
 
@@ -37,6 +38,7 @@ describe("real web-surface MCP connector", () => {
   })
 
   afterEach(async () => {
+    resetLocalLabCatalogTestAdapters()
     await new Promise<void>((resolve, reject) => {
       server.close((error) => {
         if (error) {
@@ -171,6 +173,120 @@ describe("real web-surface MCP connector", () => {
     expect(webEntries[0].url).toBe(targetUrl)
     expect(webEntries[0].statusCode).toBe(200)
     expect(webEntries[0].headers.some((header) => header.includes("fixture-nginx"))).toBe(true)
+  })
+
+  it("passes docker fallback arguments for WebGoat targets resolved from the local lab catalog", async () => {
+    setLocalLabCatalogTestAdapters({
+      fetch: async () => new Response("", { status: 200 }),
+    })
+
+    registerStoredMcpServer({
+      serverName: "web-surface-stdio",
+      version: "1.0.0",
+      transport: "stdio",
+      command: "node",
+      args: ["scripts/mcp/web-surface-server.mjs"],
+      endpoint: "stdio://web-surface-stdio",
+      enabled: true,
+      notes: "真实 Web 页面探测 MCP server",
+      tools: [
+        {
+          toolName: "web-surface-map",
+          title: "Web 页面探测",
+          description: "补采页面入口与响应特征。",
+          version: "1.0.0",
+          capability: "Web 页面探测类",
+          boundary: "外部目标交互",
+          riskLevel: "中",
+          requiresApproval: false,
+          resultMappings: ["webEntries", "evidence"],
+          inputSchema: {
+            type: "object",
+            properties: {
+              targetUrl: {
+                type: "string",
+              },
+            },
+            required: ["targetUrl"],
+            additionalProperties: false,
+          },
+          outputSchema: {
+            type: "object",
+          },
+          defaultConcurrency: "1",
+          rateLimit: "10 req/min",
+          timeout: "15s",
+          retry: "1 次",
+          owner: "测试夹具",
+        },
+      ],
+    })
+
+    process.env.WEBGOAT_HOST_PORT = "18080"
+
+    const context: McpConnectorExecutionContext = {
+      approval: null,
+      priorOutputs: {},
+      project: {
+        id: "proj-webgoat",
+        code: "PRJ-20260327-002",
+        name: "WebGoat Local Validation",
+        seed: "http://127.0.0.1:18080/WebGoat",
+        targetType: "url",
+        targetSummary: "http://127.0.0.1:18080/WebGoat",
+        owner: "研究员席位 A",
+        priority: "高",
+        stage: "发现与指纹识别",
+        status: "运行中",
+        pendingApprovals: 0,
+        openTasks: 1,
+        assetCount: 0,
+        evidenceCount: 0,
+        createdAt: "2026-03-26 12:00",
+        lastUpdated: "2026-03-26 12:00",
+        lastActor: "测试",
+        riskSummary: "测试",
+        summary: "测试",
+        authorizationSummary: "测试",
+        scopeSummary: "测试",
+        forbiddenActions: "测试",
+        defaultConcurrency: "1",
+        rateLimit: "10 req/min",
+        timeout: "30s",
+        approvalMode: "高风险审批，低风险自动通过",
+        tags: ["测试"],
+      },
+      run: {
+        id: "run-webgoat-web-surface-real",
+        projectId: "proj-webgoat",
+        projectName: "WebGoat Local Validation",
+        capability: "Web 页面探测类",
+        toolId: "mcp-07",
+        toolName: "web-surface-map",
+        requestedAction: "识别 WebGoat 页面入口与响应特征",
+        target: "http://127.0.0.1:18080/WebGoat/login",
+        riskLevel: "低",
+        boundary: "外部目标交互",
+        dispatchMode: "自动执行",
+        status: "执行中",
+        requestedBy: "测试",
+        createdAt: "2026-03-26 12:01",
+        updatedAt: "2026-03-26 12:01",
+        connectorMode: "real",
+        summaryLines: [],
+      },
+      tool: null,
+    }
+
+    const result = await realWebSurfaceMcpConnector.execute(context)
+
+    expect(result.status).toBe("succeeded")
+
+    if (result.status !== "succeeded") {
+      throw new Error("Expected a successful MCP connector result.")
+    }
+
+    expect(result.summaryLines.join(" ")).toContain("真实 MCP")
   })
 
   it("aborts an in-flight real MCP stdio execution when the scheduler signal is cancelled", async () => {

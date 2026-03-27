@@ -76,4 +76,48 @@ describe("MCP execution service cancellation guard", () => {
     expect(getStoredMcpRunById(payload!.run.id)?.status).toBe("执行中")
     expect(listStoredAssets(fixture.project.id)).toHaveLength(0)
   })
+
+  it("falls back to built-in target normalization when a fresh workspace has not registered any tools yet", async () => {
+    const fixture = createStoredProjectFixture({
+      seed: "http://127.0.0.1:18080/WebGoat",
+      targetType: "url",
+    })
+    const payload = dispatchStoredMcpRun(fixture.project.id, {
+      capability: "目标解析类",
+      requestedAction: "标准化 WebGoat 种子目标",
+      target: fixture.project.seed,
+      riskLevel: "低",
+    })
+
+    expect(payload?.run.toolName).toBe("seed-normalizer")
+    expect(payload?.run.status).toBe("执行中")
+
+    const result = await executeStoredMcpRun(payload!.run.id)
+
+    expect(result?.status).toBe("succeeded")
+    expect(getStoredMcpRunById(payload!.run.id)?.status).toBe("已执行")
+    expect(getStoredMcpRunById(payload!.run.id)?.toolName).toBe("seed-normalizer")
+  })
+
+  it("falls back to the built-in report exporter when no explicit report tool has been registered", async () => {
+    const fixture = createStoredProjectFixture({
+      seed: "http://127.0.0.1:18080/WebGoat",
+      targetType: "url",
+    })
+    const payload = dispatchStoredMcpRun(fixture.project.id, {
+      capability: "报告导出类",
+      requestedAction: "导出项目报告",
+      target: fixture.project.code,
+      riskLevel: "低",
+    })
+
+    expect(payload?.run.toolName).toBe("report-exporter")
+    expect(payload?.run.status).toBe("执行中")
+
+    const result = await executeStoredMcpRun(payload!.run.id)
+
+    expect(result?.status).toBe("succeeded")
+    expect(getStoredMcpRunById(payload!.run.id)?.status).toBe("已执行")
+    expect(getStoredMcpRunById(payload!.run.id)?.toolName).toBe("report-exporter")
+  })
 })

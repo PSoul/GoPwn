@@ -59,6 +59,7 @@ import {
   updateStoredProjectSchedulerControl,
 } from "@/lib/project-scheduler-control-repository"
 import {
+  getStoredProjectReportExportPayload,
   listStoredProjectFindings,
 } from "@/lib/project-results-repository"
 import {
@@ -107,6 +108,8 @@ import type {
   ProjectOverviewPayload,
   ProjectPatchInput,
   ProjectRecord,
+  ProjectReportExportActionPayload,
+  ProjectReportExportPayload,
   SettingsSectionsPayload,
   SystemStatusPayload,
   TaskRecord,
@@ -367,6 +370,7 @@ export async function getProjectOperationsPayload(projectId: string): Promise<Pr
     },
     schedulerTasks: listStoredSchedulerTasks(projectId),
     orchestrator: await getProjectOrchestratorPanelPayload(projectId),
+    reportExport: getStoredProjectReportExportPayload(projectId),
   }
 }
 
@@ -761,4 +765,40 @@ export async function executeProjectLocalValidationPayload(projectId: string, in
   }
 
   return executeProjectLocalValidation(projectId, input)
+}
+
+export function getProjectReportExportPayload(projectId: string): ProjectReportExportPayload | null {
+  const project = getStoredProjectById(projectId)
+
+  if (!project) {
+    return null
+  }
+
+  return getStoredProjectReportExportPayload(projectId)
+}
+
+export async function triggerProjectReportExportPayload(
+  projectId: string,
+): Promise<ProjectReportExportActionPayload | null> {
+  const project = getStoredProjectById(projectId)
+
+  if (!project) {
+    return null
+  }
+
+  const dispatch = await dispatchProjectMcpRunAndDrain(projectId, {
+    capability: "报告导出类",
+    requestedAction: "导出项目报告",
+    target: project.code,
+    riskLevel: "低",
+  })
+
+  if (!dispatch) {
+    return null
+  }
+
+  return {
+    dispatch,
+    reportExport: getStoredProjectReportExportPayload(projectId),
+  }
 }

@@ -3,26 +3,44 @@ import path from "node:path"
 const WEB_SURFACE_SERVER_NAME = "web-surface-stdio"
 const WEB_SURFACE_TOOL_NAME = "web-surface-map"
 const WEB_SURFACE_SERVER_SCRIPT = "scripts/mcp/web-surface-server.mjs"
+const HTTP_STRUCTURE_SERVER_NAME = "http-structure-stdio"
+const HTTP_STRUCTURE_TOOL_NAME = "graphql-surface-check"
+const HTTP_STRUCTURE_SERVER_SCRIPT = "scripts/mcp/http-structure-server.mjs"
+const DEFAULT_WEBGOAT_HOST_PORT = 18080
 
-const liveValidationLabDefinitions = {
-  "juice-shop": {
-    id: "juice-shop",
-    name: "OWASP Juice Shop",
-    description: "现代前后端一体化漏洞靶场，适合做本地 Web/API 低风险识别与审批链验证。",
-    baseUrl: "http://127.0.0.1:3000",
-    healthUrl: "http://127.0.0.1:3000",
-    image: "bkimminich/juice-shop",
-    ports: ["127.0.0.1:3000->3000"],
-  },
-  webgoat: {
-    id: "webgoat",
-    name: "OWASP WebGoat",
-    description: "经典教学靶场，适合后续扩展到更复杂的教学型验证与审批场景。",
-    baseUrl: "http://127.0.0.1:8080/WebGoat",
-    healthUrl: "http://127.0.0.1:8080/WebGoat",
-    image: "webgoat/webgoat",
-    ports: ["127.0.0.1:8080->8080", "127.0.0.1:9090->9090"],
-  },
+function getConfiguredWebGoatHostPort() {
+  const rawPort = Number(process.env.WEBGOAT_HOST_PORT ?? DEFAULT_WEBGOAT_HOST_PORT)
+
+  if (!Number.isFinite(rawPort) || rawPort <= 0) {
+    return DEFAULT_WEBGOAT_HOST_PORT
+  }
+
+  return Math.trunc(rawPort)
+}
+
+function buildLiveValidationLabDefinitions() {
+  const webgoatHostPort = getConfiguredWebGoatHostPort()
+
+  return {
+    "juice-shop": {
+      id: "juice-shop",
+      name: "OWASP Juice Shop",
+      description: "现代前后端一体化漏洞靶场，适合做本地 Web/API 低风险识别与审批链验证。",
+      baseUrl: "http://127.0.0.1:3000",
+      healthUrl: "http://127.0.0.1:3000",
+      image: "bkimminich/juice-shop",
+      ports: ["127.0.0.1:3000->3000"],
+    },
+    webgoat: {
+      id: "webgoat",
+      name: "OWASP WebGoat",
+      description: "经典教学靶场，适合后续扩展到更复杂的教学型验证与审批场景。",
+      baseUrl: `http://127.0.0.1:${webgoatHostPort}/WebGoat`,
+      healthUrl: `http://127.0.0.1:${webgoatHostPort}/WebGoat/actuator/health`,
+      image: "webgoat/webgoat",
+      ports: [`127.0.0.1:${webgoatHostPort}->8080`, "127.0.0.1:19090->9090"],
+    },
+  }
 }
 
 function formatProjectStamp(startedAt) {
@@ -38,7 +56,7 @@ function formatProjectStamp(startedAt) {
 }
 
 export function getLiveValidationLabDefinition(labId) {
-  return liveValidationLabDefinitions[labId] ?? null
+  return buildLiveValidationLabDefinitions()[labId] ?? null
 }
 
 export function resolveLiveValidationPrototypeDataDir({
@@ -161,6 +179,65 @@ function buildWebSurfaceRegistrationPayload() {
   }
 }
 
+function buildHttpStructureRegistrationPayload() {
+  return {
+    serverName: HTTP_STRUCTURE_SERVER_NAME,
+    version: "1.0.0",
+    transport: "stdio",
+    command: "node",
+    args: [HTTP_STRUCTURE_SERVER_SCRIPT],
+    endpoint: `stdio://${HTTP_STRUCTURE_SERVER_NAME}`,
+    enabled: true,
+    notes: "真实 HTTP / API 结构发现 MCP server，用于 WebGoat 等靶场的文档入口与接口结构线索识别。",
+    tools: [
+      {
+        toolName: HTTP_STRUCTURE_TOOL_NAME,
+        title: "Discover HTTP Structure",
+        description: "识别 Swagger/OpenAPI/GraphQL/Actuator 等结构入口，并支持容器内 wget fallback。",
+        version: "1.0.0",
+        capability: "HTTP / API 结构发现类",
+        boundary: "外部目标交互",
+        riskLevel: "低",
+        requiresApproval: false,
+        resultMappings: ["evidence", "workLogs"],
+        inputSchema: {
+          type: "object",
+          properties: {
+            targetUrl: {
+              type: "string",
+              description: "需要探测的 HTTP 或 HTTPS URL。",
+            },
+            dockerContainerName: {
+              type: "string",
+            },
+            internalTargetUrl: {
+              type: "string",
+            },
+          },
+          required: ["targetUrl"],
+          additionalProperties: false,
+        },
+        outputSchema: {
+          type: "object",
+          properties: {
+            structureEntries: {
+              type: "array",
+              items: {
+                type: "object",
+              },
+            },
+          },
+        },
+        defaultConcurrency: "1",
+        rateLimit: "10 req/min",
+        timeout: "15s",
+        retry: "1 次",
+        owner: "平台自动验证",
+      },
+    ],
+  }
+}
+
 export async function ensureLiveValidationProject({
   baseUrl,
   cookie,
@@ -220,22 +297,40 @@ export async function ensureWebSurfaceMcpRegistration({
   const hasToolContract = toolContracts.some(
     (contract) => contract.serverName === WEB_SURFACE_SERVER_NAME && contract.toolName === WEB_SURFACE_TOOL_NAME,
   )
+  const hasHttpStructureServer = servers.some(
+    (server) => server.serverName === HTTP_STRUCTURE_SERVER_NAME && server.enabled,
+  )
+  const hasHttpStructureToolContract = toolContracts.some(
+    (contract) => contract.serverName === HTTP_STRUCTURE_SERVER_NAME && contract.toolName === HTTP_STRUCTURE_TOOL_NAME,
+  )
+  const registeredServerNames = []
 
-  if (hasEnabledServer && hasToolContract) {
-    return {
-      registered: false,
-      serverName: WEB_SURFACE_SERVER_NAME,
-    }
+  if (!hasEnabledServer || !hasToolContract) {
+    const registrationResult = await requestJson(`${baseUrl}/api/settings/mcp-servers/register`, {
+      method: "POST",
+      cookie,
+      body: buildWebSurfaceRegistrationPayload(),
+    })
+
+    registeredServerNames.push(registrationResult?.payload?.server?.serverName ?? WEB_SURFACE_SERVER_NAME)
   }
 
-  const registrationResult = await requestJson(`${baseUrl}/api/settings/mcp-servers/register`, {
-    method: "POST",
-    cookie,
-    body: buildWebSurfaceRegistrationPayload(),
-  })
+  if (!hasHttpStructureServer || !hasHttpStructureToolContract) {
+    const registrationResult = await requestJson(`${baseUrl}/api/settings/mcp-servers/register`, {
+      method: "POST",
+      cookie,
+      body: buildHttpStructureRegistrationPayload(),
+    })
+
+    registeredServerNames.push(registrationResult?.payload?.server?.serverName ?? HTTP_STRUCTURE_SERVER_NAME)
+  }
 
   return {
-    registered: true,
-    serverName: registrationResult?.payload?.server?.serverName ?? WEB_SURFACE_SERVER_NAME,
+    registered: registeredServerNames.length > 0,
+    serverName: WEB_SURFACE_SERVER_NAME,
+    serverNames:
+      registeredServerNames.length > 0
+        ? registeredServerNames
+        : [WEB_SURFACE_SERVER_NAME, HTTP_STRUCTURE_SERVER_NAME],
   }
 }

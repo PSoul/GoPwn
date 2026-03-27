@@ -30,7 +30,7 @@ The platform already has:
 
 Known gap:
 
-- in the current Windows + Docker Desktop environment, `webgoat` starts inside the container but its host-side `127.0.0.1:8080` reachability is unstable or unavailable, so the second lab is not yet green through the same runner.
+- in the current Windows + Docker Desktop environment, the original `127.0.0.1:8080` host mapping conflicted with local occupancy; the branch now standardizes WebGoat host publishing to `127.0.0.1:18080` and `127.0.0.1:19090`, but the second lab still needs a full real project -> execution -> evidence -> report closure.
 
 ## Product Boundary
 
