@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-27`
-- Current focus: `codex/second-local-lab-webgoat-2026-03-27` has now added a real HTTP controlled-validation MCP, completed a full WebGoat finding closure against the exposed `/actuator` surface, normalized HTTP/API structure-discovery results into real assets/evidence/context, and verified the finding plus report export in the browser UI.
+- Current focus: `codex/second-local-lab-webgoat-2026-03-27` has now completed the UI/流程重构 pass on top of the real WebGoat closure work and the manual lifecycle-control slice: project create/edit is simplified to `项目名称 + 目标 + 项目说明`, the dashboard is rebuilt around 4 KPI cards + system summary + recent-result timeline + typed asset preview, the asset center is split into typed full-width views, the project detail is reorganized into a shared workspace shell with route-level tabs, and the existing WebGoat `/actuator` finding/evidence/report flow remains visible and verified in the browser UI. New projects now default to `idle`, require manual start before LLM orchestration begins, and support pause/resume/stop as real backend-controlled runtime transitions.
 - Working mode: each major feature area uses its own isolated git branch/worktree so the existing branch is not disturbed.
 
 ## Phase 1: Frontend Prototype Closure
@@ -22,6 +22,9 @@
 ### Acceptance Criteria
 
 - frontend visual tone stays close to the provided backend and login templates
+- project create/edit only requires the minimal three-field project model, with execution/approval policy moved back to MCP/settings surfaces
+- dashboard first screen answers project/asset/finding/approval questions before exposing deeper control surfaces
+- asset center and project result surfaces use typed full-width tables instead of one mixed long page
 - project overview is results-first and no longer mixes high-volume tables into one page
 - settings are split into focused subpages instead of a single long control surface
 - `npx vitest run`, `npm run lint`, `npm run build`, and `npm run e2e` all pass
@@ -208,8 +211,8 @@
 
 ## Phase 8: Platform Stabilization and Durable Execution Controls
 
-- Status: In progress across `codex/platform-stabilization-2026-03-27`, `codex/durable-worker-orphan-recovery-2026-03-27`, and `codex/cooperative-cancellation-2026-03-27`
-- Goal: prioritize operator-visible runtime control before expanding more MCP capability families, so the scheduler queue can be safely paused, resumed, cancelled, and retried from the real project operations surface.
+- Status: In progress across `codex/platform-stabilization-2026-03-27`, `codex/durable-worker-orphan-recovery-2026-03-27`, `codex/cooperative-cancellation-2026-03-27`, and `codex/second-local-lab-webgoat-2026-03-27`
+- Goal: prioritize operator-visible runtime control before expanding more MCP capability families, so the scheduler queue and project lifecycle can be safely started, paused, resumed, stopped, cancelled, and retried from the real project operations surface.
 
 ### Task Checklist
 
@@ -224,6 +227,11 @@
 - completed: surface worker / lease / recovery metadata directly in the project runtime queue panel
 - completed: cover repository, API, payload, component, and page integration paths with targeted tests
 - completed: introduce shared `AbortController` propagation for already-running tasks so the scheduler heartbeat, execution layer, local connectors, real DNS/TLS checkpoints, and the real stdio Web-surface MCP path cooperatively stop when operators request cancellation
+- completed: add an explicit project lifecycle state machine (`idle | running | paused | stopped`) so new projects stay idle until the researcher manually starts them
+- completed: wire lifecycle `start / resume` transitions to real LLM kickoff planning, persist the latest plan, and automatically dispatch only the low-risk first-step items
+- completed: make `stop` terminal for the project lifecycle, cancelling queued work and requesting cooperative abort for already-running executions
+- completed: centralize the platform LLM-brain prompts so lifecycle kickoff, local-lab planning, and provider calls all use one shared prompt contract
+- completed: add a minimal `pages/_document.tsx` compatibility shim so `next build` remains stable in the current Windows + App Router workspace setup
 - partially met: move the current file-backed queue toward a more durable long-lived worker/executor model suitable for longer sessions
 
 ### Priority Tasks
@@ -231,16 +239,20 @@
 - completed: stabilize WebGoat host-side reachability so the second lab can be validated through the same runner
 - completed: unify the default WebGoat port assumptions across compose, runner, API, and UI around `18080/19090`
 - completed: add another real MCP family by landing the HTTP controlled-validation path used for the WebGoat actuator closure
+- completed: require explicit manual start before ordinary project LLM orchestration begins, while still allowing explicit operator-triggered local validation and manual MCP dispatch to promote a project into `running`
 - expand local-lab-backed regression coverage for real Docker targets in controlled environments
 - add masked-secret mode for LLM settings while keeping a debug toggle for local development
 
 ### Acceptance Criteria
 
 - met: project-level scheduler pause/resume is operator-visible and blocks future queue pickup
+- met: new projects no longer auto-run on creation; manual start now gates the first LLM orchestration pass
+- met: project pause/resume/stop are now real backend lifecycle transitions instead of UI-only status toggles
 - met: queued tasks can be cancelled and failed tasks can be retried from the project operations page
 - met: the operations API contract now carries real runtime scheduler state instead of only high-level task cards
 - partially met: operators can now issue stop requests for `running` tasks, recover orphan executions, block stale late writeback, and cooperatively interrupt the platform heartbeat, local connectors, real DNS/TLS checkpoints, and the real stdio Web-surface MCP path; broader remote rollback and additional connector families are still pending
 - met: WebGoat can now be validated through the same end-to-end runner in a real finding closure path, including approval resume and browser-side report export
+- met: this slice has already been verified with `pnpm test`, `pnpm lint`, `pnpm build`, and `pnpm e2e`
 
 ## Recommended Next Phase
 
@@ -252,6 +264,7 @@
 
 - add a real `截图与证据采集类` MCP so Web 页面探测 and受控验证 can produce richer screenshots/HTML evidence without manual inspection
 - add a next real family such as `端口探测类` or richer API recon so the platform can go beyond pure Web entry validation
+- refine the LLM runtime from stateless request/response planning into a more durable long-session control loop only if future operator needs prove that explicit model-side pause/resume signaling is necessary
 - expand regression coverage for long-running queue recovery, environment-blocked lab runs, report export, and second-lab execution
 
 ### Acceptance Criteria

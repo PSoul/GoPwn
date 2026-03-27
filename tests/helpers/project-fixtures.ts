@@ -22,20 +22,8 @@ import type {
 
 export const baseProjectInput: ProjectMutationInput = {
   name: "测试项目",
-  seed: "http://127.0.0.1:3000",
-  targetType: "url",
-  owner: "测试研究员",
-  priority: "中",
-  targetSummary: "http://127.0.0.1:3000",
-  authorizationSummary: "仅用于自动化测试。",
-  scopeSummary: "仅限测试目标。",
-  forbiddenActions: "禁止越界。",
-  defaultConcurrency: "项目级 1 / 高风险 1",
-  rateLimit: "10 req/min",
-  timeout: "30s / 1 次重试",
-  approvalMode: "高风险逐项审批，低风险自动执行",
-  tags: "测试 / 自动化",
-  deliveryNotes: "自动化测试创建。",
+  targetInput: "http://127.0.0.1:3000",
+  description: "仅用于自动化测试。",
 }
 
 export function buildProjectInput(overrides: Partial<ProjectMutationInput> = {}): ProjectMutationInput {
@@ -204,11 +192,8 @@ export function seedWorkflowReadyMcpTools(overrides: McpToolRecord[] = workflowR
 export function createStoredProjectFixture(overrides: Partial<ProjectMutationInput> = {}) {
   const payload = createStoredProject(
     buildProjectInput({
-      seed: "localhost",
-      targetType: "domain",
-      targetSummary: "localhost / https://localhost/login / api.localhost",
-      tags: "测试 / 自动化 / 真实流程",
-      deliveryNotes: "测试夹具创建项目后，将通过最小 MCP 流程回流资产、证据和发现。",
+      targetInput: "localhost\nhttps://localhost/login\napi.localhost",
+      description: "测试夹具创建项目后，将通过最小 MCP 流程回流资产、证据和发现。",
       ...overrides,
     }),
   )

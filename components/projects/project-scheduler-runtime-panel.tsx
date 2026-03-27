@@ -2,14 +2,17 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Activity, PauseCircle, RotateCcw, TimerReset } from "lucide-react"
+import { Activity, PauseCircle, PlayCircle, RotateCcw, Square, TimerReset } from "lucide-react"
 
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
-import type { McpSchedulerTaskRecord, ProjectSchedulerControl } from "@/lib/prototype-types"
+import type {
+  McpSchedulerTaskRecord,
+  ProjectSchedulerControl,
+  ProjectSchedulerLifecycle,
+} from "@/lib/prototype-types"
 
 const taskStatusTone: Record<McpSchedulerTaskRecord["status"], "neutral" | "info" | "success" | "warning" | "danger"> = {
   ready: "info",
@@ -22,12 +25,52 @@ const taskStatusTone: Record<McpSchedulerTaskRecord["status"], "neutral" | "info
   cancelled: "neutral",
 }
 
+const lifecycleToneMap: Record<ProjectSchedulerLifecycle, "neutral" | "info" | "success" | "warning" | "danger"> = {
+  idle: "warning",
+  running: "success",
+  paused: "warning",
+  stopped: "danger",
+}
+
+const lifecycleLabelMap: Record<ProjectSchedulerLifecycle, string> = {
+  idle: "待开始",
+  running: "运行中",
+  paused: "已暂停",
+  stopped: "已停止",
+}
+
 function isCancelableTask(task: McpSchedulerTaskRecord) {
   return ["ready", "retry_scheduled", "delayed", "running"].includes(task.status)
 }
 
 function isRetryableTask(task: McpSchedulerTaskRecord) {
   return task.status === "failed"
+}
+
+function getLifecycleSuccessMessage(lifecycle: ProjectSchedulerLifecycle) {
+  switch (lifecycle) {
+    case "idle":
+      return "项目已回到待开始状态。"
+    case "running":
+      return "项目已开始，目标已交给 LLM 进入调度。"
+    case "paused":
+      return "项目已暂停，新的调度与 LLM 编排已挂起。"
+    case "stopped":
+      return "项目已停止，后续不会再重新开始。"
+  }
+}
+
+function getLifecycleDescription(lifecycle: ProjectSchedulerLifecycle) {
+  switch (lifecycle) {
+    case "idle":
+      return "项目还没有开始，只有在手动点击开始后，目标才会交给 LLM 生成首轮调度。"
+    case "running":
+      return "项目已进入运行态，LLM 会继续规划下一步，调度器会驱动 MCP 执行。"
+    case "paused":
+      return "项目已暂停，新的 LLM 编排和队列认领都已挂起，适合人工观察或等待窗口。"
+    case "stopped":
+      return "项目已终止，运行中的任务会被请求停止，后续不能重新开始。"
+  }
 }
 
 export function ProjectSchedulerRuntimePanel({
@@ -43,7 +86,7 @@ export function ProjectSchedulerRuntimePanel({
   const [isRouting, startTransition] = useTransition()
   const [control, setControl] = useState(initialControl)
   const [tasks, setTasks] = useState(initialTasks)
-  const [isSavingControl, setIsSavingControl] = useState(false)
+  const [activeLifecycleAction, setActiveLifecycleAction] = useState<ProjectSchedulerLifecycle | null>(null)
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -51,6 +94,10 @@ export function ProjectSchedulerRuntimePanel({
   const queuedCount = tasks.filter((task) => ["ready", "retry_scheduled", "delayed"].includes(task.status)).length
   const failedCount = tasks.filter((task) => task.status === "failed").length
   const runningCount = tasks.filter((task) => task.status === "running").length
+  const canStart = control.lifecycle === "idle"
+  const canPause = control.lifecycle === "running"
+  const canResume = control.lifecycle === "paused"
+  const canStop = control.lifecycle !== "stopped"
 
   function refreshServerState() {
     startTransition(() => {
@@ -58,8 +105,8 @@ export function ProjectSchedulerRuntimePanel({
     })
   }
 
-  async function saveSchedulerControl() {
-    setIsSavingControl(true)
+  async function runLifecycleAction(nextLifecycle: ProjectSchedulerLifecycle) {
+    setActiveLifecycleAction(nextLifecycle)
     setMessage(null)
     setErrorMessage(null)
 
@@ -70,7 +117,7 @@ export function ProjectSchedulerRuntimePanel({
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          paused: control.paused,
+          lifecycle: nextLifecycle,
           note: control.note,
         }),
       })
@@ -80,17 +127,21 @@ export function ProjectSchedulerRuntimePanel({
       }
 
       if (!response.ok || !payload.schedulerControl) {
-        setErrorMessage(payload.error ?? "调度控制保存失败，请稍后再试。")
+        setErrorMessage(payload.error ?? "项目生命周期更新失败，请稍后再试。")
         return
       }
 
       setControl(payload.schedulerControl)
-      setMessage(payload.schedulerControl.paused ? "项目调度已暂停" : "项目调度已恢复")
+      setMessage(
+        nextLifecycle === "running" && control.lifecycle === "paused"
+          ? "项目已恢复，调度与 LLM 编排继续执行。"
+          : getLifecycleSuccessMessage(nextLifecycle),
+      )
       refreshServerState()
     } catch {
-      setErrorMessage("调度控制保存失败，请稍后再试。")
+      setErrorMessage("项目生命周期更新失败，请稍后再试。")
     } finally {
-      setIsSavingControl(false)
+      setActiveLifecycleAction(null)
     }
   }
 
@@ -140,29 +191,23 @@ export function ProjectSchedulerRuntimePanel({
     <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
       <SectionCard
         title="调度运行控制"
-        description="审批负责是否允许执行，调度负责何时执行、是否暂停、以及失败任务如何恢复，这里只承载运行时控制。"
+        description="这里的开始、暂停、继续、停止不是单纯的界面状态，而是会同步驱动后端 LLM 编排与调度状态。"
       >
         <div className="space-y-4">
           <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-slate-950 dark:text-white">项目调度开关</p>
+                <p className="text-sm font-semibold text-slate-950 dark:text-white">项目生命周期</p>
                 <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                  暂停后不会继续认领 ready、retry 或 delayed 任务，但不会中断已经在执行中的短流程。
+                  {getLifecycleDescription(control.lifecycle)}
                 </p>
               </div>
-              <Switch
-                checked={control.paused}
-                aria-label="项目调度开关"
-                onCheckedChange={(checked) => setControl((current) => ({ ...current, paused: checked }))}
-              />
+              <StatusBadge tone={lifecycleToneMap[control.lifecycle]}>{lifecycleLabelMap[control.lifecycle]}</StatusBadge>
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              <StatusBadge tone={control.paused ? "warning" : "success"}>
-                {control.paused ? "调度暂停中" : "调度已开启"}
-              </StatusBadge>
               <StatusBadge tone={queuedCount > 0 ? "info" : "neutral"}>待执行 {queuedCount}</StatusBadge>
+              <StatusBadge tone={runningCount > 0 ? "info" : "neutral"}>执行中 {runningCount}</StatusBadge>
               <StatusBadge tone={failedCount > 0 ? "danger" : "neutral"}>失败待恢复 {failedCount}</StatusBadge>
             </div>
 
@@ -188,29 +233,45 @@ export function ProjectSchedulerRuntimePanel({
               </div>
             ) : null}
 
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <Button
                 type="button"
-                disabled={isSavingControl || isRouting}
+                disabled={!canStart || Boolean(activeLifecycleAction) || isRouting}
                 className="rounded-full bg-slate-950 text-white hover:bg-slate-800 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
-                onClick={saveSchedulerControl}
+                onClick={() => runLifecycleAction("running")}
               >
-                {isSavingControl ? "保存中..." : "保存调度控制"}
+                <PlayCircle className="h-4 w-4" />
+                开始项目
               </Button>
               <Button
                 type="button"
                 variant="outline"
-                disabled={isSavingControl || isRouting}
+                disabled={!canPause || Boolean(activeLifecycleAction) || isRouting}
                 className="rounded-full"
-                onClick={() =>
-                  setControl({
-                    paused: false,
-                    note: "恢复默认调度：允许处理 ready / retry / delayed 任务，适合继续自动补采与结果回流。",
-                    updatedAt: control.updatedAt,
-                  })
-                }
+                onClick={() => runLifecycleAction("paused")}
               >
-                恢复建议配置
+                <PauseCircle className="h-4 w-4" />
+                暂停项目
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!canResume || Boolean(activeLifecycleAction) || isRouting}
+                className="rounded-full"
+                onClick={() => runLifecycleAction("running")}
+              >
+                <RotateCcw className="h-4 w-4" />
+                继续项目
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!canStop || Boolean(activeLifecycleAction) || isRouting}
+                className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:border-rose-900/60 dark:text-rose-200 dark:hover:bg-rose-950/30"
+                onClick={() => runLifecycleAction("stopped")}
+              >
+                <Square className="h-4 w-4" />
+                停止项目
               </Button>
             </div>
           </div>
@@ -219,12 +280,12 @@ export function ProjectSchedulerRuntimePanel({
             <div className="rounded-[24px] border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70">
               <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
                 <PauseCircle className="h-4 w-4" />
-                <p className="text-sm font-semibold">调度状态</p>
+                <p className="text-sm font-semibold">当前状态</p>
               </div>
               <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
-                {control.paused ? "暂停" : "运行"}
+                {lifecycleLabelMap[control.lifecycle]}
               </p>
-              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">项目级调度只影响后续队列认领，不改变审批决策本身。</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">开始后才会向 LLM 发出调度指令，停止后不可恢复。</p>
             </div>
             <div className="rounded-[24px] border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70">
               <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
@@ -240,7 +301,7 @@ export function ProjectSchedulerRuntimePanel({
                 <p className="text-sm font-semibold">执行中</p>
               </div>
               <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">{runningCount}</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">当前正在消耗 MCP 执行窗口的任务数量。</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">运行中的 MCP 任务会继续显示在右侧真实队列表中。</p>
             </div>
           </div>
         </div>
@@ -345,3 +406,4 @@ export function ProjectSchedulerRuntimePanel({
     </div>
   )
 }
+

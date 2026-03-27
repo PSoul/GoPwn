@@ -14,6 +14,7 @@ import {
   seedWorkflowReadyMcpTools,
   workflowReadyMcpToolFixtures,
 } from "@/tests/helpers/project-fixtures"
+import { getProjectPrimaryTarget } from "@/lib/project-targets"
 
 const buildProjectContext = (projectId: string) => ({
   params: Promise.resolve({ projectId }),
@@ -45,7 +46,7 @@ describe("project MCP run api routes", () => {
         body: JSON.stringify({
           capability: "DNS / 子域 / 证书情报类",
           requestedAction: "补采证书与子域情报",
-          target: fixture.project.seed,
+          target: getProjectPrimaryTarget(fixture.project),
           riskLevel: "低",
         }),
         headers: { "content-type": "application/json" },
@@ -65,7 +66,7 @@ describe("project MCP run api routes", () => {
     const readPayload = await readResponse.json()
 
     expect(readResponse.status).toBe(200)
-    expect(readPayload.items[0].target).toBe(fixture.project.seed)
+    expect(readPayload.items[0].target).toBe(getProjectPrimaryTarget(fixture.project))
     expect(readPayload.items[0].summaryLines[0]).toContain("补采证书与子域情报")
 
     const contextResponse = await getProjectContext(

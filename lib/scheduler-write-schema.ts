@@ -2,6 +2,7 @@ import { z } from "zod"
 
 export const projectSchedulerControlPatchSchema = z
   .object({
+    lifecycle: z.enum(["idle", "running", "paused", "stopped"]).optional(),
     paused: z.boolean().optional(),
     note: z.string().trim().min(1).optional(),
   })

@@ -2,7 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { ProjectFindingsTable } from "@/components/projects/project-findings-table"
-import { PageHeader } from "@/components/shared/page-header"
+import { ProjectWorkspaceIntro } from "@/components/projects/project-workspace-intro"
 import { SectionCard } from "@/components/shared/section-card"
 import { Button } from "@/components/ui/button"
 import { getProjectFindingsPayload } from "@/lib/prototype-api"
@@ -23,7 +23,7 @@ export default async function ProjectFindingsResultsPage({
 
   return (
     <div className="space-y-5">
-      <PageHeader
+      <ProjectWorkspaceIntro
         title="漏洞与发现"
         description="问题列表独立成整页表格，适合后续承载已确认问题、待验证候选和待复核 finding。"
         actions={
@@ -33,7 +33,7 @@ export default async function ProjectFindingsResultsPage({
         }
       />
 
-      <SectionCard title={project.name} description="问题结果按表格呈现，方便后续扩展排序、筛选和批量处理。">
+      <SectionCard title="结果表" description="问题结果按表格呈现，方便后续扩展排序、筛选和批量处理。">
         <ProjectFindingsTable findings={findings} />
       </SectionCard>
     </div>

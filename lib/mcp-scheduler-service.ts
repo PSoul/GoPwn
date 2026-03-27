@@ -341,6 +341,7 @@ export async function processStoredSchedulerTask(
 }
 
 export async function drainStoredSchedulerTasks(input: {
+  ignoreProjectLifecycle?: boolean
   projectId?: string
   runId?: string
   priorOutputs?: McpWorkflowSmokePayload["outputs"]
@@ -358,7 +359,7 @@ export async function drainStoredSchedulerTasks(input: {
     now,
     projectId: input.projectId,
     runId: input.runId,
-  }).filter((task) => !isStoredProjectSchedulerPaused(task.projectId))
+  }).filter((task) => input.ignoreProjectLifecycle || !isStoredProjectSchedulerPaused(task.projectId))
 
   for (const task of readyTasks) {
     const result = await processStoredSchedulerTask(task.id, outputs)

@@ -61,6 +61,107 @@ describe("scheduler control api routes", () => {
     expect(Array.isArray(operationsPayload.schedulerTasks)).toBe(true)
   })
 
+  it("starts an idle project only after manual start, supports pause/resume, and refuses restart after stop", async () => {
+    seedWorkflowReadyMcpTools()
+    const fixture = createStoredProjectFixture({
+      targetInput: "http://127.0.0.1:18080/WebGoat",
+      description: "手动开始生命周期测试项目。",
+    })
+
+    const startResponse = await patchProjectSchedulerControl(
+      new Request(`http://localhost/api/projects/${fixture.project.id}/scheduler-control`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          lifecycle: "running",
+          note: "研究员确认后手动开始项目。",
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+      buildProjectContext(fixture.project.id),
+    )
+    const startPayload = await startResponse.json()
+
+    expect(startResponse.status).toBe(200)
+    expect(startPayload.schedulerControl.lifecycle).toBe("running")
+    expect(startPayload.project.status).toBe("运行中")
+
+    const operationsAfterStart = await getProjectOperations(
+      new Request(`http://localhost/api/projects/${fixture.project.id}/operations`),
+      buildProjectContext(fixture.project.id),
+    )
+    const startedOperationsPayload = await operationsAfterStart.json()
+
+    expect(startedOperationsPayload.schedulerControl.lifecycle).toBe("running")
+    expect(startedOperationsPayload.orchestrator.lastPlan).not.toBeNull()
+
+    const pauseResponse = await patchProjectSchedulerControl(
+      new Request(`http://localhost/api/projects/${fixture.project.id}/scheduler-control`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          lifecycle: "paused",
+          note: "研究员临时暂停项目。",
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+      buildProjectContext(fixture.project.id),
+    )
+    const pausePayload = await pauseResponse.json()
+
+    expect(pauseResponse.status).toBe(200)
+    expect(pausePayload.schedulerControl.lifecycle).toBe("paused")
+    expect(pausePayload.project.status).toBe("已暂停")
+
+    const resumeResponse = await patchProjectSchedulerControl(
+      new Request(`http://localhost/api/projects/${fixture.project.id}/scheduler-control`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          lifecycle: "running",
+          note: "研究员恢复项目执行。",
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+      buildProjectContext(fixture.project.id),
+    )
+    const resumePayload = await resumeResponse.json()
+
+    expect(resumeResponse.status).toBe(200)
+    expect(resumePayload.schedulerControl.lifecycle).toBe("running")
+    expect(resumePayload.project.status).toBe("运行中")
+
+    const stopResponse = await patchProjectSchedulerControl(
+      new Request(`http://localhost/api/projects/${fixture.project.id}/scheduler-control`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          lifecycle: "stopped",
+          note: "研究员确认停止项目，不再继续。",
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+      buildProjectContext(fixture.project.id),
+    )
+    const stopPayload = await stopResponse.json()
+
+    expect(stopResponse.status).toBe(200)
+    expect(stopPayload.schedulerControl.lifecycle).toBe("stopped")
+    expect(stopPayload.project.status).toBe("已停止")
+
+    const restartResponse = await patchProjectSchedulerControl(
+      new Request(`http://localhost/api/projects/${fixture.project.id}/scheduler-control`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          lifecycle: "running",
+          note: "停止后尝试重新开始。",
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+      buildProjectContext(fixture.project.id),
+    )
+    const restartPayload = await restartResponse.json()
+
+    expect(restartResponse.status).toBe(409)
+    expect(restartPayload.error).toContain("stopped")
+  })
+
   it("cancels a queued scheduler task through the project api", async () => {
     seedWorkflowReadyMcpTools()
     const fixture = createStoredProjectFixture()

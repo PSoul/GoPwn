@@ -2,7 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { ProjectKnowledgeTabs } from "@/components/projects/project-knowledge-tabs"
-import { PageHeader } from "@/components/shared/page-header"
+import { ProjectWorkspaceIntro } from "@/components/projects/project-workspace-intro"
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
@@ -23,7 +23,7 @@ export default async function ProjectContextPage({
 
   return (
     <div className="space-y-5">
-      <PageHeader
+      <ProjectWorkspaceIntro
         title="证据与上下文"
         description="项目总览只保留结果入口，这个二级页专门承接证据、审批记录、补充情报和活动时间线。"
         actions={
@@ -36,7 +36,7 @@ export default async function ProjectContextPage({
         }
       />
 
-      <SectionCard title={project.name} description={detail.target}>
+      <SectionCard title="当前沉淀概览" description={detail.target}>
         <div className="grid gap-4 md:grid-cols-3">
           <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
             <p className="text-xs text-slate-500 dark:text-slate-400">证据条目</p>

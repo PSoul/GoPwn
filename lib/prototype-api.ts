@@ -1,3 +1,5 @@
+import os from "node:os"
+
 import {
   dashboardMetrics,
   mcpBoundaryRules,
@@ -38,7 +40,9 @@ import {
   executeProjectLocalValidation,
   generateProjectOrchestratorPlan,
   getProjectOrchestratorPanelPayload,
+  runProjectLifecycleKickoff,
 } from "@/lib/orchestrator-service"
+import { buildDefaultProjectSchedulerControl } from "@/lib/project-scheduler-lifecycle"
 import { dispatchProjectMcpRunAndDrain } from "@/lib/project-mcp-dispatch-service"
 import {
   drainStoredSchedulerTasks,
@@ -56,6 +60,7 @@ import {
   cancelStoredSchedulerTask,
   getStoredProjectSchedulerControl,
   retryStoredSchedulerTask,
+  stopStoredProjectSchedulerTasks,
   updateStoredProjectSchedulerControl,
 } from "@/lib/project-scheduler-control-repository"
 import {
@@ -80,8 +85,11 @@ import type {
   ApprovalDecisionInput,
   ApprovalPolicyPayload,
   AssetCollectionPayload,
+  AssetCollectionView,
   AssetDetailPayload,
   DashboardPayload,
+  DashboardRecentResultRecord,
+  DashboardSystemRecord,
   EvidenceCollectionPayload,
   EvidenceDetailPayload,
   LlmProfileRecord,
@@ -117,9 +125,7 @@ import type {
 } from "@/lib/prototype-types"
 
 function buildDashboardMetrics(projects: ProjectRecord[], approvalTotal: number) {
-  const runningProjects = projects.filter((project) => project.status === "运行中").length
   const findings = listStoredProjectFindings()
-  const confirmedFindings = findings.filter((finding) => finding.status === "已确认").length
   const assets = listStoredAssets()
 
   return dashboardMetrics.map((metric) => {
@@ -127,15 +133,7 @@ function buildDashboardMetrics(projects: ProjectRecord[], approvalTotal: number)
       return {
         ...metric,
         value: String(projects.length),
-        delta: projects.length > 0 ? `${projects.filter((project) => project.status === "待处理").length} 个待启动` : "等待第一个真实项目",
-      }
-    }
-
-    if (metric.label === "运行中项目") {
-      return {
-        ...metric,
-        value: String(runningProjects),
-        delta: runningProjects > 0 ? `${projects.filter((project) => project.status === "已阻塞").length} 个已阻塞` : "等待调度启动",
+        delta: projects.length > 0 ? `${projects.filter((project) => project.status === "运行中").length} 个运行中` : "等待第一个真实项目",
       }
     }
 
@@ -147,10 +145,10 @@ function buildDashboardMetrics(projects: ProjectRecord[], approvalTotal: number)
       }
     }
 
-    if (metric.label === "已确认问题") {
+    if (metric.label === "已发现漏洞") {
       return {
         ...metric,
-        value: String(confirmedFindings),
+        value: String(findings.length),
         delta: findings.length > 0 ? `${findings.filter((finding) => finding.status === "待复核").length} 个待复核` : "等待真实发现沉淀",
       }
     }
@@ -363,15 +361,207 @@ export async function getProjectOperationsPayload(projectId: string): Promise<Pr
     ...base,
     approvals: listStoredProjectApprovals(projectId),
     mcpRuns: listStoredMcpRuns(projectId),
-    schedulerControl: getStoredProjectSchedulerControl(projectId) ?? {
-      paused: false,
-      note: "默认允许调度器处理 ready / retry / delayed 任务。",
-      updatedAt: base.project.lastUpdated,
-    },
+    schedulerControl: getStoredProjectSchedulerControl(projectId) ?? buildDefaultProjectSchedulerControl(base.project.lastUpdated, "idle"),
     schedulerTasks: listStoredSchedulerTasks(projectId),
     orchestrator: await getProjectOrchestratorPanelPayload(projectId),
     reportExport: getStoredProjectReportExportPayload(projectId),
   }
+}
+
+function buildAssetViews(
+  assets: ReturnType<typeof listStoredAssets>,
+  options?: {
+    includePendingReview?: boolean
+  },
+): AssetCollectionView[] {
+  const typedViews: Array<{
+    key: AssetCollectionView["key"]
+    label: string
+    description: string
+    match: (asset: (typeof assets)[number]) => boolean
+  }> = [
+    {
+      key: "domains-web",
+      label: "域名 / Web",
+      description: "域名、站点、路径入口和 API/Web 暴露面。",
+      match: (asset) => ["domain", "subdomain", "website", "api", "page_entry", "entry", "web"].includes(asset.type),
+    },
+    {
+      key: "hosts-ip",
+      label: "IP / 主机",
+      description: "IP、主机、网段等基础网络对象。",
+      match: (asset) => ["ip", "cidr", "host"].includes(asset.type),
+    },
+    {
+      key: "ports-services",
+      label: "端口 / 服务",
+      description: "开放端口、协议、服务和端口级画像。",
+      match: (asset) => asset.type === "port" || (asset.type === "service" && !asset.profile.toLowerCase().includes("fingerprint")),
+    },
+    {
+      key: "fingerprints",
+      label: "指纹 / 技术栈",
+      description: "版本、headers、框架和技术画像线索。",
+      match: (asset) =>
+        asset.profile.toLowerCase().includes("fingerprint") ||
+        asset.profile.toLowerCase().includes("header") ||
+        asset.type === "service",
+    },
+    {
+      key: "pending-review",
+      label: "待确认 / 待复核",
+      description: "尚未最终纳入范围或仍需复核的对象。",
+      match: (asset) => asset.scopeStatus !== "已纳入",
+    },
+  ]
+
+  const visibleViews = options?.includePendingReview === false
+    ? typedViews.filter((view) => view.key !== "pending-review")
+    : typedViews
+
+  return visibleViews.map((view) => {
+    const items = assets.filter(view.match)
+
+    return {
+      key: view.key,
+      label: view.label,
+      description: view.description,
+      count: items.length,
+      items,
+    }
+  })
+}
+
+function buildDashboardRecentResults({
+  approvals,
+  assets,
+  evidence,
+  findings,
+  projects,
+}: {
+  approvals: ReturnType<typeof listStoredApprovals>
+  assets: ReturnType<typeof listStoredAssets>
+  evidence: ReturnType<typeof listStoredEvidence>
+  findings: ReturnType<typeof listStoredProjectFindings>
+  projects: ProjectRecord[]
+}): DashboardRecentResultRecord[] {
+  const records = [
+    ...evidence.map((record) => ({
+      id: `evidence-${record.id}`,
+      title: record.title,
+      subtitle: record.projectName,
+      meta: `${record.source} · ${record.timeline.at(0) ?? record.projectName}`,
+      href: `/projects/${record.projectId}/context`,
+      status: record.conclusion,
+      tone: "info" as const,
+      sortAt: record.timeline.at(0) ?? "",
+    })),
+    ...findings.map((finding) => ({
+      id: `finding-${finding.id}`,
+      title: finding.title,
+      subtitle: finding.affectedSurface,
+      meta: `${finding.severity} · ${finding.updatedAt}`,
+      href: `/projects/${finding.projectId}/results/findings`,
+      status: finding.status,
+      tone: finding.status === "已确认" ? ("warning" as const) : ("info" as const),
+      sortAt: finding.updatedAt,
+    })),
+    ...assets.map((asset) => ({
+      id: `asset-${asset.id}`,
+      title: asset.label,
+      subtitle: asset.projectName,
+      meta: `${asset.type} · ${asset.lastSeen}`,
+      href: `/assets/${asset.id}`,
+      status: asset.scopeStatus,
+      tone: asset.scopeStatus === "已纳入" ? ("success" as const) : ("warning" as const),
+      sortAt: asset.lastSeen,
+    })),
+    ...approvals.map((approval) => ({
+      id: `approval-${approval.id}`,
+      title: approval.actionType,
+      subtitle: approval.projectName,
+      meta: `${approval.riskLevel}风险 · ${approval.submittedAt}`,
+      href: "/approvals",
+      status: approval.status,
+      tone: approval.status === "待处理" ? ("danger" as const) : ("neutral" as const),
+      sortAt: approval.submittedAt,
+    })),
+    ...projects.map((project) => ({
+      id: `project-${project.id}`,
+      title: project.name,
+      subtitle: project.stage,
+      meta: `最近更新 ${project.lastUpdated}`,
+      href: `/projects/${project.id}`,
+      status: project.status,
+      tone: project.status === "已阻塞" ? ("danger" as const) : ("neutral" as const),
+      sortAt: project.lastUpdated,
+    })),
+  ]
+
+  const dedupedRecords = Array.from(
+    new Map(
+      records.map((record) => [
+        `${record.title}::${record.subtitle}::${record.meta}::${record.href}::${record.status}`,
+        record,
+      ]),
+    ).values(),
+  )
+
+  return dedupedRecords
+    .sort((left, right) => right.sortAt.localeCompare(left.sortAt, "zh-CN"))
+    .slice(0, 8)
+    .map((record) => {
+      const { sortAt, ...rest } = record
+      void sortAt
+      return rest
+    })
+}
+
+function buildDashboardSystemOverview({
+  mcpTools,
+  projects,
+}: {
+  mcpTools: ReturnType<typeof listStoredMcpTools>
+  projects: ProjectRecord[]
+}): DashboardSystemRecord[] {
+  const llmProfiles = listStoredLlmProfiles()
+  const enabledModels = llmProfiles.filter((profile) => profile.enabled && profile.model)
+  const store = readPrototypeStore()
+  const memoryUsage = process.memoryUsage()
+  const heapUsedMb = Math.round(memoryUsage.heapUsed / 1024 / 1024)
+  const heapTotalMb = Math.round(memoryUsage.heapTotal / 1024 / 1024)
+  const loadAverage = os.loadavg()[0]?.toFixed(2) ?? "0.00"
+
+  return [
+    {
+      title: "MCP 工具",
+      value: `${mcpTools.filter((tool) => tool.status === "启用").length} / ${mcpTools.length}`,
+      detail: "当前已启用 MCP 工具数量。",
+      href: "/settings/mcp-tools",
+      tone: mcpTools.some((tool) => tool.status === "异常") ? "warning" : "success",
+    },
+    {
+      title: "LLM 模型",
+      value: enabledModels.map((profile) => profile.model).join(" / ") || "未配置",
+      detail: "当前参与编排的模型配置。",
+      href: "/settings/llm",
+      tone: enabledModels.length > 0 ? "info" : "warning",
+    },
+    {
+      title: "调度队列",
+      value: `${store.schedulerTasks.filter((task) => !["completed", "failed", "cancelled"].includes(task.status)).length} 条`,
+      detail: `${projects.filter((project) => project.status === "运行中").length} 个运行中项目 / ${store.approvals.filter((item) => item.status === "待处理").length} 个待审批动作`,
+      href: "/settings/system-status",
+      tone: "neutral",
+    },
+    {
+      title: "运行状态",
+      value: `Heap ${heapUsedMb}/${heapTotalMb} MB`,
+      detail: `1m load ${loadAverage}，用于快速感知当前本地运行压力。`,
+      href: "/settings/system-status",
+      tone: "info",
+    },
+  ]
 }
 
 export function getProjectContextPayload(projectId: string): ProjectContextPayload | null {
@@ -485,6 +675,7 @@ export function getDashboardPayload(): DashboardPayload {
   const mcpTools = listStoredMcpTools()
   const assets = listStoredAssets()
   const evidence = listStoredEvidence()
+  const findings = listStoredProjectFindings()
   const pendingApprovalCount = approvals.filter((approval) => approval.status === "待处理").length
   const priorities = buildDashboardPriorities({ projects, approvals, assets, mcpTools })
   const leadProject = projects[0] ?? null
@@ -499,6 +690,9 @@ export function getDashboardPayload(): DashboardPayload {
     mcpTools,
     projectTasks: deriveDashboardTasks(projects),
     projects,
+    assetViews: buildAssetViews(assets, { includePendingReview: false }),
+    recentResults: buildDashboardRecentResults({ approvals, assets, evidence, findings, projects }),
+    systemOverview: buildDashboardSystemOverview({ mcpTools, projects }),
   }
 }
 
@@ -517,6 +711,7 @@ export function listAssetsPayload(): AssetCollectionPayload {
   return {
     items,
     total: items.length,
+    views: buildAssetViews(items),
   }
 }
 
@@ -634,11 +829,47 @@ export function updateProjectApprovalControlPayload(projectId: string, patch: Ap
   return updateStoredProjectApprovalControl(projectId, patch)
 }
 
-export function updateProjectSchedulerControlPayload(
+export async function updateProjectSchedulerControlPayload(
   projectId: string,
   patch: Parameters<typeof updateStoredProjectSchedulerControl>[1],
 ) {
-  return updateStoredProjectSchedulerControl(projectId, patch)
+  const payload = updateStoredProjectSchedulerControl(projectId, patch)
+
+  if (!payload) {
+    return null
+  }
+
+  if ("status" in payload && typeof payload.status === "number" && "error" in payload) {
+    return payload
+  }
+
+  if (payload.transition.changedLifecycle) {
+    if (payload.transition.nextLifecycle === "running") {
+      await runProjectLifecycleKickoff(projectId, {
+        controlCommand: payload.transition.previousLifecycle === "paused" ? "resume" : "start",
+        note: payload.schedulerControl.note,
+      })
+    }
+
+    if (payload.transition.nextLifecycle === "stopped") {
+      stopStoredProjectSchedulerTasks(projectId, payload.schedulerControl.note)
+    }
+  }
+
+  const refreshedProject = getStoredProjectById(projectId)
+  const refreshedDetail = getStoredProjectDetailById(projectId)
+  const refreshedControl = getStoredProjectSchedulerControl(projectId)
+
+  if (!refreshedProject || !refreshedDetail || !refreshedControl) {
+    return payload
+  }
+
+  return {
+    detail: refreshedDetail,
+    project: refreshedProject,
+    schedulerControl: refreshedControl,
+    transition: payload.transition,
+  }
 }
 
 export function runProjectSchedulerTaskActionPayload(

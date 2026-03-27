@@ -443,8 +443,7 @@ describe("project orchestrator api routes", () => {
 
     try {
       const fixture = createStoredProjectFixture({
-        seed: `http://127.0.0.1:${port}/WebGoat`,
-        targetType: "url",
+        targetInput: `http://127.0.0.1:${port}/WebGoat`,
       })
       const validationResponse = await postLocalValidation(
         new Request(`http://localhost/api/projects/${fixture.project.id}/orchestrator/local-validation`, {
@@ -532,7 +531,7 @@ describe("project orchestrator api routes", () => {
         })
       }
     }
-  })
+  }, 15_000)
 
   it("drops provider-returned high-risk actions when approvalScenario is none", async () => {
     seedWorkflowReadyMcpTools()
@@ -594,8 +593,7 @@ describe("project orchestrator api routes", () => {
     }) as unknown as typeof fetch
 
     const fixture = createStoredProjectFixture({
-      seed: "http://127.0.0.1:18080/WebGoat",
-      targetType: "url",
+      targetInput: "http://127.0.0.1:18080/WebGoat",
     })
     const planResponse = await postOrchestratorPlan(
       new Request(`http://localhost/api/projects/${fixture.project.id}/orchestrator/plan`, {

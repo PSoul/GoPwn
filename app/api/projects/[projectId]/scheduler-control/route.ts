@@ -14,10 +14,14 @@ export async function PATCH(request: Request, { params }: ProjectSchedulerContro
     return Response.json({ error: "Invalid project scheduler-control payload" }, { status: 400 })
   }
 
-  const payload = updateProjectSchedulerControlPayload(projectId, parsed.data)
+  const payload = await updateProjectSchedulerControlPayload(projectId, parsed.data)
 
   if (!payload) {
     return Response.json({ error: `Project '${projectId}' not found` }, { status: 404 })
+  }
+
+  if ("status" in payload && typeof payload.status === "number" && "error" in payload) {
+    return Response.json({ error: payload.error }, { status: payload.status })
   }
 
   return Response.json(payload)

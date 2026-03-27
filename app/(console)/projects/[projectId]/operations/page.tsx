@@ -7,12 +7,13 @@ import { ProjectOperationsPanel } from "@/components/projects/project-operations
 import { ProjectReportExportPanel } from "@/components/projects/project-report-export-panel"
 import { ProjectSchedulerRuntimePanel } from "@/components/projects/project-scheduler-runtime-panel"
 import { ProjectTaskBoard } from "@/components/projects/project-task-board"
-import { PageHeader } from "@/components/shared/page-header"
+import { ProjectWorkspaceIntro } from "@/components/projects/project-workspace-intro"
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
 import { mcpCapabilityRecords } from "@/lib/platform-config"
 import { getProjectOperationsPayload } from "@/lib/prototype-api"
+import { getProjectPrimaryTarget } from "@/lib/project-targets"
 
 export default async function ProjectOperationsPage({
   params,
@@ -29,7 +30,7 @@ export default async function ProjectOperationsPage({
 
   return (
     <div className="space-y-5">
-      <PageHeader
+      <ProjectWorkspaceIntro
         title="任务与调度详情"
         description="任务、审批和调度被统一收拢到二级页，主页面只保留结果与当前阶段，避免研究视线被流程噪音打断。"
         actions={
@@ -58,7 +59,7 @@ export default async function ProjectOperationsPage({
 
       <ProjectMcpRunsPanel
         projectId={project.id}
-        defaultTarget={project.seed}
+        defaultTarget={getProjectPrimaryTarget(project)}
         capabilities={mcpCapabilityRecords.map((item) => item.name)}
         initialRuns={mcpRuns}
       />

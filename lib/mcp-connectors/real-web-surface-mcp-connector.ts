@@ -2,6 +2,7 @@ import { callMcpServerTool } from "@/lib/mcp-client-service"
 import { resolveLocalLabHttpTarget } from "@/lib/local-lab-catalog"
 import { createExecutionAbortError, isExecutionAbortError, throwIfExecutionAborted } from "@/lib/mcp-execution-abort"
 import { findStoredEnabledMcpServerByToolBinding } from "@/lib/mcp-server-repository"
+import { getProjectPrimaryTarget } from "@/lib/project-targets"
 import type { McpConnector, McpConnectorExecutionContext, McpConnectorResult } from "@/lib/mcp-connectors/types"
 
 type WebSurfaceStructuredContent = {
@@ -27,14 +28,14 @@ export const realWebSurfaceMcpConnector: McpConnector = {
   key: "real-web-surface-mcp",
   mode: "real",
   supports: ({ project, run }) => {
-    const target = run.target || project.seed
+    const target = run.target || getProjectPrimaryTarget(project)
 
     return run.toolName === "web-surface-map" && isHttpTarget(target) && Boolean(findStoredEnabledMcpServerByToolBinding(run.toolName))
   },
   async execute(context: McpConnectorExecutionContext): Promise<McpConnectorResult> {
     throwIfExecutionAborted(context.signal)
 
-    const target = context.run.target || context.project.seed
+    const target = context.run.target || getProjectPrimaryTarget(context.project)
     const server = findStoredEnabledMcpServerByToolBinding(context.run.toolName)
 
     if (!server) {

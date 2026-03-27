@@ -1,4 +1,5 @@
 import { listBuiltInMcpTools } from "@/lib/built-in-mcp-tools"
+import { normalizeProjectSchedulerControl } from "@/lib/project-scheduler-lifecycle"
 import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
 import { createStoredSchedulerTaskFromRun } from "@/lib/mcp-scheduler-repository"
 import type {
@@ -310,6 +311,22 @@ export function dispatchStoredMcpRun(projectId: string, input: McpDispatchInput)
 
   const project = store.projects[projectIndex]
   const detail = store.projectDetails[detailIndex]
+  const schedulerControl = normalizeProjectSchedulerControl({
+    control: store.projectSchedulerControls[project.id],
+    projectStatus: project.status,
+    updatedAt: project.lastUpdated,
+  })
+
+  if (schedulerControl.lifecycle === "idle") {
+    store.projectSchedulerControls[project.id] = {
+      ...schedulerControl,
+      lifecycle: "running",
+      paused: false,
+      note: "显式派发 MCP 动作后，项目已自动进入运行态。",
+      updatedAt: formatTimestamp(),
+    }
+  }
+
   const { enabledTool, matchedTool } = selectToolForCapability(store.mcpTools, input)
   const builtInSelection =
     enabledTool || matchedTool

@@ -1,6 +1,7 @@
 import { listStoredAssets } from "@/lib/asset-repository"
 import { listStoredEvidence } from "@/lib/evidence-repository"
 import { throwIfExecutionAborted } from "@/lib/mcp-execution-abort"
+import { getProjectPrimaryTarget } from "@/lib/project-targets"
 import { listStoredProjectFindings } from "@/lib/project-results-repository"
 
 import type { McpConnector } from "@/lib/mcp-connectors/types"
@@ -46,7 +47,7 @@ const seedNormalizerConnector: McpConnector = {
   execute: ({ project, run, signal }) => {
     throwIfExecutionAborted(signal)
 
-    const normalized = normalizeSeed(run.target || project.seed).normalizedTargets
+    const normalized = normalizeSeed(run.target || getProjectPrimaryTarget(project)).normalizedTargets
 
     return {
       status: "succeeded",
@@ -57,7 +58,7 @@ const seedNormalizerConnector: McpConnector = {
       },
       rawOutput: normalized.map((target) => `normalized: ${target}`),
       structuredContent: {
-        host: normalizeSeed(run.target || project.seed).host,
+        host: normalizeSeed(run.target || getProjectPrimaryTarget(project)).host,
         normalizedTargets: normalized,
       },
       summaryLines: [`标准化得到 ${normalized.length} 个种子目标。`, normalized.join(" / ")],
@@ -72,7 +73,7 @@ const localDnsConnector: McpConnector = {
   execute: ({ project, run, signal }) => {
     throwIfExecutionAborted(signal)
 
-    const host = getHostFromTarget(run.target || project.seed)
+    const host = getHostFromTarget(run.target || getProjectPrimaryTarget(project))
     const root = getRootDomain(host)
     const discoveredSubdomains = Array.from(new Set([host, `admin.${root}`, `assets.${root}`]))
 
@@ -106,7 +107,7 @@ const localWebSurfaceConnector: McpConnector = {
 
     const targets = priorOutputs.discoveredSubdomains?.length
       ? priorOutputs.discoveredSubdomains
-      : [getHostFromTarget(run.target || project.seed)]
+      : [getHostFromTarget(run.target || getProjectPrimaryTarget(project))]
     const webEntries = targets.map((target, index) => ({
       url: index === 0 ? `https://${target}/login` : `https://${target}/dashboard`,
       title: index === 0 ? `${project.name} 统一入口` : `${project.name} 管理台`,

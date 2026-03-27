@@ -1,4 +1,5 @@
 import { formatTimestamp, toDisplayCount } from "@/lib/prototype-record-utils"
+import { SINGLE_USER_LABEL } from "@/lib/project-targets"
 import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
 import type {
   ApprovalRecord,
@@ -279,7 +280,7 @@ function resolveCurrentStage(
     title,
     summary,
     blocker,
-    owner: pendingApprovals.length > 0 ? "审批中心" : findings.length > 0 ? "证据中心" : project.owner,
+    owner: pendingApprovals.length > 0 ? "审批中心" : findings.length > 0 ? "证据中心" : SINGLE_USER_LABEL,
     updatedAt: project.lastUpdated || formatTimestamp(),
   }
 }
@@ -459,17 +460,23 @@ export function refreshStoredProjectResults(projectId: string) {
     pendingApprovals + projectFindings.filter((finding) => finding.status !== "已缓解").length,
   )
 
+  const nextProjectStatus =
+    project.status === "已完成"
+      ? "已完成"
+      : project.status === "已停止"
+        ? "已停止"
+        : project.status === "已暂停"
+          ? "已暂停"
+          : pendingApprovals > 0
+            ? "已阻塞"
+            : projectAssets.length > 0 || projectEvidence.length > 0
+              ? "运行中"
+              : project.status
+
   store.projects[projectIndex] = {
     ...project,
     stage: currentStage.title,
-    status:
-      project.status === "已完成"
-        ? "已完成"
-        : pendingApprovals > 0
-          ? "已阻塞"
-          : projectAssets.length > 0 || projectEvidence.length > 0
-            ? "运行中"
-            : project.status,
+    status: nextProjectStatus,
     pendingApprovals,
     openTasks,
     assetCount: projectAssets.length,

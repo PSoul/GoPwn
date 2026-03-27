@@ -10,6 +10,7 @@ import {
   withAbortSignal,
 } from "@/lib/mcp-execution-abort"
 import { getHostFromTarget, getRootDomain } from "@/lib/mcp-connectors/local-foundational-connectors"
+import { getProjectPrimaryTarget } from "@/lib/project-targets"
 import type { McpConnector, McpConnectorExecutionContext, McpConnectorResult } from "@/lib/mcp-connectors/types"
 
 type CertificateSummary = {
@@ -200,7 +201,7 @@ async function probeCertificate(host: string, signal?: AbortSignal) {
 async function executeRealDnsCollection(context: McpConnectorExecutionContext): Promise<McpConnectorResult> {
   throwIfExecutionAborted(context.signal)
 
-  const rawTarget = context.run.target || context.project.seed
+  const rawTarget = context.run.target || getProjectPrimaryTarget(context.project)
   const host = getHostFromTarget(rawTarget)
 
   if (!host || isCidr(rawTarget)) {
@@ -343,7 +344,7 @@ export const realDnsIntelligenceConnector: McpConnector = {
       return false
     }
 
-    const rawTarget = run.target || project.seed
+    const rawTarget = run.target || getProjectPrimaryTarget(project)
     const host = getHostFromTarget(rawTarget)
 
     return run.toolName === "dns-census" && Boolean(host) && !isCidr(rawTarget)

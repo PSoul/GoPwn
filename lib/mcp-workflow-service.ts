@@ -1,6 +1,8 @@
 import { dispatchStoredMcpRun } from "@/lib/mcp-gateway-repository"
 import { drainStoredSchedulerTasks } from "@/lib/mcp-scheduler-service"
 import { getStoredProjectById } from "@/lib/project-repository"
+import { updateStoredProjectSchedulerControl } from "@/lib/project-scheduler-control-repository"
+import { getProjectPrimaryTarget } from "@/lib/project-targets"
 import type {
   McpDispatchInput,
   McpRunRecord,
@@ -21,9 +23,19 @@ export async function runProjectSmokeWorkflow(
     return null
   }
 
+  const schedulerControl = updateStoredProjectSchedulerControl(projectId, {
+    lifecycle: "running",
+    note: "显式触发基础 smoke workflow，项目已切换到运行态。",
+  })
+
+  if (schedulerControl && "status" in schedulerControl) {
+    return null
+  }
+
   const workflowId = buildWorkflowId()
   const outputs: McpWorkflowSmokePayload["outputs"] = {}
   const runs: McpRunRecord[] = []
+  const primaryTarget = getProjectPrimaryTarget(project)
 
   async function executeStep(input: McpDispatchInput) {
     const payload = dispatchStoredMcpRun(projectId, input)
@@ -54,6 +66,7 @@ export async function runProjectSmokeWorkflow(
     }
 
     const drained = await drainStoredSchedulerTasks({
+      ignoreProjectLifecycle: true,
       priorOutputs: outputs,
       runId: payload.run.id,
     })
@@ -72,19 +85,19 @@ export async function runProjectSmokeWorkflow(
     {
       capability: "目标解析类",
       requestedAction: "标准化种子目标",
-      target: project.seed,
+      target: primaryTarget,
       riskLevel: "低",
     },
     {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
-      target: project.seed,
+      target: primaryTarget,
       riskLevel: "低",
     },
     {
       capability: "Web 页面探测类",
       requestedAction: "补采页面入口与响应特征",
-      target: project.seed,
+      target: primaryTarget,
       riskLevel: "低",
     },
   ]
@@ -115,7 +128,7 @@ export async function runProjectSmokeWorkflow(
   }
 
   if (scenario === "with-approval") {
-    const approvalTarget = outputs.webEntries?.[0] ?? project.seed
+    const approvalTarget = outputs.webEntries?.[0] ?? primaryTarget
     const result = await executeStep({
       capability: "受控验证类",
       requestedAction: "受控登录绕过验证",

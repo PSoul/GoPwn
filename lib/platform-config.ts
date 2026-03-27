@@ -28,9 +28,8 @@ export const MCP_RESULT_MAPPINGS = ["domains", "webEntries", "network", "finding
 
 export const dashboardMetrics: MetricCard[] = [
   { label: "项目总数", value: "0", delta: "等待真实项目", tone: "neutral" },
-  { label: "运行中项目", value: "0", delta: "等待调度启动", tone: "info" },
   { label: "已发现资产", value: "0", delta: "等待真实资产回流", tone: "success" },
-  { label: "已确认问题", value: "0", delta: "等待真实发现沉淀", tone: "warning" },
+  { label: "已发现漏洞", value: "0", delta: "等待真实发现沉淀", tone: "warning" },
   { label: "待审批动作", value: "0", delta: "按项目实时聚合", tone: "danger" },
 ]
 
@@ -252,18 +251,6 @@ export const systemStatusCards: SystemStatusRecord[] = [
 
 export const defaultProjectFormPreset: ProjectFormPreset = {
   name: "",
-  seed: "",
-  targetType: "domain",
-  owner: "研究员席位",
-  priority: "中",
-  targetSummary: "",
-  authorizationSummary: "仅在明确授权范围内执行匿名识别、只读采集和经批准的受控验证。",
-  scopeSummary: "请明确填写允许纳入的域名、URL、IP、端口、系统或业务边界；新增目标默认待确认。",
-  forbiddenActions: "禁止越权、写操作、破坏性动作、批量高频压测，以及任何未审批的高风险验证。",
-  defaultConcurrency: "项目级 2 / 高风险 1",
-  rateLimit: "被动 60 req/min / 验证 6 req/min",
-  timeout: "45s / 1 次重试",
-  approvalMode: "高风险逐项审批，低风险自动执行",
-  tags: "",
-  deliveryNotes: "创建后建议先补全授权说明、范围规则和种子目标，再开始 LLM 编排与 MCP 调度。",
+  targetInput: "",
+  description: "",
 }

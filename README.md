@@ -15,8 +15,9 @@
 
 ## 1. 当前状态
 
-- 当前版本：`v0.1.0`
+- 当前版本：`v0.2.0`
 - 当前形态：可运行全栈原型
+- 版本定位：第二阶段原型里程碑，重点补齐了 `WebGoat` 真实 finding 闭环、项目生命周期控制、durable worker 与 cooperative cancellation
 - 当前主线：已完成 `Juice Shop` 与 `WebGoat` 两条本地真实闭环验证
 - 当前进行中：更多真实 MCP 能力族、证据采集与 API Recon 扩展、以及更 durable 的长期运行后端
 
@@ -27,10 +28,14 @@
 - 平台账号登录、会话保护、中间件鉴权
 - 项目、审批、资产、证据、审计日志、本地设置持久化
 - 项目详情拆分为结果、阶段流转、任务与调度、证据与上下文子页
+- 项目生命周期状态机：`idle / running / paused / stopped`
+- 新建项目后默认不自动运行，必须手动点击开始才会触发 LLM 编排
+- 项目支持 `开始 / 暂停 / 继续 / 停止`，且停止后不可重新开始
 - 真实 LLM 设置页面与持久化配置
 - 严格 MCP Server 注册合同与字段校验
 - MCP Server 元数据、调用日志、工具注册持久化
 - 项目级 MCP 调度、审批暂停、审批恢复、结果沉淀
+- LLM 编排大脑提示词集中管理，项目启动、恢复、本地靶场计划都走统一提示词构建
 - Durable worker lease、orphan running task 恢复
 - Cooperative cancellation，支持停止已经运行中的任务
 - 本地 Docker 靶场验证链路
@@ -67,6 +72,7 @@
 - MCP 能力族目前仍偏少，真实接入还不够丰富
 - 后端持久化仍有一部分在文件存储层，尚未完全演进到更 durable 的长期运行形态
 - LLM 设置目前为了调试仍是明文展示，后续要补掩码与更强校验
+- 当前的 LLM 控制仍以“按次生成计划”为主，还不是长期常驻的状态化控制环
 
 ## 2. 适合谁看
 
@@ -129,6 +135,14 @@ npm run dev
 
 - 平台首页：`http://127.0.0.1:3000`
 - 登录页：`http://127.0.0.1:3000/login`
+
+### 当前使用方式说明
+
+1. 登录平台
+2. 新建项目，只填写项目名称、目标、项目说明
+3. 进入项目后先查看概览和结果子页
+4. 需要手动点击“开始项目”，平台才会把目标交给 LLM 生成首轮计划并驱动 MCP 调度
+5. 运行中可以暂停、继续，停止后项目进入终态，不能重新开始
 
 ### 默认测试账号
 
@@ -281,11 +295,15 @@ $env:LIVE_VALIDATION_STATE_MODE = "isolated"
 - [x] 真实 HTTP / API 结构发现 stdio MCP connector
 - [x] 真实 HTTP 受控验证 stdio MCP connector
 - [x] 调度任务队列、pause / resume / retry / cancel
+- [x] 项目生命周期控制：手动开始、暂停、继续、停止
 - [x] Durable worker lease 与 orphan running task 恢复
 - [x] Cooperative cancellation 打通运行中任务停止链路
 - [x] 本地 Juice Shop 真实闭环验证
 - [x] 本地 WebGoat 真实 finding / 报告导出闭环验证
-- [x] `npm run test` 基线通过
+- [x] `npm run test`
+- [x] `npm run lint`
+- [x] `npm run build`
+- [x] `npm run e2e`
 
 ## 13. TODO List
 
@@ -308,6 +326,7 @@ $env:LIVE_VALIDATION_STATE_MODE = "isolated"
 - [ ] 增强运行中任务的超时、重试、熔断、限流策略
 - [ ] 补更明确的 worker 诊断、lease 争抢、ownership lost 可视化
 - [ ] 增强异常恢复后的审计链，确保“谁接手、何时恢复、为什么恢复”可追溯
+- [ ] 评估是否要把当前“按次请求式 LLM 编排”演进成更强的状态化控制环，并定义真正的模型侧 pause / resume 语义
 
 ### P1：真实数据与闭环质量
 
@@ -362,6 +381,7 @@ $env:LIVE_VALIDATION_STATE_MODE = "isolated"
 - [ ] 增加长时间运行、任务中断、恢复接管场景的回归测试
 - [ ] 增加更多真实 MCP 集成测试
 - [ ] 增加更细粒度的 API 合同测试与 UI E2E 回归
+- [ ] 增加版本化发布说明与 changelog 机制，避免后续里程碑不可追踪
 
 ### P3：后续可选增强
 
@@ -386,3 +406,4 @@ $env:LIVE_VALIDATION_STATE_MODE = "isolated"
 - 当前仓库已经适合继续做下一阶段真实后端与真实 MCP 扩展，但还不适合作为生产系统直接上线
 - 如果你是新的 LLM 接手本项目，先读 `code_index.md`，再读 `roadmap.md`
 - 如果你准备新增一个 MCP，请不要跳过合同和模板，先从文档入手再接实现
+- 当前版本 `v0.2.0` 更适合视为“可演示、可验证、可继续接入真实 MCP 的原型里程碑”，而不是最终生产版本

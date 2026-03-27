@@ -6,7 +6,11 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 
 - dashboard shell and overall visual rhythm come from the provided backend template
 - login uses the provided login template direction
+- project create/edit now uses a simplified three-field model: `name`, `targetInput`, parsed `targets[]`, and `description`
 - project detail has been refocused from "process first" to "results first"
+- project detail now uses a shared workspace shell plus route-level tabs so overview, result tables, evidence, flow, and operations stay separated
+- dashboard now opens with 4 KPI cards, system summary cards, a recent-result timeline, and a typed asset preview instead of a generic control-heavy hero
+- asset center now groups all real assets into typed views (`domains-web`, `hosts-ip`, `ports-services`, `fingerprints`, `pending-review`) instead of one undifferentiated list
 - stage flow and task/scheduling have been demoted into project-level secondary routes
 - settings have been split into a settings hub plus dedicated subpages
 - MCP is now a first-class platform surface with a persisted registry, project-side dispatch records, and approval-linked execution state
@@ -23,6 +27,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - the current cooperative-cancellation slice now propagates `AbortSignal` from running-task stop requests through the scheduler, execution service, deterministic local connectors, real DNS/TLS checkpoints, and the real stdio MCP Web-surface path so long-running work can stop early instead of only being fenced at writeback time
 - the current WebGoat-closure slice standardizes the second lab on host ports `18080/19090`, adds built-in fallback for internal MCP capabilities like target normalization and report export, and now completes both a low-risk and a real-finding WebGoat closure in the workspace store
 - the same slice also adds a real HTTP controlled-validation MCP path, upgrades HTTP/API structure-discovery normalization so candidate endpoints land as assets and evidence, and verifies both the WebGoat finding page and the project-side report export in the browser UI without relying on mock/demo state
+- the latest lifecycle-control slice adds an explicit project lifecycle state machine (`idle | running | paused | stopped`), requires manual start before the LLM begins project orchestration, makes pause/resume drive backend scheduling behavior, and centralizes the platform's LLM-brain prompts in one shared module
 
 ## 2. Routing Map
 
@@ -62,9 +67,9 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `app/api/projects/[projectId]/approval-control/route.ts`
   Project-level approval-control mutation endpoint for saving operations-page approval switch changes.
 - `app/api/projects/[projectId]/scheduler-control/route.ts`
-  Project-level scheduler-control mutation endpoint for pausing/resuming future queue pickup and saving runtime notes.
+  Project-level lifecycle mutation endpoint for `start / pause / resume / stop`. Starting or resuming now triggers LLM kickoff planning, while stopping also requests cancellation of queued/running scheduler work and persists operator notes.
 - `app/api/projects/[projectId]/scheduler-tasks/[taskId]/route.ts`
-  Project-scoped scheduler task action endpoint for cancelling eligible queued tasks and retrying failed tasks.
+  Project-scoped scheduler task action endpoint for cancelling eligible queued/running tasks, recording stop requests for in-flight work, and retrying failed tasks.
 - `app/api/projects/[projectId]/flow/route.ts`
   Project flow endpoint exposing current stage and timeline data.
 - `app/api/projects/[projectId]/operations/route.ts`
@@ -109,11 +114,13 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `app/(console)/layout.tsx`
   Shared authenticated shell for all console routes.
 - `app/(console)/dashboard/page.tsx`
-  Template-aligned dashboard with command-surface composition and current work priorities.
+  Template-aligned dashboard rebuilt around 4 KPI cards, system summary, recent-result timeline, and a typed asset preview driven by real aggregated records.
 - `app/(console)/projects/page.tsx`
   Project management entry with search, filters, action buttons, and CRUD-style prototype operations.
 - `app/(console)/projects/new/page.tsx`
-  Project creation page using the shared project form.
+  Project creation page using the simplified shared project form (`项目名称 / 目标 / 项目说明`) and previewing parsed targets before entering the workspace.
+- `app/(console)/projects/[projectId]/layout.tsx`
+  Shared project workspace shell. Keeps project identity, target chips, compact runtime stats, and the route-tab navigation stable across overview, results, evidence, flow, and operations pages.
 - `app/(console)/projects/[projectId]/page.tsx`
   Project overview page. It now acts as a compact summary + results hub instead of rendering all assets/findings/context directly inline.
 - `app/(console)/projects/[projectId]/flow/page.tsx`
@@ -129,11 +136,11 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `app/(console)/projects/[projectId]/results/findings/page.tsx`
   Full-page findings/vulnerability table.
 - `app/(console)/projects/[projectId]/edit/page.tsx`
-  Project edit route reusing the same shared form as project creation.
+  Project edit route reusing the same simplified shared form as project creation.
 - `app/(console)/approvals/page.tsx`
   Global approvals center for cross-project high-risk action decisions, now backed by persisted queue filtering and decision actions.
 - `app/(console)/assets/page.tsx`
-  Asset center with scope status, recognition profile, and project linkage.
+  Asset center with typed view switching, real-result counts, search/filter controls, and full-width tables for each asset family.
 - `app/(console)/assets/[assetId]/page.tsx`
   Asset detail view focused on current profile, relations, and next actions.
 - `app/(console)/evidence/page.tsx`
@@ -161,6 +168,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 
 - `app/layout.tsx`
   Defines global metadata, theme provider, and stable template-aligned typography using `Inter`.
+- `pages/_document.tsx`
+  Minimal compatibility shim for the current Next.js production build on this app-router-first workspace. It is not the primary layout entry; it exists to avoid intermittent internal `/_document` resolution failures during `next build` in this Windows-based prototype setup.
 - `middleware.ts`
   Protects console routes and non-public APIs with session-cookie checks, redirects unauthenticated users to `/login`, and prevents authenticated users from re-entering the login page.
 - `app/globals.css`
@@ -186,6 +195,11 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `components/shared/status-badge.tsx`
   Shared status/risk/scope badge abstraction.
 
+### Dashboard
+
+- `components/dashboard/dashboard-asset-preview.tsx`
+  Dashboard-side typed asset preview. Picks the first non-empty asset family, shows tab counts, and renders a compact full-width preview table that links into the asset center.
+
 ### Base UI Primitives
 
 - `components/ui/*`
@@ -207,9 +221,13 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `components/projects/project-list-client.tsx`
   Client-side project management list with live search, stage/status filters, action buttons, and a real archive flow that calls the archive API and updates local UI state.
 - `components/projects/project-form.tsx`
-  Shared create/edit project form used by `/projects/new` and `/projects/[projectId]/edit`, now wired to the persisted create/update project APIs.
+  Shared create/edit project form used by `/projects/new` and `/projects/[projectId]/edit`, now reduced to the minimal project model and wired to the persisted create/update project APIs.
 - `components/projects/project-summary.tsx`
   Compact project hero block with result metrics plus small entry cards for stage flow, operations, and evidence/context.
+- `components/projects/project-workspace-intro.tsx`
+  Shared workspace-page intro block used by result and secondary project pages so route tabs keep a consistent title/description/action pattern.
+- `components/projects/project-workspace-nav.tsx`
+  Project workspace tab strip linking overview, typed result tables, evidence/logs, stage flow, and task/scheduling pages.
 - `components/projects/project-results-hub.tsx`
   Three-card results entry surface linking to dedicated domain/Web, network, and findings table pages.
 - `components/projects/project-inventory-table.tsx`
@@ -225,7 +243,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `components/projects/project-operations-panel.tsx`
   Project-level approval switch, note editor, persisted save flow, approval record summary, and operations overview block.
 - `components/projects/project-scheduler-runtime-panel.tsx`
-  Client-side runtime queue panel for project-level scheduler pause/resume, queued-task cancel, running-task stop requests, failed-task retry, operator feedback/refresh, and durable-worker metadata such as `workerId`, lease expiry, heartbeat, and recovery count.
+  Client-side project lifecycle and runtime queue panel. Exposes `开始项目 / 暂停项目 / 继续项目 / 停止项目`, reflects the persisted lifecycle state machine, and also supports queued-task cancel, running-task stop requests, failed-task retry, operator feedback/refresh, and durable-worker metadata such as `workerId`, lease expiry, heartbeat, and recovery count.
 - `components/projects/project-orchestrator-panel.tsx`
   Client-side orchestrator console for local lab selection, plan generation, local validation execution, provider state display, and last-plan review.
 - `components/projects/project-report-export-panel.tsx`
@@ -244,8 +262,10 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 
 ### Assets
 
+- `components/assets/asset-center-client.tsx`
+  Client-side asset center shell that owns typed-view selection, search text, scope filtering, and the current full-width table rendering.
 - `components/assets/asset-table.tsx`
-  Asset inventory table with scope status and entry to detail view.
+  Reusable typed asset table used by the asset center and dashboard preview, with columns adapting to the selected asset family.
 - `components/assets/asset-profile-panel.tsx`
   Core "current recognition profile" panel for a single asset.
 - `components/assets/asset-relations.tsx`
@@ -297,8 +317,10 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Persisted evidence repository for list/detail access and execution-result upserts.
 - `lib/llm-provider/types.ts`
   Shared provider contracts for orchestrator/reviewer plan generation.
+- `lib/llm-brain-prompt.ts`
+  Centralized LLM brain prompt builder. Defines the project-orchestrator system prompt, reviewer prompt, lifecycle-aware project prompts (`start / resume / replan`), and local-lab prompt variants so provider calls and orchestration flows use one shared instruction source.
 - `lib/llm-provider/openai-compatible-provider.ts`
-  OpenAI-compatible provider implementation. Builds status from runtime config, performs `chat/completions` requests, applies per-role timeout/temperature settings, and parses JSON plan responses.
+  OpenAI-compatible provider implementation. Builds status from runtime config, performs `chat/completions` requests, applies per-role timeout/temperature settings, and parses JSON plan responses using the centralized system prompts.
 - `lib/llm-provider/registry.ts`
   Provider resolver/status facade. Now resolves `prototype-store.json` profiles first and only falls back to environment variables when store-backed orchestrator config is absent.
 - `lib/llm-settings-repository.ts`
@@ -335,12 +357,14 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Persisted scheduler-task repository. Stores queue state for ready, waiting-approval, delayed, retry-scheduled, running, completed, failed, and cancelled work, and now also owns durable-worker lease fields (`workerId`, `leaseToken`, `heartbeatAt`, `leaseExpiresAt`, `recoveryCount`, `lastRecoveredAt`) plus claim/heartbeat/recovery helpers.
 - `lib/mcp-scheduler-service.ts`
   Scheduler loop and task transition service. Creates per-run scheduler tasks, drains ready work, applies retry/delay transitions, resumes approval-gated runs through the same executor path, skips queue pickup for paused projects, keeps `running` work alive with a heartbeat loop, registers the active execution controller for operator stop requests, distinguishes ownership handoff from explicit cancellation, and recovers orphaned running tasks before the next drain.
+- `lib/project-scheduler-lifecycle.ts`
+  Shared lifecycle helpers for project runtime control. Owns default lifecycle notes, normalization of old/new scheduler-control records, lifecycle inference from project status, and the canonical meaning of `idle`, `running`, `paused`, and `stopped`.
 - `lib/project-scheduler-control-repository.ts`
-  Project-scoped runtime control repository. Owns persisted scheduler pause/resume state plus queued-task cancel, running-task stop requests, and failed-task retry behavior, while also syncing project activity and audit logs.
+  Project-scoped runtime control repository. Owns persisted project lifecycle transitions, note updates, queued-task cancel, running-task stop requests, failed-task retry behavior, stop-time queue teardown, and the related project activity/audit-log sync.
 - `lib/prototype-types.ts`
   Domain model definitions for:
-  - dashboard metrics, dashboard priorities, and dashboard API payloads
-  - projects and project detail records
+  - dashboard metrics, typed asset views, recent-result timeline records, and dashboard API payloads
+  - simplified project create/edit records (`targetInput`, parsed `targets[]`, `description`) and project detail records
   - result metrics, asset inventory groups, findings, and stage snapshots
   - approval control state and project scheduler control state
   - approvals, assets, evidence, MCP tools, external MCP server registry records, MCP run records, scheduler-task records, runtime queue payloads, and MCP workflow smoke payloads
@@ -359,8 +383,12 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   - Phase 3/4 seed content for bootstrapping the local persistent store
 - `lib/project-results-repository.ts`
   Derived project-results layer. Rebuilds project result metrics, result-table groups, current stage snapshot, activity feed, and findings view from persisted assets, evidence, work logs, approvals, and MCP run state.
+- `lib/project-targets.ts`
+  Shared target parsing helpers that split multiline target input into normalized `targets[]` entries for the simplified project model.
 - `lib/prototype-store.ts`
-  Local file-backed persistence bootstrap. Ensures `.prototype-store/prototype-store.json` exists, now defaults to an empty-first runtime, persists LLM profiles plus MCP contract summaries, migrates older stores onto the expanded shape, and keeps orchestrator plans, scheduler tasks, per-project scheduler controls, projects, approvals, tools, runs, assets, evidence, work logs, and audit logs together.
+  Local file-backed persistence bootstrap. Ensures `.prototype-store/prototype-store.json` exists, now defaults to an empty-first runtime, persists LLM profiles plus MCP contract summaries, migrates older project records onto the simplified project model shape, and keeps orchestrator plans, scheduler tasks, per-project scheduler controls, projects, approvals, tools, runs, assets, evidence, work logs, and audit logs together.
+- `lib/asset-view-selection.ts`
+  Shared typed-asset-view selection helpers used by dashboard and asset-center surfaces to prefer non-empty views and keep tab state predictable.
 - `lib/prototype-record-utils.ts`
   Shared record helpers for timestamp formatting, stable execution-derived IDs, and count-display formatting.
 - `lib/mcp-gateway-repository.ts`
@@ -378,15 +406,15 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `lib/orchestrator-service.ts`
   Phase 6/7 orchestration service. Generates LLM or fallback plans for local labs, normalizes real-provider output back onto the platform's supported capability/risk contract, clamps non-controlled capabilities back to safe low-risk execution defaults, now drops provider-returned high-risk actions when `approvalScenario=none`, persists the latest plan per project, and runs the local validation loop through the same MCP dispatch/scheduler path as normal work.
 - `lib/project-mcp-dispatch-service.ts`
-  Shared helper that dispatches a project MCP run and immediately drains the scheduler when the run is auto-runnable, avoiding duplicated dispatch+drain logic.
+  Shared helper that dispatches a project MCP run and immediately drains the scheduler when the run is auto-runnable, avoiding duplicated dispatch+drain logic. Explicit operator-triggered dispatch can also auto-promote an `idle` project into `running` so manual MCP actions are not blocked by the lifecycle gate.
 - `lib/project-repository.ts`
-  Phase 3 repository layer for persisted projects and audit logs. Owns project creation, update, archive, default-detail generation, preset persistence, audit-log emission, and default scheduler-control initialization for new projects.
+  Phase 3 repository layer for persisted projects and audit logs. Owns project creation, update, archive, default-detail generation, preset persistence, audit-log emission, and default lifecycle initialization so new projects now start in `idle` and wait for manual start.
 - `lib/project-write-schema.ts`
   Zod validation schema for project create/update request payloads.
 - `lib/scheduler-write-schema.ts`
-  Zod validation schemas for project-level scheduler-control writes and scheduler task action payloads.
+  Zod validation schemas for project-level lifecycle control writes and scheduler task action payloads, including the explicit `idle | running | paused | stopped` transition input.
 - `lib/prototype-api.ts`
-  Backend/service contract layer. Serves dashboard/assets/evidence/work-log/settings reads, store-backed LLM settings, strict MCP registration, persisted auth/project/approval operations, project-level scheduler control/task actions, MCP registry payloads, project-level MCP dispatch/read contracts, orchestrator plan/local-validation contracts, scheduler-driven approval resume execution, and the workflow smoke-run contract behind the same seam.
+  Backend/service contract layer. Serves dashboard/assets/evidence/work-log/settings reads, store-backed LLM settings, strict MCP registration, persisted auth/project/approval operations, project-level lifecycle control/task actions, MCP registry payloads, project-level MCP dispatch/read contracts, orchestrator plan/local-validation contracts, scheduler-driven approval resume execution, and the workflow smoke-run contract behind the same seam. The current slice also owns typed asset-center payloads, project workspace payload regrouping, deduplicated dashboard recent-result timeline aggregation, and the side effects that kick off LLM planning on `start / resume` and stop queued/running work on terminal stop.
 - `docs/operations/project-scheduler-runtime-controls.md`
   Operator-facing notes for the runtime scheduler queue, including pause/resume semantics, allowed task actions, durable-worker ownership, cooperative-cancellation boundaries, and the project-scoped API contracts that back the UI.
 - `lib/project-results-repository.ts`
@@ -409,7 +437,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `tests/auth/middleware.test.ts`
   Verifies middleware redirects unauthenticated console requests, allows authenticated ones, and blocks protected APIs with `401`.
 - `tests/pages/dashboard-page.test.tsx`
-  Smoke test for dashboard content.
+  Smoke test for the rebuilt dashboard content and populated real-result state.
 - `tests/pages/projects-page.test.tsx`
   Smoke tests for project list, project creation form, and project edit form.
 - `tests/pages/project-mutations-ui.test.tsx`
@@ -435,8 +463,14 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   API tests for project flow, operations, context, and result-table endpoints, including MCP run presence and local-lab panel data on the operations contract.
 - `tests/api/orchestrator-api.test.ts`
   API tests for Phase 6/7 orchestrator routes, covering fallback plan generation, operations-payload exposure of the last plan, local validation execution, approval pause, approval resume persistence, provider-plan normalization, the real WebGoat actuator finding closure through approval resume, and the guard that removes provider-returned high-risk actions when `approvalScenario=none`.
+- `tests/api/scheduler-controls-api.test.ts`
+  API tests for project lifecycle control and runtime queue mutations, including manual start from `idle`, pause/resume, terminal stop semantics, queued-task cancel, running-task stop requests, and failed-task retry.
 - `tests/api/operational-surfaces-api.test.ts`
   API tests for dashboard, approvals, assets, and evidence endpoints, including detail-route 404 handling.
+- `tests/lib/dashboard-assets-payload.test.ts`
+  Coverage for dashboard KPI/asset regrouping, typed asset-center views, and recent-result deduplication.
+- `tests/lib/project-model.test.ts`
+  Coverage for the simplified project model, including multiline target parsing and migration-safe defaults.
 - `tests/api/settings-api.test.ts`
   API tests for settings section and system-status endpoints.
 - `tests/api/llm-settings-api.test.ts`
