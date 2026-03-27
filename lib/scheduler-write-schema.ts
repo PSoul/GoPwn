@@ -1,0 +1,13 @@
+import { z } from "zod"
+
+export const projectSchedulerControlPatchSchema = z
+  .object({
+    paused: z.boolean().optional(),
+    note: z.string().trim().min(1).optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, "至少提供一个可更新字段")
+
+export const projectSchedulerTaskActionSchema = z.object({
+  action: z.enum(["cancel", "retry"]),
+  note: z.string().trim().min(1).optional(),
+})

@@ -17,6 +17,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - the current Phase 7 slice adds a repeatable `npm run live:validate` runner so real LLM + local Docker lab + real MCP flows can be exercised and archived outside the UI
 - the current hardening slice removes runtime demo seeds, makes the platform empty-first by default, upgrades `/settings/llm` to real persisted model settings, and requires validated MCP contract registration before any new server or tool appears in the platform
 - the latest hardening pass also auto-creates live-validation projects when needed, supports persisting successful closure data back into the normal workspace store, and has already validated one real Juice Shop closure (`proj-20260327-f6a3fd0c`) that is visible through standard project/evidence/finding routes when workspace-mode persistence is used
+- the latest stabilization slice adds real scheduler runtime controls so project operators can pause future queue pickup, cancel queued tasks, and retry failed tasks directly from the project operations page
 
 ## 2. Routing Map
 
@@ -55,10 +56,14 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Project archive endpoint that marks a project complete in persistent storage and emits a project audit-log entry.
 - `app/api/projects/[projectId]/approval-control/route.ts`
   Project-level approval-control mutation endpoint for saving operations-page approval switch changes.
+- `app/api/projects/[projectId]/scheduler-control/route.ts`
+  Project-level scheduler-control mutation endpoint for pausing/resuming future queue pickup and saving runtime notes.
+- `app/api/projects/[projectId]/scheduler-tasks/[taskId]/route.ts`
+  Project-scoped scheduler task action endpoint for cancelling eligible queued tasks and retrying failed tasks.
 - `app/api/projects/[projectId]/flow/route.ts`
   Project flow endpoint exposing current stage and timeline data.
 - `app/api/projects/[projectId]/operations/route.ts`
-  Project operations endpoint exposing task-stage context, project approvals, recent MCP run records, and orchestrator/local-lab panel data.
+  Project operations endpoint exposing task-stage context, project approvals, recent MCP run records, persisted scheduler control/task queue state, and orchestrator/local-lab panel data.
 - `app/api/projects/[projectId]/orchestrator/plan/route.ts`
   Orchestrator-plan endpoint. `GET` returns current provider/local-lab/last-plan state, and `POST` generates a new plan for a selected local lab.
 - `app/api/projects/[projectId]/orchestrator/local-validation/route.ts`
@@ -107,7 +112,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `app/(console)/projects/[projectId]/flow/page.tsx`
   Secondary project page dedicated to stage flow details, blockers, reflow, and next-step reasoning.
 - `app/(console)/projects/[projectId]/operations/page.tsx`
-  Secondary project page for approvals, persisted approval mode switch, orchestrator controls, task board, and scheduler controls.
+  Secondary project page for approvals, persisted approval mode switch, dedicated scheduler runtime controls, orchestrator controls, and the high-level task board.
 - `app/(console)/projects/[projectId]/context/page.tsx`
   Secondary project page for evidence, approvals, supplemental intelligence, asset-center context, and activity timeline.
 - `app/(console)/projects/[projectId]/results/domains/page.tsx`
@@ -209,9 +214,11 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `components/projects/project-stage-flow.tsx`
   Full stage progression visualization used on the dedicated flow page.
 - `components/projects/project-task-board.tsx`
-  Task and scheduler board used on the dedicated operations page.
+  High-level task-context board used on the dedicated operations page. It stays focused on process visibility and no longer carries runtime queue actions.
 - `components/projects/project-operations-panel.tsx`
   Project-level approval switch, note editor, persisted save flow, approval record summary, and operations overview block.
+- `components/projects/project-scheduler-runtime-panel.tsx`
+  Client-side runtime queue panel for project-level scheduler pause/resume, queued-task cancel, failed-task retry, and operator feedback/refresh on the real operations page.
 - `components/projects/project-orchestrator-panel.tsx`
   Client-side orchestrator console for local lab selection, plan generation, local validation execution, provider state display, and last-plan review.
 - `components/projects/project-mcp-runs-panel.tsx`
@@ -306,16 +313,18 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `lib/mcp-execution-service.ts`
   Execution normalization layer behind the connector registry. Resolves the selected connector, executes it, converts connector-level structured output into platform assets/evidence/work logs/findings, updates run summaries, and refreshes project result state.
 - `lib/mcp-scheduler-repository.ts`
-  Persisted scheduler-task repository. Stores queue state for ready, waiting-approval, delayed, retry-scheduled, running, completed, failed, and cancelled work.
+  Persisted scheduler-task repository. Stores queue state for ready, waiting-approval, delayed, retry-scheduled, running, completed, failed, and cancelled work, and now maps cancelled MCP runs back into queue state consistently.
 - `lib/mcp-scheduler-service.ts`
-  Scheduler loop and task transition service. Creates per-run scheduler tasks, drains ready work, applies retry/delay transitions, and resumes approval-gated runs through the same executor path.
+  Scheduler loop and task transition service. Creates per-run scheduler tasks, drains ready work, applies retry/delay transitions, resumes approval-gated runs through the same executor path, and now skips queue pickup for projects whose scheduler is paused.
+- `lib/project-scheduler-control-repository.ts`
+  Project-scoped runtime control repository. Owns persisted scheduler pause/resume state plus queued-task cancel and failed-task retry behavior, while also syncing project activity and audit logs.
 - `lib/prototype-types.ts`
   Domain model definitions for:
   - dashboard metrics, dashboard priorities, and dashboard API payloads
   - projects and project detail records
   - result metrics, asset inventory groups, findings, and stage snapshots
-  - approval control state
-  - approvals, assets, evidence, MCP tools, external MCP server registry records, MCP run records, scheduler-task records, and MCP workflow smoke payloads
+  - approval control state and project scheduler control state
+  - approvals, assets, evidence, MCP tools, external MCP server registry records, MCP run records, scheduler-task records, runtime queue payloads, and MCP workflow smoke payloads
   - settings hub sections, LLM settings, work logs, audit logs, and system status cards
   - API payload types for dashboard, approvals, assets, evidence, project collections, project surface contracts, MCP dispatch contracts, and settings summaries
 - `lib/prototype-data.ts`
@@ -332,7 +341,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `lib/project-results-repository.ts`
   Derived project-results layer. Rebuilds project result metrics, result-table groups, current stage snapshot, activity feed, and findings view from persisted assets, evidence, work logs, approvals, and MCP run state.
 - `lib/prototype-store.ts`
-  Local file-backed persistence bootstrap. Ensures `.prototype-store/prototype-store.json` exists, now defaults to an empty-first runtime, persists LLM profiles plus MCP contract summaries, migrates older stores onto the expanded shape, and keeps orchestrator plans, scheduler tasks, projects, approvals, tools, runs, assets, evidence, work logs, and audit logs together.
+  Local file-backed persistence bootstrap. Ensures `.prototype-store/prototype-store.json` exists, now defaults to an empty-first runtime, persists LLM profiles plus MCP contract summaries, migrates older stores onto the expanded shape, and keeps orchestrator plans, scheduler tasks, per-project scheduler controls, projects, approvals, tools, runs, assets, evidence, work logs, and audit logs together.
 - `lib/prototype-record-utils.ts`
   Shared record helpers for timestamp formatting, stable execution-derived IDs, and count-display formatting.
 - `lib/mcp-gateway-repository.ts`
@@ -352,11 +361,15 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `lib/project-mcp-dispatch-service.ts`
   Shared helper that dispatches a project MCP run and immediately drains the scheduler when the run is auto-runnable, avoiding duplicated dispatch+drain logic.
 - `lib/project-repository.ts`
-  Phase 3 repository layer for persisted projects and audit logs. Owns project creation, update, archive, default-detail generation, preset persistence, and audit-log emission.
+  Phase 3 repository layer for persisted projects and audit logs. Owns project creation, update, archive, default-detail generation, preset persistence, audit-log emission, and default scheduler-control initialization for new projects.
 - `lib/project-write-schema.ts`
   Zod validation schema for project create/update request payloads.
+- `lib/scheduler-write-schema.ts`
+  Zod validation schemas for project-level scheduler-control writes and scheduler task action payloads.
 - `lib/prototype-api.ts`
-  Backend/service contract layer. Serves dashboard/assets/evidence/work-log/settings reads, store-backed LLM settings, strict MCP registration, persisted auth/project/approval operations, MCP registry payloads, project-level MCP dispatch/read contracts, orchestrator plan/local-validation contracts, scheduler-driven approval resume execution, and the workflow smoke-run contract behind the same seam.
+  Backend/service contract layer. Serves dashboard/assets/evidence/work-log/settings reads, store-backed LLM settings, strict MCP registration, persisted auth/project/approval operations, project-level scheduler control/task actions, MCP registry payloads, project-level MCP dispatch/read contracts, orchestrator plan/local-validation contracts, scheduler-driven approval resume execution, and the workflow smoke-run contract behind the same seam.
+- `docs/operations/project-scheduler-runtime-controls.md`
+  Operator-facing notes for the runtime scheduler queue, including pause/resume semantics, allowed task actions, and the project-scoped API contracts that back the UI.
 - `lib/utils.ts`
   Shared utility helpers used by UI primitives/components.
 - `lib/work-log-repository.ts`

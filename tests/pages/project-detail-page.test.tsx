@@ -1,5 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import ProjectContextPage from "@/app/(console)/projects/[projectId]/context/page"
 import ProjectFlowPage from "@/app/(console)/projects/[projectId]/flow/page"
@@ -9,6 +9,17 @@ import ProjectFindingsResultsPage from "@/app/(console)/projects/[projectId]/res
 import ProjectDomainsResultsPage from "@/app/(console)/projects/[projectId]/results/domains/page"
 import ProjectNetworkResultsPage from "@/app/(console)/projects/[projectId]/results/network/page"
 import { createApprovedWorkflowFixture } from "@/tests/helpers/project-fixtures"
+
+vi.mock("next/navigation", async () => {
+  const actual = await vi.importActual<typeof import("next/navigation")>("next/navigation")
+
+  return {
+    ...actual,
+    useRouter: () => ({
+      refresh: vi.fn(),
+    }),
+  }
+})
 
 describe("ProjectDetailPage", () => {
   it("shows the project overview with links to dedicated result tables", async () => {
@@ -56,6 +67,7 @@ describe("ProjectDetailPage", () => {
 
     expect(screen.getByText("任务与调度详情")).toBeInTheDocument()
     expect(screen.getByText("审批模式开关")).toBeInTheDocument()
+    expect(screen.getByText("调度运行控制")).toBeInTheDocument()
     cleanup()
 
     render(await ProjectContextPage({ params: Promise.resolve({ projectId: fixture.project.id }) }))

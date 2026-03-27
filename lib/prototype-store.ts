@@ -21,6 +21,7 @@ import type {
   ProjectFindingRecord,
   ProjectFormPreset,
   ProjectRecord,
+  ProjectSchedulerControl,
 } from "@/lib/prototype-types"
 
 export type PrototypeStore = {
@@ -41,6 +42,7 @@ export type PrototypeStore = {
   projectDetails: ProjectDetailRecord[]
   projectFindings: ProjectFindingRecord[]
   projectFormPresets: Record<string, ProjectFormPreset>
+  projectSchedulerControls: Record<string, ProjectSchedulerControl>
   projects: ProjectRecord[]
   scopeRules: PolicyRecord[]
   workLogs: LogRecord[]
@@ -118,6 +120,7 @@ function buildInitialStore(): PrototypeStore {
     projectDetails: [],
     projectFindings: [],
     projectFormPresets: {},
+    projectSchedulerControls: {},
     projects: [],
     scopeRules: [],
     workLogs: [],
@@ -145,6 +148,7 @@ function normalizeStore(store: Partial<PrototypeStore>): PrototypeStore {
     projectDetails: Array.isArray(store.projectDetails) ? store.projectDetails : initial.projectDetails,
     projectFindings: Array.isArray(store.projectFindings) ? store.projectFindings : initial.projectFindings,
     projectFormPresets: store.projectFormPresets ?? initial.projectFormPresets,
+    projectSchedulerControls: store.projectSchedulerControls ?? initial.projectSchedulerControls,
     projects: Array.isArray(store.projects) ? store.projects : initial.projects,
     scopeRules: Array.isArray(store.scopeRules) ? store.scopeRules : initial.scopeRules,
     workLogs: Array.isArray(store.workLogs) ? store.workLogs : initial.workLogs,
@@ -262,6 +266,9 @@ function migrateProjectIds(store: PrototypeStore): PrototypeStore {
   const projectFormPresets = Object.fromEntries(
     Object.entries(store.projectFormPresets).map(([projectId, preset]) => [mapId(projectId), preset]),
   )
+  const projectSchedulerControls = Object.fromEntries(
+    Object.entries(store.projectSchedulerControls).map(([projectId, control]) => [mapId(projectId), control]),
+  )
 
   const approvals = store.approvals.map((approval) =>
     idMap.has(approval.projectId)
@@ -344,6 +351,7 @@ function migrateProjectIds(store: PrototypeStore): PrototypeStore {
     projects,
     projectDetails,
     projectFormPresets,
+    projectSchedulerControls,
     approvals,
     assets,
     evidenceRecords,
@@ -388,6 +396,9 @@ function purgeSeededBusinessRecords(store: PrototypeStore): PrototypeStore {
     projectFormPresets: Object.fromEntries(
       Object.entries(store.projectFormPresets).filter(([projectId]) => !seededIds.has(projectId)),
     ),
+    projectSchedulerControls: Object.fromEntries(
+      Object.entries(store.projectSchedulerControls).filter(([projectId]) => !seededIds.has(projectId)),
+    ),
     orchestratorPlans: Object.fromEntries(
       Object.entries(store.orchestratorPlans).filter(([projectId]) => !seededIds.has(projectId)),
     ),
@@ -409,11 +420,38 @@ function ensureStoreFile() {
   }
 }
 
+function ensureProjectSchedulerControls(store: PrototypeStore) {
+  const nextControls = { ...store.projectSchedulerControls }
+  let changed = false
+
+  for (const project of store.projects) {
+    if (nextControls[project.id]) {
+      continue
+    }
+
+    nextControls[project.id] = {
+      paused: false,
+      note: "默认允许调度器处理 ready / retry / delayed 任务。",
+      updatedAt: project.lastUpdated,
+    }
+    changed = true
+  }
+
+  if (!changed) {
+    return store
+  }
+
+  return {
+    ...store,
+    projectSchedulerControls: nextControls,
+  }
+}
+
 export function readPrototypeStore(): PrototypeStore {
   ensureStoreFile()
   const rawStore = JSON.parse(readFileSync(getStorePath(), "utf8")) as Partial<PrototypeStore>
   const normalized = normalizeStore(rawStore)
-  const store = purgeSeededBusinessRecords(migrateProjectIds(normalized))
+  const store = ensureProjectSchedulerControls(purgeSeededBusinessRecords(migrateProjectIds(normalized)))
 
   if (JSON.stringify(rawStore) !== JSON.stringify(store)) {
     writePrototypeStore(store)

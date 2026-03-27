@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-27`
-- Current focus: the real-data hardening slice is landing on `codex/real-data-platform-hardening-2026-03-27`, removing runtime demo seeds, promoting LLM settings into real persisted configuration, enforcing validated MCP registration, and preserving real local-lab closure data in normal project routes when workspace-mode persistence is enabled.
+- Current focus: the platform stabilization slice is landing on `codex/platform-stabilization-2026-03-27`, making project-level scheduler pause/resume plus task-level cancel/retry affect the real persisted queue and operations-page runtime controls.
 - Working mode: each major feature area uses its own isolated git branch/worktree so the existing branch is not disturbed.
 
 ## Phase 1: Frontend Prototype Closure
@@ -190,25 +190,57 @@
 - Run artifact: `output/live-validation/2026-03-27T05-09-27-704Z-juice-shop/report.md`
 - Notes: this run used the real SiliconFlow-backed orchestrator, the real `web-surface-stdio` MCP path, approval resume, and workspace-mode persistence so the result stayed visible in normal UI routes.
 
-## Recommended Next Phase
+## Phase 8: Platform Stabilization and Durable Execution Controls
 
-- Name: `Phase 8 - Additional MCP Families and Durable Execution Controls`
-- Suggested branch/worktree: create a fresh isolated branch after this slice is merged or parked
-- Goal: build on the now-proven real project closure path by adding more real MCP families, stronger durable execution controls, and a second local-lab target.
+- Status: In progress on `codex/platform-stabilization-2026-03-27`
+- Goal: prioritize operator-visible runtime control before expanding more MCP capability families, so the scheduler queue can be safely paused, resumed, cancelled, and retried from the real project operations surface.
+
+### Task Checklist
+
+- completed: persist per-project scheduler-control state in the prototype store and initialize it for newly created projects
+- completed: expose `schedulerControl` and `schedulerTasks` on the project operations payload
+- completed: add repository helpers for project-level pause/resume, queued-task cancel, and failed-task retry
+- completed: make the scheduler drain loop respect project pause state and keep cancelled work out of future drains
+- completed: add project-scoped scheduler control and scheduler task action APIs with request validation
+- completed: add a dedicated runtime queue panel on the operations page with pause/resume, cancel, retry, and explicit disabled states
+- completed: cover repository, API, payload, component, and page integration paths with targeted tests
+- pending: introduce cooperative cancellation for already-running tasks instead of only preventing future queue pickup
+- pending: move the current file-backed queue toward a more durable long-lived worker/executor model suitable for longer sessions
 
 ### Priority Tasks
 
-- add another real MCP family such as API structure discovery or evidence capture
-- wire project/task execution state to more durable queues, cancellation controls, and clearer operator recovery paths
+- finish durable execution semantics for running work, including cooperative stop/cancel points
 - stabilize WebGoat host-side reachability so the second lab can be validated through the same runner
 - expand local-lab-backed regression coverage for real Docker targets in controlled environments
+- add another real MCP family such as API structure discovery or evidence capture
 - add masked-secret mode for LLM settings while keeping a debug toggle for local development
 
 ### Acceptance Criteria
 
-- at least one new real MCP family is visible in the registry and usable from dispatch flows
-- durable queue / cancellation behavior is operator-visible and survives restarts more cleanly than the current file-backed baseline
+- met: project-level scheduler pause/resume is operator-visible and blocks future queue pickup
+- met: queued tasks can be cancelled and failed tasks can be retried from the project operations page
+- met: the operations API contract now carries real runtime scheduler state instead of only high-level task cards
+- pending: running-task interruption survives connector boundaries and longer-lived execution windows
+- pending: WebGoat or another second local target can be validated through the same end-to-end runner
+
+## Recommended Next Phase
+
+- Name: `Phase 9 - Durable Workers and Second-Lab Validation`
+- Suggested branch/worktree: create a fresh isolated branch after this slice is merged or parked
+- Goal: build on the now-proven real project closure path by making running work more durable, validating a second local lab, and only then expanding additional MCP families.
+
+### Priority Tasks
+
+- introduce cooperative cancellation checkpoints and a more durable worker/executor loop
+- stabilize WebGoat host-side reachability and validate it through the same orchestrator + MCP + approval path
+- expand regression coverage for long-running queue recovery and second-lab execution
+- add another real MCP family such as API structure discovery or evidence capture once runtime control is stable
+
+### Acceptance Criteria
+
+- running-task interruption and recovery are operator-visible and survive restarts more cleanly than the current file-backed baseline
 - WebGoat or another second local target can be validated through the same end-to-end runner
+- at least one additional MCP family is visible in the registry and usable from dispatch flows without destabilizing the queue
 
 ## Notes for Future LLM Sessions
 

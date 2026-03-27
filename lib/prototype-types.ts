@@ -146,6 +146,12 @@ export interface ApprovalControl {
   note: string
 }
 
+export interface ProjectSchedulerControl {
+  paused: boolean
+  note: string
+  updatedAt: string
+}
+
 export interface ProjectDetailRecord {
   projectId: string
   target: string
@@ -366,7 +372,7 @@ export interface McpRunRecord {
   riskLevel: "高" | "中" | "低"
   boundary: "外部目标交互" | "平台内部处理"
   dispatchMode: "自动执行" | "审批后执行" | "阻塞"
-  status: "待审批" | "执行中" | "已执行" | "已阻塞" | "已拒绝" | "已延后"
+  status: "待审批" | "执行中" | "已执行" | "已阻塞" | "已拒绝" | "已延后" | "已取消"
   requestedBy: string
   createdAt: string
   updatedAt: string
@@ -538,6 +544,8 @@ export interface ProjectOperationsPayload {
   detail: ProjectDetailRecord
   approvals: ApprovalRecord[]
   mcpRuns: McpRunRecord[]
+  schedulerControl: ProjectSchedulerControl
+  schedulerTasks: McpSchedulerTaskRecord[]
   orchestrator: ProjectOrchestratorPanelPayload
 }
 

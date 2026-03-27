@@ -44,6 +44,7 @@ import {
   drainStoredSchedulerTasks,
   syncStoredSchedulerTaskAfterApprovalDecision,
 } from "@/lib/mcp-scheduler-service"
+import { listStoredSchedulerTasks } from "@/lib/mcp-scheduler-repository"
 import { runProjectSmokeWorkflow } from "@/lib/mcp-workflow-service"
 import {
   getStoredMcpToolById,
@@ -51,6 +52,12 @@ import {
   runStoredMcpHealthCheck,
   updateStoredMcpTool,
 } from "@/lib/mcp-repository"
+import {
+  cancelStoredSchedulerTask,
+  getStoredProjectSchedulerControl,
+  retryStoredSchedulerTask,
+  updateStoredProjectSchedulerControl,
+} from "@/lib/project-scheduler-control-repository"
 import {
   listStoredProjectFindings,
 } from "@/lib/project-results-repository"
@@ -353,6 +360,12 @@ export async function getProjectOperationsPayload(projectId: string): Promise<Pr
     ...base,
     approvals: listStoredProjectApprovals(projectId),
     mcpRuns: listStoredMcpRuns(projectId),
+    schedulerControl: getStoredProjectSchedulerControl(projectId) ?? {
+      paused: false,
+      note: "默认允许调度器处理 ready / retry / delayed 任务。",
+      updatedAt: base.project.lastUpdated,
+    },
+    schedulerTasks: listStoredSchedulerTasks(projectId),
     orchestrator: await getProjectOrchestratorPanelPayload(projectId),
   }
 }
@@ -615,6 +628,24 @@ export function updateGlobalApprovalControlPayload(patch: ApprovalControlPatch) 
 
 export function updateProjectApprovalControlPayload(projectId: string, patch: ApprovalControlPatch) {
   return updateStoredProjectApprovalControl(projectId, patch)
+}
+
+export function updateProjectSchedulerControlPayload(
+  projectId: string,
+  patch: Parameters<typeof updateStoredProjectSchedulerControl>[1],
+) {
+  return updateStoredProjectSchedulerControl(projectId, patch)
+}
+
+export function runProjectSchedulerTaskActionPayload(
+  projectId: string,
+  taskId: string,
+  action: "cancel" | "retry",
+  note?: string,
+) {
+  return action === "cancel"
+    ? cancelStoredSchedulerTask(projectId, taskId, note)
+    : retryStoredSchedulerTask(projectId, taskId, note)
 }
 
 export function getMcpSettingsPayload(): McpSettingsPayload {

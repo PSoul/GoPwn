@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { ProjectMcpRunsPanel } from "@/components/projects/project-mcp-runs-panel"
 import { ProjectOrchestratorPanel } from "@/components/projects/project-orchestrator-panel"
 import { ProjectOperationsPanel } from "@/components/projects/project-operations-panel"
+import { ProjectSchedulerRuntimePanel } from "@/components/projects/project-scheduler-runtime-panel"
 import { ProjectTaskBoard } from "@/components/projects/project-task-board"
 import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
@@ -23,7 +24,7 @@ export default async function ProjectOperationsPage({
   if (!payload) {
     notFound()
   }
-  const { approvals, detail, mcpRuns, orchestrator, project } = payload
+  const { approvals, detail, mcpRuns, orchestrator, project, schedulerControl, schedulerTasks } = payload
 
   return (
     <div className="space-y-5">
@@ -43,6 +44,12 @@ export default async function ProjectOperationsPage({
       />
 
       <ProjectOperationsPanel project={project} detail={detail} approvals={approvals} />
+
+      <ProjectSchedulerRuntimePanel
+        projectId={project.id}
+        initialControl={schedulerControl}
+        initialTasks={schedulerTasks}
+      />
 
       <ProjectOrchestratorPanel projectId={project.id} initialPayload={orchestrator} />
 

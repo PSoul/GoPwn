@@ -87,7 +87,7 @@ export function createStoredSchedulerTaskFromRun(
         ? "delayed"
         : run.status === "已执行"
           ? "completed"
-          : run.status === "已拒绝"
+          : run.status === "已拒绝" || run.status === "已取消"
             ? "cancelled"
             : run.status === "已阻塞"
               ? "failed"

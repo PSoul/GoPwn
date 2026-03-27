@@ -1,0 +1,106 @@
+import { mkdtempSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
+import path from "node:path"
+
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
+
+import { dispatchStoredMcpRun, getStoredMcpRunById, updateStoredMcpRun } from "@/lib/mcp-gateway-repository"
+import { getStoredSchedulerTaskByRunId, updateStoredSchedulerTask } from "@/lib/mcp-scheduler-repository"
+import { drainStoredSchedulerTasks } from "@/lib/mcp-scheduler-service"
+import {
+  cancelStoredSchedulerTask,
+  getStoredProjectSchedulerControl,
+  retryStoredSchedulerTask,
+  updateStoredProjectSchedulerControl,
+} from "@/lib/project-scheduler-control-repository"
+import { createStoredProjectFixture, seedWorkflowReadyMcpTools } from "@/tests/helpers/project-fixtures"
+
+describe("scheduler operator controls", () => {
+  let tempDir: string
+
+  beforeEach(() => {
+    tempDir = mkdtempSync(path.join(tmpdir(), "llm-pentest-scheduler-operator-store-"))
+    process.env.PROTOTYPE_DATA_DIR = tempDir
+  })
+
+  afterEach(() => {
+    delete process.env.PROTOTYPE_DATA_DIR
+    rmSync(tempDir, { force: true, recursive: true })
+  })
+
+  it("pauses a project scheduler and keeps ready work from draining", async () => {
+    seedWorkflowReadyMcpTools()
+    const fixture = createStoredProjectFixture()
+    const payload = dispatchStoredMcpRun(fixture.project.id, {
+      capability: "DNS / 子域 / 证书情报类",
+      requestedAction: "补采证书与子域情报",
+      target: fixture.project.seed,
+      riskLevel: "低",
+    })
+
+    expect(payload).not.toBeNull()
+    expect(getStoredProjectSchedulerControl(fixture.project.id)?.paused).toBe(false)
+
+    const updated = updateStoredProjectSchedulerControl(fixture.project.id, {
+      paused: true,
+      note: "研究员临时暂停本项目调度，等待人工确认运行窗口。",
+    })
+
+    expect(updated?.schedulerControl.paused).toBe(true)
+
+    const drained = await drainStoredSchedulerTasks({ projectId: fixture.project.id })
+    const queuedTask = getStoredSchedulerTaskByRunId(payload!.run.id)
+    const queuedRun = getStoredMcpRunById(payload!.run.id)
+
+    expect(drained.status).toBe("completed")
+    expect(queuedTask?.status).toBe("ready")
+    expect(queuedRun?.status).toBe("执行中")
+  })
+
+  it("cancels a queued scheduler task and marks the linked run as cancelled", () => {
+    seedWorkflowReadyMcpTools()
+    const fixture = createStoredProjectFixture()
+    const payload = dispatchStoredMcpRun(fixture.project.id, {
+      capability: "DNS / 子域 / 证书情报类",
+      requestedAction: "补采证书与子域情报",
+      target: fixture.project.seed,
+      riskLevel: "低",
+    })
+
+    const queuedTask = getStoredSchedulerTaskByRunId(payload!.run.id)
+    const result = cancelStoredSchedulerTask(fixture.project.id, queuedTask!.id, "研究员手动取消当前排队任务。")
+
+    expect(result?.task.status).toBe("cancelled")
+    expect(result?.run.status).toBe("已取消")
+    expect(result?.task.summaryLines.at(-1)).toContain("手动取消")
+  })
+
+  it("requeues a failed scheduler task for another attempt", () => {
+    seedWorkflowReadyMcpTools()
+    const fixture = createStoredProjectFixture()
+    const payload = dispatchStoredMcpRun(fixture.project.id, {
+      capability: "DNS / 子域 / 证书情报类",
+      requestedAction: "补采证书与子域情报",
+      target: fixture.project.seed,
+      riskLevel: "低",
+    })
+
+    const task = getStoredSchedulerTaskByRunId(payload!.run.id)
+    updateStoredSchedulerTask(task!.id, {
+      lastError: "temporary dns timeout",
+      status: "failed",
+      summaryLines: [...task!.summaryLines, "最近一次执行失败。"],
+    })
+    updateStoredMcpRun(payload!.run.id, {
+      status: "已阻塞",
+      summaryLines: [...payload!.run.summaryLines, "最近一次执行失败。"],
+    })
+
+    const retried = retryStoredSchedulerTask(fixture.project.id, task!.id, "研究员确认后重新排队。")
+
+    expect(retried?.task.status).toBe("ready")
+    expect(retried?.task.lastError).toBeUndefined()
+    expect(retried?.run.status).toBe("执行中")
+    expect(retried?.task.summaryLines.at(-1)).toContain("重新排队")
+  })
+})

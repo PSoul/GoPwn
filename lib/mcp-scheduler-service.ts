@@ -3,6 +3,7 @@ import { resolveMcpConnector } from "@/lib/mcp-connectors/registry"
 import { executeStoredMcpRun } from "@/lib/mcp-execution-service"
 import { getStoredMcpRunById, updateStoredMcpRun } from "@/lib/mcp-gateway-repository"
 import { getStoredMcpToolById } from "@/lib/mcp-repository"
+import { isStoredProjectSchedulerPaused } from "@/lib/project-scheduler-control-repository"
 import {
   createStoredSchedulerTask,
   getStoredSchedulerTaskById,
@@ -81,7 +82,9 @@ export function ensureStoredSchedulerTaskForRun(run: McpRunRecord) {
       ? "waiting_approval"
       : run.status === "已延后"
         ? "delayed"
-        : run.status === "已阻塞" || run.status === "已拒绝"
+        : run.status === "已取消" || run.status === "已拒绝"
+          ? "cancelled"
+          : run.status === "已阻塞"
           ? "failed"
           : run.status === "已执行"
             ? "completed"
@@ -222,7 +225,7 @@ export async function drainStoredSchedulerTasks(input: {
     now: formatTimestamp(),
     projectId: input.projectId,
     runId: input.runId,
-  })
+  }).filter((task) => !isStoredProjectSchedulerPaused(task.projectId))
 
   for (const task of readyTasks) {
     const result = await processStoredSchedulerTask(task.id, outputs)

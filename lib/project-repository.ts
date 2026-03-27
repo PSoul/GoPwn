@@ -318,6 +318,11 @@ export function createStoredProject(input: ProjectMutationInput) {
   store.projects.unshift(project)
   store.projectDetails.unshift(detail)
   store.projectFormPresets[project.id] = preset
+  store.projectSchedulerControls[project.id] = {
+    paused: false,
+    note: "默认允许调度器处理 ready / retry / delayed 任务。",
+    updatedAt: project.lastUpdated,
+  }
   store.auditLogs.unshift(createAuditLog(`创建项目 ${project.name}` , project, "已完成"))
   writePrototypeStore(store)
 
