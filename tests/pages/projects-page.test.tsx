@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
 vi.mock("next/navigation", () => ({
+  notFound: vi.fn(),
   useRouter: () => ({
     push: vi.fn(),
     refresh: vi.fn(),
@@ -11,12 +12,14 @@ vi.mock("next/navigation", () => ({
 import EditProjectPage from "@/app/(console)/projects/[projectId]/edit/page"
 import ProjectsPage from "@/app/(console)/projects/page"
 import NewProjectPage from "@/app/(console)/projects/new/page"
+import { createStoredProjectFixture } from "@/tests/helpers/project-fixtures"
 
 describe("Project pages", () => {
   it("shows the primary project list dataset", () => {
+    const fixture = createStoredProjectFixture()
     render(<ProjectsPage />)
 
-    expect(screen.getByText("华曜科技匿名外网面梳理")).toBeInTheDocument()
+    expect(screen.getByText(fixture.project.name)).toBeInTheDocument()
     expect(screen.getAllByText("新建项目").length).toBeGreaterThan(0)
     expect(screen.getByText("管理动作")).toBeInTheDocument()
   })
@@ -30,9 +33,11 @@ describe("Project pages", () => {
   })
 
   it("renders the project edit form with save action", async () => {
-    render(await EditProjectPage({ params: Promise.resolve({ projectId: "proj-huayao" }) }))
+    const fixture = createStoredProjectFixture()
 
-    expect(screen.getByText("编辑项目 · 华曜科技匿名外网面梳理")).toBeInTheDocument()
+    render(await EditProjectPage({ params: Promise.resolve({ projectId: fixture.project.id }) }))
+
+    expect(screen.getByText(`编辑项目 · ${fixture.project.name}`)).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "保存修改" })).toBeInTheDocument()
   })
 })

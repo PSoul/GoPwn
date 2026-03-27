@@ -9,6 +9,8 @@ import { GET as getProjectDetail, PATCH as patchProject } from "@/app/api/projec
 import { GET as getProjects, POST as postProjects } from "@/app/api/projects/route"
 import { GET as getAuditLogs } from "@/app/api/settings/audit-logs/route"
 
+const PROJECT_ID_PATTERN = /^proj-\d{8}-[a-f0-9]{8}$/
+
 const buildProjectContext = (projectId: string) => ({
   params: Promise.resolve({ projectId }),
 })
@@ -55,6 +57,7 @@ describe("project mutation api routes", () => {
     const createPayload = await createResponse.json()
 
     expect(createResponse.status).toBe(201)
+    expect(createPayload.project.id).toMatch(PROJECT_ID_PATTERN)
     expect(createPayload.project.name).toBe(baseProjectInput.name)
     expect(createPayload.project.status).toBe("待处理")
 

@@ -33,6 +33,16 @@ let adapters: RealDnsConnectorAdapters = {
   probeCertificate,
 }
 
+function isRealDnsConnectorEnabledForCurrentRuntime() {
+  const runningUnderVitest = process.env.VITEST === "true" || process.env.NODE_ENV === "test"
+
+  if (!runningUnderVitest) {
+    return true
+  }
+
+  return process.env.ENABLE_REAL_DNS_CONNECTOR_IN_TESTS === "1"
+}
+
 function isIpAddress(value: string) {
   return /^(\d{1,3}\.){3}\d{1,3}$/.test(value) || value.includes(":")
 }
@@ -237,6 +247,10 @@ export const realDnsIntelligenceConnector: McpConnector = {
   key: "real-dns-intelligence",
   mode: "real",
   supports: ({ project, run }) => {
+    if (!isRealDnsConnectorEnabledForCurrentRuntime()) {
+      return false
+    }
+
     const rawTarget = run.target || project.seed
     const host = getHostFromTarget(rawTarget)
 

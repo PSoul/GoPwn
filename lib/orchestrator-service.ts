@@ -141,12 +141,14 @@ function buildNormalizedPlanItem(rawItem: Partial<OrchestratorPlanItem>, fallbac
   const requestedAction = rawItem.requestedAction?.trim() || fallback.requestedAction
   const rationale = rawItem.rationale?.trim() || fallback.rationale
   const target = normalizeTarget(rawItem.target, fallback.target)
+  const riskLevel =
+    capability === "受控验证类" ? normalizeRiskLevel(rawItem.riskLevel, "高") : fallback.riskLevel
 
   return {
     capability,
     requestedAction,
     target,
-    riskLevel: normalizeRiskLevel(rawItem.riskLevel, capability === "受控验证类" ? "高" : fallback.riskLevel),
+    riskLevel,
     rationale,
   }
 }

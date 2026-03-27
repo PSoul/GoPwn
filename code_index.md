@@ -15,6 +15,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - the backend now includes a configurable OpenAI-compatible LLM provider layer plus local Docker lab support
 - Phase 7 has started by adding a SQLite-backed MCP server registry plus a real stdio MCP server/client execution path for Web surface probing
 - the current Phase 7 slice adds a repeatable `npm run live:validate` runner so real LLM + local Docker lab + real MCP flows can be exercised and archived outside the UI
+- the current hardening slice removes runtime demo seeds, makes the platform empty-first by default, upgrades `/settings/llm` to real persisted model settings, and requires validated MCP contract registration before any new server or tool appears in the platform
+- the latest hardening pass also auto-creates live-validation projects when needed, supports persisting successful closure data back into the normal workspace store, and has already validated one real Juice Shop closure (`proj-20260327-f6a3fd0c`) that is visible through standard project/evidence/finding routes when workspace-mode persistence is used
 
 ## 2. Routing Map
 
@@ -81,8 +83,12 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Persistent work-log collection endpoint returning execution/playback records for daily LLM + MCP activity.
 - `app/api/settings/approval-policy/route.ts`
   Global approval-policy read/mutation endpoint returning the persisted settings payload and saving approval strategy changes.
+- `app/api/settings/llm/route.ts`
+  Real LLM settings endpoint returning persisted model profiles and accepting per-role updates for `apiKey`, `baseUrl`, `model`, `timeoutMs`, `temperature`, and `enabled`.
+- `app/api/settings/mcp-servers/register/route.ts`
+  Strict MCP registration endpoint. Validates server/tool contracts, persists the real server registry, mirrors contract summaries into the JSON store, and syncs runtime-usable tool records.
 - `app/api/settings/mcp-tools/route.ts`
-  MCP settings endpoint now returns both the persisted tool registry and the SQLite-backed real MCP server registry plus recent invocation records.
+  MCP settings endpoint now returns the persisted tool registry, validated server/tool contract summaries, the SQLite-backed real MCP server registry, and recent invocation records.
 - `app/api/settings/system-status/route.ts`
   Settings system-health summary endpoint.
 
@@ -125,9 +131,9 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `app/(console)/settings/page.tsx`
   Settings hub with category links and system status preview.
 - `app/(console)/settings/mcp-tools/page.tsx`
-  Dedicated MCP capability/tool management page, now also surfacing connected real MCP servers and their recent invocation history.
+  Dedicated MCP capability/tool management page, now also surfacing contract registration, validated server/tool summaries, connected real MCP servers, and recent invocation history.
 - `app/(console)/settings/llm/page.tsx`
-  Dedicated LLM model responsibility and budget page.
+  Dedicated LLM settings page backed by the prototype store, exposing real editable profiles instead of static display cards.
 - `app/(console)/settings/approval-policy/page.tsx`
   Dedicated approval strategy page with persisted approval switch, scope rules, and emergency stop controls.
 - `app/(console)/settings/work-logs/page.tsx`
@@ -245,9 +251,9 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `components/settings/mcp-tool-table.tsx`
   MCP capability/tool table with health, risk, concurrency, rate, timeout, and retry information.
 - `components/settings/mcp-gateway-client.tsx`
-  Interactive MCP registry control plane with search, capability overview, boundary rules, registration checklist, tool detail editing, health-check actions, plus a compact connected-MCP-server registry and recent real-call feed.
+  Interactive MCP registry control plane with search, capability overview, boundary rules, contract-registration JSON input, tool detail editing, health-check actions, validated contract summaries, connected real-MCP-server registry, and recent real-call feed.
 - `components/settings/llm-settings-panel.tsx`
-  Panel grid for orchestrator/reviewer/extractor model configuration.
+  Client-side editor for orchestrator/reviewer/extractor model profiles, including plaintext API key fields for debugging and per-role save actions.
 - `components/settings/system-control-panel.tsx`
   Client-side approval switch, strategy note editor, save actions, scope rule display, and emergency-stop surface for the approval-policy page.
 - `components/settings/settings-log-table.tsx`
@@ -258,7 +264,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 ## 5. Data and Type Layer
 
 - `lib/navigation.ts`
-  Single source of truth for sidebar navigation and route title lookup.
+  Single source of truth for sidebar navigation and route title lookup. Template-era hardcoded sidebar badges have been removed from config so the shell can refresh them from real dashboard metrics instead.
 - `lib/asset-repository.ts`
   Persisted asset repository for listing, detail lookup, and deterministic upsert of execution-derived asset records.
 - `lib/approval-repository.ts`
@@ -274,9 +280,15 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `lib/llm-provider/types.ts`
   Shared provider contracts for orchestrator/reviewer plan generation.
 - `lib/llm-provider/openai-compatible-provider.ts`
-  OpenAI-compatible provider implementation. Builds env-driven provider status, performs `chat/completions` requests, and parses JSON plan responses.
+  OpenAI-compatible provider implementation. Builds status from runtime config, performs `chat/completions` requests, applies per-role timeout/temperature settings, and parses JSON plan responses.
 - `lib/llm-provider/registry.ts`
-  Provider resolver/status facade. Enables or disables the real orchestrator based purely on runtime environment variables.
+  Provider resolver/status facade. Now resolves `prototype-store.json` profiles first and only falls back to environment variables when store-backed orchestrator config is absent.
+- `lib/llm-settings-repository.ts`
+  Repository for persisted LLM role profiles, including audit-log emission on updates.
+- `lib/llm-settings-write-schema.ts`
+  Zod schema validating store-backed LLM settings writes.
+- `lib/mcp-registration-schema.ts`
+  Zod schema enforcing the platform MCP registration contract for new servers and tools.
 - `lib/local-lab-catalog.ts`
   Catalog of local Docker validation targets such as Juice Shop and WebGoat, with optional host-side probing to mark labs `online`, `offline`, or `unknown`.
 - `lib/mcp-connectors/types.ts`
@@ -307,7 +319,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   - settings hub sections, LLM settings, work logs, audit logs, and system status cards
   - API payload types for dashboard, approvals, assets, evidence, project collections, project surface contracts, MCP dispatch contracts, and settings summaries
 - `lib/prototype-data.ts`
-  Centralized Chinese mock data for all pages, including:
+  Legacy mock fixture source retained only for older test coverage and historical reference. Runtime routes no longer import this file. It still contains:
   - dashboard metrics and priorities
   - project list data and form presets
   - project-detail results-first data such as asset groups, findings, result metrics, stage snapshots, and per-project approval controls
@@ -320,7 +332,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `lib/project-results-repository.ts`
   Derived project-results layer. Rebuilds project result metrics, result-table groups, current stage snapshot, activity feed, and findings view from persisted assets, evidence, work logs, approvals, and MCP run state.
 - `lib/prototype-store.ts`
-  Local file-backed persistence bootstrap. Ensures `.prototype-store/prototype-store.json` exists, seeds it from mock data, migrates older stores onto the expanded Phase 6 shape, and now persists orchestrator last-plan state alongside scheduler tasks, projects, approvals, tools, runs, assets, evidence, work logs, and audit logs.
+  Local file-backed persistence bootstrap. Ensures `.prototype-store/prototype-store.json` exists, now defaults to an empty-first runtime, persists LLM profiles plus MCP contract summaries, migrates older stores onto the expanded shape, and keeps orchestrator plans, scheduler tasks, projects, approvals, tools, runs, assets, evidence, work logs, and audit logs together.
 - `lib/prototype-record-utils.ts`
   Shared record helpers for timestamp formatting, stable execution-derived IDs, and count-display formatting.
 - `lib/mcp-gateway-repository.ts`
@@ -328,15 +340,15 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `lib/mcp-repository.ts`
   Persisted MCP registry repository for tool listing, tool updates, and health-check state changes.
 - `lib/mcp-server-sqlite.ts`
-  Low-level SQLite bootstrap for external MCP servers. Owns schema creation, seed insertion for the first stdio server, row mappers, and database-path management under the prototype store.
+  Low-level SQLite bootstrap for external MCP servers. Owns schema creation, row mappers, and database-path management under the prototype store. Runtime no longer auto-seeds demo servers.
 - `lib/mcp-server-repository.ts`
-  High-level repository for external MCP server metadata and invocation logs. Lists seeded servers, resolves tool bindings, and appends or reads recent invocation records.
+  High-level repository for external MCP server metadata and invocation logs. Registers validated servers, mirrors contract summaries and runtime tool records into the JSON store, resolves tool bindings, and appends or reads recent invocation records.
 - `lib/mcp-workflow-service.ts`
   Scheduler-backed MCP workflow runner used for smoke tests. Chains seed normalization, passive discovery, Web mapping, optional approval-gated validation, and report export through the same queue/connector/normalization path used by normal project dispatch.
 - `lib/mcp-write-schema.ts`
   Zod validation schemas for MCP tool patch payloads, project-level MCP dispatch payloads, workflow smoke-run payloads, and orchestrator local-validation payloads.
 - `lib/orchestrator-service.ts`
-  Phase 6/7 orchestration service. Generates LLM or fallback plans for local labs, normalizes real-provider output back onto the platform's supported capability/risk contract, persists the latest plan per project, and runs the local validation loop through the same MCP dispatch/scheduler path as normal work.
+  Phase 6/7 orchestration service. Generates LLM or fallback plans for local labs, normalizes real-provider output back onto the platform's supported capability/risk contract, clamps non-controlled capabilities back to safe low-risk execution defaults, persists the latest plan per project, and runs the local validation loop through the same MCP dispatch/scheduler path as normal work.
 - `lib/project-mcp-dispatch-service.ts`
   Shared helper that dispatches a project MCP run and immediately drains the scheduler when the run is auto-runnable, avoiding duplicated dispatch+drain logic.
 - `lib/project-repository.ts`
@@ -344,7 +356,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `lib/project-write-schema.ts`
   Zod validation schema for project create/update request payloads.
 - `lib/prototype-api.ts`
-  Backend/service contract layer. Serves dashboard/assets/evidence/work-log/settings reads, persisted auth/project/approval operations, MCP registry payloads, project-level MCP dispatch/read contracts, orchestrator plan/local-validation contracts, scheduler-driven approval resume execution, and the workflow smoke-run contract behind the same seam.
+  Backend/service contract layer. Serves dashboard/assets/evidence/work-log/settings reads, store-backed LLM settings, strict MCP registration, persisted auth/project/approval operations, MCP registry payloads, project-level MCP dispatch/read contracts, orchestrator plan/local-validation contracts, scheduler-driven approval resume execution, and the workflow smoke-run contract behind the same seam.
 - `lib/utils.ts`
   Shared utility helpers used by UI primitives/components.
 - `lib/work-log-repository.ts`
@@ -388,11 +400,15 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `tests/api/project-surfaces-api.test.ts`
   API tests for project flow, operations, context, and result-table endpoints, including MCP run presence and local-lab panel data on the operations contract.
 - `tests/api/orchestrator-api.test.ts`
-  API tests for Phase 6 orchestrator routes, covering fallback plan generation, operations-payload exposure of the last plan, local validation execution, approval pause, and approval resume persistence.
+  API tests for Phase 6/7 orchestrator routes, covering fallback plan generation, operations-payload exposure of the last plan, local validation execution, approval pause, approval resume persistence, and the newer project-bootstrap / normalized-capability behavior used by live validation.
 - `tests/api/operational-surfaces-api.test.ts`
   API tests for dashboard, approvals, assets, and evidence endpoints, including detail-route 404 handling.
 - `tests/api/settings-api.test.ts`
   API tests for settings section and system-status endpoints.
+- `tests/api/llm-settings-api.test.ts`
+  API tests for persisted LLM profile reads and writes.
+- `tests/api/mcp-registration-api.test.ts`
+  API tests for strict MCP registration success and validation failure paths.
 - `tests/api/auth-api.test.ts`
   API tests for login success/failure, session-cookie issuance, logout, and auth audit-log emission.
 - `tests/api/mcp-tools-api.test.ts`
@@ -402,11 +418,13 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `tests/api/mcp-workflow-smoke-api.test.ts`
   API tests for the runnable foundational MCP workflow, covering both a fully automatic baseline path, persisted result emission, work-log generation, and a path that correctly halts at a high-risk approval boundary.
 - `tests/lib/mcp-connectors.test.ts`
-  Unit tests for connector selection and the first real DNS connector family, including deterministic mocked Node DNS/TLS adapter results.
+  Unit tests for connector selection and the first real DNS connector family, including deterministic mocked Node DNS/TLS adapter results and the Vitest-time guard that keeps real DNS execution off unless explicitly enabled.
+- `tests/lib/live-validation-runner.test.ts`
+  Focused tests for the live-validation bootstrap helpers, including project auto-creation, MCP auto-registration, workspace/isolated state-directory selection, and runner env defaults.
 - `tests/lib/mcp-server-repository.test.ts`
-  Unit tests for the SQLite-backed MCP server registry seed and invocation-log persistence.
+  Unit tests for the empty-first SQLite MCP server registry and invocation-log persistence after explicit registration.
 - `tests/lib/real-web-surface-mcp-connector.test.ts`
-  Unit test proving `web-surface-map` can execute through a real stdio MCP subprocess and return normalized `webEntries`.
+  Unit test proving `web-surface-map` can execute through an explicitly registered real stdio MCP subprocess and return normalized `webEntries`.
 - `tests/lib/mcp-scheduler-service.test.ts`
   Unit tests for scheduler task creation, delayed approval handling, and approved-task resume execution.
 - `tests/lib/mcp-scheduler-retry.test.ts`
@@ -422,13 +440,17 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `tests/settings/system-control-panel.test.tsx`
   Client interaction test verifying the approval-policy settings panel persists global strategy changes through the new API.
 - `tests/settings/mcp-gateway-client.test.tsx`
-  Client interaction test for tool editing plus the connected-MCP-server registry block and recent invocation rendering on the settings page.
+  Client interaction test for tool editing, contract registration submission, connected-MCP-server registry rendering, and recent invocation rendering on the settings page.
+- `tests/settings/llm-settings-panel.test.tsx`
+  Client interaction test verifying that per-role LLM settings edits persist through `/api/settings/llm` and surface success feedback in the settings UI.
 - `playwright.config.ts`
   Playwright E2E configuration that boots the local Next.js dev server and runs browser smoke flows against the prototype routes.
 - `scripts/run-playwright.mjs`
-  Wrapper that clears the dedicated Playwright web-server port before launching browser tests, avoiding stale local dev-server conflicts in repeated runs.
+  Wrapper that clears the dedicated Playwright web-server port and launches browser tests against an isolated temporary prototype-store directory, avoiding stale state between E2E runs.
 - `scripts/run-live-validation.mjs`
-  Phase 7 command-line live-validation runner. Starts local labs and the Next.js runtime, logs in, calls the orchestrator/local-validation APIs, auto-resumes approvals, and writes Markdown/JSON run artifacts plus server logs under `output/live-validation/`.
+  Phase 7 command-line live-validation runner. Starts local labs and the Next.js runtime, auto-registers the Web surface MCP server when needed, auto-creates a project when `LIVE_VALIDATION_PROJECT_ID` is absent, supports isolated or workspace-backed state persistence, auto-resumes approvals, and writes Markdown/JSON run artifacts plus server logs under `output/live-validation/`.
+- `scripts/lib/live-validation-runner.mjs`
+  Shared helper module for live validation. Owns lab definitions, project bootstrap, Web-surface MCP registration bootstrap, state-directory resolution, and server env defaults used by the top-level runner.
 - `scripts/lib/live-validation-report.mjs`
   Pure report-builder module used by the live-validation runner to turn runtime results into deterministic Markdown and summary JSON structures.
 - `scripts/mcp/web-surface-server.mjs`
@@ -456,6 +478,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 
 ## 9. Supporting Docs
 
+- `README.md`
+  Chinese project overview covering architecture, startup commands, real local-lab validation, and the recommended documentation reading order.
 - `.impeccable.md`
   Saved design context used to preserve the agreed visual/interaction direction.
 - `roadmap.md`
@@ -463,11 +487,15 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `docker/local-labs/compose.yaml`
   Local Docker validation harness for OWASP Juice Shop and WebGoat, used to exercise the platform against safe, local-only vulnerable targets.
 - `docs/operations/local-docker-labs.md`
-  Operator guide for launching the local Docker lab stack, using it from the project operations page, and running the new command-line live-validation flow with real LLM credentials.
+  Operator guide for launching the local Docker lab stack, using it from the project operations page, and running the command-line live-validation flow with real LLM credentials, auto project bootstrap, optional workspace-mode persistence, and real result review in normal project pages.
+- `docs/operations/llm-settings.md`
+  Operator guide for `/settings/llm`, including editable fields, `/api/settings/llm` request/response shape, and the runtime store-first resolution order before environment-variable fallback.
 - `docs/operations/mcp-onboarding-guide.md`
-  Phase 6 onboarding guide explaining the boundary model, connector expectations, registration flow, and testing checklist for future MCP tool families.
+  Current MCP onboarding guide explaining the boundary model, strict registration flow, persistence targets, and testing checklist for future MCP tool families.
+- `docs/contracts/mcp-server-contract.md`
+  Machine-oriented field contract for MCP server/tool registration, including required fields, enum constraints, schema rules, and the strict validation path new MCP integrations must satisfy before registration succeeds.
 - `docs/templates/mcp-connector-template.md`
-  Reusable checklist/template for designing and reviewing a new MCP connector before implementation.
+  Reusable template for drafting a new MCP server/tool contract before registration or implementation.
 - `docs/superpowers/plans/2026-03-26-frontend-prototype-implementation.md`
   Step-by-step implementation plan used during execution.
 - `docs/superpowers/plans/2026-03-26-execution-results-core-implementation.md`
@@ -492,10 +520,14 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Phase 4B implementation prompt that drove the current execution-results slice.
 - `docs/prompts/2026-03-26-phase-05-real-connectors-scheduler-prompt.md`
   Recommended next-phase prompt for replacing local MCP runners with real connector families and a scheduler/task loop.
+- `docs/prompts/2026-03-27-phase-09-real-project-closure-and-new-mcp-families-prompt.md`
+  Forward-looking handoff prompt for the post-hardening slice, focused on expanding real MCP families, improving durable execution controls, and continuing closure validation on normal project routes.
 - `docs/prompts/2026-03-26-phase-07-production-backend-integration-prompt.md`
   Recommended next-phase prompt for hardening the prototype backend, expanding real MCP/server integration, and moving toward a more production-like runtime.
 - `docs/prompts/2026-03-27-phase-08-durable-execution-and-lab-hardening-prompt.md`
   Recommended follow-up prompt for the next isolated slice, focused on durable execution controls, additional real connector families, and stabilizing WebGoat/local-lab regression behavior.
+- `docs/prompts/2026-03-27-phase-09-real-project-closure-and-new-mcp-families-prompt.md`
+  Recommended follow-up prompt for turning local-lab validation into a true project closure flow and adding another real MCP family.
 - `output/live-validation/`
   Runtime-generated, git-ignored validation artifact directory. Successful local runs currently emit Markdown and JSON reports here, including the first confirmed Juice Shop real-provider validation sample from `2026-03-27`.
 - `docs/superpowers/specs/2026-03-26-mcp-gateway-registry-spec.md`

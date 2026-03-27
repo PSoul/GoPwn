@@ -16,6 +16,7 @@ export default function AssetsPage() {
   const pendingCount = assets.filter((item) => item.scopeStatus === "待确认").length
   const reviewCount = assets.filter((item) => item.scopeStatus === "待复核").length
   const projectCount = new Set(assets.map((item) => item.projectName)).size
+  const linkedProjectId = assets.find((item) => item.projectId)?.projectId
 
   const stats = [
     { label: "资产总量", value: String(assets.length), detail: "所有已识别对象都先被结构化收进资产中心。" },
@@ -32,9 +33,11 @@ export default function AssetsPage() {
         actions={
           <>
             <StatusBadge tone="warning">{pendingCount + reviewCount} 个待确认对象</StatusBadge>
-            <Button asChild className="rounded-full bg-slate-950 px-5 text-white hover:bg-slate-800 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400">
-              <Link href="/projects/proj-huayao">查看项目回流</Link>
-            </Button>
+            {linkedProjectId ? (
+              <Button asChild className="rounded-full bg-slate-950 px-5 text-white hover:bg-slate-800 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400">
+                <Link href={`/projects/${linkedProjectId}`}>查看项目回流</Link>
+              </Button>
+            ) : null}
           </>
         }
       />
@@ -62,6 +65,23 @@ export default function AssetsPage() {
           )
         })}
       </div>
+
+      {assets.length === 0 ? (
+        <SectionCard
+          title="还没有真实资产"
+          eyebrow="Empty Inventory"
+          description="资产中心只展示真实运行沉淀的数据。先创建项目并执行 MCP 流程，域名、IP、端口和服务才会回流到这里。"
+        >
+          <div className="flex flex-wrap gap-3">
+            <Button asChild className="rounded-full bg-slate-950 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-200">
+              <Link href="/projects/new">新建项目</Link>
+            </Button>
+            <Button asChild variant="outline" className="rounded-full">
+              <Link href="/settings/mcp-tools">配置 MCP 工具</Link>
+            </Button>
+          </div>
+        </SectionCard>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <SectionCard

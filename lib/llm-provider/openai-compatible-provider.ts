@@ -1,12 +1,17 @@
 import type { LlmProvider } from "@/lib/llm-provider/types"
 import type { LlmProviderStatus, OrchestratorPlanItem } from "@/lib/prototype-types"
 
-type OpenAiCompatibleConfig = {
+export type OpenAiCompatibleProfileConfig = {
   apiKey: string
   baseUrl: string
-  orchestratorModel: string
-  reviewerModel: string
+  model: string
   timeoutMs: number
+  temperature: number
+}
+
+type OpenAiCompatibleConfig = {
+  orchestrator: OpenAiCompatibleProfileConfig
+  reviewer?: OpenAiCompatibleProfileConfig
 }
 
 function normalizeBaseUrl(baseUrl: string) {
@@ -51,36 +56,42 @@ function getSystemPrompt(purpose: "orchestrator" | "reviewer") {
   return "你是授权渗透测试平台的编排模型。请只返回 JSON，包含 summary 和 items。items 数组内每项必须包含 capability、requestedAction、target、riskLevel、rationale。capability 只允许使用 目标解析类、Web 页面探测类、受控验证类 这三个值。riskLevel 只允许使用 高、中、低。动作必须坚持 LLM=大脑、MCP=四肢 的边界。"
 }
 
-function buildStatus(config?: Partial<OpenAiCompatibleConfig>): LlmProviderStatus {
-  const enabled = Boolean(config?.apiKey && config?.baseUrl && config?.orchestratorModel)
+function isConfiguredProfile(config?: Partial<OpenAiCompatibleProfileConfig>) {
+  return Boolean(config?.apiKey && config?.baseUrl && config?.model)
+}
+
+export function buildOpenAiCompatibleStatus(config?: Partial<OpenAiCompatibleConfig>): LlmProviderStatus {
+  const orchestrator = config?.orchestrator
+  const reviewer = config?.reviewer
+  const enabled = isConfiguredProfile(orchestrator)
 
   return {
     provider: "openai-compatible",
     enabled,
-    baseUrl: config?.baseUrl ?? "",
-    orchestratorModel: config?.orchestratorModel ?? "",
-    reviewerModel: config?.reviewerModel ?? "",
+    baseUrl: orchestrator?.baseUrl ?? reviewer?.baseUrl ?? "",
+    orchestratorModel: orchestrator?.model ?? "",
+    reviewerModel: reviewer?.model ?? orchestrator?.model ?? "",
     note: enabled ? "OpenAI-compatible provider 已配置，可用于真实编排请求。" : "OpenAI-compatible provider 未配置，当前仅可使用本地回退策略。",
   }
 }
 
 export function createOpenAiCompatibleProvider(config: OpenAiCompatibleConfig): LlmProvider {
   return {
-    getStatus: () => buildStatus(config),
+    getStatus: () => buildOpenAiCompatibleStatus(config),
     async generatePlan(input) {
-      const model = input.purpose === "reviewer" ? config.reviewerModel : config.orchestratorModel
+      const profile = input.purpose === "reviewer" ? config.reviewer ?? config.orchestrator : config.orchestrator
       const controller = new AbortController()
-      const timeoutHandle = setTimeout(() => controller.abort(), config.timeoutMs)
+      const timeoutHandle = setTimeout(() => controller.abort(), profile.timeoutMs)
 
       try {
-        const response = await fetch(`${normalizeBaseUrl(config.baseUrl)}/chat/completions`, {
+        const response = await fetch(`${normalizeBaseUrl(profile.baseUrl)}/chat/completions`, {
           method: "POST",
           headers: {
             "content-type": "application/json",
-            authorization: `Bearer ${config.apiKey}`,
+            authorization: `Bearer ${profile.apiKey}`,
           },
           body: JSON.stringify({
-            model,
+            model: profile.model,
             messages: [
               {
                 role: "system",
@@ -94,7 +105,7 @@ export function createOpenAiCompatibleProvider(config: OpenAiCompatibleConfig): 
             response_format: {
               type: "json_object",
             },
-            temperature: 0.2,
+            temperature: profile.temperature,
           }),
           signal: controller.signal,
         })
@@ -118,7 +129,7 @@ export function createOpenAiCompatibleProvider(config: OpenAiCompatibleConfig): 
 
         return {
           provider: "openai-compatible",
-          model,
+          model: profile.model,
           content: safeParsePlanContent(content),
         }
       } finally {
@@ -129,10 +140,20 @@ export function createOpenAiCompatibleProvider(config: OpenAiCompatibleConfig): 
 }
 
 export function buildOpenAiCompatibleStatusFromEnv() {
-  return buildStatus({
-    apiKey: process.env.LLM_API_KEY,
-    baseUrl: process.env.LLM_BASE_URL,
-    orchestratorModel: process.env.LLM_ORCHESTRATOR_MODEL,
-    reviewerModel: process.env.LLM_REVIEWER_MODEL,
+  return buildOpenAiCompatibleStatus({
+    orchestrator: {
+      apiKey: process.env.LLM_API_KEY ?? "",
+      baseUrl: process.env.LLM_BASE_URL ?? "",
+      model: process.env.LLM_ORCHESTRATOR_MODEL ?? "",
+      timeoutMs: Number(process.env.LLM_TIMEOUT_MS ?? 15000),
+      temperature: 0.2,
+    },
+    reviewer: {
+      apiKey: process.env.LLM_API_KEY ?? "",
+      baseUrl: process.env.LLM_BASE_URL ?? "",
+      model: process.env.LLM_REVIEWER_MODEL ?? process.env.LLM_ORCHESTRATOR_MODEL ?? "",
+      timeoutMs: Number(process.env.LLM_TIMEOUT_MS ?? 15000),
+      temperature: 0.1,
+    },
   })
 }

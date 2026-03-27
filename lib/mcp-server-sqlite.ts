@@ -2,27 +2,10 @@ import { existsSync, mkdirSync } from "node:fs"
 import path from "node:path"
 import { DatabaseSync } from "node:sqlite"
 
-import { formatTimestamp } from "@/lib/prototype-record-utils"
 import type { McpServerInvocationRecord, McpServerRecord } from "@/lib/prototype-types"
 
 const STORE_DIRECTORY = ".prototype-store"
 const DATABASE_FILENAME = "mcp-server-registry.sqlite"
-
-const seededServerRecords: McpServerRecord[] = [
-  {
-    id: "mcp-server-web-surface-stdio",
-    serverName: "web-surface-stdio",
-    transport: "stdio",
-    command: "node",
-    args: ["scripts/mcp/web-surface-server.mjs"],
-    endpoint: "stdio://web-surface-stdio",
-    enabled: true,
-    status: "已连接",
-    toolBindings: ["web-surface-map"],
-    notes: "真实 Web 页面探测 MCP server",
-    lastSeen: formatTimestamp(),
-  },
-]
 
 function getPrototypeStoreDirectory() {
   return process.env.PROTOTYPE_DATA_DIR ?? path.join(process.cwd(), STORE_DIRECTORY)
@@ -73,69 +56,11 @@ function applySchema(database: DatabaseSync) {
   `)
 }
 
-function seedServers(database: DatabaseSync) {
-  const insertStatement = database.prepare(`
-    INSERT INTO mcp_servers (
-      id,
-      server_name,
-      transport,
-      command,
-      args_json,
-      endpoint,
-      enabled,
-      status,
-      tool_bindings_json,
-      notes,
-      last_seen
-    ) VALUES (
-      :id,
-      :serverName,
-      :transport,
-      :command,
-      :argsJson,
-      :endpoint,
-      :enabled,
-      :status,
-      :toolBindingsJson,
-      :notes,
-      :lastSeen
-    )
-    ON CONFLICT(id) DO UPDATE SET
-      server_name = excluded.server_name,
-      transport = excluded.transport,
-      command = excluded.command,
-      args_json = excluded.args_json,
-      endpoint = excluded.endpoint,
-      enabled = excluded.enabled,
-      status = excluded.status,
-      tool_bindings_json = excluded.tool_bindings_json,
-      notes = excluded.notes,
-      last_seen = excluded.last_seen
-  `)
-
-  for (const record of seededServerRecords) {
-    insertStatement.run({
-      id: record.id,
-      serverName: record.serverName,
-      transport: record.transport,
-      command: record.command,
-      argsJson: JSON.stringify(record.args),
-      endpoint: record.endpoint,
-      enabled: record.enabled ? 1 : 0,
-      status: record.status,
-      toolBindingsJson: JSON.stringify(record.toolBindings),
-      notes: record.notes,
-      lastSeen: record.lastSeen,
-    })
-  }
-}
-
 export function openMcpServerDatabase() {
   ensureDatabaseDirectory()
   const database = new DatabaseSync(getDatabasePath())
 
   applySchema(database)
-  seedServers(database)
 
   return database
 }

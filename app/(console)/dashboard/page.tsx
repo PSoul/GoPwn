@@ -71,20 +71,84 @@ type FocusCard = {
   cta: string
 }
 
+function clampProgress(value: number) {
+  return Math.max(0, Math.min(100, Math.round(value)))
+}
+
 export default function DashboardPage() {
   const { approvals, assets, evidence, leadProject, mcpTools, metrics, priorities, projectTasks } = getDashboardPayload()
   const approvalMetric = metrics.find((metric) => metric.label === "待审批动作") ?? metrics[0]
-  const exceptionTool = mcpTools.find((tool) => tool.status === "异常") ?? mcpTools[0]
+  const exceptionTool = mcpTools.find((tool) => tool.status === "异常") ?? null
+  const approvalCount = Number(approvalMetric.value) || 0
+  const pendingAssetCount = assets.filter((asset) => asset.scopeStatus !== "已纳入").length
+  const assetResolutionProgress = assets.length > 0 ? ((assets.length - pendingAssetCount) / assets.length) * 100 : 0
+  const healthyToolCount = mcpTools.filter((tool) => tool.status === "启用").length
+  const toolHealthProgress = mcpTools.length > 0 ? (healthyToolCount / mcpTools.length) * 100 : 0
+  const currentWindowLabel = new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit" }).format(new Date())
+  const approvalRecoveryProgress = approvalCount === 0 ? 100 : 100 - approvalCount * 18
+
+  if (!leadProject) {
+    return (
+      <div className="space-y-4">
+        <section className="rounded-3xl border border-slate-200/80 bg-white p-6 dark:border-slate-800 dark:bg-slate-950">
+          <div className="flex items-center gap-2 text-[15px] font-semibold text-slate-950 dark:text-white">
+            <FolderKanban className="h-4 w-4" />
+            平台控制面
+          </div>
+
+          <div className="mt-5 space-y-5">
+            <div>
+              <h1 className="text-2xl font-semibold text-slate-950 dark:text-white">当前还没有真实项目数据</h1>
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 dark:text-slate-300">
+                首页现在只展示真实运行沉淀的数据，不再注入任何演示项目、演示证据或演示审批。先创建项目，再让 LLM + MCP 开始回流资产、证据、漏洞和日志。
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+              {metrics.map((metric) => {
+                const Icon = metricIcons[metric.label]
+
+                return (
+                  <div
+                    key={metric.label}
+                    className="rounded-[24px] border border-slate-200/80 bg-slate-50/90 p-4 dark:border-slate-800 dark:bg-slate-900/70"
+                  >
+                    <div className={cn("inline-flex rounded-lg p-2", toneIconStyles[metric.tone])}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <p className="mt-3 text-sm font-medium text-slate-950 dark:text-white">{metric.label}</p>
+                    <p className="mt-2 text-2xl font-semibold text-slate-950 dark:text-white">{metric.value}</p>
+                    <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{metric.delta}</p>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button asChild className="rounded-full bg-slate-950 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-200">
+                <Link href="/projects/new">新建第一个项目</Link>
+              </Button>
+              <Button asChild variant="outline" className="rounded-full">
+                <Link href="/settings/mcp-tools">先配置 MCP 工具</Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+      </div>
+    )
+  }
 
   const queueItems: QueueItem[] = [
-    {
-      title: approvals[0].actionType,
-      subtitle: approvals[0].projectName,
-      meta: approvals[0].submittedAt,
-      status: approvals[0].status,
-      tone: "danger",
-      icon: ClipboardCheck,
-    },
+    approvals[0]
+      ? {
+          title: approvals[0].actionType,
+          subtitle: approvals[0].projectName,
+          meta: approvals[0].submittedAt,
+          status: approvals[0].status,
+          tone: "danger",
+          icon: ClipboardCheck,
+        }
+      : null,
     {
       title: leadProject.name,
       subtitle: leadProject.stage,
@@ -93,84 +157,98 @@ export default function DashboardPage() {
       tone: leadProject.status === "已阻塞" ? "danger" : "info",
       icon: FolderKanban,
     },
-    {
-      title: projectTasks[0].title,
-      subtitle: projectTasks[0].reason,
-      meta: projectTasks[0].priority,
-      status: "待接管",
-      tone: "warning",
-      icon: Activity,
-    },
-    {
-      title: assets[2].label,
-      subtitle: assets[2].projectName,
-      meta: assets[2].lastSeen,
-      status: assets[2].scopeStatus,
-      tone: "warning",
-      icon: Network,
-    },
-    {
-      title: evidence[0].title,
-      subtitle: evidence[0].projectName,
-      meta: evidence[0].source,
-      status: evidence[0].conclusion,
-      tone: "warning",
-      icon: ShieldAlert,
-    },
-    {
-      title: exceptionTool.toolName,
-      subtitle: `${exceptionTool.capability}异常`,
-      meta: exceptionTool.lastCheck,
-      status: exceptionTool.status,
-      tone: "danger",
-      icon: ShieldCheck,
-    },
-  ]
+    projectTasks[0]
+      ? {
+          title: projectTasks[0].title,
+          subtitle: projectTasks[0].reason,
+          meta: projectTasks[0].priority,
+          status: "待接管",
+          tone: "warning",
+          icon: Activity,
+        }
+      : null,
+    assets[0]
+      ? {
+          title: assets[0].label,
+          subtitle: assets[0].projectName,
+          meta: assets[0].lastSeen,
+          status: assets[0].scopeStatus,
+          tone: "warning",
+          icon: Network,
+        }
+      : null,
+    evidence[0]
+      ? {
+          title: evidence[0].title,
+          subtitle: evidence[0].projectName,
+          meta: evidence[0].source,
+          status: evidence[0].conclusion,
+          tone: "warning",
+          icon: ShieldAlert,
+        }
+      : null,
+    exceptionTool
+      ? {
+          title: exceptionTool.toolName,
+          subtitle: `${exceptionTool.capability}异常`,
+          meta: exceptionTool.lastCheck,
+          status: exceptionTool.status,
+          tone: "danger",
+          icon: ShieldCheck,
+        }
+      : null,
+  ].filter((item): item is QueueItem => Boolean(item))
 
   const focusCards: FocusCard[] = [
+    approvalCount > 0
+      ? {
+          title: "审批队列待清理",
+          subtitle: `${approvalCount} 个动作仍在等待人工确认，优先恢复被阻塞项目的主路径。`,
+          badge: "进行中",
+          tone: "danger",
+          icon: ClipboardCheck,
+          progress: clampProgress(approvalRecoveryProgress),
+          progressLabel: "待审批动作",
+          amount: `${approvalCount} 个动作`,
+          amountLabel: approvalMetric.delta,
+          note: "目标：恢复主路径推进",
+          href: "/approvals",
+          cta: "进入审批中心",
+        }
+      : null,
+    pendingAssetCount > 0
+      ? {
+          title: "待确认资产需要回流",
+          subtitle: `${pendingAssetCount} 个对象仍待确认或复核，建议先补归属再推进下一步验证。`,
+          badge: "待确认",
+          tone: "warning",
+          icon: Network,
+          progress: clampProgress(assetResolutionProgress),
+          progressLabel: "资产与入口",
+          amount: `${pendingAssetCount} 个待处理`,
+          amountLabel: "建议先回流确认",
+          note: "目标：完成归属判定与结果沉淀",
+          href: "/assets",
+          cta: "查看资产中心",
+        }
+      : null,
     {
-      title: priorities[0].title,
-      subtitle: priorities[0].detail,
-      badge: "进行中",
-      tone: "danger",
-      icon: ClipboardCheck,
-      progress: 68,
-      progressLabel: "待审批动作",
-      amount: "2 个高风险动作",
-      amountLabel: "阻塞主路径",
-      note: "目标：恢复受控 PoC 验证",
-      href: "/approvals",
-      cta: "进入审批中心",
-    },
-    {
-      title: priorities[1].title,
-      subtitle: priorities[1].detail,
-      badge: "待确认",
-      tone: "warning",
-      icon: Network,
-      progress: 46,
-      progressLabel: "新增入口处理",
-      amount: "2 个子域待判定",
-      amountLabel: "需要回流补采",
-      note: "目标：完成范围判定与归属确认",
-      href: "/assets",
-      cta: "查看资产中心",
-    },
-    {
-      title: "证据链路与平台巡检",
-      subtitle: "capture-evidence 健康异常会直接削弱首页结果与审批链路的可信度，需要先恢复采集能力。",
-      badge: "巡检中",
-      tone: "info",
+      title: "系统巡检与工具状态",
+      subtitle: exceptionTool
+        ? `${exceptionTool.toolName} 当前异常，可能影响部分结果链路。`
+        : "当前没有异常工具，但仍建议在执行前确认模型、MCP 和日志链路已就绪。",
+      badge: exceptionTool ? "巡检中" : "就绪",
+      tone: exceptionTool ? "info" : "success",
       icon: ShieldCheck,
-      progress: 35,
+      progress: clampProgress(toolHealthProgress),
       progressLabel: "工具健康度",
-      amount: "1 个异常工具",
-      amountLabel: "影响截图链路",
-      note: "目标：恢复证据采集并重新校验",
+      amount: `${mcpTools.length} 个工具`,
+      amountLabel: exceptionTool ? "存在异常" : "当前正常",
+      note: "目标：保持执行链路稳定",
       href: "/settings",
       cta: "查看系统设置",
     },
-  ]
+  ].filter((item): item is FocusCard => Boolean(item))
 
   return (
     <div className="space-y-4">
@@ -186,7 +264,7 @@ export default function DashboardPage() {
               <p className="text-xs text-slate-500 dark:text-slate-400">当前阻塞动作</p>
               <div className="mt-2 text-[40px] font-semibold tracking-tight text-slate-950 dark:text-white">{approvalMetric.value}</div>
               <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                {approvalMetric.delta}，当前以审批清障、入口回流补采和证据链路恢复为第一优先。
+                {approvalMetric.delta}，当前优先清理审批阻塞、待确认资产和异常工具。
               </p>
 
               <div className="mt-4 space-y-1">
@@ -238,7 +316,9 @@ export default function DashboardPage() {
                 <StatusBadge tone={leadProject.status === "已阻塞" ? "danger" : "info"}>{leadProject.status}</StatusBadge>
               </div>
 
-              <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">{priorities[0].detail}</p>
+              <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                {priorities[0]?.detail ?? "项目已创建，可从详情页继续推进阶段、结果与调度。"}
+              </p>
 
               <div className="mt-4 space-y-2.5">
                 {priorities.map((item, index) => (
@@ -258,7 +338,9 @@ export default function DashboardPage() {
               <div className="mt-5 flex items-center justify-between border-t border-slate-200/80 pt-3 dark:border-slate-800">
                 <div>
                   <p className="text-xs text-slate-500 dark:text-slate-400">下一步</p>
-                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">先完成审批，再恢复受控验证与证据复核。</p>
+                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    {priorities[0] ? "先处理当前阻塞，再恢复结果沉淀。" : "继续进入项目详情推进真实执行。"}
+                  </p>
                 </div>
                 <Button asChild variant="ghost" className="rounded-xl px-3 text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-950">
                   <Link href={`/projects/${leadProject.id}`}>
@@ -280,31 +362,37 @@ export default function DashboardPage() {
           <div className="rounded-[24px] border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-950 dark:text-white">当前窗口</h2>
-              <span className="text-xs text-slate-500 dark:text-slate-400">今天</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">{currentWindowLabel}</span>
             </div>
 
-            <div className="space-y-1">
-              {queueItems.map((item) => (
-                <div
-                  key={`${item.title}-${item.status}`}
-                  className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/70"
-                >
-                  <div className={cn("rounded-lg border border-slate-200/80 p-2 dark:border-slate-800", toneIconStyles[item.tone])}>
-                    <item.icon className="h-4 w-4" />
-                  </div>
+            {queueItems.length > 0 ? (
+              <div className="space-y-1">
+                {queueItems.map((item) => (
+                  <div
+                    key={`${item.title}-${item.status}`}
+                    className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/70"
+                  >
+                    <div className={cn("rounded-lg border border-slate-200/80 p-2 dark:border-slate-800", toneIconStyles[item.tone])}>
+                      <item.icon className="h-4 w-4" />
+                    </div>
 
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-medium text-slate-950 dark:text-white">{item.title}</p>
-                    <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">{item.subtitle}</p>
-                  </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-medium text-slate-950 dark:text-white">{item.title}</p>
+                      <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">{item.subtitle}</p>
+                    </div>
 
-                  <div className="shrink-0 pl-3 text-right">
-                    <p className={cn("text-xs font-medium", toneTextStyles[item.tone])}>{item.status}</p>
-                    <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{item.meta}</p>
+                    <div className="shrink-0 pl-3 text-right">
+                      <p className={cn("text-xs font-medium", toneTextStyles[item.tone])}>{item.status}</p>
+                      <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{item.meta}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/80 px-4 py-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
+                当前还没有真实处置记录。创建项目并执行一次真实流程后，这里会按时间回放最新动作。
+              </div>
+            )}
           </div>
 
           <div className="mt-2 border-t border-slate-200/80 pt-2 dark:border-slate-800">
@@ -321,7 +409,7 @@ export default function DashboardPage() {
       <section className="rounded-3xl border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
         <div className="mb-4 flex items-center gap-2 text-[15px] font-semibold text-slate-950 dark:text-white">
           <ClipboardCheck className="h-4 w-4" />
-          今天优先处理
+          当前优先处理
         </div>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

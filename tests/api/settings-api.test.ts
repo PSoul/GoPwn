@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import { GET as getSettingsSections } from "@/app/api/settings/sections/route"
 import { GET as getSystemStatus } from "@/app/api/settings/system-status/route"
 import { GET as getWorkLogs } from "@/app/api/settings/work-logs/route"
+import { createWorkflowFixture } from "@/tests/helpers/project-fixtures"
 
 describe("settings api routes", () => {
   it("returns settings section summaries", async () => {
@@ -24,6 +25,7 @@ describe("settings api routes", () => {
   })
 
   it("returns persisted work logs", async () => {
+    await createWorkflowFixture()
     const response = await getWorkLogs()
     const payload = await response.json()
 

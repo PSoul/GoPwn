@@ -1,16 +1,24 @@
+import { mkdtempSync, rmSync } from "node:fs"
 import { createServer } from "node:http"
 import type { AddressInfo } from "node:net"
+import { tmpdir } from "node:os"
+import path from "node:path"
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 import { realWebSurfaceMcpConnector } from "@/lib/mcp-connectors/real-web-surface-mcp-connector"
 import type { McpConnectorExecutionContext } from "@/lib/mcp-connectors/types"
+import { registerStoredMcpServer } from "@/lib/mcp-server-repository"
 
 describe("real web-surface MCP connector", () => {
   let server: ReturnType<typeof createServer>
+  let tempDir: string
   let targetUrl: string
 
   beforeEach(async () => {
+    tempDir = mkdtempSync(path.join(tmpdir(), "llm-pentest-real-web-mcp-"))
+    process.env.PROTOTYPE_DATA_DIR = tempDir
+
     server = createServer((_request, response) => {
       response.writeHead(200, {
         "content-type": "text/html; charset=utf-8",
@@ -39,9 +47,54 @@ describe("real web-surface MCP connector", () => {
         resolve()
       })
     })
+
+    delete process.env.PROTOTYPE_DATA_DIR
+    rmSync(tempDir, { force: true, recursive: true })
   })
 
   it("executes the web-surface capability through a real MCP stdio server", async () => {
+    registerStoredMcpServer({
+      serverName: "web-surface-stdio",
+      version: "1.0.0",
+      transport: "stdio",
+      command: "node",
+      args: ["scripts/mcp/web-surface-server.mjs"],
+      endpoint: "stdio://web-surface-stdio",
+      enabled: true,
+      notes: "真实 Web 页面探测 MCP server",
+      tools: [
+        {
+          toolName: "web-surface-map",
+          title: "Web 页面探测",
+          description: "补采页面入口与响应特征。",
+          version: "1.0.0",
+          capability: "Web 页面探测类",
+          boundary: "外部目标交互",
+          riskLevel: "中",
+          requiresApproval: false,
+          resultMappings: ["webEntries", "evidence"],
+          inputSchema: {
+            type: "object",
+            properties: {
+              targetUrl: {
+                type: "string",
+              },
+            },
+            required: ["targetUrl"],
+            additionalProperties: false,
+          },
+          outputSchema: {
+            type: "object",
+          },
+          defaultConcurrency: "1",
+          rateLimit: "10 req/min",
+          timeout: "15s",
+          retry: "1 次",
+          owner: "测试夹具",
+        },
+      ],
+    })
+
     const context: McpConnectorExecutionContext = {
       approval: null,
       priorOutputs: {},

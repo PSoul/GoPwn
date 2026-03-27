@@ -325,6 +325,35 @@ export interface McpServerInvocationRecord {
   createdAt: string
 }
 
+export type McpResultMapping = "domains" | "webEntries" | "network" | "findings" | "evidence" | "workLogs"
+
+export interface McpServerContractSummaryRecord {
+  serverId: string
+  serverName: string
+  version: string
+  transport: McpServerTransport
+  enabled: boolean
+  toolNames: string[]
+  command?: string
+  endpoint?: string
+  projectId?: string
+  updatedAt: string
+}
+
+export interface McpToolContractSummaryRecord {
+  serverId: string
+  serverName: string
+  toolName: string
+  title: string
+  capability: string
+  boundary: "外部目标交互" | "平台内部处理"
+  riskLevel: "高" | "中" | "低"
+  requiresApproval: boolean
+  resultMappings: McpResultMapping[]
+  projectId?: string
+  updatedAt: string
+}
+
 export interface McpRunRecord {
   id: string
   projectId: string
@@ -403,6 +432,24 @@ export interface LlmSettingRecord {
   value: string
   description: string
   owner: string
+}
+
+export type LlmProfileId = "orchestrator" | "reviewer" | "extractor"
+
+export interface LlmProfileRecord {
+  id: LlmProfileId
+  provider: string
+  label: string
+  apiKey: string
+  baseUrl: string
+  model: string
+  timeoutMs: number
+  temperature: number
+  enabled: boolean
+}
+
+export interface LlmSettingsPayload {
+  profiles: LlmProfileRecord[]
 }
 
 export interface LlmProviderStatus {
@@ -530,7 +577,7 @@ export interface LogCollectionPayload {
 export interface DashboardPayload {
   metrics: MetricCard[]
   priorities: DashboardPriorityRecord[]
-  leadProject: ProjectRecord
+  leadProject: ProjectRecord | null
   approvals: ApprovalRecord[]
   assets: AssetRecord[]
   evidence: EvidenceRecord[]
@@ -595,6 +642,8 @@ export interface McpSettingsPayload {
   capabilities: McpCapabilityRecord[]
   boundaryRules: McpBoundaryRule[]
   registrationFields: McpRegistrationField[]
+  serverContracts: McpServerContractSummaryRecord[]
+  toolContracts: McpToolContractSummaryRecord[]
 }
 
 export interface McpDispatchInput {

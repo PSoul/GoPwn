@@ -36,9 +36,9 @@ export function EvidenceDetail({ record }: { record: EvidenceRecord }) {
             description="先看原始响应、原始输出和采样痕迹，再决定结构化摘要是否可信。"
           >
             <div className="space-y-3">
-              {record.rawOutput.map((item) => (
+              {record.rawOutput.map((item, index) => (
                 <pre
-                  key={item}
+                  key={`${record.id}-raw-${index}`}
                   className="overflow-x-auto rounded-3xl border border-slate-200/80 bg-slate-950 px-4 py-4 text-sm text-slate-100 dark:border-slate-800"
                 >
                   <code>{item}</code>
@@ -65,9 +65,9 @@ export function EvidenceDetail({ record }: { record: EvidenceRecord }) {
 
           <SectionCard title="结构化摘要" eyebrow="Structured Summary" description="从原始输出抽出值得继续推进的事实，不在这里直接替代结论判断。">
             <div className="space-y-3">
-              {record.structuredSummary.map((item) => (
+              {record.structuredSummary.map((item, index) => (
                 <div
-                  key={item}
+                  key={`${record.id}-summary-${index}`}
                   className="rounded-3xl border border-slate-200/80 bg-slate-50/80 p-4 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300"
                 >
                   {item}
@@ -97,9 +97,9 @@ export function EvidenceDetail({ record }: { record: EvidenceRecord }) {
 
           <SectionCard title="时间线" eyebrow="Timeline" description="证据的可信度很大程度取决于采集顺序和前后上下文。">
             <div className="space-y-3">
-              {record.timeline.map((item) => (
+              {record.timeline.map((item, index) => (
                 <div
-                  key={item}
+                  key={`${record.id}-timeline-${index}`}
                   className="rounded-3xl border border-slate-200/80 bg-slate-50/80 p-4 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300"
                 >
                   {item}

@@ -1,14 +1,13 @@
 import {
   dashboardMetrics,
-  dashboardPriorities,
   mcpBoundaryRules,
   mcpCapabilityRecords,
-  projectTasks,
   mcpRegistrationFields,
   settingsSections,
   systemControlOverview,
   systemStatusCards,
-} from "@/lib/prototype-data"
+} from "@/lib/platform-config"
+import { listStoredLlmProfiles, updateStoredLlmProfile } from "@/lib/llm-settings-repository"
 import {
   getStoredGlobalApprovalControl,
   listStoredApprovalPolicies,
@@ -31,6 +30,7 @@ import {
   listStoredMcpRuns,
 } from "@/lib/mcp-gateway-repository"
 import {
+  registerStoredMcpServer,
   listStoredMcpServerInvocations,
   listStoredMcpServers,
 } from "@/lib/mcp-server-repository"
@@ -64,7 +64,7 @@ import {
   listStoredProjects,
   updateStoredProject,
 } from "@/lib/project-repository"
-import { getDefaultProjectFormPreset } from "@/lib/prototype-store"
+import { getDefaultProjectFormPreset, readPrototypeStore } from "@/lib/prototype-store"
 import { listStoredWorkLogs } from "@/lib/work-log-repository"
 import type {
   ApprovalControlPatch,
@@ -76,6 +76,8 @@ import type {
   DashboardPayload,
   EvidenceCollectionPayload,
   EvidenceDetailPayload,
+  LlmProfileRecord,
+  LlmSettingsPayload,
   LogCollectionPayload,
   LocalValidationRunInput,
   McpDispatchInput,
@@ -100,14 +102,46 @@ import type {
   ProjectRecord,
   SettingsSectionsPayload,
   SystemStatusPayload,
+  TaskRecord,
+  Tone,
 } from "@/lib/prototype-types"
 
 function buildDashboardMetrics(projects: ProjectRecord[], approvalTotal: number) {
+  const runningProjects = projects.filter((project) => project.status === "运行中").length
+  const findings = listStoredProjectFindings()
+  const confirmedFindings = findings.filter((finding) => finding.status === "已确认").length
+  const assets = listStoredAssets()
+
   return dashboardMetrics.map((metric) => {
     if (metric.label === "项目总数") {
       return {
         ...metric,
         value: String(projects.length),
+        delta: projects.length > 0 ? `${projects.filter((project) => project.status === "待处理").length} 个待启动` : "等待第一个真实项目",
+      }
+    }
+
+    if (metric.label === "运行中项目") {
+      return {
+        ...metric,
+        value: String(runningProjects),
+        delta: runningProjects > 0 ? `${projects.filter((project) => project.status === "已阻塞").length} 个已阻塞` : "等待调度启动",
+      }
+    }
+
+    if (metric.label === "已发现资产") {
+      return {
+        ...metric,
+        value: String(assets.length),
+        delta: assets.length > 0 ? `${assets.filter((asset) => asset.scopeStatus !== "已纳入").length} 个待确认` : "等待真实资产回流",
+      }
+    }
+
+    if (metric.label === "已确认问题") {
+      return {
+        ...metric,
+        value: String(confirmedFindings),
+        delta: findings.length > 0 ? `${findings.filter((finding) => finding.status === "待复核").length} 个待复核` : "等待真实发现沉淀",
       }
     }
 
@@ -115,11 +149,78 @@ function buildDashboardMetrics(projects: ProjectRecord[], approvalTotal: number)
       return {
         ...metric,
         value: String(approvalTotal),
-        delta: `${projects.filter((project) => project.pendingApprovals > 0).length} 个项目受影响`,
+        delta: approvalTotal > 0 ? `${projects.filter((project) => project.pendingApprovals > 0).length} 个项目受影响` : "当前无审批阻塞",
       }
     }
 
     return metric
+  })
+}
+
+function buildDashboardPriorities({
+  approvals,
+  assets,
+  mcpTools,
+  projects,
+}: {
+  approvals: ReturnType<typeof listStoredApprovals>
+  assets: ReturnType<typeof listStoredAssets>
+  mcpTools: ReturnType<typeof listStoredMcpTools>
+  projects: ProjectRecord[]
+}) {
+  if (projects.length === 0 && approvals.length === 0 && assets.length === 0 && mcpTools.length === 0) {
+    return []
+  }
+
+  const priorities: Array<{ title: string; detail: string; tone: Tone }> = []
+  const pendingApprovals = approvals.filter((approval) => approval.status === "待处理")
+  const pendingAssets = assets.filter((asset) => asset.scopeStatus !== "已纳入")
+  const abnormalTools = mcpTools.filter((tool) => tool.status === "异常")
+  const blockedProjects = projects.filter((project) => project.status === "已阻塞")
+
+  if (pendingApprovals.length > 0) {
+    priorities.push({
+      title: "审批队列待清理",
+      detail: `${pendingApprovals.length} 个动作仍在等待人工确认，优先恢复被阻塞项目的主路径。`,
+      tone: "danger",
+    })
+  }
+
+  if (pendingAssets.length > 0) {
+    priorities.push({
+      title: "待确认资产需要回流",
+      detail: `${pendingAssets.length} 个对象仍待确认或复核，建议先补归属再推进下一步验证。`,
+      tone: "warning",
+    })
+  }
+
+  if (abnormalTools.length > 0) {
+    priorities.push({
+      title: "MCP 工具健康待处理",
+      detail: `${abnormalTools.length} 个工具处于异常状态，继续前请先完成巡检与恢复。`,
+      tone: "info",
+    })
+  }
+
+  if (priorities.length === 0 && blockedProjects.length > 0) {
+    priorities.push({
+      title: "阻塞项目待恢复",
+      detail: `${blockedProjects.length} 个项目处于阻塞状态，建议先进入项目详情查看当前阶段与控制策略。`,
+      tone: "warning",
+    })
+  }
+
+  return priorities
+}
+
+function deriveDashboardTasks(projects: ProjectRecord[]): TaskRecord[] {
+  if (projects.length === 0) {
+    return []
+  }
+
+  return projects.flatMap((project) => {
+    const detail = getStoredProjectDetailById(project.id)
+    return detail?.tasks ?? []
   })
 }
 
@@ -130,24 +231,86 @@ function buildMcpSettingsMetric(tools: McpToolRecord[]) {
   return `${enabledCount} 启用 / ${abnormalCount} 异常`
 }
 
+function buildLlmSettingsMetric(profiles: LlmProfileRecord[]) {
+  const enabledProfiles = profiles.filter((profile) => profile.enabled && profile.model).length
+
+  return enabledProfiles > 0 ? `${enabledProfiles} 套已启用` : "等待配置"
+}
+
+function buildCapabilityPayloadFromTools(tools: McpToolRecord[]) {
+  return mcpCapabilityRecords.map((capability) => ({
+    ...capability,
+    connectedTools: tools.filter((tool) => tool.capability === capability.name).map((tool) => tool.toolName),
+  }))
+}
+
 function buildSystemStatusPayloadFromTools(tools: McpToolRecord[]) {
+  const store = readPrototypeStore()
   const enabledCount = tools.filter((tool) => tool.status === "启用").length
   const abnormalTools = tools.filter((tool) => tool.status === "异常")
+  const activeTasks = store.schedulerTasks.filter((task) => !["succeeded", "failed", "cancelled"].includes(task.status))
+  const waitingApprovalTasks = activeTasks.filter((task) => task.status === "waiting_approval").length
+  const runningTasks = activeTasks.filter((task) => task.status === "running").length
+  const retryTasks = activeTasks.filter((task) => task.status === "scheduled").length
+  const browserTools = tools.filter((tool) => tool.capability === "截图与证据采集类" && tool.status === "启用")
+  const webSurfaceTools = tools.filter((tool) => tool.capability === "Web 页面探测类" && tool.status === "启用")
+  const auditLogTotal = store.auditLogs.length
+  const workLogTotal = store.workLogs.length
 
   return systemStatusCards.map((card) => {
-    if (card.title !== "MCP 网关") {
-      return card
+    if (card.title === "MCP 网关") {
+      return {
+        ...card,
+        value: tools.length > 0 ? `${enabledCount} / ${tools.length} 正常` : "0 / 0 已接入",
+        description:
+          tools.length === 0
+            ? "当前还没有注册任何 MCP server 或工具契约。"
+            : abnormalTools.length > 0
+            ? `${abnormalTools.map((tool) => tool.toolName).join("、")} 当前异常，已影响对应链路。`
+            : "所有已注册 MCP 工具当前均处于健康状态。",
+        tone: tools.length === 0 ? "neutral" : abnormalTools.length > 0 ? "danger" : "success",
+      }
     }
 
-    return {
-      ...card,
-      value: `${enabledCount} / ${tools.length} 正常`,
-      description:
-        abnormalTools.length > 0
-          ? `${abnormalTools.map((tool) => tool.toolName).join("、")} 当前异常，已影响对应链路。`
-          : "所有已注册 MCP 工具当前均处于健康状态。",
-      tone: abnormalTools.length > 0 ? "danger" : "success",
+    if (card.title === "调度队列") {
+      return {
+        ...card,
+        value: `${activeTasks.length} 条`,
+        description:
+          activeTasks.length === 0
+            ? "当前没有待运行、待审批或待重试的真实任务。"
+            : `${waitingApprovalTasks} 条待审批 / ${runningTasks} 条执行中 / ${retryTasks} 条已排入调度恢复。`,
+        tone: activeTasks.length === 0 ? "neutral" : waitingApprovalTasks > 0 ? "warning" : "info",
+      }
     }
+
+    if (card.title === "浏览器池") {
+      return {
+        ...card,
+        value: browserTools.length > 0 ? `${browserTools.length} 条已接入` : "未接入",
+        description:
+          browserTools.length > 0
+            ? `当前已注册 ${browserTools.map((tool) => tool.toolName).join("、")}，可用于截图或证据采集。`
+            : webSurfaceTools.length > 0
+            ? "当前还没有独立浏览器/截图采集节点，但 Web 页面探测链路仍可回流基础入口证据。"
+            : "当前还没有浏览器或截图采集能力注册。",
+        tone: browserTools.length > 0 ? "success" : webSurfaceTools.length > 0 ? "warning" : "neutral",
+      }
+    }
+
+    if (card.title === "日志存储") {
+      return {
+        ...card,
+        value: `${workLogTotal + auditLogTotal} 条`,
+        description:
+          workLogTotal + auditLogTotal > 0
+            ? `工作日志 ${workLogTotal} 条 / 审计日志 ${auditLogTotal} 条，均已进入真实持久化存储。`
+            : "当前还没有真实日志写入，等项目执行或配置变更后这里会开始累积。",
+        tone: workLogTotal + auditLogTotal > 0 ? "success" : "info",
+      }
+    }
+
+    return card
   })
 }
 
@@ -243,6 +406,7 @@ export function getProjectFindingsPayload(projectId: string): ProjectFindingsPay
 export function getSettingsSectionsPayload(): SettingsSectionsPayload {
   const auditTotal = listStoredAuditLogs().length
   const approvalControl = getStoredGlobalApprovalControl()
+  const llmProfiles = listStoredLlmProfiles()
   const mcpTools = listStoredMcpTools()
   const workLogTotal = listStoredWorkLogs().length
 
@@ -252,6 +416,13 @@ export function getSettingsSectionsPayload(): SettingsSectionsPayload {
         return {
           ...section,
           metric: buildMcpSettingsMetric(mcpTools),
+        }
+      }
+
+      if (section.href === "/settings/llm") {
+        return {
+          ...section,
+          metric: buildLlmSettingsMetric(llmProfiles),
         }
       }
 
@@ -297,16 +468,19 @@ export function getDashboardPayload(): DashboardPayload {
   const mcpTools = listStoredMcpTools()
   const assets = listStoredAssets()
   const evidence = listStoredEvidence()
+  const pendingApprovalCount = approvals.filter((approval) => approval.status === "待处理").length
+  const priorities = buildDashboardPriorities({ projects, approvals, assets, mcpTools })
+  const leadProject = projects[0] ?? null
 
   return {
-    metrics: buildDashboardMetrics(projects, approvals.filter((approval) => approval.status === "待处理").length),
-    priorities: dashboardPriorities,
-    leadProject: projects[0],
+    metrics: buildDashboardMetrics(projects, pendingApprovalCount),
+    priorities,
+    leadProject,
     approvals,
     assets,
     evidence,
     mcpTools,
-    projectTasks,
+    projectTasks: deriveDashboardTasks(projects),
     projects,
   }
 }
@@ -444,14 +618,33 @@ export function updateProjectApprovalControlPayload(projectId: string, patch: Ap
 }
 
 export function getMcpSettingsPayload(): McpSettingsPayload {
+  const store = readPrototypeStore()
+  const tools = listStoredMcpTools()
+
   return {
-    tools: listStoredMcpTools(),
+    tools,
     servers: listStoredMcpServers(),
     recentInvocations: listStoredMcpServerInvocations(undefined, 6),
-    capabilities: mcpCapabilityRecords,
+    capabilities: buildCapabilityPayloadFromTools(tools),
     boundaryRules: mcpBoundaryRules,
     registrationFields: mcpRegistrationFields,
+    serverContracts: store.mcpServerContracts,
+    toolContracts: store.mcpToolContracts,
   }
+}
+
+export function getLlmSettingsPayload(): LlmSettingsPayload {
+  return {
+    profiles: listStoredLlmProfiles(),
+  }
+}
+
+export function updateLlmSettingsPayload(profile: LlmProfileRecord) {
+  return updateStoredLlmProfile(profile)
+}
+
+export function registerMcpServerPayload(input: Parameters<typeof registerStoredMcpServer>[0]) {
+  return registerStoredMcpServer(input)
 }
 
 export function getMcpToolPayload(toolId: string) {

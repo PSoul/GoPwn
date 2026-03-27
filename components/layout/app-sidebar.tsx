@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ShieldCheck } from "lucide-react"
 
@@ -18,6 +19,42 @@ import {
 import { prototypeNavigation } from "@/lib/navigation"
 
 export function AppSidebar({ pathname }: { pathname: string }) {
+  const [dynamicBadges, setDynamicBadges] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadBadges() {
+      try {
+        const response = await fetch("/api/dashboard", {
+          signal: controller.signal,
+        })
+
+        if (!response.ok) {
+          return
+        }
+
+        const payload = (await response.json()) as {
+          metrics?: Array<{ label?: string; value?: string }>
+        }
+        const metrics = Array.isArray(payload.metrics) ? payload.metrics : []
+        const projectTotal = metrics.find((metric) => metric.label === "项目总数")?.value ?? ""
+        const approvalTotal = metrics.find((metric) => metric.label === "待审批动作")?.value ?? ""
+
+        setDynamicBadges({
+          "/projects": projectTotal && projectTotal !== "0" ? projectTotal : "",
+          "/approvals": approvalTotal && approvalTotal !== "0" ? approvalTotal : "",
+        })
+      } catch {
+        // ignore sidebar badge refresh failures and fall back to no badges
+      }
+    }
+
+    void loadBadges()
+
+    return () => controller.abort()
+  }, [pathname])
+
   const groups = [
     { label: "总览", items: prototypeNavigation.filter((item) => item.section === "总览") },
     { label: "执行", items: prototypeNavigation.filter((item) => item.section === "执行") },
@@ -48,6 +85,7 @@ export function AppSidebar({ pathname }: { pathname: string }) {
               <SidebarMenu className="gap-1.5">
                 {group.items.map((item) => {
                   const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+                  const badge = dynamicBadges[item.href] ?? item.badge
 
                   return (
                     <SidebarMenuItem key={item.href}>
@@ -62,9 +100,9 @@ export function AppSidebar({ pathname }: { pathname: string }) {
                           <span>{item.title}</span>
                         </Link>
                       </SidebarMenuButton>
-                      {item.badge ? (
+                      {badge ? (
                         <SidebarMenuBadge className="right-2 rounded-full bg-slate-100 px-1.5 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                          {item.badge}
+                          {badge}
                         </SidebarMenuBadge>
                       ) : null}
                     </SidebarMenuItem>

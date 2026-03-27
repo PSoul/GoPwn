@@ -2,9 +2,11 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
 import { SystemStatusGrid } from "@/components/settings/system-status-grid"
-import { systemStatusCards } from "@/lib/prototype-data"
+import { getSystemStatusPayload } from "@/lib/prototype-api"
 
 export default function SystemStatusSettingsPage() {
+  const { items } = getSystemStatusPayload()
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -15,7 +17,7 @@ export default function SystemStatusSettingsPage() {
       <SettingsSubnav currentHref="/settings/system-status" />
 
       <SectionCard title="平台健康状态" description="先看四个核心面板，再决定是否进入更细的巡检流程。">
-        <SystemStatusGrid items={systemStatusCards} />
+        <SystemStatusGrid items={items} />
       </SectionCard>
     </div>
   )

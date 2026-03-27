@@ -6,6 +6,7 @@ import { GET as getProjectOperations } from "@/app/api/projects/[projectId]/oper
 import { GET as getProjectDomains } from "@/app/api/projects/[projectId]/results/domains/route"
 import { GET as getProjectFindings } from "@/app/api/projects/[projectId]/results/findings/route"
 import { GET as getProjectNetwork } from "@/app/api/projects/[projectId]/results/network/route"
+import { createApprovedWorkflowFixture } from "@/tests/helpers/project-fixtures"
 
 const buildProjectContext = (projectId: string) => ({
   params: Promise.resolve({ projectId }),
@@ -13,15 +14,19 @@ const buildProjectContext = (projectId: string) => ({
 
 describe("project surface api routes", () => {
   it("returns flow and operations payloads", async () => {
-    const flowResponse = await getProjectFlow(new Request("http://localhost/api/projects/proj-huayao/flow"), buildProjectContext("proj-huayao"))
+    const fixture = await createApprovedWorkflowFixture()
+    const flowResponse = await getProjectFlow(
+      new Request(`http://localhost/api/projects/${fixture.project.id}/flow`),
+      buildProjectContext(fixture.project.id),
+    )
     const flowPayload = await flowResponse.json()
 
     expect(flowResponse.status).toBe(200)
     expect(flowPayload.detail.timeline.length).toBeGreaterThan(0)
 
     const operationsResponse = await getProjectOperations(
-      new Request("http://localhost/api/projects/proj-huayao/operations"),
-      buildProjectContext("proj-huayao"),
+      new Request(`http://localhost/api/projects/${fixture.project.id}/operations`),
+      buildProjectContext(fixture.project.id),
     )
     const operationsPayload = await operationsResponse.json()
 
@@ -33,9 +38,10 @@ describe("project surface api routes", () => {
   })
 
   it("returns result-table payloads for domains, network, and findings", async () => {
+    const fixture = await createApprovedWorkflowFixture()
     const domainsResponse = await getProjectDomains(
-      new Request("http://localhost/api/projects/proj-huayao/results/domains"),
-      buildProjectContext("proj-huayao"),
+      new Request(`http://localhost/api/projects/${fixture.project.id}/results/domains`),
+      buildProjectContext(fixture.project.id),
     )
     const domainsPayload = await domainsResponse.json()
 
@@ -43,8 +49,8 @@ describe("project surface api routes", () => {
     expect(domainsPayload.group.title).toBe("域名 / Web 入口")
 
     const networkResponse = await getProjectNetwork(
-      new Request("http://localhost/api/projects/proj-huayao/results/network"),
-      buildProjectContext("proj-huayao"),
+      new Request(`http://localhost/api/projects/${fixture.project.id}/results/network`),
+      buildProjectContext(fixture.project.id),
     )
     const networkPayload = await networkResponse.json()
 
@@ -52,8 +58,8 @@ describe("project surface api routes", () => {
     expect(networkPayload.group.title).toBe("IP / 端口 / 服务")
 
     const findingsResponse = await getProjectFindings(
-      new Request("http://localhost/api/projects/proj-huayao/results/findings"),
-      buildProjectContext("proj-huayao"),
+      new Request(`http://localhost/api/projects/${fixture.project.id}/results/findings`),
+      buildProjectContext(fixture.project.id),
     )
     const findingsPayload = await findingsResponse.json()
 
@@ -62,7 +68,11 @@ describe("project surface api routes", () => {
   })
 
   it("returns evidence-rich context payload", async () => {
-    const response = await getProjectContext(new Request("http://localhost/api/projects/proj-huayao/context"), buildProjectContext("proj-huayao"))
+    const fixture = await createApprovedWorkflowFixture()
+    const response = await getProjectContext(
+      new Request(`http://localhost/api/projects/${fixture.project.id}/context`),
+      buildProjectContext(fixture.project.id),
+    )
     const payload = await response.json()
 
     expect(response.status).toBe(200)

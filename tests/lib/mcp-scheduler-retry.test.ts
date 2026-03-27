@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { dispatchStoredMcpRun, getStoredMcpRunById } from "@/lib/mcp-gateway-repository"
 import { getStoredSchedulerTaskByRunId } from "@/lib/mcp-scheduler-repository"
+import { createStoredProjectFixture, seedWorkflowReadyMcpTools } from "@/tests/helpers/project-fixtures"
 
 let mockedExecutionResult:
   | {
@@ -39,10 +40,12 @@ describe("MCP scheduler retry transitions", () => {
   })
 
   it("moves retryable failures into retry_scheduled and updates the visible run state", async () => {
-    const payload = dispatchStoredMcpRun("proj-huayao", {
+    seedWorkflowReadyMcpTools()
+    const fixture = createStoredProjectFixture()
+    const payload = dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
-      target: "admin.huayao.com",
+      target: fixture.project.seed,
       riskLevel: "低",
     })
 

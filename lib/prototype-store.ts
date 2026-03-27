@@ -1,30 +1,19 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
 
-import {
-  approvalPolicies,
-  approvals,
-  assets,
-  evidenceRecords,
-  globalApprovalControl,
-  auditLogs,
-  defaultProjectFormPreset,
-  getProjectDetailById,
-  getProjectFormPreset,
-  mcpRuns,
-  mcpTools,
-  projects,
-  scopeRules,
-  workLogs,
-} from "@/lib/prototype-data"
+import { defaultGlobalApprovalControl, defaultProjectFormPreset } from "@/lib/platform-config"
+import { generateProjectId, isAsciiProjectId } from "@/lib/project-id"
 import type {
   ApprovalControl,
   ApprovalRecord,
   AssetRecord,
   EvidenceRecord,
+  LlmProfileRecord,
   LogRecord,
   McpRunRecord,
   McpSchedulerTaskRecord,
+  McpServerContractSummaryRecord,
+  McpToolContractSummaryRecord,
   McpToolRecord,
   OrchestratorPlanRecord,
   PolicyRecord,
@@ -46,6 +35,9 @@ export type PrototypeStore = {
   orchestratorPlans: Record<string, OrchestratorPlanRecord>
   schedulerTasks: McpSchedulerTaskRecord[]
   mcpTools: McpToolRecord[]
+  llmProfiles: LlmProfileRecord[]
+  mcpServerContracts: McpServerContractSummaryRecord[]
+  mcpToolContracts: McpToolContractSummaryRecord[]
   projectDetails: ProjectDetailRecord[]
   projectFindings: ProjectFindingRecord[]
   projectFormPresets: Record<string, ProjectFormPreset>
@@ -56,6 +48,44 @@ export type PrototypeStore = {
 
 const STORE_DIRECTORY = ".prototype-store"
 const STORE_FILENAME = "prototype-store.json"
+const SEEDED_PROJECT_IDS = new Set(["proj-huayao", "proj-xingtu", "proj-yunlan"])
+const SEEDED_PROJECT_NAMES = new Set(["华曜科技匿名外网面梳理", "星图教育开放资产评估", "云岚医械公网暴露面验证"])
+
+export const DEFAULT_LLM_PROFILES: LlmProfileRecord[] = [
+  {
+    id: "orchestrator",
+    provider: "openai-compatible",
+    label: "Default Orchestrator",
+    apiKey: "",
+    baseUrl: "",
+    model: "",
+    timeoutMs: 15000,
+    temperature: 0.2,
+    enabled: false,
+  },
+  {
+    id: "reviewer",
+    provider: "openai-compatible",
+    label: "Default Reviewer",
+    apiKey: "",
+    baseUrl: "",
+    model: "",
+    timeoutMs: 15000,
+    temperature: 0.1,
+    enabled: false,
+  },
+  {
+    id: "extractor",
+    provider: "openai-compatible",
+    label: "Default Extractor",
+    apiKey: "",
+    baseUrl: "",
+    model: "",
+    timeoutMs: 10000,
+    temperature: 0,
+    enabled: false,
+  },
+]
 
 function cloneValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
@@ -69,58 +99,300 @@ function getStorePath() {
   return path.join(getStoreDirectory(), STORE_FILENAME)
 }
 
-function buildSeedStore(): PrototypeStore {
-  const seededProjectDetails = projects
-    .map((project) => getProjectDetailById(project.id))
-    .filter((detail): detail is ProjectDetailRecord => Boolean(detail))
-  const seededProjectFindings = seededProjectDetails.flatMap((detail) => detail.findings)
-
-  const seededProjectFormPresets = Object.fromEntries(
-    projects.map((project) => [project.id, getProjectFormPreset(project.id)]),
-  )
-
+function buildInitialStore(): PrototypeStore {
   return {
-    version: 7,
-    auditLogs: cloneValue(auditLogs),
-    approvalPolicies: cloneValue(approvalPolicies),
-    approvals: cloneValue(approvals),
-    assets: cloneValue(assets),
-    evidenceRecords: cloneValue(evidenceRecords),
-    globalApprovalControl: cloneValue(globalApprovalControl),
-    mcpRuns: cloneValue(mcpRuns),
+    version: 8,
+    auditLogs: [],
+    approvalPolicies: [],
+    approvals: [],
+    assets: [],
+    evidenceRecords: [],
+    globalApprovalControl: cloneValue(defaultGlobalApprovalControl),
+    mcpRuns: [],
     orchestratorPlans: {},
     schedulerTasks: [],
-    mcpTools: cloneValue(mcpTools),
-    projectDetails: cloneValue(seededProjectDetails),
-    projectFindings: cloneValue(seededProjectFindings),
-    projectFormPresets: cloneValue(seededProjectFormPresets),
-    projects: cloneValue(projects),
-    scopeRules: cloneValue(scopeRules),
-    workLogs: cloneValue(workLogs),
+    mcpTools: [],
+    llmProfiles: cloneValue(DEFAULT_LLM_PROFILES),
+    mcpServerContracts: [],
+    mcpToolContracts: [],
+    projectDetails: [],
+    projectFindings: [],
+    projectFormPresets: {},
+    projects: [],
+    scopeRules: [],
+    workLogs: [],
   }
 }
 
 function normalizeStore(store: Partial<PrototypeStore>): PrototypeStore {
-  const seeded = buildSeedStore()
+  const initial = buildInitialStore()
 
   return {
-    version: Math.max(store.version ?? 1, seeded.version),
-    auditLogs: Array.isArray(store.auditLogs) ? store.auditLogs : seeded.auditLogs,
-    approvalPolicies: Array.isArray(store.approvalPolicies) ? store.approvalPolicies : seeded.approvalPolicies,
-    approvals: Array.isArray(store.approvals) ? store.approvals : seeded.approvals,
-    assets: Array.isArray(store.assets) ? store.assets : seeded.assets,
-    evidenceRecords: Array.isArray(store.evidenceRecords) ? store.evidenceRecords : seeded.evidenceRecords,
-    globalApprovalControl: store.globalApprovalControl ?? seeded.globalApprovalControl,
-    mcpRuns: Array.isArray(store.mcpRuns) ? store.mcpRuns : seeded.mcpRuns,
-    orchestratorPlans: store.orchestratorPlans ?? seeded.orchestratorPlans,
-    schedulerTasks: Array.isArray(store.schedulerTasks) ? store.schedulerTasks : seeded.schedulerTasks,
-    mcpTools: Array.isArray(store.mcpTools) ? store.mcpTools : seeded.mcpTools,
-    projectDetails: Array.isArray(store.projectDetails) ? store.projectDetails : seeded.projectDetails,
-    projectFindings: Array.isArray(store.projectFindings) ? store.projectFindings : seeded.projectFindings,
-    projectFormPresets: store.projectFormPresets ?? seeded.projectFormPresets,
-    projects: Array.isArray(store.projects) ? store.projects : seeded.projects,
-    scopeRules: Array.isArray(store.scopeRules) ? store.scopeRules : seeded.scopeRules,
-    workLogs: Array.isArray(store.workLogs) ? store.workLogs : seeded.workLogs,
+    version: Math.max(store.version ?? 1, initial.version),
+    auditLogs: Array.isArray(store.auditLogs) ? store.auditLogs : initial.auditLogs,
+    approvalPolicies: Array.isArray(store.approvalPolicies) ? store.approvalPolicies : initial.approvalPolicies,
+    approvals: Array.isArray(store.approvals) ? store.approvals : initial.approvals,
+    assets: Array.isArray(store.assets) ? store.assets : initial.assets,
+    evidenceRecords: Array.isArray(store.evidenceRecords) ? store.evidenceRecords : initial.evidenceRecords,
+    globalApprovalControl: store.globalApprovalControl ?? initial.globalApprovalControl,
+    mcpRuns: Array.isArray(store.mcpRuns) ? store.mcpRuns : initial.mcpRuns,
+    orchestratorPlans: store.orchestratorPlans ?? initial.orchestratorPlans,
+    schedulerTasks: Array.isArray(store.schedulerTasks) ? store.schedulerTasks : initial.schedulerTasks,
+    mcpTools: Array.isArray(store.mcpTools) ? store.mcpTools : initial.mcpTools,
+    llmProfiles: Array.isArray(store.llmProfiles) ? store.llmProfiles : initial.llmProfiles,
+    mcpServerContracts: Array.isArray(store.mcpServerContracts) ? store.mcpServerContracts : initial.mcpServerContracts,
+    mcpToolContracts: Array.isArray(store.mcpToolContracts) ? store.mcpToolContracts : initial.mcpToolContracts,
+    projectDetails: Array.isArray(store.projectDetails) ? store.projectDetails : initial.projectDetails,
+    projectFindings: Array.isArray(store.projectFindings) ? store.projectFindings : initial.projectFindings,
+    projectFormPresets: store.projectFormPresets ?? initial.projectFormPresets,
+    projects: Array.isArray(store.projects) ? store.projects : initial.projects,
+    scopeRules: Array.isArray(store.scopeRules) ? store.scopeRules : initial.scopeRules,
+    workLogs: Array.isArray(store.workLogs) ? store.workLogs : initial.workLogs,
+  }
+}
+
+function parseDayStamp(value?: string) {
+  if (!value) {
+    return null
+  }
+
+  const match = value.match(/(\d{4})-(\d{2})-(\d{2})/)
+  if (!match) {
+    return null
+  }
+
+  const [, year, month, day] = match
+  return new Date(Number(year), Number(month) - 1, Number(day))
+}
+
+function buildProjectIdMap(projects: ProjectRecord[]) {
+  const usedIds = new Set(projects.map((project) => project.id).filter((id) => isAsciiProjectId(id)))
+  const idMap = new Map<string, string>()
+
+  for (const project of projects) {
+    if (isAsciiProjectId(project.id)) {
+      continue
+    }
+
+    const baseDate = parseDayStamp(project.createdAt) ?? new Date()
+    const seed = [project.id, project.name, project.createdAt].join(":")
+    let nextId = generateProjectId(baseDate, seed)
+
+    while (usedIds.has(nextId)) {
+      nextId = generateProjectId(baseDate, `${seed}:${usedIds.size}`)
+    }
+
+    idMap.set(project.id, nextId)
+    usedIds.add(nextId)
+  }
+
+  return idMap
+}
+
+function assertNoLegacyProjectIds(value: unknown, legacyIds: Set<string>) {
+  if (typeof value === "string") {
+    if (legacyIds.has(value)) {
+      throw new Error(`Legacy project id remained after migration: ${value}`)
+    }
+
+    return
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((entry) => assertNoLegacyProjectIds(entry, legacyIds))
+    return
+  }
+
+  if (value && typeof value === "object") {
+    Object.values(value).forEach((entry) => assertNoLegacyProjectIds(entry, legacyIds))
+  }
+}
+
+function migrateProjectIds(store: PrototypeStore): PrototypeStore {
+  const idMap = buildProjectIdMap(store.projects)
+  const legacyIds = new Set(idMap.keys())
+
+  if (idMap.size === 0) {
+    assertNoLegacyProjectIds(store, legacyIds)
+    return store
+  }
+
+  const mapId = (value: string) => idMap.get(value) ?? value
+
+  const projects = store.projects.map((project) =>
+    idMap.has(project.id)
+      ? {
+          ...project,
+          id: mapId(project.id),
+        }
+      : project,
+  )
+
+  const projectDetails = store.projectDetails.map((detail) => {
+    const nextProjectId = mapId(detail.projectId)
+    const nextTasks = detail.tasks.map((task) =>
+      task.projectId === nextProjectId || !idMap.has(task.projectId)
+        ? task
+        : {
+            ...task,
+            projectId: mapId(task.projectId),
+          },
+    )
+    const nextFindings = detail.findings.map((finding) =>
+      finding.projectId === nextProjectId || !idMap.has(finding.projectId)
+        ? finding
+        : {
+            ...finding,
+            projectId: mapId(finding.projectId),
+          },
+    )
+
+    if (nextProjectId === detail.projectId && nextTasks === detail.tasks && nextFindings === detail.findings) {
+      return detail
+    }
+
+    return {
+      ...detail,
+      projectId: nextProjectId,
+      tasks: nextTasks,
+      findings: nextFindings,
+    }
+  })
+
+  const projectFormPresets = Object.fromEntries(
+    Object.entries(store.projectFormPresets).map(([projectId, preset]) => [mapId(projectId), preset]),
+  )
+
+  const approvals = store.approvals.map((approval) =>
+    idMap.has(approval.projectId)
+      ? {
+          ...approval,
+          projectId: mapId(approval.projectId),
+        }
+      : approval,
+  )
+
+  const assets = store.assets.map((asset) =>
+    idMap.has(asset.projectId)
+      ? {
+          ...asset,
+          projectId: mapId(asset.projectId),
+        }
+      : asset,
+  )
+
+  const evidenceRecords = store.evidenceRecords.map((record) =>
+    idMap.has(record.projectId)
+      ? {
+          ...record,
+          projectId: mapId(record.projectId),
+        }
+      : record,
+  )
+
+  const mcpRuns = store.mcpRuns.map((run) =>
+    idMap.has(run.projectId)
+      ? {
+          ...run,
+          projectId: mapId(run.projectId),
+        }
+      : run,
+  )
+
+  const schedulerTasks = store.schedulerTasks.map((task) =>
+    idMap.has(task.projectId)
+      ? {
+          ...task,
+          projectId: mapId(task.projectId),
+        }
+      : task,
+  )
+
+  const projectFindings = store.projectFindings.map((finding) =>
+    idMap.has(finding.projectId)
+      ? {
+          ...finding,
+          projectId: mapId(finding.projectId),
+        }
+      : finding,
+  )
+
+  const orchestratorPlans = Object.fromEntries(
+    Object.entries(store.orchestratorPlans).map(([projectId, plan]) => [mapId(projectId), plan]),
+  )
+
+  const mcpServerContracts = store.mcpServerContracts.map((contract) =>
+    contract.projectId && idMap.has(contract.projectId)
+      ? {
+          ...contract,
+          projectId: mapId(contract.projectId),
+        }
+      : contract,
+  )
+
+  const mcpToolContracts = store.mcpToolContracts.map((contract) =>
+    contract.projectId && idMap.has(contract.projectId)
+      ? {
+          ...contract,
+          projectId: mapId(contract.projectId),
+        }
+      : contract,
+  )
+
+  const migratedStore = {
+    ...store,
+    projects,
+    projectDetails,
+    projectFormPresets,
+    approvals,
+    assets,
+    evidenceRecords,
+    mcpRuns,
+    schedulerTasks,
+    projectFindings,
+    orchestratorPlans,
+    mcpServerContracts,
+    mcpToolContracts,
+  }
+
+  assertNoLegacyProjectIds(migratedStore, legacyIds)
+  return migratedStore
+}
+
+function purgeSeededBusinessRecords(store: PrototypeStore): PrototypeStore {
+  const seededIds = new Set(
+    store.projects
+      .filter((project) => SEEDED_PROJECT_IDS.has(project.id) || SEEDED_PROJECT_NAMES.has(project.name))
+      .map((project) => project.id),
+  )
+
+  if (seededIds.size === 0) {
+    return store
+  }
+
+  const isSeededProjectId = (projectId?: string) => Boolean(projectId && seededIds.has(projectId))
+  const isSeededProjectName = (projectName?: string) => Boolean(projectName && SEEDED_PROJECT_NAMES.has(projectName))
+
+  return {
+    ...store,
+    projects: store.projects.filter((project) => !seededIds.has(project.id)),
+    projectDetails: store.projectDetails.filter((detail) => !seededIds.has(detail.projectId)),
+    projectFindings: store.projectFindings.filter((finding) => !seededIds.has(finding.projectId)),
+    approvals: store.approvals.filter((approval) => !seededIds.has(approval.projectId)),
+    assets: store.assets.filter((asset) => !seededIds.has(asset.projectId)),
+    evidenceRecords: store.evidenceRecords.filter((record) => !seededIds.has(record.projectId)),
+    mcpRuns: store.mcpRuns.filter((run) => !seededIds.has(run.projectId)),
+    schedulerTasks: store.schedulerTasks.filter((task) => !seededIds.has(task.projectId)),
+    workLogs: store.workLogs.filter((log) => !isSeededProjectName(log.projectName)),
+    auditLogs: store.auditLogs.filter((log) => !isSeededProjectName(log.projectName)),
+    projectFormPresets: Object.fromEntries(
+      Object.entries(store.projectFormPresets).filter(([projectId]) => !seededIds.has(projectId)),
+    ),
+    orchestratorPlans: Object.fromEntries(
+      Object.entries(store.orchestratorPlans).filter(([projectId]) => !seededIds.has(projectId)),
+    ),
+    mcpServerContracts: store.mcpServerContracts.filter((contract) => !isSeededProjectId(contract.projectId)),
+    mcpToolContracts: store.mcpToolContracts.filter((contract) => !isSeededProjectId(contract.projectId)),
   }
 }
 
@@ -133,14 +405,15 @@ function ensureStoreFile() {
   }
 
   if (!existsSync(storePath)) {
-    writeFileSync(storePath, JSON.stringify(buildSeedStore(), null, 2), "utf8")
+    writeFileSync(storePath, JSON.stringify(buildInitialStore(), null, 2), "utf8")
   }
 }
 
 export function readPrototypeStore(): PrototypeStore {
   ensureStoreFile()
   const rawStore = JSON.parse(readFileSync(getStorePath(), "utf8")) as Partial<PrototypeStore>
-  const store = normalizeStore(rawStore)
+  const normalized = normalizeStore(rawStore)
+  const store = purgeSeededBusinessRecords(migrateProjectIds(normalized))
 
   if (JSON.stringify(rawStore) !== JSON.stringify(store)) {
     writePrototypeStore(store)

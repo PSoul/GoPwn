@@ -8,6 +8,7 @@ import type {
   ProjectRecord,
   ProjectStatus,
 } from "@/lib/prototype-types"
+import { generateProjectId } from "@/lib/project-id"
 
 function formatTimestamp(date = new Date()) {
   const year = String(date.getFullYear())
@@ -34,13 +35,8 @@ function parseTags(tags: string) {
     .filter(Boolean)
 }
 
-function buildProjectId(name: string) {
-  const normalized = name
-    .toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-
-  return `proj-${normalized || "custom"}-${Date.now()}`
+function buildProjectId() {
+  return generateProjectId()
 }
 
 function buildProjectCode(existingProjects: ProjectRecord[]) {
@@ -61,7 +57,7 @@ function buildProjectRecord(input: ProjectMutationInput, existingProjects: Proje
   const timestamp = formatTimestamp()
 
   return {
-    id: buildProjectId(input.name),
+    id: buildProjectId(),
     code: buildProjectCode(existingProjects),
     name: input.name,
     seed: input.seed,
