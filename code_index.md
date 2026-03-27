@@ -18,6 +18,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - the current hardening slice removes runtime demo seeds, makes the platform empty-first by default, upgrades `/settings/llm` to real persisted model settings, and requires validated MCP contract registration before any new server or tool appears in the platform
 - the latest hardening pass also auto-creates live-validation projects when needed, supports persisting successful closure data back into the normal workspace store, and has already validated one real Juice Shop closure (`proj-20260327-f6a3fd0c`) that is visible through standard project/evidence/finding routes when workspace-mode persistence is used
 - the latest stabilization slice adds real scheduler runtime controls so project operators can pause future queue pickup, cancel queued tasks, and retry failed tasks directly from the project operations page
+- the current durable-execution follow-up slice lets operators request stop on already running tasks and prevents cancelled work from continuing result commit when the platform can still intercept before writeback
 
 ## 2. Routing Map
 
@@ -218,7 +219,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `components/projects/project-operations-panel.tsx`
   Project-level approval switch, note editor, persisted save flow, approval record summary, and operations overview block.
 - `components/projects/project-scheduler-runtime-panel.tsx`
-  Client-side runtime queue panel for project-level scheduler pause/resume, queued-task cancel, failed-task retry, and operator feedback/refresh on the real operations page.
+  Client-side runtime queue panel for project-level scheduler pause/resume, queued-task cancel, running-task stop requests, failed-task retry, and operator feedback/refresh on the real operations page.
 - `components/projects/project-orchestrator-panel.tsx`
   Client-side orchestrator console for local lab selection, plan generation, local validation execution, provider state display, and last-plan review.
 - `components/projects/project-mcp-runs-panel.tsx`
@@ -311,13 +312,13 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `lib/mcp-client-service.ts`
   Thin real-MCP client runtime. Spawns a stdio MCP subprocess through the official TypeScript SDK, lists/calls tools with timeout/error handling, and persists invocation logs into SQLite.
 - `lib/mcp-execution-service.ts`
-  Execution normalization layer behind the connector registry. Resolves the selected connector, executes it, converts connector-level structured output into platform assets/evidence/work logs/findings, updates run summaries, and refreshes project result state.
+  Execution normalization layer behind the connector registry. Resolves the selected connector, executes it, converts connector-level structured output into platform assets/evidence/work logs/findings, updates run summaries, refreshes project result state, and now refuses to commit normalized results when the linked scheduler task has already been cancelled before writeback.
 - `lib/mcp-scheduler-repository.ts`
   Persisted scheduler-task repository. Stores queue state for ready, waiting-approval, delayed, retry-scheduled, running, completed, failed, and cancelled work, and now maps cancelled MCP runs back into queue state consistently.
 - `lib/mcp-scheduler-service.ts`
   Scheduler loop and task transition service. Creates per-run scheduler tasks, drains ready work, applies retry/delay transitions, resumes approval-gated runs through the same executor path, and now skips queue pickup for projects whose scheduler is paused.
 - `lib/project-scheduler-control-repository.ts`
-  Project-scoped runtime control repository. Owns persisted scheduler pause/resume state plus queued-task cancel and failed-task retry behavior, while also syncing project activity and audit logs.
+  Project-scoped runtime control repository. Owns persisted scheduler pause/resume state plus queued-task cancel, running-task stop requests, and failed-task retry behavior, while also syncing project activity and audit logs.
 - `lib/prototype-types.ts`
   Domain model definitions for:
   - dashboard metrics, dashboard priorities, and dashboard API payloads

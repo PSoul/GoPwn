@@ -154,16 +154,20 @@ export function cancelStoredSchedulerTask(projectId: string, taskId: string, rea
     return null
   }
 
-  if (!["ready", "retry_scheduled", "delayed"].includes(task.status)) {
+  if (!["ready", "retry_scheduled", "delayed", "running"].includes(task.status)) {
     return null
   }
 
   const timestamp = formatTimestamp()
+  const isRunningTask = task.status === "running"
   const nextTask: McpSchedulerTaskRecord = {
     ...task,
     lastError: undefined,
     status: "cancelled",
-    summaryLines: [...task.summaryLines, `${reason} 任务已手动取消。`],
+    summaryLines: [
+      ...task.summaryLines,
+      isRunningTask ? `${reason} 已记录停止请求，当前结果不会再继续推进。` : `${reason} 任务已手动取消。`,
+    ],
     updatedAt: timestamp,
   }
   const nextRun = updateStoredTaskAndRun(
@@ -173,7 +177,7 @@ export function cancelStoredSchedulerTask(projectId: string, taskId: string, rea
       status: "已取消",
       summaryLines: [
         ...(store.mcpRuns.find((item) => item.id === task.runId)?.summaryLines ?? []),
-        `${reason} 调度已终止，不再继续推进该 MCP run。`,
+        isRunningTask ? `${reason} 平台已记录停止请求，当前 MCP run 后续不再继续推进。` : `${reason} 调度已终止，不再继续推进该 MCP run。`,
       ],
       updatedAt: timestamp,
     },
@@ -188,11 +192,17 @@ export function cancelStoredSchedulerTask(projectId: string, taskId: string, rea
   }
   store.projectDetails[detailIndex] = pushProjectActivity(
     store.projectDetails[detailIndex],
-    "调度任务已取消",
-    `${task.toolName} -> ${task.target} 已从运行队列移除。`,
+    isRunningTask ? "运行任务已记录停止请求" : "调度任务已取消",
+    isRunningTask ? `${task.toolName} -> ${task.target} 已停止后续推进并等待当前执行自然收束。` : `${task.toolName} -> ${task.target} 已从运行队列移除。`,
     "warning",
   )
-  store.auditLogs.unshift(createAuditLog(`${project.name} 手动取消调度任务 ${task.id}`, "已取消", project.name))
+  store.auditLogs.unshift(
+    createAuditLog(
+      `${project.name} ${isRunningTask ? "请求停止运行任务" : "手动取消调度任务"} ${task.id}`,
+      "已取消",
+      project.name,
+    ),
+  )
   writePrototypeStore(store)
 
   return {

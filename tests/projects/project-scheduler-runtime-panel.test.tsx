@@ -166,6 +166,48 @@ describe("ProjectSchedulerRuntimePanel", () => {
     })
   })
 
+  it("records a stop request for a running scheduler task", async () => {
+    vi.mocked(global.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        task: {
+          ...schedulerTasks[2],
+          status: "cancelled",
+          updatedAt: "2026-03-27 15:11",
+          summaryLines: [...schedulerTasks[2].summaryLines, "研究员请求停止当前运行中的任务。"],
+        },
+        run: {
+          id: "run-running",
+          status: "已取消",
+        },
+      }),
+    } as Response)
+
+    render(
+      <ProjectSchedulerRuntimePanel
+        projectId="proj-runtime"
+        initialControl={initialControl}
+        initialTasks={schedulerTasks}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "请求停止任务 https://portal.example.test/dashboard" }))
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/projects/proj-runtime/scheduler-tasks/task-running",
+        expect.objectContaining({
+          method: "PATCH",
+        }),
+      )
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/https:\/\/portal\.example\.test\/dashboard 已记录停止请求/)).toBeInTheDocument()
+      expect(refresh).toHaveBeenCalled()
+    })
+  })
+
   it("shows disabled states for unsupported actions while allowing failed tasks to retry", () => {
     render(
       <ProjectSchedulerRuntimePanel
@@ -175,7 +217,7 @@ describe("ProjectSchedulerRuntimePanel", () => {
       />,
     )
 
-    expect(screen.getByRole("button", { name: "取消任务 https://portal.example.test/dashboard" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "请求停止任务 https://portal.example.test/dashboard" })).toBeEnabled()
     expect(screen.getByRole("button", { name: "重试任务 api.example.test" })).toBeDisabled()
     expect(screen.getByRole("button", { name: "重试任务 https://portal.example.test/login" })).toBeEnabled()
   })

@@ -90,6 +90,40 @@ describe("scheduler control api routes", () => {
     expect(payload.run.status).toBe("已取消")
   })
 
+  it("records a stop request for a running scheduler task through the project api", async () => {
+    seedWorkflowReadyMcpTools()
+    const fixture = createStoredProjectFixture()
+    const dispatchPayload = dispatchStoredMcpRun(fixture.project.id, {
+      capability: "DNS / 子域 / 证书情报类",
+      requestedAction: "补采证书与子域情报",
+      target: fixture.project.seed,
+      riskLevel: "低",
+    })
+    const task = getStoredSchedulerTaskByRunId(dispatchPayload!.run.id)
+
+    updateStoredSchedulerTask(task!.id, {
+      status: "running",
+      summaryLines: [...task!.summaryLines, "当前任务正在执行中。"],
+    })
+
+    const response = await patchProjectSchedulerTask(
+      new Request(`http://localhost/api/projects/${fixture.project.id}/scheduler-tasks/${task!.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          action: "cancel",
+          note: "研究员请求停止当前运行中的任务。",
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+      buildProjectTaskContext(fixture.project.id, task!.id),
+    )
+    const payload = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(payload.task.status).toBe("cancelled")
+    expect(payload.run.status).toBe("已取消")
+  })
+
   it("retries a failed scheduler task through the project api", async () => {
     seedWorkflowReadyMcpTools()
     const fixture = createStoredProjectFixture()

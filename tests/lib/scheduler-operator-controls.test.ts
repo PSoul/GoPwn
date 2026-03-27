@@ -75,6 +75,29 @@ describe("scheduler operator controls", () => {
     expect(result?.task.summaryLines.at(-1)).toContain("手动取消")
   })
 
+  it("records a stop request for a running scheduler task and closes the linked run", () => {
+    seedWorkflowReadyMcpTools()
+    const fixture = createStoredProjectFixture()
+    const payload = dispatchStoredMcpRun(fixture.project.id, {
+      capability: "DNS / 子域 / 证书情报类",
+      requestedAction: "补采证书与子域情报",
+      target: fixture.project.seed,
+      riskLevel: "低",
+    })
+
+    const runningTask = getStoredSchedulerTaskByRunId(payload!.run.id)
+    updateStoredSchedulerTask(runningTask!.id, {
+      status: "running",
+      summaryLines: [...runningTask!.summaryLines, "当前任务正在执行中。"],
+    })
+
+    const result = cancelStoredSchedulerTask(fixture.project.id, runningTask!.id, "研究员请求停止当前运行中的任务。")
+
+    expect(result?.task.status).toBe("cancelled")
+    expect(result?.run.status).toBe("已取消")
+    expect(result?.task.summaryLines.at(-1)).toContain("停止")
+  })
+
   it("requeues a failed scheduler task for another attempt", () => {
     seedWorkflowReadyMcpTools()
     const fixture = createStoredProjectFixture()

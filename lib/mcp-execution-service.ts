@@ -15,6 +15,7 @@ import {
   updateStoredMcpRun,
 } from "@/lib/mcp-gateway-repository"
 import { getStoredMcpToolById } from "@/lib/mcp-repository"
+import { getStoredSchedulerTaskByRunId } from "@/lib/mcp-scheduler-repository"
 import { buildStableRecordId, formatDayStamp, formatTimestamp } from "@/lib/prototype-record-utils"
 import {
   refreshStoredProjectResults,
@@ -510,6 +511,29 @@ export async function executeStoredMcpRun(
   }
 
   const rawResult = await connector.execute(executionContext)
+  const cancelledTask = getStoredSchedulerTaskByRunId(run.id)
+
+  if (cancelledTask?.status === "cancelled") {
+    const cancelledRun = updateStoredMcpRun(run.id, {
+      status: "已取消",
+      summaryLines: Array.from(
+        new Set([
+          ...run.summaryLines,
+          ...rawResult.summaryLines,
+          "研究员已请求停止当前运行，平台已阻止该次执行结果继续写入后续资产、证据和发现链路。",
+        ]),
+      ),
+    })
+
+    return {
+      status: "aborted" as const,
+      connectorKey: rawResult.connectorKey,
+      mode: rawResult.mode,
+      summaryLines: rawResult.summaryLines,
+      run: cancelledRun ?? run,
+      outputs: priorOutputs,
+    }
+  }
 
   if (rawResult.status !== "succeeded") {
     return {

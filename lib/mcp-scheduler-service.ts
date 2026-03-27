@@ -151,6 +151,18 @@ export async function processStoredSchedulerTask(
     }
   }
 
+  if (result.status === "aborted") {
+    const cancelledTask = getStoredSchedulerTaskByRunId(run.id)
+    const cancelledRun = getStoredMcpRunById(run.id)
+
+    return {
+      status: "cancelled" as const,
+      run: cancelledRun ?? run,
+      task: cancelledTask ?? task,
+      outputs: priorOutputs,
+    }
+  }
+
   if (result.status === "succeeded") {
     const completedTask = updateStoredSchedulerTask(task.id, {
       connectorMode: result.mode,

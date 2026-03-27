@@ -23,7 +23,7 @@ const taskStatusTone: Record<McpSchedulerTaskRecord["status"], "neutral" | "info
 }
 
 function isCancelableTask(task: McpSchedulerTaskRecord) {
-  return ["ready", "retry_scheduled", "delayed"].includes(task.status)
+  return ["ready", "retry_scheduled", "delayed", "running"].includes(task.status)
 }
 
 function isRetryableTask(task: McpSchedulerTaskRecord) {
@@ -123,7 +123,9 @@ export function ProjectSchedulerRuntimePanel({
       setTasks((current) => current.map((item) => (item.id === payload.task?.id ? payload.task : item)))
       setMessage(
         action === "cancel"
-          ? `${payload.task.target} 已从运行队列移除。`
+          ? task.status === "running"
+            ? `${payload.task.target} 已记录停止请求，平台将停止后续推进。`
+            : `${payload.task.target} 已从运行队列移除。`
           : `${payload.task.target} 已重新回到待执行队列。`,
       )
       refreshServerState()
@@ -254,6 +256,8 @@ export function ProjectSchedulerRuntimePanel({
               const canCancel = isCancelableTask(task)
               const canRetry = isRetryableTask(task)
               const isBusy = activeTaskId === task.id || isRouting
+              const cancelActionLabel = task.status === "running" ? "请求停止" : "取消排队"
+              const cancelAriaLabel = task.status === "running" ? `请求停止任务 ${task.target}` : `取消任务 ${task.target}`
 
               return (
                 <div
@@ -299,12 +303,12 @@ export function ProjectSchedulerRuntimePanel({
                       <Button
                         type="button"
                         variant="outline"
-                        aria-label={`取消任务 ${task.target}`}
+                        aria-label={cancelAriaLabel}
                         disabled={!canCancel || isBusy}
                         className="rounded-full"
                         onClick={() => runTaskAction(task, "cancel")}
                       >
-                        取消排队
+                        {cancelActionLabel}
                       </Button>
                       <Button
                         type="button"
