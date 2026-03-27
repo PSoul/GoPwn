@@ -5,6 +5,7 @@ import path from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
+import { createStoredProjectFixture } from "@/tests/helpers/project-fixtures"
 
 const PROJECT_ID_PATTERN = /^proj-\d{8}-[a-f0-9]{8}$/
 
@@ -23,10 +24,10 @@ describe("prototype store project id migration", () => {
 
   it("rewrites legacy non-ascii ids across related records", () => {
     const legacyId = "proj-北栖"
+    const created = createStoredProjectFixture()
     const store = readPrototypeStore()
-    const baseProject = store.projects[0]
-    const baseDetail =
-      store.projectDetails.find((detail) => detail.projectId === baseProject.id) ?? store.projectDetails[0]
+    const baseProject = created.project
+    const baseDetail = created.detail
 
     const legacyProject = {
       ...baseProject,

@@ -8,6 +8,7 @@ import { GET as getProjectContext } from "@/app/api/projects/[projectId]/context
 import { POST as postWorkflowSmokeRun } from "@/app/api/projects/[projectId]/mcp-workflow/smoke-run/route"
 import { GET as getProjectMcpRuns } from "@/app/api/projects/[projectId]/mcp-runs/route"
 import { GET as getWorkLogs } from "@/app/api/settings/work-logs/route"
+import { createStoredProjectFixture, seedWorkflowReadyMcpTools } from "@/tests/helpers/project-fixtures"
 
 const buildProjectContext = (projectId: string) => ({
   params: Promise.resolve({ projectId }),
@@ -27,13 +28,15 @@ describe("project MCP workflow smoke api route", () => {
   })
 
   it("completes the baseline local MCP workflow with foundational tools", async () => {
+    seedWorkflowReadyMcpTools()
+    const fixture = createStoredProjectFixture()
     const response = await postWorkflowSmokeRun(
-      new Request("http://localhost/api/projects/proj-huayao/mcp-workflow/smoke-run", {
+      new Request(`http://localhost/api/projects/${fixture.project.id}/mcp-workflow/smoke-run`, {
         method: "POST",
         body: JSON.stringify({ scenario: "baseline" }),
         headers: { "content-type": "application/json" },
       }),
-      buildProjectContext("proj-huayao"),
+      buildProjectContext(fixture.project.id),
     )
     const payload = await response.json()
 
@@ -45,8 +48,8 @@ describe("project MCP workflow smoke api route", () => {
     expect(payload.outputs.reportDigest.length).toBeGreaterThan(0)
 
     const runsResponse = await getProjectMcpRuns(
-      new Request("http://localhost/api/projects/proj-huayao/mcp-runs"),
-      buildProjectContext("proj-huayao"),
+      new Request(`http://localhost/api/projects/${fixture.project.id}/mcp-runs`),
+      buildProjectContext(fixture.project.id),
     )
     const runsPayload = await runsResponse.json()
 
@@ -54,8 +57,8 @@ describe("project MCP workflow smoke api route", () => {
     expect(runsPayload.items.slice(0, 4).every((item: { status: string }) => item.status === "已执行")).toBe(true)
 
     const contextResponse = await getProjectContext(
-      new Request("http://localhost/api/projects/proj-huayao/context"),
-      buildProjectContext("proj-huayao"),
+      new Request(`http://localhost/api/projects/${fixture.project.id}/context`),
+      buildProjectContext(fixture.project.id),
     )
     const contextPayload = await contextResponse.json()
 
@@ -72,13 +75,15 @@ describe("project MCP workflow smoke api route", () => {
   })
 
   it("halts the approval scenario at the high-risk MCP step", async () => {
+    seedWorkflowReadyMcpTools()
+    const fixture = createStoredProjectFixture()
     const response = await postWorkflowSmokeRun(
-      new Request("http://localhost/api/projects/proj-huayao/mcp-workflow/smoke-run", {
+      new Request(`http://localhost/api/projects/${fixture.project.id}/mcp-workflow/smoke-run`, {
         method: "POST",
         body: JSON.stringify({ scenario: "with-approval" }),
         headers: { "content-type": "application/json" },
       }),
-      buildProjectContext("proj-huayao"),
+      buildProjectContext(fixture.project.id),
     )
     const payload = await response.json()
 

@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-27`
-- Current focus: the second Phase 7 slice is landing on `codex/live-llm-local-lab-validation-2026-03-27`, turning the local-lab rehearsal path into a repeatable real-provider validation workflow with report artifacts.
+- Current focus: the real-data hardening slice is landing on `codex/real-data-platform-hardening-2026-03-27`, removing runtime demo seeds, promoting LLM settings into real persisted configuration, enforcing validated MCP registration, and preserving real local-lab closure data in normal project routes when workspace-mode persistence is enabled.
 - Working mode: each major feature area uses its own isolated git branch/worktree so the existing branch is not disturbed.
 
 ## Phase 1: Frontend Prototype Closure
@@ -146,7 +146,7 @@
 
 ## Phase 7: Production Backend Integration and Real MCP Expansion
 
-- Status: In progress across `codex/production-backend-real-mcp-2026-03-26` and `codex/live-llm-local-lab-validation-2026-03-27`
+- Status: In progress across `codex/production-backend-real-mcp-2026-03-26`, `codex/live-llm-local-lab-validation-2026-03-27`, and `codex/real-data-platform-hardening-2026-03-27`
 - Goal: harden the prototype backend into a more production-like runtime and replace more simulated capability families with real MCP integrations.
 
 ### Task Checklist
@@ -157,11 +157,20 @@
 - completed: harden the real LLM plan intake so markdown-wrapped JSON and near-match capability/risk labels are normalized into the platform contract before MCP dispatch
 - completed: add a reusable `npm run live:validate` runner that boots the app, logs in, executes the local-lab flow, auto-resumes approvals, and writes Markdown + JSON artifacts under `output/live-validation/`
 - completed: execute a real end-to-end validation against local Juice Shop using runtime-only SiliconFlow credentials, real Web stdio MCP invocation, approval resume, and persisted result aggregation
+- completed: make `npm run live:validate` auto-create a real project when `LIVE_VALIDATION_PROJECT_ID` is absent, removing old seed-project assumptions
+- completed: auto-register the `web-surface-stdio` MCP server during live validation when the workspace is still empty
+- completed: add `LIVE_VALIDATION_STATE_MODE=workspace|isolated` plus `LIVE_VALIDATION_STATE_DIR`, allowing validated closure data to stay in the normal workspace store when desired
+- completed: verify one clean real Juice Shop closure in workspace mode and keep the resulting project (`proj-20260327-f6a3fd0c`) visible through standard dashboard, project, evidence, and findings routes
+- completed: remove runtime-seeded business/demo records so dashboard, projects, assets, evidence, and settings surfaces are now empty-first by default
+- completed: convert `/settings/llm` into a real persisted configuration surface with store-backed profiles and runtime store-first provider resolution
+- completed: add a strict MCP server registration contract, registration API, contract docs, and settings-page registration flow
+- completed: remove automatic demo MCP server seeding; new servers now appear only after explicit validated registration
+- completed: isolate Playwright browser runs behind a temporary prototype-store directory so E2E tests verify the empty-first runtime deterministically
 - in progress: stabilize WebGoat host-side reachability in the current Windows + Docker Desktop environment so the second lab can be validated with the same runner
 - in progress: replace or augment more of the file-backed prototype runtime with database-backed persistence suitable for longer-running environments
 - pending: wire project/task execution state to durable queues, cancellation, and better operator controls
 - pending: expand real connector families beyond DNS + Web surface probing into API reconnaissance and evidence capture
-- pending: refine the LLM provider configuration surface, secret handling guidance, and operational fallback behavior
+- pending: refine the LLM provider configuration surface further with masked secrets, profile validation UX, and clearer operational fallback behavior
 - pending: add local-lab-backed regression suites that can optionally run against real Docker targets in CI or controlled local environments
 
 ### Acceptance Criteria
@@ -169,8 +178,37 @@
 - partially met: backend state now includes a durable SQLite slice for external MCP server registry metadata and real-call audit history
 - met: at least one non-DNS external interaction family runs through a real MCP/server integration path
 - met: at least one real LLM + real MCP + local Docker target validation flow has now been executed and captured as a reusable artifact
+- met: a clean environment can now auto-bootstrap a real validation project instead of relying on older seed IDs
+- met: real closure data can now be preserved into the normal workspace runtime when workspace-mode persistence is selected
+- met: runtime settings and MCP registration surfaces no longer depend on static demo configuration
 - project execution, approvals, evidence, and findings remain auditable after backend hardening
 - the local Docker validation stack remains usable as a regression harness while the backend evolves
+
+### Reference Closure
+
+- Real project id: `proj-20260327-f6a3fd0c`
+- Run artifact: `output/live-validation/2026-03-27T05-09-27-704Z-juice-shop/report.md`
+- Notes: this run used the real SiliconFlow-backed orchestrator, the real `web-surface-stdio` MCP path, approval resume, and workspace-mode persistence so the result stayed visible in normal UI routes.
+
+## Recommended Next Phase
+
+- Name: `Phase 8 - Additional MCP Families and Durable Execution Controls`
+- Suggested branch/worktree: create a fresh isolated branch after this slice is merged or parked
+- Goal: build on the now-proven real project closure path by adding more real MCP families, stronger durable execution controls, and a second local-lab target.
+
+### Priority Tasks
+
+- add another real MCP family such as API structure discovery or evidence capture
+- wire project/task execution state to more durable queues, cancellation controls, and clearer operator recovery paths
+- stabilize WebGoat host-side reachability so the second lab can be validated through the same runner
+- expand local-lab-backed regression coverage for real Docker targets in controlled environments
+- add masked-secret mode for LLM settings while keeping a debug toggle for local development
+
+### Acceptance Criteria
+
+- at least one new real MCP family is visible in the registry and usable from dispatch flows
+- durable queue / cancellation behavior is operator-visible and survives restarts more cleanly than the current file-backed baseline
+- WebGoat or another second local target can be validated through the same end-to-end runner
 
 ## Notes for Future LLM Sessions
 

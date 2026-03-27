@@ -12,13 +12,13 @@ const statIcons = [Files, FileCheck2, ShieldAlert, Waypoints]
 
 export default function EvidencePage() {
   const { items: evidenceRecords } = listEvidencePayload()
-  const linkedApprovals = new Set(evidenceRecords.map((item) => item.linkedApprovalId)).size
+  const linkedApprovals = new Set(evidenceRecords.map((item) => item.linkedApprovalId).filter(Boolean)).size
 
   const stats = [
     { label: "证据总量", value: String(evidenceRecords.length), detail: "所有原始输出和结构化摘要都在这里统一回看。" },
     { label: "待复核结论", value: String(evidenceRecords.length), detail: "当前证据都需要人工确认后再进入稳定结论。" },
     { label: "关联审批", value: String(linkedApprovals), detail: "高风险动作的证据链必须能追溯到审批单。" },
-    { label: "链路完整度", value: "高", detail: "证据、任务、审批和资产上下文都保持可跳转关系。" },
+    { label: "链路完整度", value: evidenceRecords.length > 0 ? "已建立" : "待建立", detail: "证据、任务、审批和资产上下文都保持可跳转关系。" },
   ]
 
   return (
@@ -29,9 +29,11 @@ export default function EvidencePage() {
         actions={
           <>
             <StatusBadge tone="warning">{evidenceRecords.length} 个待复核结论</StatusBadge>
-            <Button asChild className="rounded-full bg-slate-950 px-5 text-white hover:bg-slate-800 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400">
-              <Link href={`/evidence/${evidenceRecords[0].id}`}>查看最新证据</Link>
-            </Button>
+            {evidenceRecords[0] ? (
+              <Button asChild className="rounded-full bg-slate-950 px-5 text-white hover:bg-slate-800 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400">
+                <Link href={`/evidence/${evidenceRecords[0].id}`}>查看最新证据</Link>
+              </Button>
+            ) : null}
           </>
         }
       />
@@ -59,6 +61,23 @@ export default function EvidencePage() {
           )
         })}
       </div>
+
+      {evidenceRecords.length === 0 ? (
+        <SectionCard
+          title="还没有真实证据"
+          eyebrow="Empty Evidence"
+          description="证据与结果页不再展示任何演示记录。等真实项目执行后，原始输出、结构化摘要和关联审批会自动沉淀到这里。"
+        >
+          <div className="flex flex-wrap gap-3">
+            <Button asChild className="rounded-full bg-slate-950 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-200">
+              <Link href="/projects/new">新建项目</Link>
+            </Button>
+            <Button asChild variant="outline" className="rounded-full">
+              <Link href="/projects">查看项目列表</Link>
+            </Button>
+          </div>
+        </SectionCard>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <SectionCard

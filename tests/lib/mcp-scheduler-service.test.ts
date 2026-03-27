@@ -11,6 +11,7 @@ import {
   drainStoredSchedulerTasks,
   syncStoredSchedulerTaskAfterApprovalDecision,
 } from "@/lib/mcp-scheduler-service"
+import { createStoredProjectFixture, seedWorkflowReadyMcpTools } from "@/tests/helpers/project-fixtures"
 
 describe("MCP scheduler service", () => {
   let tempDir: string
@@ -26,10 +27,12 @@ describe("MCP scheduler service", () => {
   })
 
   it("creates ready tasks for auto-runnable work and completes them through the scheduler", async () => {
-    const payload = dispatchStoredMcpRun("proj-huayao", {
+    seedWorkflowReadyMcpTools()
+    const fixture = createStoredProjectFixture()
+    const payload = dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
-      target: "admin.huayao.com",
+      target: fixture.project.seed,
       riskLevel: "低",
     })
 
@@ -46,14 +49,16 @@ describe("MCP scheduler service", () => {
     expect(drained.status).toBe("completed")
     expect(completedTask?.status).toBe("completed")
     expect(completedRun?.status).toBe("已执行")
-    expect(completedRun?.connectorMode).toBe("real")
+    expect(completedRun?.connectorMode).toBe("local")
   })
 
   it("moves approval-gated work into delayed state when the operator postpones it", () => {
-    const payload = dispatchStoredMcpRun("proj-yunlan", {
+    seedWorkflowReadyMcpTools()
+    const fixture = createStoredProjectFixture()
+    const payload = dispatchStoredMcpRun(fixture.project.id, {
       capability: "受控验证类",
       requestedAction: "匿名鉴权绕过受控验证",
-      target: "api.yunlanmed.com/v1",
+      target: "https://localhost/login",
       riskLevel: "高",
     })
 
@@ -68,10 +73,12 @@ describe("MCP scheduler service", () => {
   })
 
   it("resumes approved work back into the scheduler and completes execution", async () => {
-    const payload = dispatchStoredMcpRun("proj-yunlan", {
+    seedWorkflowReadyMcpTools()
+    const fixture = createStoredProjectFixture()
+    const payload = dispatchStoredMcpRun(fixture.project.id, {
       capability: "受控验证类",
       requestedAction: "匿名鉴权绕过受控验证",
-      target: "api.yunlanmed.com/v1",
+      target: "https://localhost/login",
       riskLevel: "高",
     })
 

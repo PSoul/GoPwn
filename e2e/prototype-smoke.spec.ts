@@ -21,6 +21,12 @@ async function loginAsResearcher(page: import("@playwright/test").Page) {
 
 async function createProject(page: import("@playwright/test").Page) {
   await page.goto("/projects/new")
+  const suffix = Date.now().toString()
+
+  await page.getByLabel("项目名称").fill(`E2E 本地项目 ${suffix}`)
+  await page.getByLabel("目标种子").fill(`http://127.0.0.1/${suffix}`)
+  await page.getByLabel("目标摘要").fill(`http://127.0.0.1/${suffix} / http://127.0.0.1/${suffix}/login`)
+  await page.getByLabel("标签").fill("e2e / 本地 / 自动化")
 
   const createResponsePromise = page.waitForResponse(
     (response) =>
@@ -54,14 +60,15 @@ test("login page exposes standard platform account entry", async ({ page }) => {
 test("dashboard and projects routes render the main console entry points", async ({ page }) => {
   await loginAsResearcher(page)
 
-  await expect(page.getByText("平台控制面")).toBeVisible()
-  await expect(page.getByText("今天优先处理")).toBeVisible()
+  await expect(page.getByText("当前还没有真实项目数据")).toBeVisible()
+  await expect(page.getByRole("link", { name: "新建第一个项目" })).toBeVisible()
 
   await page.goto("/projects")
 
   await expect(page.getByRole("heading", { name: "项目管理" })).toBeVisible()
   await expect(page.getByRole("link", { name: "新建项目" })).toBeVisible()
-  await expect(page.getByRole("link", { name: "华曜科技匿名外网面梳理" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "项目列表" })).toBeVisible()
+  await expect(page.getByPlaceholder("搜索项目名称、目标种子、项目编号或风险摘要...")).toBeVisible()
 })
 
 test("project overview links to dedicated results and context pages", async ({ page }) => {

@@ -5,13 +5,19 @@ import path from "node:path"
 import process from "node:process"
 
 import { buildLiveValidationArtifactBundle } from "./lib/live-validation-report.mjs"
+import {
+  buildLiveValidationServerEnv,
+  ensureLiveValidationProject,
+  ensureWebSurfaceMcpRegistration,
+  getLiveValidationLabDefinition,
+  resolveLiveValidationPrototypeDataDir,
+} from "./lib/live-validation-runner.mjs"
 
 const LOGIN_ACCOUNT = "researcher@company.local"
 const LOGIN_PASSWORD = "Prototype@2026"
 const LOGIN_CAPTCHA = "7K2Q"
 const DEFAULT_HOST = "127.0.0.1"
 const DEFAULT_PORT = 3301
-const DEFAULT_PROJECT_ID = "proj-huayao"
 const DEFAULT_LAB_ID = "juice-shop"
 const DEFAULT_APPROVAL_SCENARIO = "include-high-risk"
 
@@ -221,31 +227,44 @@ async function main() {
   const startedAt = new Date().toISOString()
   const host = process.env.LIVE_VALIDATION_HOST?.trim() || DEFAULT_HOST
   const port = Number(process.env.LIVE_VALIDATION_PORT ?? DEFAULT_PORT)
-  const projectId = process.env.LIVE_VALIDATION_PROJECT_ID?.trim() || DEFAULT_PROJECT_ID
+  const requestedProjectId = process.env.LIVE_VALIDATION_PROJECT_ID?.trim() || ""
   const labId = process.env.LIVE_VALIDATION_LAB_ID?.trim() || DEFAULT_LAB_ID
   const approvalScenario =
     process.env.LIVE_VALIDATION_APPROVAL_SCENARIO?.trim() || DEFAULT_APPROVAL_SCENARIO
   const startLabs = process.env.LIVE_VALIDATION_START_LABS !== "0"
   const autoApprove = process.env.LIVE_VALIDATION_AUTO_APPROVE !== "0"
   const stopLabs = process.env.LIVE_VALIDATION_STOP_LABS === "1"
+  const stateMode = process.env.LIVE_VALIDATION_STATE_MODE?.trim() === "workspace" ? "workspace" : "isolated"
   const runDirectoryName = `${sanitizeSegment(startedAt)}-${sanitizeSegment(labId)}`
   const outputRoot = path.join(cwd, "output", "live-validation")
-  const stateRoot = path.join(cwd, "output", "live-validation-state")
   const runOutputDir = path.join(outputRoot, runDirectoryName)
-  const runStateDir = path.join(stateRoot, runDirectoryName)
+  const prototypeDataDir = resolveLiveValidationPrototypeDataDir({
+    cwd,
+    explicitStateDir: process.env.LIVE_VALIDATION_STATE_DIR,
+    runDirectoryName,
+    stateMode,
+  })
   const nextLogPath = path.join(runOutputDir, "next-server.log")
   const baseUrl = `http://${host}:${port}`
   const composeFile = path.join(cwd, "docker", "local-labs", "compose.yaml")
+  const lab = getLiveValidationLabDefinition(labId)
   let nextServer = null
   let nextLogStream = null
 
   await mkdir(runOutputDir, { recursive: true })
-  await mkdir(runStateDir, { recursive: true })
+
+  if (prototypeDataDir) {
+    await mkdir(prototypeDataDir, { recursive: true })
+  }
 
   try {
     getRequiredEnv("LLM_API_KEY")
     getRequiredEnv("LLM_BASE_URL")
     getRequiredEnv("LLM_ORCHESTRATOR_MODEL")
+
+    if (!lab) {
+      throw new Error(`Unknown live validation lab id: ${labId}`)
+    }
 
     if (startLabs) {
       await runCommand("docker", ["compose", "-f", composeFile, "up", "-d"], {
@@ -259,11 +278,10 @@ async function main() {
       cwd,
       host,
       port,
-      env: {
-        ...process.env,
-        NEXT_TELEMETRY_DISABLED: "1",
-        PROTOTYPE_DATA_DIR: runStateDir,
-      },
+      env: buildLiveValidationServerEnv({
+        baseEnv: process.env,
+        prototypeDataDir,
+      }),
       logPath: nextLogPath,
     })
 
@@ -274,6 +292,20 @@ async function main() {
 
     const loginResult = await login(baseUrl)
     const cookie = loginResult.cookie
+    const registrationResult = await ensureWebSurfaceMcpRegistration({
+      baseUrl,
+      cookie,
+      requestJson,
+    })
+    const projectResolution = await ensureLiveValidationProject({
+      baseUrl,
+      cookie,
+      lab,
+      requestedProjectId,
+      requestJson,
+      startedAt,
+    })
+    const projectId = projectResolution.projectId
 
     const planResult = await requestJson(`${baseUrl}/api/projects/${projectId}/orchestrator/plan`, {
       method: "POST",
@@ -381,6 +413,8 @@ async function main() {
     const reportPayload = {
       summary: bundle.summary,
       login: loginResult.payload.user,
+      registration: registrationResult,
+      projectResolution,
       plan: planResult.payload,
       validation: validationResult.payload,
       approvalDecision,
@@ -396,7 +430,9 @@ async function main() {
     console.log(`Live validation completed.`)
     console.log(`Artifact directory: ${runOutputDir}`)
     console.log(`Report: ${path.join(runOutputDir, "report.md")}`)
-    console.log(`State dir: ${runStateDir}`)
+    console.log(`Project: ${projectId} (${projectResolution.projectName})`)
+    console.log(`MCP server: ${registrationResult.serverName} (${registrationResult.registered ? "registered" : "reused"})`)
+    console.log(`State dir: ${prototypeDataDir ?? path.join(cwd, ".prototype-store")}`)
   } catch (error) {
     const failurePayload = {
       startedAt,

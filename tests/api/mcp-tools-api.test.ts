@@ -8,6 +8,10 @@ import { GET as getMcpSettings } from "@/app/api/settings/mcp-tools/route"
 import { GET as getMcpTool, PATCH as patchMcpTool } from "@/app/api/settings/mcp-tools/[toolId]/route"
 import { POST as postHealthCheck } from "@/app/api/settings/mcp-tools/[toolId]/health-check/route"
 import { GET as getSystemStatus } from "@/app/api/settings/system-status/route"
+import {
+  seedWorkflowReadyMcpTools,
+  workflowReadyMcpToolFixtures,
+} from "@/tests/helpers/project-fixtures"
 
 const buildToolContext = (toolId: string) => ({
   params: Promise.resolve({ toolId }),
@@ -26,21 +30,23 @@ describe("mcp tools api routes", () => {
     rmSync(tempDir, { force: true, recursive: true })
   })
 
-  it("returns MCP settings payload with tools and capability contracts", async () => {
+  it("returns MCP settings payload without phantom servers when nothing has been registered", async () => {
+    seedWorkflowReadyMcpTools()
     const response = await getMcpSettings()
     const payload = await response.json()
 
     expect(response.status).toBe(200)
     expect(payload.tools.length).toBeGreaterThan(0)
-    expect(payload.servers.length).toBeGreaterThan(0)
-    expect(payload.servers.some((item: { serverName: string }) => item.serverName === "web-surface-stdio")).toBe(true)
+    expect(payload.servers).toHaveLength(0)
     expect(payload.capabilities.some((item: { name: string }) => item.name === "受控验证类")).toBe(true)
     expect(payload.registrationFields.some((item: { label: string }) => item.label === "工具名称")).toBe(true)
   })
 
   it("persists MCP tool configuration updates", async () => {
+    seedWorkflowReadyMcpTools()
+    const toolId = workflowReadyMcpToolFixtures.find((tool) => tool.toolName === "dns-census")?.id ?? "tool-dns-census"
     const response = await patchMcpTool(
-      new Request("http://localhost/api/settings/mcp-tools/mcp-06", {
+      new Request(`http://localhost/api/settings/mcp-tools/${toolId}`, {
         method: "PATCH",
         body: JSON.stringify({
           status: "启用",
@@ -52,7 +58,7 @@ describe("mcp tools api routes", () => {
         }),
         headers: { "content-type": "application/json" },
       }),
-      buildToolContext("mcp-06"),
+      buildToolContext(toolId),
     )
     const payload = await response.json()
 
@@ -60,7 +66,10 @@ describe("mcp tools api routes", () => {
     expect(payload.tool.status).toBe("启用")
     expect(payload.tool.defaultConcurrency).toBe("3")
 
-    const detailResponse = await getMcpTool(new Request("http://localhost/api/settings/mcp-tools/mcp-06"), buildToolContext("mcp-06"))
+    const detailResponse = await getMcpTool(
+      new Request(`http://localhost/api/settings/mcp-tools/${toolId}`),
+      buildToolContext(toolId),
+    )
     const detailPayload = await detailResponse.json()
 
     expect(detailResponse.status).toBe(200)
@@ -68,9 +77,20 @@ describe("mcp tools api routes", () => {
   })
 
   it("runs health checks and updates system status", async () => {
+    const unhealthyTools = workflowReadyMcpToolFixtures.map((tool) =>
+      tool.toolName === "web-surface-map"
+        ? {
+            ...tool,
+            status: "异常" as const,
+            notes: "最近一次巡检失败，等待健康检查恢复。",
+          }
+        : tool,
+    )
+    seedWorkflowReadyMcpTools(unhealthyTools)
+    const toolId = unhealthyTools.find((tool) => tool.toolName === "web-surface-map")?.id ?? "tool-web-surface-map"
     const response = await postHealthCheck(
-      new Request("http://localhost/api/settings/mcp-tools/mcp-03/health-check", { method: "POST" }),
-      buildToolContext("mcp-03"),
+      new Request(`http://localhost/api/settings/mcp-tools/${toolId}/health-check`, { method: "POST" }),
+      buildToolContext(toolId),
     )
     const payload = await response.json()
 

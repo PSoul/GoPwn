@@ -1,6 +1,10 @@
 import { execSync, spawn } from "node:child_process"
+import { mkdtempSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
+import path from "node:path"
 
 const port = Number(process.env.PLAYWRIGHT_WEB_PORT ?? 3005)
+const prototypeDataDir = mkdtempSync(path.join(tmpdir(), "llm-pentest-playwright-"))
 
 function killPort(targetPort) {
   try {
@@ -48,9 +52,14 @@ killPort(port)
 const command = ["npx", "playwright", "test", ...process.argv.slice(2)].join(" ")
 const child = spawn(command, {
   shell: true,
+  env: {
+    ...process.env,
+    PROTOTYPE_DATA_DIR: prototypeDataDir,
+  },
   stdio: "inherit",
 })
 
 child.on("exit", (code) => {
+  rmSync(prototypeDataDir, { force: true, recursive: true })
   process.exit(code ?? 1)
 })

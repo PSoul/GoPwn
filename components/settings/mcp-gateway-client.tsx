@@ -13,12 +13,65 @@ import type {
   McpBoundaryRule,
   McpCapabilityRecord,
   McpRegistrationField,
+  McpServerContractSummaryRecord,
   McpServerInvocationRecord,
   McpServerRecord,
+  McpToolContractSummaryRecord,
   McpToolRecord,
 } from "@/lib/prototype-types"
 
 const statusChoices: McpToolRecord["status"][] = ["启用", "禁用", "异常"]
+const registrationTemplate = JSON.stringify(
+  {
+    serverName: "web-surface-stdio",
+    version: "1.0.0",
+    transport: "stdio",
+    command: "node",
+    args: ["scripts/mcp/web-surface-server.mjs"],
+    endpoint: "stdio://web-surface-stdio",
+    enabled: true,
+    notes: "真实 Web 页面探测 MCP server",
+    tools: [
+      {
+        toolName: "web-surface-map",
+        title: "Web 页面探测",
+        description: "补采页面入口与响应特征。",
+        version: "1.0.0",
+        capability: "Web 页面探测类",
+        boundary: "外部目标交互",
+        riskLevel: "中",
+        requiresApproval: false,
+        resultMappings: ["webEntries", "evidence"],
+        inputSchema: {
+          type: "object",
+          properties: {
+            targetUrl: {
+              type: "string",
+            },
+          },
+          required: ["targetUrl"],
+          additionalProperties: false,
+        },
+        outputSchema: {
+          type: "object",
+          properties: {
+            webEntries: {
+              type: "array",
+            },
+          },
+          additionalProperties: true,
+        },
+        defaultConcurrency: "1",
+        rateLimit: "10 req/min",
+        timeout: "15s",
+        retry: "1 次",
+        owner: "真实 Web recon",
+      },
+    ],
+  },
+  null,
+  2,
+)
 
 export function McpGatewayClient({
   initialTools,
@@ -27,6 +80,8 @@ export function McpGatewayClient({
   capabilities,
   boundaryRules,
   registrationFields,
+  initialServerContracts,
+  initialToolContracts,
 }: {
   initialTools: McpToolRecord[]
   initialServers: McpServerRecord[]
@@ -34,13 +89,20 @@ export function McpGatewayClient({
   capabilities: McpCapabilityRecord[]
   boundaryRules: McpBoundaryRule[]
   registrationFields: McpRegistrationField[]
+  initialServerContracts: McpServerContractSummaryRecord[]
+  initialToolContracts: McpToolContractSummaryRecord[]
 }) {
   const [tools, setTools] = useState(initialTools)
+  const [servers, setServers] = useState(initialServers)
+  const [serverContracts, setServerContracts] = useState(initialServerContracts)
+  const [toolContracts, setToolContracts] = useState(initialToolContracts)
   const [query, setQuery] = useState("")
   const [selectedToolId, setSelectedToolId] = useState(initialTools[0]?.id ?? "")
   const [draft, setDraft] = useState<McpToolRecord | null>(initialTools[0] ? { ...initialTools[0] } : null)
   const [isSaving, setIsSaving] = useState(false)
   const [isChecking, setIsChecking] = useState(false)
+  const [isRegistering, setIsRegistering] = useState(false)
+  const [registrationDraft, setRegistrationDraft] = useState(registrationTemplate)
   const [message, setMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -50,7 +112,7 @@ export function McpGatewayClient({
   const enabledCount = tools.filter((tool) => tool.status === "启用").length
   const abnormalCount = tools.filter((tool) => tool.status === "异常").length
   const coveredCapabilityCount = new Set(tools.map((tool) => tool.capability)).size
-  const connectedServerCount = initialServers.filter((server) => server.enabled).length
+  const connectedServerCount = servers.filter((server) => server.enabled).length
 
   useEffect(() => {
     if (filteredTools.length === 0) {
@@ -152,6 +214,69 @@ export function McpGatewayClient({
     }
   }
 
+  async function registerServer() {
+    setIsRegistering(true)
+    setMessage(null)
+    setErrorMessage(null)
+
+    try {
+      JSON.parse(registrationDraft)
+    } catch {
+      setErrorMessage("MCP 注册 JSON 不是合法 JSON，请先修正格式。")
+      setIsRegistering(false)
+      return
+    }
+
+    try {
+      const response = await fetch("/api/settings/mcp-servers/register", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: registrationDraft,
+      })
+      const payload = (await response.json()) as {
+        server?: McpServerRecord
+        serverContract?: McpServerContractSummaryRecord
+        toolContracts?: McpToolContractSummaryRecord[]
+        toolRecords?: McpToolRecord[]
+        error?: string
+      }
+
+      if (!response.ok || !payload.server || !payload.serverContract || !payload.toolContracts || !payload.toolRecords) {
+        setErrorMessage(payload.error ?? "MCP 注册失败，请稍后再试。")
+        return
+      }
+
+      setServers((current) => [payload.server!, ...current.filter((server) => server.id !== payload.server!.id)])
+      setServerContracts((current) => [
+        payload.serverContract!,
+        ...current.filter((contract) => contract.serverId !== payload.serverContract!.serverId),
+      ])
+      setToolContracts((current) => [
+        ...payload.toolContracts!,
+        ...current.filter(
+          (contract) => !payload.toolContracts?.some((nextContract) => nextContract.serverId === contract.serverId && nextContract.toolName === contract.toolName),
+        ),
+      ])
+      setTools((current) => [
+        ...payload.toolRecords!,
+        ...current.filter(
+          (tool) => !payload.toolRecords?.some((nextTool) => nextTool.toolName === tool.toolName || nextTool.id === tool.id),
+        ),
+      ])
+      if (!selectedToolId && payload.toolRecords[0]) {
+        setSelectedToolId(payload.toolRecords[0].id)
+        setDraft({ ...payload.toolRecords[0] })
+      }
+      setMessage(`MCP server ${payload.server.serverName} 已完成契约校验并注册。`)
+    } catch {
+      setErrorMessage("MCP 注册失败，请稍后再试。")
+    } finally {
+      setIsRegistering(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -178,6 +303,67 @@ export function McpGatewayClient({
           </div>
         ))}
       </div>
+
+      <SectionCard
+        title="MCP 契约注册"
+        description="这里输入新的 MCP server 注册 JSON。平台会按合同文档做字段校验，通过后才会把 server、工具契约和可调度工具一起写入真实存储。"
+      >
+        <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="space-y-4">
+            <Textarea
+              aria-label="MCP 注册 JSON"
+              value={registrationDraft}
+              onChange={(event) => setRegistrationDraft(event.target.value)}
+              className="min-h-[360px] rounded-3xl border-slate-200 bg-slate-50 font-mono text-xs leading-6 dark:border-slate-800 dark:bg-slate-900"
+            />
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button type="button" disabled={isRegistering} className="rounded-full" onClick={registerServer}>
+                {isRegistering ? "注册中..." : "校验并注册 MCP"}
+              </Button>
+              <Button type="button" variant="outline" className="rounded-full" onClick={() => setRegistrationDraft(registrationTemplate)}>
+                还原模板
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="rounded-3xl border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">当前契约快照</p>
+              <p className="mt-2 text-3xl font-semibold text-slate-950 dark:text-white">{serverContracts.length}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                已验证 server 契约 {serverContracts.length} 个，工具契约 {toolContracts.length} 个。
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {serverContracts.length > 0 ? (
+                serverContracts.map((contract) => (
+                  <div
+                    key={contract.serverId}
+                    className="rounded-3xl border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/70"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950 dark:text-white">{contract.serverName}</p>
+                        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                          {contract.transport} · v{contract.version}
+                        </p>
+                      </div>
+                      <StatusBadge tone={contract.enabled ? "success" : "neutral"}>{contract.enabled ? "已启用" : "已停用"}</StatusBadge>
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">绑定工具：{contract.toolNames.join("、")}</p>
+                    <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{contract.updatedAt}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50/80 px-6 py-12 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
+                  还没有经过合同校验的 MCP server。
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </SectionCard>
 
       <div className="grid gap-6 xl:grid-cols-[1.18fr_0.82fr]">
         <SectionCard title="已注册 MCP 工具" description="工具是具体接入位，平台调度时真正依赖的是能力族和注册契约。">
@@ -334,7 +520,8 @@ export function McpGatewayClient({
             </div>
 
             <div className="space-y-3">
-              {initialServers.map((server) => (
+              {servers.length > 0 ? (
+                servers.map((server) => (
                 <div
                   key={server.id}
                   className="rounded-3xl border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70"
@@ -359,7 +546,12 @@ export function McpGatewayClient({
                     最近心跳：{server.lastSeen} · {server.notes}
                   </p>
                 </div>
-              ))}
+                ))
+              ) : (
+                <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50/80 px-6 py-12 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
+                  当前还没有注册任何 MCP server。
+                </div>
+              )}
             </div>
           </div>
 

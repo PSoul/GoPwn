@@ -9,6 +9,7 @@ import { PATCH as patchProjectApprovalControl } from "@/app/api/projects/[projec
 import { GET as getProjectDetail } from "@/app/api/projects/[projectId]/route"
 import { GET as getApprovalPolicy, PATCH as patchApprovalPolicy } from "@/app/api/settings/approval-policy/route"
 import { GET as getAuditLogs } from "@/app/api/settings/audit-logs/route"
+import { createStoredProjectFixture, createWorkflowFixture } from "@/tests/helpers/project-fixtures"
 
 const buildApprovalContext = (approvalId: string) => ({
   params: Promise.resolve({ approvalId }),
@@ -32,13 +33,15 @@ describe("approval and control api routes", () => {
   })
 
   it("persists approval decisions and syncs project pending-approval counts", async () => {
+    const fixture = await createWorkflowFixture({ workflow: "with-approval" })
+    const approvalId = fixture.approvals[0].id
     const response = await patchApproval(
-      new Request("http://localhost/api/approvals/APR-20260326-015", {
+      new Request(`http://localhost/api/approvals/${approvalId}`, {
         method: "PATCH",
         body: JSON.stringify({ decision: "已批准" }),
         headers: { "content-type": "application/json" },
       }),
-      buildApprovalContext("APR-20260326-015"),
+      buildApprovalContext(approvalId),
     )
     const payload = await response.json()
 
@@ -46,20 +49,20 @@ describe("approval and control api routes", () => {
     expect(payload.approval.status).toBe("已批准")
 
     const projectResponse = await getProjectDetail(
-      new Request("http://localhost/api/projects/proj-yunlan"),
-      buildProjectContext("proj-yunlan"),
+      new Request(`http://localhost/api/projects/${fixture.project.id}`),
+      buildProjectContext(fixture.project.id),
     )
     const projectPayload = await projectResponse.json()
 
     expect(projectResponse.status).toBe(200)
     expect(projectPayload.project.pendingApprovals).toBe(0)
-    expect(projectPayload.detail.activity.some((item: { title: string }) => item.title.includes("APR-20260326-015"))).toBe(true)
+    expect(projectPayload.detail.activity.some((item: { title: string }) => item.title.includes(approvalId))).toBe(true)
 
     const auditResponse = await getAuditLogs()
     const auditPayload = await auditResponse.json()
 
     expect(auditResponse.status).toBe(200)
-    expect(auditPayload.items.some((item: { summary: string }) => item.summary.includes("APR-20260326-015"))).toBe(true)
+    expect(auditPayload.items.some((item: { summary: string }) => item.summary.includes(approvalId))).toBe(true)
   })
 
   it("persists global approval policy updates", async () => {
@@ -89,17 +92,18 @@ describe("approval and control api routes", () => {
   })
 
   it("persists project-level approval control updates", async () => {
+    const fixture = createStoredProjectFixture()
     const response = await patchProjectApprovalControl(
-      new Request("http://localhost/api/projects/proj-huayao/approval-control", {
+      new Request(`http://localhost/api/projects/${fixture.project.id}/approval-control`, {
         method: "PATCH",
         body: JSON.stringify({
           enabled: true,
           autoApproveLowRisk: false,
-          note: "华曜项目临时改为中高风险动作全部人工确认。",
+          note: "测试项目临时改为中高风险动作全部人工确认。",
         }),
         headers: { "content-type": "application/json" },
       }),
-      buildProjectContext("proj-huayao"),
+      buildProjectContext(fixture.project.id),
     )
     const payload = await response.json()
 
@@ -108,8 +112,8 @@ describe("approval and control api routes", () => {
     expect(payload.project.approvalMode).toContain("中高风险")
 
     const detailResponse = await getProjectDetail(
-      new Request("http://localhost/api/projects/proj-huayao"),
-      buildProjectContext("proj-huayao"),
+      new Request(`http://localhost/api/projects/${fixture.project.id}`),
+      buildProjectContext(fixture.project.id),
     )
     const detailPayload = await detailResponse.json()
 

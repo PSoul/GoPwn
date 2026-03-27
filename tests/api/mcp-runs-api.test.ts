@@ -9,6 +9,7 @@ import { GET as getProjectContext } from "@/app/api/projects/[projectId]/context
 import { GET as getProjectDetail } from "@/app/api/projects/[projectId]/route"
 import { GET as getProjectMcpRuns, POST as postProjectMcpRun } from "@/app/api/projects/[projectId]/mcp-runs/route"
 import { GET as getWorkLogs } from "@/app/api/settings/work-logs/route"
+import { createStoredProjectFixture, seedWorkflowReadyMcpTools } from "@/tests/helpers/project-fixtures"
 
 const buildProjectContext = (projectId: string) => ({
   params: Promise.resolve({ projectId }),
@@ -32,18 +33,20 @@ describe("project MCP run api routes", () => {
   })
 
   it("dispatches low-risk MCP actions immediately when approval is not required", async () => {
+    seedWorkflowReadyMcpTools()
+    const fixture = createStoredProjectFixture()
     const response = await postProjectMcpRun(
-      new Request("http://localhost/api/projects/proj-huayao/mcp-runs", {
+      new Request(`http://localhost/api/projects/${fixture.project.id}/mcp-runs`, {
         method: "POST",
         body: JSON.stringify({
           capability: "DNS / 子域 / 证书情报类",
           requestedAction: "补采证书与子域情报",
-          target: "admin.huayao.com",
+          target: fixture.project.seed,
           riskLevel: "低",
         }),
         headers: { "content-type": "application/json" },
       }),
-      buildProjectContext("proj-huayao"),
+      buildProjectContext(fixture.project.id),
     )
     const payload = await response.json()
 
@@ -52,18 +55,18 @@ describe("project MCP run api routes", () => {
     expect(payload.run.toolName).toBe("dns-census")
 
     const readResponse = await getProjectMcpRuns(
-      new Request("http://localhost/api/projects/proj-huayao/mcp-runs"),
-      buildProjectContext("proj-huayao"),
+      new Request(`http://localhost/api/projects/${fixture.project.id}/mcp-runs`),
+      buildProjectContext(fixture.project.id),
     )
     const readPayload = await readResponse.json()
 
     expect(readResponse.status).toBe(200)
-    expect(readPayload.items[0].target).toBe("admin.huayao.com")
+    expect(readPayload.items[0].target).toBe(fixture.project.seed)
     expect(readPayload.items[0].summaryLines[0]).toContain("补采证书与子域情报")
 
     const contextResponse = await getProjectContext(
-      new Request("http://localhost/api/projects/proj-huayao/context"),
-      buildProjectContext("proj-huayao"),
+      new Request(`http://localhost/api/projects/${fixture.project.id}/context`),
+      buildProjectContext(fixture.project.id),
     )
     const contextPayload = await contextResponse.json()
 
@@ -78,18 +81,20 @@ describe("project MCP run api routes", () => {
   })
 
   it("queues high-risk MCP actions for approval and resumes them after approval", async () => {
+    seedWorkflowReadyMcpTools()
+    const fixture = createStoredProjectFixture()
     const dispatchResponse = await postProjectMcpRun(
-      new Request("http://localhost/api/projects/proj-yunlan/mcp-runs", {
+      new Request(`http://localhost/api/projects/${fixture.project.id}/mcp-runs`, {
         method: "POST",
         body: JSON.stringify({
           capability: "受控验证类",
           requestedAction: "匿名鉴权绕过受控验证",
-          target: "api.yunlanmed.com/v1",
+          target: "https://localhost/login",
           riskLevel: "高",
         }),
         headers: { "content-type": "application/json" },
       }),
-      buildProjectContext("proj-yunlan"),
+      buildProjectContext(fixture.project.id),
     )
     const dispatchPayload = await dispatchResponse.json()
 
@@ -98,8 +103,8 @@ describe("project MCP run api routes", () => {
     expect(dispatchPayload.approval.status).toBe("待处理")
 
     const projectResponse = await getProjectDetail(
-      new Request("http://localhost/api/projects/proj-yunlan"),
-      buildProjectContext("proj-yunlan"),
+      new Request(`http://localhost/api/projects/${fixture.project.id}`),
+      buildProjectContext(fixture.project.id),
     )
     const projectPayload = await projectResponse.json()
 
@@ -118,8 +123,8 @@ describe("project MCP run api routes", () => {
     expect(approvalResponse.status).toBe(200)
 
     const readRunsResponse = await getProjectMcpRuns(
-      new Request("http://localhost/api/projects/proj-yunlan/mcp-runs"),
-      buildProjectContext("proj-yunlan"),
+      new Request(`http://localhost/api/projects/${fixture.project.id}/mcp-runs`),
+      buildProjectContext(fixture.project.id),
     )
     const readRunsPayload = await readRunsResponse.json()
     const resumedRun = readRunsPayload.items.find(
@@ -131,14 +136,14 @@ describe("project MCP run api routes", () => {
     expect(resumedRun.summaryLines.at(-1)).toContain("审批已批准")
 
     const contextResponse = await getProjectContext(
-      new Request("http://localhost/api/projects/proj-yunlan/context"),
-      buildProjectContext("proj-yunlan"),
+      new Request(`http://localhost/api/projects/${fixture.project.id}/context`),
+      buildProjectContext(fixture.project.id),
     )
     const contextPayload = await contextResponse.json()
 
     expect(contextResponse.status).toBe(200)
     expect(contextPayload.detail.findings.some((item: { title: string }) => item.title.includes("鉴权"))).toBe(true)
     expect(contextPayload.evidence.some((item: { source: string }) => item.source === "受控验证类")).toBe(true)
-    expect(contextPayload.assets.some((item: { label: string }) => item.label === "api.yunlanmed.com/v1")).toBe(true)
+    expect(contextPayload.assets.some((item: { label: string }) => item.label === "https://localhost/login")).toBe(true)
   })
 })

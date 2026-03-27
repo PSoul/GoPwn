@@ -10,6 +10,9 @@ import { getProjectById, mcpTools } from "@/lib/prototype-data"
 import type { McpConnectorExecutionContext, McpConnectorResult } from "@/lib/mcp-connectors/types"
 import type { McpRunRecord } from "@/lib/prototype-types"
 
+const REAL_DNS_TEST_FLAG = "ENABLE_REAL_DNS_CONNECTOR_IN_TESTS"
+const initialRealDnsTestFlag = process.env[REAL_DNS_TEST_FLAG]
+
 function buildDnsContext(target: string): McpConnectorExecutionContext {
   const project = getProjectById("proj-huayao")
   const tool = mcpTools.find((item) => item.toolName === "dns-census")
@@ -49,9 +52,25 @@ function buildDnsContext(target: string): McpConnectorExecutionContext {
 describe("MCP connector registry", () => {
   afterEach(() => {
     resetRealDnsConnectorTestAdapters()
+
+    if (initialRealDnsTestFlag === undefined) {
+      delete process.env[REAL_DNS_TEST_FLAG]
+      return
+    }
+
+    process.env[REAL_DNS_TEST_FLAG] = initialRealDnsTestFlag
   })
 
-  it("selects the real DNS connector for hostname targets", () => {
+  it("defaults to the local DNS connector for hostname targets during automated tests", () => {
+    const connector = resolveMcpConnector(buildDnsContext("admin.huayao.com"))
+
+    expect(connector?.key).toBe("local-dns-census")
+    expect(connector?.mode).toBe("local")
+  })
+
+  it("can re-enable the real DNS connector during automated tests when explicitly requested", () => {
+    process.env[REAL_DNS_TEST_FLAG] = "1"
+
     const connector = resolveMcpConnector(buildDnsContext("admin.huayao.com"))
 
     expect(connector?.key).toBe("real-dns-intelligence")

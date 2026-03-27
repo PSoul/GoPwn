@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { mcpCapabilityRecords } from "@/lib/prototype-data"
+import { mcpCapabilityRecords } from "@/lib/platform-config"
 import { getProjectOperationsPayload } from "@/lib/prototype-api"
 
 export default async function ProjectOperationsPage({

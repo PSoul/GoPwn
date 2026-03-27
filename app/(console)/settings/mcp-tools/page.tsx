@@ -24,6 +24,8 @@ export default function McpToolsSettingsPage() {
           capabilities={payload.capabilities}
           boundaryRules={payload.boundaryRules}
           registrationFields={payload.registrationFields}
+          initialServerContracts={payload.serverContracts}
+          initialToolContracts={payload.toolContracts}
         />
       </SectionCard>
     </div>

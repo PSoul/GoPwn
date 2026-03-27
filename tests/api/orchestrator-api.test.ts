@@ -10,6 +10,7 @@ import { GET as getProjectContext } from "@/app/api/projects/[projectId]/context
 import { POST as postLocalValidation } from "@/app/api/projects/[projectId]/orchestrator/local-validation/route"
 import { POST as postOrchestratorPlan } from "@/app/api/projects/[projectId]/orchestrator/plan/route"
 import { GET as getProjectOperations } from "@/app/api/projects/[projectId]/operations/route"
+import { createStoredProjectFixture, seedWorkflowReadyMcpTools } from "@/tests/helpers/project-fixtures"
 
 const buildProjectContext = (projectId: string) => ({
   params: Promise.resolve({ projectId }),
@@ -53,8 +54,10 @@ describe("project orchestrator api routes", () => {
   })
 
   it("generates a fallback orchestrator plan and exposes it on the operations payload", async () => {
+    seedWorkflowReadyMcpTools()
+    const fixture = createStoredProjectFixture()
     const planResponse = await postOrchestratorPlan(
-      new Request("http://localhost/api/projects/proj-huayao/orchestrator/plan", {
+      new Request(`http://localhost/api/projects/${fixture.project.id}/orchestrator/plan`, {
         method: "POST",
         body: JSON.stringify({
           labId: "juice-shop",
@@ -64,7 +67,7 @@ describe("project orchestrator api routes", () => {
           "content-type": "application/json",
         },
       }),
-      buildProjectContext("proj-huayao"),
+      buildProjectContext(fixture.project.id),
     )
     const planPayload = await planResponse.json()
 
@@ -73,8 +76,8 @@ describe("project orchestrator api routes", () => {
     expect(planPayload.plan.items.length).toBeGreaterThan(0)
 
     const operationsResponse = await getProjectOperations(
-      new Request("http://localhost/api/projects/proj-huayao/operations"),
-      buildProjectContext("proj-huayao"),
+      new Request(`http://localhost/api/projects/${fixture.project.id}/operations`),
+      buildProjectContext(fixture.project.id),
     )
     const operationsPayload = await operationsResponse.json()
 
@@ -85,8 +88,10 @@ describe("project orchestrator api routes", () => {
   })
 
   it("runs local validation, pauses on approval, and resumes after approval", async () => {
+    seedWorkflowReadyMcpTools()
+    const fixture = createStoredProjectFixture()
     const validationResponse = await postLocalValidation(
-      new Request("http://localhost/api/projects/proj-huayao/orchestrator/local-validation", {
+      new Request(`http://localhost/api/projects/${fixture.project.id}/orchestrator/local-validation`, {
         method: "POST",
         body: JSON.stringify({
           labId: "juice-shop",
@@ -96,7 +101,7 @@ describe("project orchestrator api routes", () => {
           "content-type": "application/json",
         },
       }),
-      buildProjectContext("proj-huayao"),
+      buildProjectContext(fixture.project.id),
     )
     const validationPayload = await validationResponse.json()
 
@@ -108,8 +113,8 @@ describe("project orchestrator api routes", () => {
     expect(validationPayload.approval.status).toBe("待处理")
 
     const contextAfterDispatch = await getProjectContext(
-      new Request("http://localhost/api/projects/proj-huayao/context"),
-      buildProjectContext("proj-huayao"),
+      new Request(`http://localhost/api/projects/${fixture.project.id}/context`),
+      buildProjectContext(fixture.project.id),
     )
     const contextPayload = await contextAfterDispatch.json()
 
@@ -131,8 +136,8 @@ describe("project orchestrator api routes", () => {
     expect(approvalResponse.status).toBe(200)
 
     const contextAfterApproval = await getProjectContext(
-      new Request("http://localhost/api/projects/proj-huayao/context"),
-      buildProjectContext("proj-huayao"),
+      new Request(`http://localhost/api/projects/${fixture.project.id}/context`),
+      buildProjectContext(fixture.project.id),
     )
     const approvedPayload = await contextAfterApproval.json()
 
@@ -143,6 +148,8 @@ describe("project orchestrator api routes", () => {
   })
 
   it("normalizes real-provider plans with markdown-wrapped JSON and near-match capability labels", async () => {
+    seedWorkflowReadyMcpTools()
+    const fixture = createStoredProjectFixture()
     process.env.LLM_PROVIDER = "openai-compatible"
     process.env.LLM_BASE_URL = "https://api.siliconflow.cn/v1"
     process.env.LLM_API_KEY = "sk-test"
@@ -175,7 +182,7 @@ describe("project orchestrator api routes", () => {
                           capability: "Web 指纹识别类",
                           requestedAction: "识别 Juice Shop 首页响应特征",
                           target: "http://127.0.0.1:3000",
-                          riskLevel: "low",
+                          riskLevel: "medium",
                           rationale: "先确认首页入口、标题和响应头。",
                         },
                         {
@@ -225,7 +232,7 @@ describe("project orchestrator api routes", () => {
 
     try {
       const validationResponse = await postLocalValidation(
-        new Request("http://localhost/api/projects/proj-huayao/orchestrator/local-validation", {
+        new Request(`http://localhost/api/projects/${fixture.project.id}/orchestrator/local-validation`, {
           method: "POST",
           body: JSON.stringify({
             labId: "juice-shop",
@@ -235,7 +242,7 @@ describe("project orchestrator api routes", () => {
             "content-type": "application/json",
           },
         }),
-        buildProjectContext("proj-huayao"),
+        buildProjectContext(fixture.project.id),
       )
       const validationPayload = await validationResponse.json()
 
@@ -244,6 +251,11 @@ describe("project orchestrator api routes", () => {
       expect(validationPayload.status).toBe("waiting_approval")
       expect(validationPayload.plan.items[0].capability).toBe("Web 页面探测类")
       expect(validationPayload.plan.items[0].riskLevel).toBe("低")
+      expect(
+        validationPayload.plan.items
+          .filter((item: { capability: string }) => item.capability === "Web 页面探测类")
+          .every((item: { riskLevel: string }) => item.riskLevel === "低"),
+      ).toBe(true)
       expect(validationPayload.plan.items.some((item: { capability: string; riskLevel: string }) => item.capability === "受控验证类" && item.riskLevel === "高")).toBe(true)
       expect(validationPayload.runs.some((item: { capability: string; status: string }) => item.capability === "Web 页面探测类" && item.status === "已执行")).toBe(true)
       expect(validationPayload.runs.some((item: { capability: string; status: string }) => item.capability === "受控验证类" && item.status === "待审批")).toBe(true)
