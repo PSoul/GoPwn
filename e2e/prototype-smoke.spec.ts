@@ -19,6 +19,28 @@ async function loginAsResearcher(page: import("@playwright/test").Page) {
   await expect(page).toHaveURL(/\/dashboard$/, { timeout: 15_000 })
 }
 
+async function createProject(page: import("@playwright/test").Page) {
+  await page.goto("/projects/new")
+
+  const createResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/projects") &&
+      response.request().method() === "POST",
+    { timeout: 15_000 },
+  )
+
+  await page.getByRole("button", { name: "创建项目" }).click()
+
+  const createResponse = await createResponsePromise
+  expect(createResponse.ok()).toBe(true)
+
+  const payload = (await createResponse.json()) as { project?: { id?: string } }
+  const projectId = payload.project?.id ?? ""
+
+  expect(projectId).toMatch(/^proj-\d{8}-[a-f0-9]{8}$/)
+  return projectId
+}
+
 test("login page exposes standard platform account entry", async ({ page }) => {
   await page.goto("/login")
 
@@ -44,41 +66,24 @@ test("dashboard and projects routes render the main console entry points", async
 
 test("project overview links to dedicated results and context pages", async ({ page }) => {
   await loginAsResearcher(page)
-  await page.goto("/projects/proj-huayao")
+  const projectId = await createProject(page)
 
-  await expect(page.getByRole("heading", { name: "项目详情 · 华曜科技匿名外网面梳理" })).toBeVisible()
+  await expect(page).toHaveURL(new RegExp(`/projects/${projectId}$`), { timeout: 15_000 })
+  await expect(page.getByRole("heading", { name: /项目详情 ·/ })).toBeVisible()
   await expect(page.getByRole("link", { name: "查看证据与上下文" })).toBeVisible()
 
   await page.getByRole("link", { name: "查看 IP / 端口 / 服务表格" }).click()
-  await expect(page).toHaveURL(/\/projects\/proj-huayao\/results\/network$/)
+  await expect(page).toHaveURL(new RegExp(`/projects/${projectId}/results/network$`))
   await expect(page.getByRole("heading", { name: "IP / 端口 / 服务" })).toBeVisible()
 
-  await page.goto("/projects/proj-huayao/context")
+  await page.goto(`/projects/${projectId}/context`)
   await expect(page.getByRole("heading", { name: "证据与上下文", exact: true })).toBeVisible()
   await expect(page.getByText("项目证据与上下文")).toBeVisible()
 })
 
 test("create project routes to the new detail page", async ({ page }) => {
   await loginAsResearcher(page)
-  await page.goto("/projects/new")
-
-  const createResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("/api/projects") &&
-      response.request().method() === "POST",
-    { timeout: 15_000 },
-  )
-
-  await page.getByRole("button", { name: "创建项目" }).click()
-
-  const createResponse = await createResponsePromise
-  expect(createResponse.ok()).toBe(true)
-
-  const payload = (await createResponse.json()) as { project?: { id?: string } }
-  const projectId = payload.project?.id ?? ""
-  const projectIdPattern = /^proj-\d{8}-[a-f0-9]{8}$/
-
-  expect(projectId).toMatch(projectIdPattern)
+  const projectId = await createProject(page)
   await expect(page).toHaveURL(new RegExp(`/projects/${projectId}$`), { timeout: 15_000 })
   await expect(page.getByRole("heading", { name: /项目详情 ·/ })).toBeVisible({ timeout: 15_000 })
 })
@@ -97,13 +102,14 @@ test("settings hub leads into dedicated settings subpages", async ({ page }) => 
 
 test("project operations page can generate a local orchestrator plan", async ({ page }) => {
   await loginAsResearcher(page)
-  await page.goto("/projects/proj-huayao/operations")
+  const projectId = await createProject(page)
+  await page.goto(`/projects/${projectId}/operations`)
 
   await expect(page.getByRole("heading", { name: "LLM 编排与本地闭环" })).toBeVisible()
 
   const planResponsePromise = page.waitForResponse(
     (response) =>
-      response.url().includes("/api/projects/proj-huayao/orchestrator/plan") &&
+      response.url().includes(`/api/projects/${projectId}/orchestrator/plan`) &&
       response.request().method() === "POST",
     { timeout: 15_000 },
   )

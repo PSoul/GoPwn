@@ -149,10 +149,11 @@ function buildProjectIdMap(projects: ProjectRecord[]) {
     }
 
     const baseDate = parseDayStamp(project.createdAt) ?? new Date()
-    let nextId = generateProjectId(baseDate)
+    const seed = [project.id, project.name, project.createdAt].join(":")
+    let nextId = generateProjectId(baseDate, seed)
 
     while (usedIds.has(nextId)) {
-      nextId = generateProjectId(baseDate)
+      nextId = generateProjectId(baseDate, `${seed}:${usedIds.size}`)
     }
 
     idMap.set(project.id, nextId)
@@ -162,39 +163,31 @@ function buildProjectIdMap(projects: ProjectRecord[]) {
   return idMap
 }
 
-function assertNoLegacyProjectIds(store: PrototypeStore) {
-  const legacyIds = new Set<string>()
-  const recordLegacy = (id?: string) => {
-    if (id && !isAsciiProjectId(id)) {
-      legacyIds.add(id)
+function assertNoLegacyProjectIds(value: unknown, legacyIds: Set<string>) {
+  if (typeof value === "string") {
+    if (legacyIds.has(value)) {
+      throw new Error(`Legacy project id remained after migration: ${value}`)
     }
+
+    return
   }
 
-  store.projects.forEach((project) => recordLegacy(project.id))
-  store.projectDetails.forEach((detail) => {
-    recordLegacy(detail.projectId)
-    detail.tasks.forEach((task) => recordLegacy(task.projectId))
-    detail.findings.forEach((finding) => recordLegacy(finding.projectId))
-  })
-  Object.keys(store.projectFormPresets).forEach((projectId) => recordLegacy(projectId))
-  Object.keys(store.orchestratorPlans).forEach((projectId) => recordLegacy(projectId))
-  store.approvals.forEach((approval) => recordLegacy(approval.projectId))
-  store.assets.forEach((asset) => recordLegacy(asset.projectId))
-  store.evidenceRecords.forEach((record) => recordLegacy(record.projectId))
-  store.mcpRuns.forEach((run) => recordLegacy(run.projectId))
-  store.schedulerTasks.forEach((task) => recordLegacy(task.projectId))
-  store.projectFindings.forEach((finding) => recordLegacy(finding.projectId))
+  if (Array.isArray(value)) {
+    value.forEach((entry) => assertNoLegacyProjectIds(entry, legacyIds))
+    return
+  }
 
-  if (legacyIds.size > 0) {
-    throw new Error(`Legacy project ids remain after migration: ${Array.from(legacyIds).join(", ")}`)
+  if (value && typeof value === "object") {
+    Object.values(value).forEach((entry) => assertNoLegacyProjectIds(entry, legacyIds))
   }
 }
 
 function migrateProjectIds(store: PrototypeStore): PrototypeStore {
   const idMap = buildProjectIdMap(store.projects)
+  const legacyIds = new Set(idMap.keys())
 
   if (idMap.size === 0) {
-    assertNoLegacyProjectIds(store)
+    assertNoLegacyProjectIds(store, legacyIds)
     return store
   }
 
@@ -316,7 +309,7 @@ function migrateProjectIds(store: PrototypeStore): PrototypeStore {
     orchestratorPlans,
   }
 
-  assertNoLegacyProjectIds(migratedStore)
+  assertNoLegacyProjectIds(migratedStore, legacyIds)
   return migratedStore
 }
 
