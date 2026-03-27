@@ -297,6 +297,15 @@ export function ProjectSchedulerRuntimePanel({
                           <p className="text-rose-600 dark:text-rose-300">最近错误：{task.lastError}</p>
                         ) : null}
                       </div>
+                      {task.workerId || task.leaseExpiresAt || task.heartbeatAt || task.recoveryCount ? (
+                        <div className="mt-4 grid gap-1 rounded-[16px] border border-dashed border-slate-200/80 bg-slate-50/80 px-3 py-3 text-xs leading-5 text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
+                          {task.workerId ? <p>执行 worker {task.workerId}</p> : null}
+                          {task.leaseExpiresAt ? <p>租约截止 {task.leaseExpiresAt}</p> : null}
+                          {task.heartbeatAt ? <p>最近心跳 {task.heartbeatAt}</p> : null}
+                          {task.recoveryCount ? <p>恢复 {task.recoveryCount} 次</p> : null}
+                          {task.lastRecoveredAt ? <p>最近恢复 {task.lastRecoveredAt}</p> : null}
+                        </div>
+                      ) : null}
                     </div>
 
                     <div className="flex flex-col gap-2">

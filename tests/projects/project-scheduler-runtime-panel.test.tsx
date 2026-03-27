@@ -68,6 +68,11 @@ const schedulerTasks: McpSchedulerTaskRecord[] = [
     maxAttempts: 1,
     queuedAt: "2026-03-27 15:03",
     availableAt: "2026-03-27 15:03",
+    heartbeatAt: "2026-03-27 15:04",
+    leaseExpiresAt: "2026-03-27 15:05",
+    leaseStartedAt: "2026-03-27 15:03",
+    leaseToken: "lease-running",
+    workerId: "worker-running",
     updatedAt: "2026-03-27 15:03",
     summaryLines: ["正在执行截图采集。"],
   },
@@ -220,5 +225,26 @@ describe("ProjectSchedulerRuntimePanel", () => {
     expect(screen.getByRole("button", { name: "请求停止任务 https://portal.example.test/dashboard" })).toBeEnabled()
     expect(screen.getByRole("button", { name: "重试任务 api.example.test" })).toBeDisabled()
     expect(screen.getByRole("button", { name: "重试任务 https://portal.example.test/login" })).toBeEnabled()
+  })
+
+  it("renders durable worker lease metadata for running tasks", () => {
+    render(
+      <ProjectSchedulerRuntimePanel
+        projectId="proj-runtime"
+        initialControl={initialControl}
+        initialTasks={[
+          {
+            ...schedulerTasks[2],
+            lastRecoveredAt: "2026-03-27 15:02",
+            recoveryCount: 1,
+          },
+        ]}
+      />,
+    )
+
+    expect(screen.getByText(/执行 worker worker-running/)).toBeInTheDocument()
+    expect(screen.getByText(/租约截止 2026-03-27 15:05/)).toBeInTheDocument()
+    expect(screen.getByText(/最近心跳 2026-03-27 15:04/)).toBeInTheDocument()
+    expect(screen.getByText(/恢复 1 次/)).toBeInTheDocument()
   })
 })

@@ -19,6 +19,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - the latest hardening pass also auto-creates live-validation projects when needed, supports persisting successful closure data back into the normal workspace store, and has already validated one real Juice Shop closure (`proj-20260327-f6a3fd0c`) that is visible through standard project/evidence/finding routes when workspace-mode persistence is used
 - the latest stabilization slice adds real scheduler runtime controls so project operators can pause future queue pickup, cancel queued tasks, and retry failed tasks directly from the project operations page
 - the current durable-execution follow-up slice lets operators request stop on already running tasks and prevents cancelled work from continuing result commit when the platform can still intercept before writeback
+- the current durable-worker slice adds lease-backed scheduler ownership, heartbeat-driven orphan recovery, stale-write fencing, and runtime queue observability for worker/lease metadata
 
 ## 2. Routing Map
 
@@ -219,7 +220,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `components/projects/project-operations-panel.tsx`
   Project-level approval switch, note editor, persisted save flow, approval record summary, and operations overview block.
 - `components/projects/project-scheduler-runtime-panel.tsx`
-  Client-side runtime queue panel for project-level scheduler pause/resume, queued-task cancel, running-task stop requests, failed-task retry, and operator feedback/refresh on the real operations page.
+  Client-side runtime queue panel for project-level scheduler pause/resume, queued-task cancel, running-task stop requests, failed-task retry, operator feedback/refresh, and durable-worker metadata such as `workerId`, lease expiry, heartbeat, and recovery count.
 - `components/projects/project-orchestrator-panel.tsx`
   Client-side orchestrator console for local lab selection, plan generation, local validation execution, provider state display, and last-plan review.
 - `components/projects/project-mcp-runs-panel.tsx`
@@ -312,11 +313,11 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `lib/mcp-client-service.ts`
   Thin real-MCP client runtime. Spawns a stdio MCP subprocess through the official TypeScript SDK, lists/calls tools with timeout/error handling, and persists invocation logs into SQLite.
 - `lib/mcp-execution-service.ts`
-  Execution normalization layer behind the connector registry. Resolves the selected connector, executes it, converts connector-level structured output into platform assets/evidence/work logs/findings, updates run summaries, refreshes project result state, and now refuses to commit normalized results when the linked scheduler task has already been cancelled before writeback.
+  Execution normalization layer behind the connector registry. Resolves the selected connector, executes it, converts connector-level structured output into platform assets/evidence/work logs/findings, updates run summaries, refreshes project result state, and now refuses to commit normalized results when the linked scheduler task has already been cancelled or when the finishing worker no longer owns the active lease token.
 - `lib/mcp-scheduler-repository.ts`
-  Persisted scheduler-task repository. Stores queue state for ready, waiting-approval, delayed, retry-scheduled, running, completed, failed, and cancelled work, and now maps cancelled MCP runs back into queue state consistently.
+  Persisted scheduler-task repository. Stores queue state for ready, waiting-approval, delayed, retry-scheduled, running, completed, failed, and cancelled work, and now also owns durable-worker lease fields (`workerId`, `leaseToken`, `heartbeatAt`, `leaseExpiresAt`, `recoveryCount`, `lastRecoveredAt`) plus claim/heartbeat/recovery helpers.
 - `lib/mcp-scheduler-service.ts`
-  Scheduler loop and task transition service. Creates per-run scheduler tasks, drains ready work, applies retry/delay transitions, resumes approval-gated runs through the same executor path, and now skips queue pickup for projects whose scheduler is paused.
+  Scheduler loop and task transition service. Creates per-run scheduler tasks, drains ready work, applies retry/delay transitions, resumes approval-gated runs through the same executor path, skips queue pickup for paused projects, keeps `running` work alive with a heartbeat loop, and recovers orphaned running tasks before the next drain.
 - `lib/project-scheduler-control-repository.ts`
   Project-scoped runtime control repository. Owns persisted scheduler pause/resume state plus queued-task cancel, running-task stop requests, and failed-task retry behavior, while also syncing project activity and audit logs.
 - `lib/prototype-types.ts`
@@ -440,9 +441,13 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `tests/lib/real-web-surface-mcp-connector.test.ts`
   Unit test proving `web-surface-map` can execute through an explicitly registered real stdio MCP subprocess and return normalized `webEntries`.
 - `tests/lib/mcp-scheduler-service.test.ts`
-  Unit tests for scheduler task creation, delayed approval handling, and approved-task resume execution.
+  Unit tests for scheduler task creation, durable-worker claim cleanup, delayed approval handling, approved-task resume execution, and orphan-running-task recovery during drain.
+- `tests/lib/mcp-scheduler-repository.test.ts`
+  Unit tests for scheduler-task lease claim, lease-token ownership checks, heartbeat refresh, and expired-running-task recovery back into `ready`.
 - `tests/lib/mcp-scheduler-retry.test.ts`
   Unit test for the scheduler retry path using a mocked execution-service response to verify `retry_scheduled` transitions.
+- `tests/lib/mcp-execution-service.test.ts`
+  Unit tests for execution writeback guards, covering both cancelled-task interception and stale-lease ownership fencing.
 - `tests/lib/live-validation-report.test.ts`
   Focused test for the Phase 7 live-validation report builder, keeping the Markdown/JSON artifact structure deterministic for future runs and future LLM sessions.
 - `tests/approvals/approval-center-client.test.tsx`

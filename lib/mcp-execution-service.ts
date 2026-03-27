@@ -42,6 +42,11 @@ type NormalizedExecutionArtifacts = {
   workLogs: LogRecord[]
 }
 
+type SchedulerTaskOwnership = {
+  leaseToken: string
+  workerId: string
+}
+
 function mergeRelations(
   left: AssetRecord["relations"] = [],
   right: AssetRecord["relations"] = [],
@@ -473,9 +478,20 @@ function updateProjectExecutionMeta(project: ProjectRecord, run: McpRunRecord) {
   writePrototypeStore(store)
 }
 
+function taskOwnershipLost(runId: string, ownership?: SchedulerTaskOwnership) {
+  if (!ownership) {
+    return false
+  }
+
+  const task = getStoredSchedulerTaskByRunId(runId)
+
+  return Boolean(task && (task.workerId !== ownership.workerId || task.leaseToken !== ownership.leaseToken))
+}
+
 export async function executeStoredMcpRun(
   runId: string,
   priorOutputs: McpWorkflowSmokePayload["outputs"] = {},
+  ownership?: SchedulerTaskOwnership,
 ) {
   const run = getStoredMcpRunById(runId)
 
@@ -531,6 +547,17 @@ export async function executeStoredMcpRun(
       mode: rawResult.mode,
       summaryLines: rawResult.summaryLines,
       run: cancelledRun ?? run,
+      outputs: priorOutputs,
+    }
+  }
+
+  if (taskOwnershipLost(run.id, ownership)) {
+    return {
+      status: "aborted" as const,
+      connectorKey: rawResult.connectorKey,
+      mode: rawResult.mode,
+      summaryLines: rawResult.summaryLines,
+      run: getStoredMcpRunById(run.id) ?? run,
       outputs: priorOutputs,
     }
   }

@@ -192,7 +192,7 @@
 
 ## Phase 8: Platform Stabilization and Durable Execution Controls
 
-- Status: In progress on `codex/platform-stabilization-2026-03-27`
+- Status: In progress across `codex/platform-stabilization-2026-03-27` and `codex/durable-worker-orphan-recovery-2026-03-27`
 - Goal: prioritize operator-visible runtime control before expanding more MCP capability families, so the scheduler queue can be safely paused, resumed, cancelled, and retried from the real project operations surface.
 
 ### Task Checklist
@@ -204,13 +204,15 @@
 - completed: add project-scoped scheduler control and scheduler task action APIs with request validation
 - completed: add a dedicated runtime queue panel on the operations page with pause/resume, cancel, retry, and explicit disabled states
 - completed: allow operators to issue a stop request for `running` tasks and prevent cancelled work from continuing result commit when writeback has not happened yet
+- completed: add durable worker lease metadata, heartbeat refresh, orphan `running` task recovery, and stale-lease writeback fencing
+- completed: surface worker / lease / recovery metadata directly in the project runtime queue panel
 - completed: cover repository, API, payload, component, and page integration paths with targeted tests
 - pending: introduce cooperative cancellation for already-running tasks instead of only preventing future queue pickup
-- pending: move the current file-backed queue toward a more durable long-lived worker/executor model suitable for longer sessions
+- partially met: move the current file-backed queue toward a more durable long-lived worker/executor model suitable for longer sessions
 
 ### Priority Tasks
 
-- finish durable execution semantics for running work, including cooperative stop/cancel points
+- finish true cooperative cancellation for already-running work, including connector-side stop/cancel points
 - stabilize WebGoat host-side reachability so the second lab can be validated through the same runner
 - expand local-lab-backed regression coverage for real Docker targets in controlled environments
 - add another real MCP family such as API structure discovery or evidence capture
@@ -221,7 +223,7 @@
 - met: project-level scheduler pause/resume is operator-visible and blocks future queue pickup
 - met: queued tasks can be cancelled and failed tasks can be retried from the project operations page
 - met: the operations API contract now carries real runtime scheduler state instead of only high-level task cards
-- partially met: operators can now issue stop requests for `running` tasks and block later result commit, but hard remote interruption across connector boundaries is still pending
+- partially met: operators can now issue stop requests for `running` tasks, recover orphan executions, and block stale late writeback, but hard remote interruption across connector boundaries is still pending
 - pending: WebGoat or another second local target can be validated through the same end-to-end runner
 
 ## Recommended Next Phase

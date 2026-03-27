@@ -6,7 +6,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 import { updateStoredApprovalDecision } from "@/lib/approval-repository"
 import { dispatchStoredMcpRun, getStoredMcpRunById } from "@/lib/mcp-gateway-repository"
-import { getStoredSchedulerTaskByRunId } from "@/lib/mcp-scheduler-repository"
+import {
+  claimStoredSchedulerTask,
+  getStoredSchedulerTaskByRunId,
+  updateStoredSchedulerTask,
+} from "@/lib/mcp-scheduler-repository"
 import {
   drainStoredSchedulerTasks,
   syncStoredSchedulerTaskAfterApprovalDecision,
@@ -50,6 +54,9 @@ describe("MCP scheduler service", () => {
     expect(completedTask?.status).toBe("completed")
     expect(completedRun?.status).toBe("已执行")
     expect(completedRun?.connectorMode).toBe("local")
+    expect(completedTask?.summaryLines.some((line) => line.includes("执行 worker"))).toBe(true)
+    expect(completedTask?.workerId).toBeUndefined()
+    expect(completedTask?.leaseExpiresAt).toBeUndefined()
   })
 
   it("moves approval-gated work into delayed state when the operator postpones it", () => {
@@ -97,5 +104,36 @@ describe("MCP scheduler service", () => {
     expect(completedTask?.status).toBe("completed")
     expect(completedRun?.status).toBe("已执行")
     expect(completedRun?.summaryLines.at(-1)).toContain("审批已批准")
+  })
+
+  it("recovers expired running tasks before draining the queue again", async () => {
+    seedWorkflowReadyMcpTools()
+    const fixture = createStoredProjectFixture()
+    const payload = dispatchStoredMcpRun(fixture.project.id, {
+      capability: "DNS / 子域 / 证书情报类",
+      requestedAction: "补采证书与子域情报",
+      target: fixture.project.seed,
+      riskLevel: "低",
+    })
+    const task = getStoredSchedulerTaskByRunId(payload!.run.id)
+    updateStoredSchedulerTask(task!.id, {
+      availableAt: "2020-01-01 00:00",
+    })
+
+    claimStoredSchedulerTask(task!.id, {
+      workerId: "worker-orphan",
+      now: "2026-03-27 00:00",
+      leaseDurationMs: 1_000,
+    })
+
+    const drained = await drainStoredSchedulerTasks({ runId: payload!.run.id })
+    const recoveredTask = getStoredSchedulerTaskByRunId(payload!.run.id)
+    const recoveredRun = getStoredMcpRunById(payload!.run.id)
+
+    expect(drained.status).toBe("completed")
+    expect(recoveredTask?.status).toBe("completed")
+    expect(recoveredTask?.recoveryCount).toBe(1)
+    expect(recoveredTask?.summaryLines.some((line) => line.includes("租约已过期"))).toBe(true)
+    expect(recoveredRun?.status).toBe("已执行")
   })
 })

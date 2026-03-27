@@ -408,6 +408,13 @@ export interface McpSchedulerTaskRecord {
   updatedAt: string
   lastError?: string
   linkedApprovalId?: string
+  workerId?: string
+  leaseToken?: string
+  leaseStartedAt?: string
+  leaseExpiresAt?: string
+  heartbeatAt?: string
+  recoveryCount?: number
+  lastRecoveredAt?: string
   summaryLines: string[]
 }
 
