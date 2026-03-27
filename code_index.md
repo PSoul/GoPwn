@@ -14,6 +14,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - the operations page now includes an orchestrator console for local lab planning and validation rehearsal
 - the backend now includes a configurable OpenAI-compatible LLM provider layer plus local Docker lab support
 - Phase 7 has started by adding a SQLite-backed MCP server registry plus a real stdio MCP server/client execution path for Web surface probing
+- the current Phase 7 slice adds a repeatable `npm run live:validate` runner so real LLM + local Docker lab + real MCP flows can be exercised and archived outside the UI
 
 ## 2. Routing Map
 
@@ -335,7 +336,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `lib/mcp-write-schema.ts`
   Zod validation schemas for MCP tool patch payloads, project-level MCP dispatch payloads, workflow smoke-run payloads, and orchestrator local-validation payloads.
 - `lib/orchestrator-service.ts`
-  Phase 6 orchestration service. Generates LLM or fallback plans for local labs, persists the latest plan per project, and runs the local validation loop through the same MCP dispatch/scheduler path as normal work.
+  Phase 6/7 orchestration service. Generates LLM or fallback plans for local labs, normalizes real-provider output back onto the platform's supported capability/risk contract, persists the latest plan per project, and runs the local validation loop through the same MCP dispatch/scheduler path as normal work.
 - `lib/project-mcp-dispatch-service.ts`
   Shared helper that dispatches a project MCP run and immediately drains the scheduler when the run is auto-runnable, avoiding duplicated dispatch+drain logic.
 - `lib/project-repository.ts`
@@ -410,6 +411,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Unit tests for scheduler task creation, delayed approval handling, and approved-task resume execution.
 - `tests/lib/mcp-scheduler-retry.test.ts`
   Unit test for the scheduler retry path using a mocked execution-service response to verify `retry_scheduled` transitions.
+- `tests/lib/live-validation-report.test.ts`
+  Focused test for the Phase 7 live-validation report builder, keeping the Markdown/JSON artifact structure deterministic for future runs and future LLM sessions.
 - `tests/approvals/approval-center-client.test.tsx`
   Client interaction test verifying the approvals workbench calls the approval mutation API and surfaces success feedback.
 - `tests/projects/project-operations-panel.test.tsx`
@@ -424,6 +427,10 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Playwright E2E configuration that boots the local Next.js dev server and runs browser smoke flows against the prototype routes.
 - `scripts/run-playwright.mjs`
   Wrapper that clears the dedicated Playwright web-server port before launching browser tests, avoiding stale local dev-server conflicts in repeated runs.
+- `scripts/run-live-validation.mjs`
+  Phase 7 command-line live-validation runner. Starts local labs and the Next.js runtime, logs in, calls the orchestrator/local-validation APIs, auto-resumes approvals, and writes Markdown/JSON run artifacts plus server logs under `output/live-validation/`.
+- `scripts/lib/live-validation-report.mjs`
+  Pure report-builder module used by the live-validation runner to turn runtime results into deterministic Markdown and summary JSON structures.
 - `scripts/mcp/web-surface-server.mjs`
   Real local stdio MCP server for the Phase 7 slice. Exposes a safe read-only `probe_web_surface` tool that fetches a target URL, extracts title/status/headers, and returns structured `webEntries`.
 - `e2e/prototype-smoke.spec.ts`
@@ -456,7 +463,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `docker/local-labs/compose.yaml`
   Local Docker validation harness for OWASP Juice Shop and WebGoat, used to exercise the platform against safe, local-only vulnerable targets.
 - `docs/operations/local-docker-labs.md`
-  Operator guide for launching and validating the local Docker lab stack and using it from the project operations page.
+  Operator guide for launching the local Docker lab stack, using it from the project operations page, and running the new command-line live-validation flow with real LLM credentials.
 - `docs/operations/mcp-onboarding-guide.md`
   Phase 6 onboarding guide explaining the boundary model, connector expectations, registration flow, and testing checklist for future MCP tool families.
 - `docs/templates/mcp-connector-template.md`
@@ -471,6 +478,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Step-by-step implementation plan for the Phase 6 provider abstraction, orchestrator APIs/UI, MCP onboarding docs, and local Docker validation harness.
 - `docs/superpowers/plans/2026-03-26-production-backend-real-mcp-implementation.md`
   Step-by-step implementation plan for the first Phase 7 slice covering SQLite-backed MCP server persistence, real stdio MCP execution, and settings-page registry exposure.
+- `docs/superpowers/plans/2026-03-27-live-llm-local-lab-validation-implementation.md`
+  Step-by-step implementation plan for the second Phase 7 slice covering real-provider plan normalization, the reusable live-validation runner, and report artifacts.
 - `docs/superpowers/specs/2026-03-26-frontend-prototype-design.md`
   Upstream product/spec reference from the approved design work.
 - `docs/prompts/2026-03-26-phase-03-real-backend-core-prompt.md`
@@ -485,6 +494,10 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Recommended next-phase prompt for replacing local MCP runners with real connector families and a scheduler/task loop.
 - `docs/prompts/2026-03-26-phase-07-production-backend-integration-prompt.md`
   Recommended next-phase prompt for hardening the prototype backend, expanding real MCP/server integration, and moving toward a more production-like runtime.
+- `docs/prompts/2026-03-27-phase-08-durable-execution-and-lab-hardening-prompt.md`
+  Recommended follow-up prompt for the next isolated slice, focused on durable execution controls, additional real connector families, and stabilizing WebGoat/local-lab regression behavior.
+- `output/live-validation/`
+  Runtime-generated, git-ignored validation artifact directory. Successful local runs currently emit Markdown and JSON reports here, including the first confirmed Juice Shop real-provider validation sample from `2026-03-27`.
 - `docs/superpowers/specs/2026-03-26-mcp-gateway-registry-spec.md`
   MCP gateway registry and execution spec describing the current capability-first dispatch model, approval linkage, foundational runnable tools, and next backend integration targets.
 

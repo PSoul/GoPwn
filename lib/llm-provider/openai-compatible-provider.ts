@@ -13,8 +13,26 @@ function normalizeBaseUrl(baseUrl: string) {
   return baseUrl.replace(/\/+$/, "")
 }
 
+function extractJsonCandidate(content: string) {
+  const trimmed = content.trim()
+  const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)
+
+  if (fencedMatch?.[1]) {
+    return fencedMatch[1].trim()
+  }
+
+  const firstBraceIndex = trimmed.indexOf("{")
+  const lastBraceIndex = trimmed.lastIndexOf("}")
+
+  if (firstBraceIndex >= 0 && lastBraceIndex > firstBraceIndex) {
+    return trimmed.slice(firstBraceIndex, lastBraceIndex + 1)
+  }
+
+  return trimmed
+}
+
 function safeParsePlanContent(content: string) {
-  const parsed = JSON.parse(content) as {
+  const parsed = JSON.parse(extractJsonCandidate(content)) as {
     items?: OrchestratorPlanItem[]
     summary?: string
   }
@@ -30,7 +48,7 @@ function getSystemPrompt(purpose: "orchestrator" | "reviewer") {
     return "你是授权渗透测试平台的结果审阅模型。请只返回 JSON，包含 summary 和 items。items 数组内每项必须包含 capability、requestedAction、target、riskLevel、rationale。"
   }
 
-  return "你是授权渗透测试平台的编排模型。请只返回 JSON，包含 summary 和 items。items 数组内每项必须包含 capability、requestedAction、target、riskLevel、rationale。动作必须坚持 LLM=大脑、MCP=四肢 的边界。"
+  return "你是授权渗透测试平台的编排模型。请只返回 JSON，包含 summary 和 items。items 数组内每项必须包含 capability、requestedAction、target、riskLevel、rationale。capability 只允许使用 目标解析类、Web 页面探测类、受控验证类 这三个值。riskLevel 只允许使用 高、中、低。动作必须坚持 LLM=大脑、MCP=四肢 的边界。"
 }
 
 function buildStatus(config?: Partial<OpenAiCompatibleConfig>): LlmProviderStatus {

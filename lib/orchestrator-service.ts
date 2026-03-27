@@ -58,7 +58,130 @@ function buildOrchestratorPrompt(input: {
     `本地靶场 URL：${input.baseUrl}`,
     `审批场景：${input.approvalScenario === "include-high-risk" ? "需要包含一条高风险审批动作" : "只生成低风险动作"}`,
     "请返回最小闭环验证计划，优先选择目标解析类、Web 页面探测类、必要时再补一条高风险受控验证类。",
+    "capability 只能使用：目标解析类、Web 页面探测类、受控验证类。",
+    "riskLevel 只能使用：高、中、低。",
+    "target 必须直接填写可访问 URL。",
   ].join("\n")
+}
+
+function normalizeRiskLevel(rawRiskLevel: string | undefined, fallback: OrchestratorPlanItem["riskLevel"]) {
+  const normalized = rawRiskLevel?.trim().toLowerCase()
+
+  if (!normalized) {
+    return fallback
+  }
+
+  if (["高", "high", "critical", "severe"].includes(normalized)) {
+    return "高"
+  }
+
+  if (["中", "medium", "moderate"].includes(normalized)) {
+    return "中"
+  }
+
+  if (["低", "low", "info", "informational", "passive"].includes(normalized)) {
+    return "低"
+  }
+
+  return fallback
+}
+
+function normalizeTarget(rawTarget: string | undefined, fallback: string) {
+  const trimmed = rawTarget?.trim()
+
+  return trimmed && /^https?:\/\//i.test(trimmed) ? trimmed : fallback
+}
+
+function inferCanonicalCapability(rawItem: Partial<OrchestratorPlanItem>, fallback: OrchestratorPlanItem) {
+  const capabilityText = `${rawItem.capability ?? ""} ${rawItem.requestedAction ?? ""} ${rawItem.rationale ?? ""}`.toLowerCase()
+
+  if (
+    capabilityText.includes("目标解析") ||
+    capabilityText.includes("标准化") ||
+    capabilityText.includes("归一化") ||
+    capabilityText.includes("normalize") ||
+    capabilityText.includes("seed")
+  ) {
+    return "目标解析类" as const
+  }
+
+  if (
+    capabilityText.includes("web 页面") ||
+    capabilityText.includes("web指纹") ||
+    capabilityText.includes("web 指纹") ||
+    capabilityText.includes("页面探测") ||
+    capabilityText.includes("首页响应") ||
+    capabilityText.includes("入口") ||
+    capabilityText.includes("标题") ||
+    capabilityText.includes("header") ||
+    capabilityText.includes("fingerprint") ||
+    capabilityText.includes("surface")
+  ) {
+    return "Web 页面探测类" as const
+  }
+
+  if (
+    capabilityText.includes("高风险") ||
+    capabilityText.includes("受控验证") ||
+    capabilityText.includes("绕过") ||
+    capabilityText.includes("登录") ||
+    capabilityText.includes("认证") ||
+    capabilityText.includes("验证") ||
+    capabilityText.includes("exploit") ||
+    capabilityText.includes("poc")
+  ) {
+    return "受控验证类" as const
+  }
+
+  return fallback.capability
+}
+
+function buildNormalizedPlanItem(rawItem: Partial<OrchestratorPlanItem>, fallback: OrchestratorPlanItem): OrchestratorPlanItem {
+  const capability = inferCanonicalCapability(rawItem, fallback)
+  const requestedAction = rawItem.requestedAction?.trim() || fallback.requestedAction
+  const rationale = rawItem.rationale?.trim() || fallback.rationale
+  const target = normalizeTarget(rawItem.target, fallback.target)
+
+  return {
+    capability,
+    requestedAction,
+    target,
+    riskLevel: normalizeRiskLevel(rawItem.riskLevel, capability === "受控验证类" ? "高" : fallback.riskLevel),
+    rationale,
+  }
+}
+
+function normalizeProviderPlanItems(
+  items: Partial<OrchestratorPlanItem>[] | undefined,
+  baseUrl: string,
+  approvalScenario: "none" | "include-high-risk",
+) {
+  const fallbackItems = buildFallbackPlanItems(baseUrl, approvalScenario)
+  const normalizedItems = (items ?? []).map((item, index) =>
+    buildNormalizedPlanItem(item, fallbackItems[Math.min(index, fallbackItems.length - 1)]),
+  )
+  const requiredCapabilities =
+    approvalScenario === "include-high-risk"
+      ? (["目标解析类", "Web 页面探测类", "受控验证类"] as const)
+      : (["目标解析类", "Web 页面探测类"] as const)
+
+  for (const requiredCapability of requiredCapabilities) {
+    if (normalizedItems.some((item) => item.capability === requiredCapability)) {
+      continue
+    }
+
+    const fallback = fallbackItems.find((item) => item.capability === requiredCapability)
+
+    if (fallback) {
+      normalizedItems.push(fallback)
+    }
+  }
+
+  return normalizedItems.filter((item, index, collection) => {
+    const fingerprint = `${item.capability}::${item.target}`
+
+    return collection.findIndex((candidate) => `${candidate.capability}::${candidate.target}` === fingerprint) === index
+  })
 }
 
 function normalizePlanRecord(input: {
@@ -129,7 +252,11 @@ export async function generateProjectOrchestratorPlan(
   const plan = persistProjectOrchestratorPlan(
     projectId,
     normalizePlanRecord({
-      items: providerResult.content.items,
+      items: normalizeProviderPlanItems(
+        providerResult.content.items,
+        localLab.baseUrl,
+        input.approvalScenario ?? "include-high-risk",
+      ),
       provider: provider.getStatus(),
       summary: providerResult.content.summary,
     }),

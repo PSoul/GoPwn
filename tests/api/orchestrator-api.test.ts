@@ -1,3 +1,4 @@
+import { createServer } from "node:http"
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -139,5 +140,126 @@ describe("project orchestrator api routes", () => {
     expect(
       approvedPayload.detail.findings.some((item: { title: string }) => item.title.includes("认证绕过")),
     ).toBe(true)
+  })
+
+  it("normalizes real-provider plans with markdown-wrapped JSON and near-match capability labels", async () => {
+    process.env.LLM_PROVIDER = "openai-compatible"
+    process.env.LLM_BASE_URL = "https://api.siliconflow.cn/v1"
+    process.env.LLM_API_KEY = "sk-test"
+    process.env.LLM_ORCHESTRATOR_MODEL = "Pro/deepseek-ai/DeepSeek-V3.2"
+    process.env.LLM_REVIEWER_MODEL = "Pro/deepseek-ai/DeepSeek-V3.2"
+
+    global.fetch = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+
+      if (url.includes("127.0.0.1:3000") || url.includes("127.0.0.1:8080")) {
+        return {
+          ok: true,
+          json: async () => ({}),
+        } as Response
+      }
+
+      if (url === "https://api.siliconflow.cn/v1/chat/completions") {
+        return {
+          ok: true,
+          json: async () => ({
+            choices: [
+              {
+                message: {
+                  content: [
+                    "```json",
+                    JSON.stringify({
+                      summary: "先做 Web 指纹识别，再追加一条需要人工确认的高风险验证。",
+                      items: [
+                        {
+                          capability: "Web 指纹识别类",
+                          requestedAction: "识别 Juice Shop 首页响应特征",
+                          target: "http://127.0.0.1:3000",
+                          riskLevel: "low",
+                          rationale: "先确认首页入口、标题和响应头。",
+                        },
+                        {
+                          capability: "高风险验证",
+                          requestedAction: "尝试登录绕过验证",
+                          target: "http://127.0.0.1:3000/login",
+                          riskLevel: "high",
+                          rationale: "保留一条需要审批的验证动作，检查审批恢复链路。",
+                        },
+                      ],
+                    }),
+                    "```",
+                  ].join("\n"),
+                },
+              },
+            ],
+          }),
+        } as Response
+      }
+
+      throw new Error(`Unexpected fetch in orchestrator api test: ${url}`)
+    }) as unknown as typeof fetch
+
+    const targetServer = createServer((_request, response) => {
+      response.writeHead(200, {
+        "content-type": "text/html; charset=utf-8",
+        "x-powered-by": "vitest-local-lab",
+      })
+      response.end("<html><head><title>Juice Shop Local Test</title></head><body>ok</body></html>")
+    })
+    let startedLocalServer = false
+
+    await new Promise<void>((resolve, reject) => {
+      targetServer.once("error", (error: NodeJS.ErrnoException) => {
+        if (error.code === "EADDRINUSE") {
+          resolve()
+          return
+        }
+
+        reject(error)
+      })
+      targetServer.listen(3000, "127.0.0.1", () => {
+        startedLocalServer = true
+        resolve()
+      })
+    })
+
+    try {
+      const validationResponse = await postLocalValidation(
+        new Request("http://localhost/api/projects/proj-huayao/orchestrator/local-validation", {
+          method: "POST",
+          body: JSON.stringify({
+            labId: "juice-shop",
+            approvalScenario: "include-high-risk",
+          }),
+          headers: {
+            "content-type": "application/json",
+          },
+        }),
+        buildProjectContext("proj-huayao"),
+      )
+      const validationPayload = await validationResponse.json()
+
+      expect(validationResponse.status).toBe(202)
+      expect(validationPayload.provider.enabled).toBe(true)
+      expect(validationPayload.status).toBe("waiting_approval")
+      expect(validationPayload.plan.items[0].capability).toBe("Web 页面探测类")
+      expect(validationPayload.plan.items[0].riskLevel).toBe("低")
+      expect(validationPayload.plan.items.some((item: { capability: string; riskLevel: string }) => item.capability === "受控验证类" && item.riskLevel === "高")).toBe(true)
+      expect(validationPayload.runs.some((item: { capability: string; status: string }) => item.capability === "Web 页面探测类" && item.status === "已执行")).toBe(true)
+      expect(validationPayload.runs.some((item: { capability: string; status: string }) => item.capability === "受控验证类" && item.status === "待审批")).toBe(true)
+    } finally {
+      if (startedLocalServer) {
+        await new Promise<void>((resolve, reject) => {
+          targetServer.close((error) => {
+            if (error) {
+              reject(error)
+              return
+            }
+
+            resolve()
+          })
+        })
+      }
+    }
   })
 })

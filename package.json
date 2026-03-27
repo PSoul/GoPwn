@@ -9,6 +9,7 @@
     "e2e:headed": "node scripts/run-playwright.mjs --headed",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "live:validate": "node scripts/run-live-validation.mjs",
     "test": "vitest run",
     "test:all": "npm run test && npm run lint && npm run build && npm run e2e",
     "test:watch": "vitest",

@@ -2,8 +2,8 @@
 
 ## Project Snapshot
 
-- Date: `2026-03-26`
-- Current focus: the first Phase 7 slice is landing on `codex/production-backend-real-mcp-2026-03-26`, adding a SQLite-backed MCP server registry, a real stdio MCP server/client path for Web surface probing, and settings exposure for connected MCP servers.
+- Date: `2026-03-27`
+- Current focus: the second Phase 7 slice is landing on `codex/live-llm-local-lab-validation-2026-03-27`, turning the local-lab rehearsal path into a repeatable real-provider validation workflow with report artifacts.
 - Working mode: each major feature area uses its own isolated git branch/worktree so the existing branch is not disturbed.
 
 ## Phase 1: Frontend Prototype Closure
@@ -146,7 +146,7 @@
 
 ## Phase 7: Production Backend Integration and Real MCP Expansion
 
-- Status: In progress on `codex/production-backend-real-mcp-2026-03-26`
+- Status: In progress across `codex/production-backend-real-mcp-2026-03-26` and `codex/live-llm-local-lab-validation-2026-03-27`
 - Goal: harden the prototype backend into a more production-like runtime and replace more simulated capability families with real MCP integrations.
 
 ### Task Checklist
@@ -154,6 +154,10 @@
 - completed: augment the prototype backend with a SQLite-backed persistence layer dedicated to external MCP server metadata and invocation logs
 - completed: introduce a real MCP stdio server/client attachment model using the official TypeScript SDK for the `Web 页面探测类` capability
 - completed: expose the connected MCP server registry and recent invocation history in the MCP settings API and settings UI
+- completed: harden the real LLM plan intake so markdown-wrapped JSON and near-match capability/risk labels are normalized into the platform contract before MCP dispatch
+- completed: add a reusable `npm run live:validate` runner that boots the app, logs in, executes the local-lab flow, auto-resumes approvals, and writes Markdown + JSON artifacts under `output/live-validation/`
+- completed: execute a real end-to-end validation against local Juice Shop using runtime-only SiliconFlow credentials, real Web stdio MCP invocation, approval resume, and persisted result aggregation
+- in progress: stabilize WebGoat host-side reachability in the current Windows + Docker Desktop environment so the second lab can be validated with the same runner
 - in progress: replace or augment more of the file-backed prototype runtime with database-backed persistence suitable for longer-running environments
 - pending: wire project/task execution state to durable queues, cancellation, and better operator controls
 - pending: expand real connector families beyond DNS + Web surface probing into API reconnaissance and evidence capture
@@ -164,6 +168,7 @@
 
 - partially met: backend state now includes a durable SQLite slice for external MCP server registry metadata and real-call audit history
 - met: at least one non-DNS external interaction family runs through a real MCP/server integration path
+- met: at least one real LLM + real MCP + local Docker target validation flow has now been executed and captured as a reusable artifact
 - project execution, approvals, evidence, and findings remain auditable after backend hardening
 - the local Docker validation stack remains usable as a regression harness while the backend evolves
 
