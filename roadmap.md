@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-27`
-- Current focus: the platform stabilization slice is landing on `codex/platform-stabilization-2026-03-27`, making project-level scheduler pause/resume plus task-level cancel/retry affect the real persisted queue and operations-page runtime controls.
+- Current focus: the cooperative-cancellation slice is landing on `codex/cooperative-cancellation-2026-03-27`, turning running-task stop requests into real abort propagation across the scheduler, execution service, local connectors, and the real stdio MCP path while the next isolated branch prepares second-lab closure work.
 - Working mode: each major feature area uses its own isolated git branch/worktree so the existing branch is not disturbed.
 
 ## Phase 1: Frontend Prototype Closure
@@ -192,7 +192,7 @@
 
 ## Phase 8: Platform Stabilization and Durable Execution Controls
 
-- Status: In progress across `codex/platform-stabilization-2026-03-27` and `codex/durable-worker-orphan-recovery-2026-03-27`
+- Status: In progress across `codex/platform-stabilization-2026-03-27`, `codex/durable-worker-orphan-recovery-2026-03-27`, and `codex/cooperative-cancellation-2026-03-27`
 - Goal: prioritize operator-visible runtime control before expanding more MCP capability families, so the scheduler queue can be safely paused, resumed, cancelled, and retried from the real project operations surface.
 
 ### Task Checklist
@@ -207,13 +207,13 @@
 - completed: add durable worker lease metadata, heartbeat refresh, orphan `running` task recovery, and stale-lease writeback fencing
 - completed: surface worker / lease / recovery metadata directly in the project runtime queue panel
 - completed: cover repository, API, payload, component, and page integration paths with targeted tests
-- pending: introduce cooperative cancellation for already-running tasks instead of only preventing future queue pickup
+- completed: introduce shared `AbortController` propagation for already-running tasks so the scheduler heartbeat, execution layer, local connectors, real DNS/TLS checkpoints, and the real stdio Web-surface MCP path cooperatively stop when operators request cancellation
 - partially met: move the current file-backed queue toward a more durable long-lived worker/executor model suitable for longer sessions
 
 ### Priority Tasks
 
-- finish true cooperative cancellation for already-running work, including connector-side stop/cancel points
 - stabilize WebGoat host-side reachability so the second lab can be validated through the same runner
+- unify local-lab definitions plus environment diagnostics so the runner, API, and UI report the same lab-health truth for WebGoat and future targets
 - expand local-lab-backed regression coverage for real Docker targets in controlled environments
 - add another real MCP family such as API structure discovery or evidence capture
 - add masked-secret mode for LLM settings while keeping a debug toggle for local development
@@ -223,26 +223,27 @@
 - met: project-level scheduler pause/resume is operator-visible and blocks future queue pickup
 - met: queued tasks can be cancelled and failed tasks can be retried from the project operations page
 - met: the operations API contract now carries real runtime scheduler state instead of only high-level task cards
-- partially met: operators can now issue stop requests for `running` tasks, recover orphan executions, and block stale late writeback, but hard remote interruption across connector boundaries is still pending
+- partially met: operators can now issue stop requests for `running` tasks, recover orphan executions, block stale late writeback, and cooperatively interrupt the platform heartbeat, local connectors, real DNS/TLS checkpoints, and the real stdio Web-surface MCP path; broader remote rollback and additional connector families are still pending
 - pending: WebGoat or another second local target can be validated through the same end-to-end runner
 
 ## Recommended Next Phase
 
-- Name: `Phase 9 - Durable Workers and Second-Lab Validation`
+- Name: `Phase 9 - Second-Lab Validation and Lab Diagnostics`
 - Suggested branch/worktree: create a fresh isolated branch after this slice is merged or parked
-- Goal: build on the now-proven real project closure path by making running work more durable, validating a second local lab, and only then expanding additional MCP families.
+- Goal: build on the now-proven real project closure path by validating a second local lab with clearer runtime diagnostics and a single source of truth for lab definitions before expanding additional MCP families.
 
 ### Priority Tasks
 
-- introduce true cooperative cancellation checkpoints and a more durable worker/executor loop
 - stabilize WebGoat host-side reachability and validate it through the same orchestrator + MCP + approval path
-- expand regression coverage for long-running queue recovery and second-lab execution
+- unify local-lab catalog, runner defaults, and UI/API health semantics so WebGoat failures surface as actionable environment diagnostics instead of ambiguous `offline` states
+- expand regression coverage for long-running queue recovery, environment-blocked lab runs, and second-lab execution
 - add another real MCP family such as API structure discovery or evidence capture once runtime control is stable
 
 ### Acceptance Criteria
 
 - running-task interruption and recovery are operator-visible and survive restarts more cleanly than the current file-backed baseline
 - WebGoat or another second local target can be validated through the same end-to-end runner
+- local-lab health, fallback, and diagnostics are consistent across the runner, API, and operations UI
 - at least one additional MCP family is visible in the registry and usable from dispatch flows without destabilizing the queue
 
 ## Notes for Future LLM Sessions

@@ -1,5 +1,6 @@
 import { formatTimestamp } from "@/lib/prototype-record-utils"
 import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
+import { abortActiveExecution } from "@/lib/mcp-execution-runtime"
 import type {
   McpRunRecord,
   McpSchedulerTaskRecord,
@@ -183,6 +184,9 @@ export function cancelStoredSchedulerTask(projectId: string, taskId: string, rea
     },
     nextTask,
   )
+  if (isRunningTask) {
+    abortActiveExecution(task.runId, reason)
+  }
 
   const project = store.projects[projectIndex]
   store.projects[projectIndex] = {

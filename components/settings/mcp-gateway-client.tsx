@@ -567,7 +567,17 @@ export function McpGatewayClient({
                       <p className="text-sm font-semibold text-slate-950 dark:text-white">{invocation.toolName}</p>
                       <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{invocation.target}</p>
                     </div>
-                    <StatusBadge tone={invocation.status === "succeeded" ? "success" : invocation.status === "timeout" ? "warning" : "danger"}>
+                    <StatusBadge
+                      tone={
+                        invocation.status === "succeeded"
+                          ? "success"
+                          : invocation.status === "timeout"
+                            ? "warning"
+                            : invocation.status === "cancelled"
+                              ? "neutral"
+                              : "danger"
+                      }
+                    >
                       {invocation.status}
                     </StatusBadge>
                   </div>

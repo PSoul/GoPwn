@@ -1,4 +1,5 @@
 import { callMcpServerTool } from "@/lib/mcp-client-service"
+import { createExecutionAbortError, isExecutionAbortError, throwIfExecutionAborted } from "@/lib/mcp-execution-abort"
 import { findStoredEnabledMcpServerByToolBinding } from "@/lib/mcp-server-repository"
 import type { McpConnector, McpConnectorExecutionContext, McpConnectorResult } from "@/lib/mcp-connectors/types"
 
@@ -30,6 +31,8 @@ export const realWebSurfaceMcpConnector: McpConnector = {
     return run.toolName === "web-surface-map" && isHttpTarget(target) && Boolean(findStoredEnabledMcpServerByToolBinding(run.toolName))
   },
   async execute(context: McpConnectorExecutionContext): Promise<McpConnectorResult> {
+    throwIfExecutionAborted(context.signal)
+
     const target = context.run.target || context.project.seed
     const server = findStoredEnabledMcpServerByToolBinding(context.run.toolName)
 
@@ -50,6 +53,7 @@ export const realWebSurfaceMcpConnector: McpConnector = {
         arguments: {
           targetUrl: target,
         },
+        signal: context.signal,
         target,
       })
       const webEntries = result.structuredContent.webEntries ?? []
@@ -68,6 +72,10 @@ export const realWebSurfaceMcpConnector: McpConnector = {
         summaryLines: webEntries.length > 0 ? [`真实 MCP 已完成 ${webEntries.length} 个 Web 页面入口探测。`, summarizeEntry(webEntries[0])] : ["真实 MCP 已执行，但未返回可用的页面入口结果。"],
       }
     } catch (error) {
+      if (isExecutionAbortError(error) || context.signal?.aborted) {
+        throw createExecutionAbortError(error)
+      }
+
       return {
         status: "retryable_failure",
         connectorKey: "real-web-surface-mcp",

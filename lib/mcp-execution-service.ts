@@ -1,5 +1,6 @@
 import { getStoredApprovalById } from "@/lib/approval-repository"
 import { getStoredAssetById, listStoredAssets, upsertStoredAssets } from "@/lib/asset-repository"
+import { isExecutionAbortError, throwIfExecutionAborted } from "@/lib/mcp-execution-abort"
 import { resolveMcpConnector } from "@/lib/mcp-connectors/registry"
 import {
   getHostFromTarget,
@@ -492,6 +493,7 @@ export async function executeStoredMcpRun(
   runId: string,
   priorOutputs: McpWorkflowSmokePayload["outputs"] = {},
   ownership?: SchedulerTaskOwnership,
+  signal?: AbortSignal,
 ) {
   const run = getStoredMcpRunById(runId)
 
@@ -511,6 +513,7 @@ export async function executeStoredMcpRun(
     priorOutputs,
     project,
     run,
+    signal,
     tool: run.toolId ? getStoredMcpToolById(run.toolId) : null,
   }
   const connector = resolveMcpConnector(executionContext)
@@ -526,7 +529,26 @@ export async function executeStoredMcpRun(
     }
   }
 
-  const rawResult = await connector.execute(executionContext)
+  let rawResult: McpConnectorResult
+
+  try {
+    throwIfExecutionAborted(signal)
+    rawResult = await connector.execute(executionContext)
+  } catch (error) {
+    if (isExecutionAbortError(error) || signal?.aborted) {
+      return {
+        status: "aborted" as const,
+        connectorKey: connector.key,
+        mode: connector.mode,
+        summaryLines: [error instanceof Error ? error.message : "当前执行已取消。"],
+        run: getStoredMcpRunById(run.id) ?? run,
+        outputs: priorOutputs,
+      }
+    }
+
+    throw error
+  }
+
   const cancelledTask = getStoredSchedulerTaskByRunId(run.id)
 
   if (cancelledTask?.status === "cancelled") {
@@ -553,7 +575,7 @@ export async function executeStoredMcpRun(
 
   if (taskOwnershipLost(run.id, ownership)) {
     return {
-      status: "aborted" as const,
+      status: "ownership_lost" as const,
       connectorKey: rawResult.connectorKey,
       mode: rawResult.mode,
       summaryLines: rawResult.summaryLines,
@@ -561,6 +583,8 @@ export async function executeStoredMcpRun(
       outputs: priorOutputs,
     }
   }
+
+  throwIfExecutionAborted(signal)
 
   if (rawResult.status !== "succeeded") {
     return {

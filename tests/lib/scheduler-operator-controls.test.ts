@@ -5,6 +5,10 @@ import path from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 import { dispatchStoredMcpRun, getStoredMcpRunById, updateStoredMcpRun } from "@/lib/mcp-gateway-repository"
+import {
+  registerActiveExecution,
+  resetActiveExecutionRegistry,
+} from "@/lib/mcp-execution-runtime"
 import { getStoredSchedulerTaskByRunId, updateStoredSchedulerTask } from "@/lib/mcp-scheduler-repository"
 import { drainStoredSchedulerTasks } from "@/lib/mcp-scheduler-service"
 import {
@@ -25,6 +29,7 @@ describe("scheduler operator controls", () => {
 
   afterEach(() => {
     delete process.env.PROTOTYPE_DATA_DIR
+    resetActiveExecutionRegistry()
     rmSync(tempDir, { force: true, recursive: true })
   })
 
@@ -90,12 +95,15 @@ describe("scheduler operator controls", () => {
       status: "running",
       summaryLines: [...runningTask!.summaryLines, "当前任务正在执行中。"],
     })
+    const controller = new AbortController()
+    registerActiveExecution(payload!.run.id, controller)
 
     const result = cancelStoredSchedulerTask(fixture.project.id, runningTask!.id, "研究员请求停止当前运行中的任务。")
 
     expect(result?.task.status).toBe("cancelled")
     expect(result?.run.status).toBe("已取消")
     expect(result?.task.summaryLines.at(-1)).toContain("停止")
+    expect(controller.signal.aborted).toBe(true)
   })
 
   it("requeues a failed scheduler task for another attempt", () => {

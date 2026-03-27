@@ -72,7 +72,7 @@ describe("MCP execution service cancellation guard", () => {
       workerId: "worker-old",
     })
 
-    expect(result?.status).toBe("aborted")
+    expect(result?.status).toBe("ownership_lost")
     expect(getStoredMcpRunById(payload!.run.id)?.status).toBe("执行中")
     expect(listStoredAssets(fixture.project.id)).toHaveLength(0)
   })

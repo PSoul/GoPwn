@@ -1,5 +1,6 @@
 import { listStoredAssets } from "@/lib/asset-repository"
 import { listStoredEvidence } from "@/lib/evidence-repository"
+import { throwIfExecutionAborted } from "@/lib/mcp-execution-abort"
 import { listStoredProjectFindings } from "@/lib/project-results-repository"
 
 import type { McpConnector } from "@/lib/mcp-connectors/types"
@@ -42,7 +43,9 @@ const seedNormalizerConnector: McpConnector = {
   key: "local-seed-normalizer",
   mode: "local",
   supports: ({ run }) => run.toolName === "seed-normalizer",
-  execute: ({ project, run }) => {
+  execute: ({ project, run, signal }) => {
+    throwIfExecutionAborted(signal)
+
     const normalized = normalizeSeed(run.target || project.seed).normalizedTargets
 
     return {
@@ -66,7 +69,9 @@ const localDnsConnector: McpConnector = {
   key: "local-dns-census",
   mode: "local",
   supports: ({ run }) => run.toolName === "dns-census",
-  execute: ({ project, run }) => {
+  execute: ({ project, run, signal }) => {
+    throwIfExecutionAborted(signal)
+
     const host = getHostFromTarget(run.target || project.seed)
     const root = getRootDomain(host)
     const discoveredSubdomains = Array.from(new Set([host, `admin.${root}`, `assets.${root}`]))
@@ -96,7 +101,9 @@ const localWebSurfaceConnector: McpConnector = {
   key: "local-web-surface-map",
   mode: "local",
   supports: ({ run }) => run.toolName === "web-surface-map",
-  execute: ({ priorOutputs, project, run }) => {
+  execute: ({ priorOutputs, project, run, signal }) => {
+    throwIfExecutionAborted(signal)
+
     const targets = priorOutputs.discoveredSubdomains?.length
       ? priorOutputs.discoveredSubdomains
       : [getHostFromTarget(run.target || project.seed)]
@@ -132,7 +139,9 @@ const localAuthGuardConnector: McpConnector = {
   key: "local-auth-guard-check",
   mode: "local",
   supports: ({ run }) => run.toolName === "auth-guard-check",
-  execute: ({ run }) => {
+  execute: ({ run, signal }) => {
+    throwIfExecutionAborted(signal)
+
     const validatedTarget = run.target
     const findingTitle = run.requestedAction.includes("登录")
       ? "登录链路存在受控认证绕过候选"
@@ -179,7 +188,9 @@ const localReportExporterConnector: McpConnector = {
   key: "local-report-exporter",
   mode: "local",
   supports: ({ run }) => run.toolName === "report-exporter",
-  execute: ({ priorOutputs, project }) => {
+  execute: ({ priorOutputs, project, signal }) => {
+    throwIfExecutionAborted(signal)
+
     const reportDigest = [
       `种子目标 ${priorOutputs.normalizedTargets?.length ?? 0} 个`,
       `域名与入口 ${listStoredAssets(project.id).length} 条`,

@@ -2,6 +2,12 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 
 import {
+  createExecutionAbortError,
+  isExecutionAbortError,
+  throwIfExecutionAborted,
+  withAbortSignal,
+} from "@/lib/mcp-execution-abort"
+import {
   appendStoredMcpServerInvocation,
   getStoredMcpServerCommandSummary,
 } from "@/lib/mcp-server-repository"
@@ -62,6 +68,7 @@ export async function callMcpServerTool<TStructuredContent extends Record<string
   server: McpServerRecord
   toolName: string
   arguments: Record<string, unknown>
+  signal?: AbortSignal
   target: string
   timeoutMs?: number
 }) {
@@ -89,21 +96,36 @@ export async function callMcpServerTool<TStructuredContent extends Record<string
   )
 
   try {
-    await withTimeout(client.connect(transport), timeoutMs)
+    throwIfExecutionAborted(input.signal)
 
-    const toolList = await withTimeout(client.listTools(), timeoutMs)
+    await withAbortSignal(() => withTimeout(client.connect(transport), timeoutMs), {
+      onAbort: () => closeClientQuietly(client, transport),
+      signal: input.signal,
+    })
+
+    const toolList = await withAbortSignal(() => withTimeout(client.listTools(), timeoutMs), {
+      onAbort: () => closeClientQuietly(client, transport),
+      signal: input.signal,
+    })
     const toolExists = toolList.tools.some((tool) => tool.name === input.toolName)
 
     if (!toolExists) {
       throw new Error(`MCP server 未暴露工具 ${input.toolName}。`)
     }
 
-    const result = await withTimeout(
-      client.callTool({
-        name: input.toolName,
-        arguments: input.arguments,
-      }),
-      timeoutMs,
+    const result = await withAbortSignal(
+      () =>
+        withTimeout(
+          client.callTool({
+            name: input.toolName,
+            arguments: input.arguments,
+          }),
+          timeoutMs,
+        ),
+      {
+        onAbort: () => closeClientQuietly(client, transport),
+        signal: input.signal,
+      },
     )
 
     if ("isError" in result && result.isError) {
@@ -130,10 +152,20 @@ export async function callMcpServerTool<TStructuredContent extends Record<string
     } satisfies McpToolCallSuccess
   } catch (error) {
     const stderrOutput = stderrChunks.join("").trim()
-    const message =
-      error instanceof Error ? error.message : `MCP 调用失败：${getStoredMcpServerCommandSummary(input.server)}`
-    const summary = stderrOutput ? `${message} / ${stderrOutput}` : message
-    const status: McpServerInvocationRecord["status"] = message.includes("超时") ? "timeout" : "failed"
+    const aborted = isExecutionAbortError(error) || input.signal?.aborted
+    const message = aborted
+      ? error instanceof Error
+        ? error.message
+        : "MCP 调用已取消。"
+      : error instanceof Error
+        ? error.message
+        : `MCP 调用失败：${getStoredMcpServerCommandSummary(input.server)}`
+    const summary = stderrOutput && !aborted ? `${message} / ${stderrOutput}` : message
+    const status: McpServerInvocationRecord["status"] = aborted
+      ? "cancelled"
+      : message.includes("超时")
+        ? "timeout"
+        : "failed"
 
     appendStoredMcpServerInvocation({
       serverId: input.server.id,
@@ -143,6 +175,10 @@ export async function callMcpServerTool<TStructuredContent extends Record<string
       summary,
       durationMs: Date.now() - startedAt,
     })
+
+    if (aborted) {
+      throw createExecutionAbortError(summary)
+    }
 
     throw new Error(summary)
   } finally {

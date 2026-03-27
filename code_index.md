@@ -20,6 +20,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - the latest stabilization slice adds real scheduler runtime controls so project operators can pause future queue pickup, cancel queued tasks, and retry failed tasks directly from the project operations page
 - the current durable-execution follow-up slice lets operators request stop on already running tasks and prevents cancelled work from continuing result commit when the platform can still intercept before writeback
 - the current durable-worker slice adds lease-backed scheduler ownership, heartbeat-driven orphan recovery, stale-write fencing, and runtime queue observability for worker/lease metadata
+- the current cooperative-cancellation slice now propagates `AbortSignal` from running-task stop requests through the scheduler, execution service, deterministic local connectors, real DNS/TLS checkpoints, and the real stdio MCP Web-surface path so long-running work can stop early instead of only being fenced at writeback time
 
 ## 2. Routing Map
 
@@ -301,23 +302,27 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `lib/local-lab-catalog.ts`
   Catalog of local Docker validation targets such as Juice Shop and WebGoat, with optional host-side probing to mark labs `online`, `offline`, or `unknown`.
 - `lib/mcp-connectors/types.ts`
-  Shared connector contracts defining execution context, connector mode (`local` / `real`), success/failure result shapes, and the raw-output contract consumed by the normalization layer.
+  Shared connector contracts defining execution context, connector mode (`local` / `real`), success/failure result shapes, the per-run `signal` used for cooperative cancellation, and the raw-output contract consumed by the normalization layer.
 - `lib/mcp-connectors/registry.ts`
   Connector selection registry. Chooses the best implementation for a run, now preferring the real DNS connector or the real Web-surface stdio MCP connector when their targets and server-registry state support it, and falling back to local foundational connectors otherwise.
 - `lib/mcp-connectors/local-foundational-connectors.ts`
-  Extracted local foundational connector implementations for `seed-normalizer`, `dns-census`, `web-surface-map`, `auth-guard-check`, and `report-exporter`. These preserve deterministic smoke-run behavior behind the new connector abstraction.
+  Extracted local foundational connector implementations for `seed-normalizer`, `dns-census`, `web-surface-map`, `auth-guard-check`, and `report-exporter`. These preserve deterministic smoke-run behavior behind the new connector abstraction and now honor cooperative-cancellation preflight checks before returning deterministic results.
 - `lib/mcp-connectors/real-dns-intelligence-connector.ts`
-  First real connector family. Uses Node built-ins (`dns/promises` and `tls`) to collect DNS records, reverse lookups, and certificate metadata, while exposing test adapters so CI stays deterministic.
+  First real connector family. Uses Node DNS/TLS primitives to collect DNS records, reverse lookups, and certificate metadata, exposes test adapters so CI stays deterministic, uses `Resolver.cancel()` for real cooperative DNS cancellation, and adds abort-aware TLS socket teardown.
 - `lib/mcp-connectors/real-web-surface-mcp-connector.ts`
-  Second real connector family. Routes `web-surface-map` through the SQLite-backed MCP server registry, calls a real stdio MCP subprocess, and normalizes the returned `webEntries` back into the platform connector contract.
+  Second real connector family. Routes `web-surface-map` through the SQLite-backed MCP server registry, calls a real stdio MCP subprocess, propagates the active execution `signal` into the MCP client runtime, and normalizes the returned `webEntries` back into the platform connector contract.
 - `lib/mcp-client-service.ts`
-  Thin real-MCP client runtime. Spawns a stdio MCP subprocess through the official TypeScript SDK, lists/calls tools with timeout/error handling, and persists invocation logs into SQLite.
+  Thin real-MCP client runtime. Spawns a stdio MCP subprocess through the official TypeScript SDK, lists/calls tools with timeout/error handling, closes the client/transport cooperatively when the active execution signal aborts, and persists invocation logs into SQLite with a separate `cancelled` classification for operator-stopped calls.
+- `lib/mcp-execution-abort.ts`
+  Shared abort helpers for runtime cancellation. Normalizes `AbortError` creation/detection, offers signal preflight checks, and races async work against an `AbortSignal` with optional cleanup hooks.
+- `lib/mcp-execution-runtime.ts`
+  In-memory active-execution registry keyed by `runId`. Tracks the current `AbortController` for running work, supports operator-triggered abort, and fences stale controllers when a newer execution supersedes an older one.
 - `lib/mcp-execution-service.ts`
-  Execution normalization layer behind the connector registry. Resolves the selected connector, executes it, converts connector-level structured output into platform assets/evidence/work logs/findings, updates run summaries, refreshes project result state, and now refuses to commit normalized results when the linked scheduler task has already been cancelled or when the finishing worker no longer owns the active lease token.
+  Execution normalization layer behind the connector registry. Resolves the selected connector, propagates the active execution `signal`, converts connector-level structured output into platform assets/evidence/work logs/findings, updates run summaries, refreshes project result state, refuses to commit normalized results when the linked scheduler task has already been cancelled or when the finishing worker no longer owns the active lease token, and now distinguishes operator-driven `aborted` runs from lease-handoff `ownership_lost` outcomes.
 - `lib/mcp-scheduler-repository.ts`
   Persisted scheduler-task repository. Stores queue state for ready, waiting-approval, delayed, retry-scheduled, running, completed, failed, and cancelled work, and now also owns durable-worker lease fields (`workerId`, `leaseToken`, `heartbeatAt`, `leaseExpiresAt`, `recoveryCount`, `lastRecoveredAt`) plus claim/heartbeat/recovery helpers.
 - `lib/mcp-scheduler-service.ts`
-  Scheduler loop and task transition service. Creates per-run scheduler tasks, drains ready work, applies retry/delay transitions, resumes approval-gated runs through the same executor path, skips queue pickup for paused projects, keeps `running` work alive with a heartbeat loop, and recovers orphaned running tasks before the next drain.
+  Scheduler loop and task transition service. Creates per-run scheduler tasks, drains ready work, applies retry/delay transitions, resumes approval-gated runs through the same executor path, skips queue pickup for paused projects, keeps `running` work alive with a heartbeat loop, registers the active execution controller for operator stop requests, distinguishes ownership handoff from explicit cancellation, and recovers orphaned running tasks before the next drain.
 - `lib/project-scheduler-control-repository.ts`
   Project-scoped runtime control repository. Owns persisted scheduler pause/resume state plus queued-task cancel, running-task stop requests, and failed-task retry behavior, while also syncing project activity and audit logs.
 - `lib/prototype-types.ts`
@@ -371,7 +376,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `lib/prototype-api.ts`
   Backend/service contract layer. Serves dashboard/assets/evidence/work-log/settings reads, store-backed LLM settings, strict MCP registration, persisted auth/project/approval operations, project-level scheduler control/task actions, MCP registry payloads, project-level MCP dispatch/read contracts, orchestrator plan/local-validation contracts, scheduler-driven approval resume execution, and the workflow smoke-run contract behind the same seam.
 - `docs/operations/project-scheduler-runtime-controls.md`
-  Operator-facing notes for the runtime scheduler queue, including pause/resume semantics, allowed task actions, and the project-scoped API contracts that back the UI.
+  Operator-facing notes for the runtime scheduler queue, including pause/resume semantics, allowed task actions, durable-worker ownership, cooperative-cancellation boundaries, and the project-scoped API contracts that back the UI.
 - `lib/utils.ts`
   Shared utility helpers used by UI primitives/components.
 - `lib/work-log-repository.ts`
@@ -433,13 +438,17 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - `tests/api/mcp-workflow-smoke-api.test.ts`
   API tests for the runnable foundational MCP workflow, covering both a fully automatic baseline path, persisted result emission, work-log generation, and a path that correctly halts at a high-risk approval boundary.
 - `tests/lib/mcp-connectors.test.ts`
-  Unit tests for connector selection and the first real DNS connector family, including deterministic mocked Node DNS/TLS adapter results and the Vitest-time guard that keeps real DNS execution off unless explicitly enabled.
+  Unit tests for connector selection and the first real DNS connector family, including deterministic mocked Node DNS/TLS adapter results, cooperative-cancellation checkpoints for local and real DNS connectors, and the Vitest-time guard that keeps real DNS execution off unless explicitly enabled.
+- `tests/lib/mcp-execution-runtime.test.ts`
+  Unit tests for active-execution runtime registration, abort behavior, and superseded-controller fencing.
 - `tests/lib/live-validation-runner.test.ts`
   Focused tests for the live-validation bootstrap helpers, including project auto-creation, MCP auto-registration, workspace/isolated state-directory selection, and runner env defaults.
 - `tests/lib/mcp-server-repository.test.ts`
   Unit tests for the empty-first SQLite MCP server registry and invocation-log persistence after explicit registration.
 - `tests/lib/real-web-surface-mcp-connector.test.ts`
-  Unit test proving `web-surface-map` can execute through an explicitly registered real stdio MCP subprocess and return normalized `webEntries`.
+  Unit tests proving `web-surface-map` can execute through an explicitly registered real stdio MCP subprocess, return normalized `webEntries`, and abort an in-flight stdio MCP call quickly when the active execution signal is cancelled.
+- `tests/lib/scheduler-operator-controls.test.ts`
+  Unit tests for project-level scheduler pause/cancel/retry controls, including the runtime abort hook used to stop already-running tasks.
 - `tests/lib/mcp-scheduler-service.test.ts`
   Unit tests for scheduler task creation, durable-worker claim cleanup, delayed approval handling, approved-task resume execution, and orphan-running-task recovery during drain.
 - `tests/lib/mcp-scheduler-repository.test.ts`

@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 import { realWebSurfaceMcpConnector } from "@/lib/mcp-connectors/real-web-surface-mcp-connector"
 import type { McpConnectorExecutionContext } from "@/lib/mcp-connectors/types"
-import { registerStoredMcpServer } from "@/lib/mcp-server-repository"
+import { listStoredMcpServerInvocations, registerStoredMcpServer } from "@/lib/mcp-server-repository"
 
 describe("real web-surface MCP connector", () => {
   let server: ReturnType<typeof createServer>
@@ -171,5 +171,131 @@ describe("real web-surface MCP connector", () => {
     expect(webEntries[0].url).toBe(targetUrl)
     expect(webEntries[0].statusCode).toBe(200)
     expect(webEntries[0].headers.some((header) => header.includes("fixture-nginx"))).toBe(true)
+  })
+
+  it("aborts an in-flight real MCP stdio execution when the scheduler signal is cancelled", async () => {
+    server.removeAllListeners("request")
+    server.on("request", (_request, response) => {
+      const timer = setTimeout(() => {
+        response.writeHead(200, {
+          "content-type": "text/html; charset=utf-8",
+          server: "fixture-nginx",
+          "x-powered-by": "fixture-next",
+        })
+        response.end("<html><head><title>Slow Fixture Portal</title></head><body>Slow</body></html>")
+      }, 5_000)
+
+      response.on("close", () => {
+        clearTimeout(timer)
+      })
+    })
+
+    registerStoredMcpServer({
+      serverName: "web-surface-stdio",
+      version: "1.0.0",
+      transport: "stdio",
+      command: "node",
+      args: ["scripts/mcp/web-surface-server.mjs"],
+      endpoint: "stdio://web-surface-stdio",
+      enabled: true,
+      notes: "真实 Web 页面探测 MCP server",
+      tools: [
+        {
+          toolName: "web-surface-map",
+          title: "Web 页面探测",
+          description: "补采页面入口与响应特征。",
+          version: "1.0.0",
+          capability: "Web 页面探测类",
+          boundary: "外部目标交互",
+          riskLevel: "中",
+          requiresApproval: false,
+          resultMappings: ["webEntries", "evidence"],
+          inputSchema: {
+            type: "object",
+            properties: {
+              targetUrl: {
+                type: "string",
+              },
+            },
+            required: ["targetUrl"],
+            additionalProperties: false,
+          },
+          outputSchema: {
+            type: "object",
+          },
+          defaultConcurrency: "1",
+          rateLimit: "10 req/min",
+          timeout: "15s",
+          retry: "1 次",
+          owner: "测试夹具",
+        },
+      ],
+    })
+
+    const controller = new AbortController()
+    const context = {
+      approval: null,
+      priorOutputs: {},
+      project: {
+        id: "proj-huayao",
+        code: "PRJ-20260326-001",
+        name: "华曜科技匿名外网面梳理",
+        seed: targetUrl,
+        targetType: "url",
+        targetSummary: targetUrl,
+        owner: "研究员席位 A",
+        priority: "高",
+        stage: "发现与指纹识别",
+        status: "运行中",
+        pendingApprovals: 0,
+        openTasks: 1,
+        assetCount: 0,
+        evidenceCount: 0,
+        createdAt: "2026-03-26 12:00",
+        lastUpdated: "2026-03-26 12:00",
+        lastActor: "测试",
+        riskSummary: "测试",
+        summary: "测试",
+        authorizationSummary: "测试",
+        scopeSummary: "测试",
+        forbiddenActions: "测试",
+        defaultConcurrency: "1",
+        rateLimit: "10 req/min",
+        timeout: "30s",
+        approvalMode: "高风险审批，低风险自动通过",
+        tags: ["测试"],
+      },
+      run: {
+        id: "run-web-surface-real-abort",
+        projectId: "proj-huayao",
+        projectName: "华曜科技匿名外网面梳理",
+        capability: "Web 页面探测类",
+        toolId: "mcp-07",
+        toolName: "web-surface-map",
+        requestedAction: "识别页面入口与响应特征",
+        target: targetUrl,
+        riskLevel: "低",
+        boundary: "外部目标交互",
+        dispatchMode: "自动执行",
+        status: "执行中",
+        requestedBy: "测试",
+        createdAt: "2026-03-26 12:01",
+        updatedAt: "2026-03-26 12:01",
+        connectorMode: "real",
+        summaryLines: [],
+      },
+      signal: controller.signal,
+      tool: null,
+    } as McpConnectorExecutionContext
+
+    const startedAt = Date.now()
+    const executionPromise = realWebSurfaceMcpConnector.execute(context)
+    setTimeout(() => controller.abort("研究员请求停止当前运行中的任务。"), 120)
+
+    await expect(executionPromise).rejects.toMatchObject({
+      name: "AbortError",
+    })
+    expect(listStoredMcpServerInvocations("mcp-server-web-surface-stdio")[0]?.status).toBe("cancelled")
+    expect(Date.now() - startedAt).toBeLessThan(2_000)
   })
 })

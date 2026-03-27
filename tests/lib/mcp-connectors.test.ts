@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest"
 
+import { createExecutionAbortError } from "@/lib/mcp-execution-abort"
 import { resolveMcpConnector } from "@/lib/mcp-connectors/registry"
 import {
   realDnsIntelligenceConnector,
@@ -115,5 +116,66 @@ describe("MCP connector registry", () => {
     expect(successResult.structuredContent.certificate).toMatchObject({
       fingerprint256: "AA:BB:CC:DD",
     })
+  })
+
+  it("stops local foundational connectors immediately when the execution signal is already aborted", async () => {
+    const connector = resolveMcpConnector(buildDnsContext("admin.huayao.com"))
+    const controller = new AbortController()
+
+    controller.abort("研究员请求停止当前运行中的任务。")
+
+    await expect(
+      Promise.resolve().then(() =>
+        connector!.execute({
+          ...buildDnsContext("admin.huayao.com"),
+          signal: controller.signal,
+        } as McpConnectorExecutionContext),
+      ),
+    ).rejects.toMatchObject({
+      name: "AbortError",
+    })
+  })
+
+  it("aborts real DNS collection checkpoints without waiting for the slow adapter to finish", async () => {
+    process.env[REAL_DNS_TEST_FLAG] = "1"
+    let cancelledBySignal = false
+
+    setRealDnsConnectorTestAdapters({
+      probeCertificate: async () => null,
+      resolve4: (_host, signal) =>
+        new Promise((resolve, reject) => {
+          const timer = setTimeout(() => resolve(["198.51.100.10"]), 4_000)
+
+          signal?.addEventListener(
+            "abort",
+            () => {
+              cancelledBySignal = true
+              clearTimeout(timer)
+              reject(createExecutionAbortError(signal.reason))
+            },
+            { once: true },
+          )
+        }),
+      resolve6: async () => [],
+      resolveMx: async () => [],
+      resolveNs: async () => [],
+      resolveTxt: async () => [],
+      reverse: async () => [],
+    })
+
+    const controller = new AbortController()
+    const startedAt = Date.now()
+    const executionPromise = realDnsIntelligenceConnector.execute({
+      ...buildDnsContext("admin.huayao.com"),
+      signal: controller.signal,
+    } as McpConnectorExecutionContext)
+
+    setTimeout(() => controller.abort("研究员请求停止当前运行中的任务。"), 120)
+
+    await expect(executionPromise).rejects.toMatchObject({
+      name: "AbortError",
+    })
+    expect(cancelledBySignal).toBe(true)
+    expect(Date.now() - startedAt).toBeLessThan(1_500)
   })
 })

@@ -9,7 +9,12 @@
 - 审批控制决定某个动作是否允许继续执行。
 - 调度控制决定已经进入调度体系的任务何时继续认领、是否暂停、以及失败后如何恢复。
 - 项目级调度暂停不会回滚审批结果，也不会强制中止已经在运行中的短流程任务。
-- 当前切片新增 durable worker 语义，但仍然只覆盖平台侧的租约、心跳、恢复和结果写回控制，不等同于远端连接器的真正 cooperative cancellation。
+- 当前切片除了 durable worker 语义外，也新增了 cooperative cancellation。
+  - 运行中的 stop 请求现在会 abort 平台侧 heartbeat / 执行链路
+  - 本地 foundational connectors 会在执行前检查并响应 stop
+  - 真实 DNS / TLS 连接器会在关键等待点停止继续等待；真实 DNS 查询会通过 `Resolver.cancel()` 取消未完成请求，TLS 探测会主动销毁 socket
+  - 真实 `web-surface-stdio` MCP 调用会在 stop 时关闭 stdio client / transport，尽快结束子进程调用
+  - 这依然不等同于所有远端副作用都能回滚，尤其是不支持取消的外部工具或已经发出的目标侧操作
 
 ## Durable Worker 语义
 
@@ -47,8 +52,9 @@
   - 如果任务原本处于 `running`，则该动作被视为“停止请求”：
     - 平台会阻止后续结果继续推进队列
     - 如果执行结果尚未提交，平台会阻止其继续写入资产、证据和发现链路
+    - 平台会向当前 active execution 广播 abort 信号，优先尝试尽快停止仍在运行的 connector / stdio MCP 调用
     - 如果该任务随后被 durable worker 恢复或重新认领，旧租约对应的晚到结果也会被 fencing 拦住
-    - 当前原型仍不承诺强制杀掉远端 MCP 进程
+    - 当前原型仍不承诺所有远端系统都能彻底回滚，只承诺平台侧会尽快停止等待、停止推进、并阻止晚到结果继续写回
 - `retry`
   仅允许对 `failed` 状态任务执行。动作会：
   - 清空最近错误
@@ -93,6 +99,9 @@
 
 ## 当前限制
 
-- 运行中的任务当前支持“停止请求”，但仍不保证强制中断远端实际进程；它首先保证的是平台内部不再继续推进和提交结果。
-- `AbortController` 目前只用于平台侧 heartbeat 生命周期控制，不会直接透传为远端 MCP / 连接器的真正取消信号。
+- 运行中的任务当前已经支持 cooperative cancellation，但不同连接器的停止粒度不同：
+  - 本地 foundational connectors 主要是“执行前即停”
+  - 真实 DNS 连接器会停止继续等待平台侧结果，但不能强制撤销所有底层 DNS Promise
+  - 真实 stdio MCP 路径会关闭 client / transport，并依赖对端子进程配合尽快退出
+- 平台仍不承诺任何已经触达目标侧的远端副作用一定会回滚；它首先保证的是平台内部尽快停止等待、停止推进、并阻止结果写回。
 - 当前调度队列仍以文件存储为主，适合单工作区原型验证，不适合作为最终的长期执行后端。

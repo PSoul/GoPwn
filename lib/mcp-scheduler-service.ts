@@ -2,6 +2,7 @@ import { setInterval as setIntervalPromise } from "node:timers/promises"
 
 import { getStoredApprovalById } from "@/lib/approval-repository"
 import { resolveMcpConnector } from "@/lib/mcp-connectors/registry"
+import { registerActiveExecution, unregisterActiveExecution } from "@/lib/mcp-execution-runtime"
 import { executeStoredMcpRun } from "@/lib/mcp-execution-service"
 import { getStoredMcpRunById, updateStoredMcpRun } from "@/lib/mcp-gateway-repository"
 import { getStoredMcpToolById } from "@/lib/mcp-repository"
@@ -71,9 +72,9 @@ function taskMatchesOwnership(task: McpSchedulerTaskRecord | null, ownership: Sc
 async function withTaskHeartbeat<T>(
   taskId: string,
   ownership: SchedulerTaskOwnership,
+  controller: AbortController,
   work: () => Promise<T>,
 ) {
-  const controller = new AbortController()
   const heartbeatLoop = (async () => {
     try {
       for await (const heartbeatTick of setIntervalPromise(TASK_HEARTBEAT_INTERVAL_MS, undefined, {
@@ -97,7 +98,9 @@ async function withTaskHeartbeat<T>(
   try {
     return await work()
   } finally {
-    controller.abort()
+    if (!controller.signal.aborted) {
+      controller.abort("Scheduler task work finished.")
+    }
     await heartbeatLoop
   }
 }
@@ -212,9 +215,18 @@ export async function processStoredSchedulerTask(
     ]),
   })
 
-  const result = await withTaskHeartbeat(task.id, ownership, () =>
-    executeStoredMcpRun(run.id, priorOutputs, ownership),
-  )
+  const controller = new AbortController()
+  registerActiveExecution(run.id, controller)
+
+  let result
+
+  try {
+    result = await withTaskHeartbeat(task.id, ownership, controller, () =>
+      executeStoredMcpRun(run.id, priorOutputs, ownership, controller.signal),
+    )
+  } finally {
+    unregisterActiveExecution(run.id, controller)
+  }
 
   if (!result) {
     const failedTask = updateStoredSchedulerTask(task.id, {
@@ -248,6 +260,17 @@ export async function processStoredSchedulerTask(
       status: "cancelled" as const,
       run: cancelledRun ?? run,
       task: cancelledTask ?? task,
+      outputs: priorOutputs,
+    }
+  }
+
+  if (result.status === "ownership_lost") {
+    const currentTask = getStoredSchedulerTaskByRunId(run.id)
+
+    return {
+      status: "ownership_lost" as const,
+      run: getStoredMcpRunById(run.id) ?? run,
+      task: currentTask ?? task,
       outputs: priorOutputs,
     }
   }

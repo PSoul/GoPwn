@@ -324,7 +324,7 @@ export interface McpServerInvocationRecord {
   id: string
   serverId: string
   toolName: string
-  status: "succeeded" | "failed" | "timeout"
+  status: "succeeded" | "failed" | "timeout" | "cancelled"
   target: string
   summary: string
   durationMs: number
