@@ -1,3 +1,5 @@
+import { listBuiltInMcpTools } from "@/lib/built-in-mcp-tools"
+import { normalizeProjectSchedulerControl } from "@/lib/project-scheduler-lifecycle"
 import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
 import { createStoredSchedulerTaskFromRun } from "@/lib/mcp-scheduler-repository"
 import type {
@@ -102,9 +104,62 @@ function getToolBoundary(tool?: McpToolRecord) {
   return tool?.boundary ?? "外部目标交互"
 }
 
-function selectToolForCapability(tools: McpToolRecord[], capability: string) {
-  const matchedTools = tools.filter((tool) => tool.capability === capability)
-  const enabledTool = matchedTools.find((tool) => tool.status === "启用")
+function tokenizeForMatch(value: string) {
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9\u4e00-\u9fa5]+/i)
+    .map((token) => token.trim())
+    .filter(Boolean)
+}
+
+function scoreToolForRequestedAction(tool: McpToolRecord, requestedAction: string) {
+  const actionTokens = tokenizeForMatch(requestedAction)
+
+  if (actionTokens.length === 0) {
+    return 0
+  }
+
+  const keywordBag = [
+    tool.toolName,
+    tool.category,
+    tool.description,
+    tool.notes,
+    tool.endpoint,
+  ]
+    .join(" ")
+    .toLowerCase()
+  let score = 0
+
+  for (const token of actionTokens) {
+    if (keywordBag.includes(token)) {
+      score += token.length >= 4 ? 3 : 1
+    }
+  }
+
+  if (keywordBag.includes(requestedAction.trim().toLowerCase())) {
+    score += 5
+  }
+
+  return score
+}
+
+function selectToolForCapability(tools: McpToolRecord[], input: McpDispatchInput) {
+  const matchedTools = tools.filter((tool) => tool.capability === input.capability)
+  const enabledTools = matchedTools.filter((tool) => tool.status === "启用")
+  const enabledTool =
+    enabledTools.length <= 1
+      ? enabledTools[0]
+      : [...enabledTools].sort((left, right) => {
+          const scoreGap =
+            scoreToolForRequestedAction(right, input.requestedAction) -
+            scoreToolForRequestedAction(left, input.requestedAction)
+
+          if (scoreGap !== 0) {
+            return scoreGap
+          }
+
+          return left.toolName.localeCompare(right.toolName)
+        })[0]
 
   return {
     enabledTool,
@@ -256,19 +311,41 @@ export function dispatchStoredMcpRun(projectId: string, input: McpDispatchInput)
 
   const project = store.projects[projectIndex]
   const detail = store.projectDetails[detailIndex]
-  const { enabledTool, matchedTool } = selectToolForCapability(store.mcpTools, input.capability)
+  const schedulerControl = normalizeProjectSchedulerControl({
+    control: store.projectSchedulerControls[project.id],
+    projectStatus: project.status,
+    updatedAt: project.lastUpdated,
+  })
 
-  if (!enabledTool) {
+  if (schedulerControl.lifecycle === "idle") {
+    store.projectSchedulerControls[project.id] = {
+      ...schedulerControl,
+      lifecycle: "running",
+      paused: false,
+      note: "显式派发 MCP 动作后，项目已自动进入运行态。",
+      updatedAt: formatTimestamp(),
+    }
+  }
+
+  const { enabledTool, matchedTool } = selectToolForCapability(store.mcpTools, input)
+  const builtInSelection =
+    enabledTool || matchedTool
+      ? { enabledTool: undefined, matchedTool: undefined }
+      : selectToolForCapability(listBuiltInMcpTools(), input)
+  const resolvedEnabledTool = enabledTool ?? builtInSelection.enabledTool
+  const resolvedMatchedTool = matchedTool ?? builtInSelection.matchedTool
+
+  if (!resolvedEnabledTool) {
     const blockedRun = createRunRecord({
       input,
       project,
-      tool: matchedTool,
+      tool: resolvedMatchedTool,
       status: "已阻塞",
       dispatchMode: "阻塞",
       summaryLines: [
         `能力族 ${input.capability} 当前没有可用的启用工具。`,
-        matchedTool
-          ? `${matchedTool.toolName} 当前状态为 ${matchedTool.status}，请先恢复健康或启用状态。`
+        resolvedMatchedTool
+          ? `${resolvedMatchedTool.toolName} 当前状态为 ${resolvedMatchedTool.status}，请先恢复健康或启用状态。`
           : "网关尚未接入对应能力的 MCP 工具，请先完成注册规范接入。",
       ],
     })
@@ -301,20 +378,20 @@ export function dispatchStoredMcpRun(projectId: string, input: McpDispatchInput)
     projectAutoApproveLowRisk: detail.approvalControl.autoApproveLowRisk,
     globalControlEnabled: store.globalApprovalControl.enabled,
     globalAutoApproveLowRisk: store.globalApprovalControl.autoApproveLowRisk,
-    tool: enabledTool,
+    tool: resolvedEnabledTool,
   })
 
   if (requiresApproval) {
-    const approval = createApprovalRecord(project, enabledTool, input)
+    const approval = createApprovalRecord(project, resolvedEnabledTool, input)
     const pendingRun = createRunRecord({
       input,
       project,
-      tool: enabledTool,
+      tool: resolvedEnabledTool,
       status: "待审批",
       dispatchMode: "审批后执行",
       linkedApprovalId: approval.id,
       summaryLines: [
-        `${input.requestedAction} 已提交审批，等待研究员确认后再调用 ${enabledTool.toolName}。`,
+        `${input.requestedAction} 已提交审批，等待研究员确认后再调用 ${resolvedEnabledTool.toolName}。`,
         "审批通过前，不会向目标环境发起实际探测或验证。",
       ],
     })
@@ -333,7 +410,7 @@ export function dispatchStoredMcpRun(projectId: string, input: McpDispatchInput)
     store.projectDetails[detailIndex] = pushProjectActivity(
       detail,
       `${input.requestedAction} 已进入审批`,
-      `MCP 网关已为 ${enabledTool.toolName} 创建审批单，等待人工确认后继续调度。`,
+      `MCP 网关已为 ${resolvedEnabledTool.toolName} 创建审批单，等待人工确认后继续调度。`,
       "warning",
     )
     store.auditLogs.unshift(
@@ -351,11 +428,11 @@ export function dispatchStoredMcpRun(projectId: string, input: McpDispatchInput)
   const executedRun = createRunRecord({
     input,
     project,
-    tool: enabledTool,
+    tool: resolvedEnabledTool,
     status: "执行中",
     dispatchMode: "自动执行",
     summaryLines: [
-      `${input.requestedAction} 已进入调度队列，准备调用 ${enabledTool.toolName}。`,
+      `${input.requestedAction} 已进入调度队列，准备调用 ${resolvedEnabledTool.toolName}。`,
       "调度器将按连接器策略执行并把结构化结果回流到项目结果与证据链路。",
     ],
   })
@@ -370,14 +447,14 @@ export function dispatchStoredMcpRun(projectId: string, input: McpDispatchInput)
   store.projectDetails[detailIndex] = pushProjectActivity(
     detail,
     `${input.requestedAction} 已执行`,
-    `${enabledTool.toolName} 已自动完成该动作，结果已写入项目上下文。`,
+    `${resolvedEnabledTool.toolName} 已自动完成该动作，结果已写入项目上下文。`,
     "success",
   )
   store.auditLogs.unshift(
     createAuditLog(`MCP 已入调度：${project.name} -> ${input.requestedAction}`, "执行中", project.name),
   )
   writePrototypeStore(store)
-  createStoredSchedulerTaskFromRun(executedRun, enabledTool.retry)
+  createStoredSchedulerTaskFromRun(executedRun, resolvedEnabledTool.retry)
 
   return { run: executedRun }
 }

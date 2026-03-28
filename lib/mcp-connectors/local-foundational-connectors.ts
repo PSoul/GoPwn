@@ -1,5 +1,7 @@
 import { listStoredAssets } from "@/lib/asset-repository"
 import { listStoredEvidence } from "@/lib/evidence-repository"
+import { throwIfExecutionAborted } from "@/lib/mcp-execution-abort"
+import { getProjectPrimaryTarget } from "@/lib/project-targets"
 import { listStoredProjectFindings } from "@/lib/project-results-repository"
 
 import type { McpConnector } from "@/lib/mcp-connectors/types"
@@ -42,8 +44,10 @@ const seedNormalizerConnector: McpConnector = {
   key: "local-seed-normalizer",
   mode: "local",
   supports: ({ run }) => run.toolName === "seed-normalizer",
-  execute: ({ project, run }) => {
-    const normalized = normalizeSeed(run.target || project.seed).normalizedTargets
+  execute: ({ project, run, signal }) => {
+    throwIfExecutionAborted(signal)
+
+    const normalized = normalizeSeed(run.target || getProjectPrimaryTarget(project)).normalizedTargets
 
     return {
       status: "succeeded",
@@ -54,7 +58,7 @@ const seedNormalizerConnector: McpConnector = {
       },
       rawOutput: normalized.map((target) => `normalized: ${target}`),
       structuredContent: {
-        host: normalizeSeed(run.target || project.seed).host,
+        host: normalizeSeed(run.target || getProjectPrimaryTarget(project)).host,
         normalizedTargets: normalized,
       },
       summaryLines: [`标准化得到 ${normalized.length} 个种子目标。`, normalized.join(" / ")],
@@ -66,8 +70,10 @@ const localDnsConnector: McpConnector = {
   key: "local-dns-census",
   mode: "local",
   supports: ({ run }) => run.toolName === "dns-census",
-  execute: ({ project, run }) => {
-    const host = getHostFromTarget(run.target || project.seed)
+  execute: ({ project, run, signal }) => {
+    throwIfExecutionAborted(signal)
+
+    const host = getHostFromTarget(run.target || getProjectPrimaryTarget(project))
     const root = getRootDomain(host)
     const discoveredSubdomains = Array.from(new Set([host, `admin.${root}`, `assets.${root}`]))
 
@@ -96,10 +102,12 @@ const localWebSurfaceConnector: McpConnector = {
   key: "local-web-surface-map",
   mode: "local",
   supports: ({ run }) => run.toolName === "web-surface-map",
-  execute: ({ priorOutputs, project, run }) => {
+  execute: ({ priorOutputs, project, run, signal }) => {
+    throwIfExecutionAborted(signal)
+
     const targets = priorOutputs.discoveredSubdomains?.length
       ? priorOutputs.discoveredSubdomains
-      : [getHostFromTarget(run.target || project.seed)]
+      : [getHostFromTarget(run.target || getProjectPrimaryTarget(project))]
     const webEntries = targets.map((target, index) => ({
       url: index === 0 ? `https://${target}/login` : `https://${target}/dashboard`,
       title: index === 0 ? `${project.name} 统一入口` : `${project.name} 管理台`,
@@ -132,7 +140,9 @@ const localAuthGuardConnector: McpConnector = {
   key: "local-auth-guard-check",
   mode: "local",
   supports: ({ run }) => run.toolName === "auth-guard-check",
-  execute: ({ run }) => {
+  execute: ({ run, signal }) => {
+    throwIfExecutionAborted(signal)
+
     const validatedTarget = run.target
     const findingTitle = run.requestedAction.includes("登录")
       ? "登录链路存在受控认证绕过候选"
@@ -179,7 +189,9 @@ const localReportExporterConnector: McpConnector = {
   key: "local-report-exporter",
   mode: "local",
   supports: ({ run }) => run.toolName === "report-exporter",
-  execute: ({ priorOutputs, project }) => {
+  execute: ({ priorOutputs, project, signal }) => {
+    throwIfExecutionAborted(signal)
+
     const reportDigest = [
       `种子目标 ${priorOutputs.normalizedTargets?.length ?? 0} 个`,
       `域名与入口 ${listStoredAssets(project.id).length} 条`,

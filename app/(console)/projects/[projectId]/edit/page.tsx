@@ -20,7 +20,7 @@ export default async function EditProjectPage({
     <div className="space-y-5">
       <PageHeader
         title={`编辑项目 · ${project.name}`}
-        description="项目编辑页与新建页共享同一套表单结构，但会预填当前项目的目标、范围与控制策略。"
+        description="项目编辑页与新建页共享同一套最小表单结构，会直接预填当前项目的项目名称、目标和项目说明。"
       />
 
       <ProjectForm mode="edit" project={project} preset={getProjectFormPresetValue(project.id)} />

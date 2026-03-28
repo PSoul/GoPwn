@@ -1,7 +1,16 @@
+import { Resolver } from "node:dns"
 import { resolve4, resolve6, resolveMx, resolveNs, resolveTxt, reverse } from "node:dns/promises"
 import tls from "node:tls"
 
+import {
+  bindAbortListener,
+  createExecutionAbortError,
+  isExecutionAbortError,
+  throwIfExecutionAborted,
+  withAbortSignal,
+} from "@/lib/mcp-execution-abort"
 import { getHostFromTarget, getRootDomain } from "@/lib/mcp-connectors/local-foundational-connectors"
+import { getProjectPrimaryTarget } from "@/lib/project-targets"
 import type { McpConnector, McpConnectorExecutionContext, McpConnectorResult } from "@/lib/mcp-connectors/types"
 
 type CertificateSummary = {
@@ -14,22 +23,72 @@ type CertificateSummary = {
 }
 
 type RealDnsConnectorAdapters = {
-  resolve4: typeof resolve4
-  resolve6: typeof resolve6
-  resolveMx: typeof resolveMx
-  resolveNs: typeof resolveNs
-  resolveTxt: typeof resolveTxt
-  reverse: typeof reverse
-  probeCertificate: (host: string) => Promise<CertificateSummary | null>
+  resolve4: (host: string, signal?: AbortSignal) => Promise<Awaited<ReturnType<typeof resolve4>>>
+  resolve6: (host: string, signal?: AbortSignal) => Promise<Awaited<ReturnType<typeof resolve6>>>
+  resolveMx: (host: string, signal?: AbortSignal) => Promise<Awaited<ReturnType<typeof resolveMx>>>
+  resolveNs: (host: string, signal?: AbortSignal) => Promise<Awaited<ReturnType<typeof resolveNs>>>
+  resolveTxt: (host: string, signal?: AbortSignal) => Promise<Awaited<ReturnType<typeof resolveTxt>>>
+  reverse: (host: string, signal?: AbortSignal) => Promise<Awaited<ReturnType<typeof reverse>>>
+  probeCertificate: (host: string, signal?: AbortSignal) => Promise<CertificateSummary | null>
+}
+
+function runResolverQuery<T>(
+  signal: AbortSignal | undefined,
+  query: (resolver: Resolver, callback: (error: NodeJS.ErrnoException | null, result: T) => void) => void,
+) {
+  return new Promise<T>((resolve, reject) => {
+    const resolver = new Resolver()
+    let settled = false
+    let cleanupAbort = () => undefined
+
+    const finishResolve = (value: T) => {
+      if (settled) {
+        return
+      }
+
+      settled = true
+      cleanupAbort()
+      resolve(value)
+    }
+
+    const finishReject = (error: unknown) => {
+      if (settled) {
+        return
+      }
+
+      settled = true
+      cleanupAbort()
+      reject(error)
+    }
+
+    cleanupAbort = bindAbortListener(signal, () => {
+      resolver.cancel()
+      finishReject(createExecutionAbortError(signal?.reason))
+    })
+
+    query(resolver, (error, result) => {
+      if (error) {
+        if (signal?.aborted && error.code === "ECANCELLED") {
+          finishReject(createExecutionAbortError(signal.reason))
+          return
+        }
+
+        finishReject(error)
+        return
+      }
+
+      finishResolve(result)
+    })
+  })
 }
 
 let adapters: RealDnsConnectorAdapters = {
-  resolve4,
-  resolve6,
-  resolveMx,
-  resolveNs,
-  resolveTxt,
-  reverse,
+  resolve4: (host, signal) => runResolverQuery(signal, (resolver, callback) => resolver.resolve4(host, callback)),
+  resolve6: (host, signal) => runResolverQuery(signal, (resolver, callback) => resolver.resolve6(host, callback)),
+  resolveMx: (host, signal) => runResolverQuery(signal, (resolver, callback) => resolver.resolveMx(host, callback)),
+  resolveNs: (host, signal) => runResolverQuery(signal, (resolver, callback) => resolver.resolveNs(host, callback)),
+  resolveTxt: (host, signal) => runResolverQuery(signal, (resolver, callback) => resolver.resolveTxt(host, callback)),
+  reverse: (host, signal) => runResolverQuery(signal, (resolver, callback) => resolver.reverse(host, callback)),
   probeCertificate,
 }
 
@@ -58,7 +117,11 @@ function uniqueStrings(values: Array<string | undefined | null>) {
 async function safeResolve<T>(resolver: () => Promise<T>, fallback: T) {
   try {
     return await resolver()
-  } catch {
+  } catch (error) {
+    if (isExecutionAbortError(error) || (error instanceof Error && "code" in error && error.code === "ECANCELLED")) {
+      throw error
+    }
+
     return fallback
   }
 }
@@ -80,8 +143,19 @@ function flattenTxtRecords(records: string[][]) {
   return records.map((parts) => parts.join(""))
 }
 
-async function probeCertificate(host: string) {
+async function probeCertificate(host: string, signal?: AbortSignal) {
   return new Promise<CertificateSummary | null>((resolve) => {
+    let settled = false
+    let cleanupAbort = () => undefined
+    const finish = (value: CertificateSummary | null) => {
+      if (settled) {
+        return
+      }
+
+      settled = true
+      cleanupAbort()
+      resolve(value)
+    }
     const socket = tls.connect(
       {
         host,
@@ -94,11 +168,11 @@ async function probeCertificate(host: string) {
         socket.end()
 
         if (!certificate || Object.keys(certificate).length === 0) {
-          resolve(null)
+          finish(null)
           return
         }
 
-        resolve({
+        finish({
           fingerprint256: certificate.fingerprint256,
           issuer: certificate.issuer,
           subject: certificate.subject,
@@ -108,20 +182,26 @@ async function probeCertificate(host: string) {
         })
       },
     )
+    cleanupAbort = bindAbortListener(signal, () => {
+      socket.destroy()
+      finish(null)
+    })
 
     socket.setTimeout(4000, () => {
       socket.destroy()
-      resolve(null)
+      finish(null)
     })
 
     socket.on("error", () => {
-      resolve(null)
+      finish(null)
     })
   })
 }
 
 async function executeRealDnsCollection(context: McpConnectorExecutionContext): Promise<McpConnectorResult> {
-  const rawTarget = context.run.target || context.project.seed
+  throwIfExecutionAborted(context.signal)
+
+  const rawTarget = context.run.target || getProjectPrimaryTarget(context.project)
   const host = getHostFromTarget(rawTarget)
 
   if (!host || isCidr(rawTarget)) {
@@ -135,7 +215,10 @@ async function executeRealDnsCollection(context: McpConnectorExecutionContext): 
   }
 
   if (isIpAddress(host)) {
-    const reverseHostnames = await safeResolve(() => adapters.reverse(host), [] as string[])
+    const reverseHostnames = await withAbortSignal(
+      () => safeResolve(() => adapters.reverse(host, context.signal), [] as string[]),
+      { signal: context.signal },
+    )
     const discoveredSubdomains = reverseHostnames.length ? reverseHostnames : [host]
 
     return {
@@ -161,23 +244,33 @@ async function executeRealDnsCollection(context: McpConnectorExecutionContext): 
   }
 
   const rootDomain = getRootDomain(host)
-  const [aRecords, aaaaRecords, mxRecords, nsRecords, txtRecords, certificate] = await Promise.all([
-    safeResolve(() => adapters.resolve4(host), [] as string[]),
-    safeResolve(() => adapters.resolve6(host), [] as string[]),
-    safeResolve(() => adapters.resolveMx(host), [] as Awaited<ReturnType<typeof resolveMx>>),
-    safeResolve(() => adapters.resolveNs(host), [] as string[]),
-    safeResolve(() => adapters.resolveTxt(host), [] as string[][]),
-    adapters.probeCertificate(host),
-  ])
+  const [aRecords, aaaaRecords, mxRecords, nsRecords, txtRecords, certificate] = await withAbortSignal(
+    () =>
+      Promise.all([
+        safeResolve(() => adapters.resolve4(host, context.signal), [] as string[]),
+        safeResolve(() => adapters.resolve6(host, context.signal), [] as string[]),
+        safeResolve(() => adapters.resolveMx(host, context.signal), [] as Awaited<ReturnType<typeof resolveMx>>),
+        safeResolve(() => adapters.resolveNs(host, context.signal), [] as string[]),
+        safeResolve(() => adapters.resolveTxt(host, context.signal), [] as string[][]),
+        adapters.probeCertificate(host, context.signal),
+      ]),
+    { signal: context.signal },
+  )
 
+  throwIfExecutionAborted(context.signal)
   const resolvedAddresses = uniqueStrings([...aRecords, ...aaaaRecords])
   const reverseHostnames = uniqueStrings(
     (
-      await Promise.all(
-        resolvedAddresses.map((address) => safeResolve(() => adapters.reverse(address), [] as string[])),
+      await withAbortSignal(
+        () =>
+          Promise.all(
+            resolvedAddresses.map((address) => safeResolve(() => adapters.reverse(address, context.signal), [] as string[])),
+          ),
+        { signal: context.signal },
       )
     ).flat(),
   )
+  throwIfExecutionAborted(context.signal)
   const certificateDnsNames = parseCertificateDnsNames(certificate?.subjectaltname)
   const mxHostnames = mxRecords.map((record) => record.exchange)
   const discoveredSubdomains = uniqueStrings([
@@ -233,12 +326,12 @@ export function setRealDnsConnectorTestAdapters(patch: Partial<RealDnsConnectorA
 
 export function resetRealDnsConnectorTestAdapters() {
   adapters = {
-    resolve4,
-    resolve6,
-    resolveMx,
-    resolveNs,
-    resolveTxt,
-    reverse,
+    resolve4: (host, signal) => runResolverQuery(signal, (resolver, callback) => resolver.resolve4(host, callback)),
+    resolve6: (host, signal) => runResolverQuery(signal, (resolver, callback) => resolver.resolve6(host, callback)),
+    resolveMx: (host, signal) => runResolverQuery(signal, (resolver, callback) => resolver.resolveMx(host, callback)),
+    resolveNs: (host, signal) => runResolverQuery(signal, (resolver, callback) => resolver.resolveNs(host, callback)),
+    resolveTxt: (host, signal) => runResolverQuery(signal, (resolver, callback) => resolver.resolveTxt(host, callback)),
+    reverse: (host, signal) => runResolverQuery(signal, (resolver, callback) => resolver.reverse(host, callback)),
     probeCertificate,
   }
 }
@@ -251,7 +344,7 @@ export const realDnsIntelligenceConnector: McpConnector = {
       return false
     }
 
-    const rawTarget = run.target || project.seed
+    const rawTarget = run.target || getProjectPrimaryTarget(project)
     const host = getHostFromTarget(rawTarget)
 
     return run.toolName === "dns-census" && Boolean(host) && !isCidr(rawTarget)

@@ -33,11 +33,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { getProjectPrimaryTarget } from "@/lib/project-targets"
 import type { ProjectRecord } from "@/lib/prototype-types"
 
 const statusToneMap = {
   运行中: "info",
   待处理: "warning",
+  已暂停: "warning",
+  已停止: "neutral",
   已阻塞: "danger",
   已完成: "success",
 } as const
@@ -67,7 +70,7 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
     return projectItems.filter((project) => {
       const matchesKeyword =
         normalizedKeyword.length === 0 ||
-        [project.name, project.seed, project.code, project.targetSummary, project.riskSummary]
+        [project.name, project.targetInput, project.code, project.description, project.riskSummary]
           .join(" ")
           .toLowerCase()
           .includes(normalizedKeyword)
@@ -138,7 +141,7 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
             <Input
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
-              placeholder="搜索项目名称、目标种子、项目编号或风险摘要..."
+              placeholder="搜索项目名称、目标、项目编号或项目说明..."
               className="h-11 rounded-2xl border-slate-200 bg-slate-50 pl-10 dark:border-slate-800 dark:bg-slate-900"
             />
           </div>
@@ -164,6 +167,8 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
               <SelectItem value="全部状态">全部状态</SelectItem>
               <SelectItem value="运行中">运行中</SelectItem>
               <SelectItem value="待处理">待处理</SelectItem>
+              <SelectItem value="已暂停">已暂停</SelectItem>
+              <SelectItem value="已停止">已停止</SelectItem>
               <SelectItem value="已阻塞">已阻塞</SelectItem>
               <SelectItem value="已完成">已完成</SelectItem>
             </SelectContent>
@@ -200,7 +205,7 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
             <TableHeader className="bg-slate-50/80 dark:bg-slate-900/70">
               <TableRow>
                 <TableHead>项目 / 编号</TableHead>
-                <TableHead>目标与负责人</TableHead>
+                <TableHead>目标与说明</TableHead>
                 <TableHead>当前主阶段</TableHead>
                 <TableHead>状态</TableHead>
                 <TableHead>审批 / 任务</TableHead>
@@ -222,11 +227,11 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
                   </TableCell>
                   <TableCell className="min-w-[220px]">
                     <div className="space-y-1.5">
-                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{project.targetSummary}</p>
+                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{getProjectPrimaryTarget(project)}</p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        种子 {project.seed} · {project.targetType}
+                        {project.targets.length} 个目标 · 单用户模式
                       </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">负责人 {project.owner}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{project.description}</p>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -238,13 +243,7 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
                   <TableCell>
                     <div className="space-y-2">
                       <StatusBadge tone={statusToneMap[project.status]}>{project.status}</StatusBadge>
-                      <div className="flex flex-wrap gap-1">
-                        {project.tags.slice(0, 2).map((tag) => (
-                          <StatusBadge key={tag} tone="neutral" className="bg-slate-50">
-                            {tag}
-                          </StatusBadge>
-                        ))}
-                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">当前主阶段：{project.stage}</p>
                     </div>
                   </TableCell>
                   <TableCell>

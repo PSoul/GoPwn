@@ -2,7 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { ProjectStageFlow } from "@/components/projects/project-stage-flow"
-import { PageHeader } from "@/components/shared/page-header"
+import { ProjectWorkspaceIntro } from "@/components/projects/project-workspace-intro"
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
@@ -21,15 +21,25 @@ export default async function ProjectFlowPage({
   }
 
   const { project, detail } = payload
+  const statusTone =
+    project.status === "已阻塞"
+      ? "danger"
+      : project.status === "已完成"
+        ? "success"
+        : project.status === "已停止"
+          ? "neutral"
+          : project.status === "已暂停" || project.status === "待处理"
+            ? "warning"
+            : "info"
 
   return (
     <div className="space-y-5">
-      <PageHeader
+      <ProjectWorkspaceIntro
         title="阶段流转详情"
         description="阶段流转被下沉到二级页，只在需要排查主路径、回流补采和阻塞原因时再展开查看。"
         actions={
           <>
-            <StatusBadge tone={project.status === "已阻塞" ? "danger" : project.status === "已完成" ? "success" : "info"}>
+            <StatusBadge tone={statusTone}>
               {project.stage}
             </StatusBadge>
             <Button asChild variant="outline" className="rounded-full px-5">
@@ -39,7 +49,7 @@ export default async function ProjectFlowPage({
         }
       />
 
-      <SectionCard title={project.name} description={detail.target}>
+      <SectionCard title="当前阶段摘要" description={detail.target}>
         <div className="grid gap-4 md:grid-cols-3">
           <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
             <p className="text-xs text-slate-500 dark:text-slate-400">当前阶段</p>

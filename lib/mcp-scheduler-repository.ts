@@ -20,6 +20,17 @@ function parseRetryCount(retryRule: string | undefined) {
   return Number(matched[1]) || 0
 }
 
+function addMilliseconds(timestamp: string, durationMs: number) {
+  const base = new Date(timestamp.replace(" ", "T"))
+  base.setTime(base.getTime() + durationMs)
+
+  return formatTimestamp(base)
+}
+
+function buildLeaseToken() {
+  return `lease-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`
+}
+
 export function listStoredSchedulerTasks(projectId?: string) {
   const tasks = readPrototypeStore().schedulerTasks
 
@@ -66,6 +77,7 @@ export function createStoredSchedulerTask(
     availableAt: input.availableAt ?? timestamp,
     updatedAt: timestamp,
     linkedApprovalId: run.linkedApprovalId,
+    recoveryCount: 0,
     summaryLines: input.summaryLines ?? [...run.summaryLines],
   }
 
@@ -87,7 +99,7 @@ export function createStoredSchedulerTaskFromRun(
         ? "delayed"
         : run.status === "已执行"
           ? "completed"
-          : run.status === "已拒绝"
+          : run.status === "已拒绝" || run.status === "已取消"
             ? "cancelled"
             : run.status === "已阻塞"
               ? "failed"
@@ -108,10 +120,17 @@ export function updateStoredSchedulerTask(
       | "availableAt"
       | "attempts"
       | "connectorMode"
+      | "heartbeatAt"
       | "lastError"
+      | "lastRecoveredAt"
+      | "leaseExpiresAt"
+      | "leaseStartedAt"
+      | "leaseToken"
+      | "recoveryCount"
       | "status"
       | "summaryLines"
       | "updatedAt"
+      | "workerId"
     >
   >,
 ) {
@@ -132,6 +151,108 @@ export function updateStoredSchedulerTask(
   writePrototypeStore(store)
 
   return nextTask
+}
+
+export function claimStoredSchedulerTask(
+  taskId: string,
+  input: {
+    workerId: string
+    leaseToken?: string
+    now?: string
+    leaseDurationMs?: number
+  },
+) {
+  const task = getStoredSchedulerTaskById(taskId)
+  const now = input.now ?? formatTimestamp()
+
+  if (!task || !["ready", "retry_scheduled", "delayed"].includes(task.status) || task.availableAt > now) {
+    return null
+  }
+
+  return updateStoredSchedulerTask(task.id, {
+    attempts: task.attempts + 1,
+    heartbeatAt: now,
+    lastError: undefined,
+    leaseExpiresAt: addMilliseconds(now, input.leaseDurationMs ?? 30_000),
+    leaseStartedAt: now,
+    leaseToken: input.leaseToken ?? buildLeaseToken(),
+    status: "running",
+    summaryLines: [...task.summaryLines, `执行 worker ${input.workerId} 已认领任务并建立执行租约。`],
+    workerId: input.workerId,
+  })
+}
+
+export function heartbeatStoredSchedulerTask(
+  taskId: string,
+  input: {
+    workerId: string
+    leaseToken: string
+    now?: string
+    leaseDurationMs?: number
+  },
+) {
+  const task = getStoredSchedulerTaskById(taskId)
+  const now = input.now ?? formatTimestamp()
+
+  if (!task || task.status !== "running" || task.workerId !== input.workerId || task.leaseToken !== input.leaseToken) {
+    return null
+  }
+
+  return updateStoredSchedulerTask(task.id, {
+    heartbeatAt: now,
+    leaseExpiresAt: addMilliseconds(now, input.leaseDurationMs ?? 30_000),
+  })
+}
+
+export function clearStoredSchedulerTaskLease(taskId: string) {
+  const task = getStoredSchedulerTaskById(taskId)
+
+  if (!task) {
+    return null
+  }
+
+  return updateStoredSchedulerTask(task.id, {
+    heartbeatAt: undefined,
+    leaseExpiresAt: undefined,
+    leaseStartedAt: undefined,
+    leaseToken: undefined,
+    workerId: undefined,
+  })
+}
+
+export function recoverExpiredStoredSchedulerTasks(
+  input: {
+    now?: string
+    projectId?: string
+    runId?: string
+  } = {},
+) {
+  const now = input.now ?? formatTimestamp()
+
+  return listStoredSchedulerTasks(input.projectId)
+    .filter((task) => (!input.runId ? true : task.runId === input.runId))
+    .filter((task) => task.status === "running")
+    .filter((task) => !task.leaseExpiresAt || task.leaseExpiresAt < now)
+    .map((task) =>
+      updateStoredSchedulerTask(task.id, {
+        availableAt: now,
+        heartbeatAt: undefined,
+        lastRecoveredAt: now,
+        leaseExpiresAt: undefined,
+        leaseStartedAt: undefined,
+        leaseToken: undefined,
+        recoveryCount: (task.recoveryCount ?? 0) + 1,
+        status: "ready",
+        summaryLines: [
+          ...task.summaryLines,
+          task.leaseExpiresAt
+            ? "执行 worker 租约已过期，任务已恢复回待执行队列。"
+            : "任务缺少可用执行租约元数据，已恢复回待执行队列。",
+        ],
+        workerId: undefined,
+      }),
+    )
+    .filter((task): task is McpSchedulerTaskRecord => Boolean(task))
 }
 
 export function listReadyStoredSchedulerTasks(

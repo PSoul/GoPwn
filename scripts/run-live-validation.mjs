@@ -20,6 +20,7 @@ const DEFAULT_HOST = "127.0.0.1"
 const DEFAULT_PORT = 3301
 const DEFAULT_LAB_ID = "juice-shop"
 const DEFAULT_APPROVAL_SCENARIO = "include-high-risk"
+const DEFAULT_WEBGOAT_HOST_PORT = 18080
 
 function sanitizeSegment(value) {
   return String(value)
@@ -40,7 +41,9 @@ function getTaskKillCommand() {
 
 function getLabHealthUrl(labId) {
   if (labId === "webgoat") {
-    return "http://127.0.0.1:8080/WebGoat"
+    const port = Number(process.env.WEBGOAT_HOST_PORT ?? DEFAULT_WEBGOAT_HOST_PORT)
+    const safePort = Number.isFinite(port) && port > 0 ? Math.trunc(port) : DEFAULT_WEBGOAT_HOST_PORT
+    return `http://127.0.0.1:${safePort}/WebGoat`
   }
 
   return "http://127.0.0.1:3000"

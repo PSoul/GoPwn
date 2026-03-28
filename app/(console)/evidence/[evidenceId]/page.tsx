@@ -19,7 +19,7 @@ export default async function EvidenceDetailPage({
     notFound()
   }
 
-  const { record } = payload
+  const { artifacts, record } = payload
 
   return (
     <div className="space-y-6">
@@ -36,7 +36,7 @@ export default async function EvidenceDetailPage({
         }
       />
 
-      <EvidenceDetail record={record} />
+      <EvidenceDetail record={record} artifacts={artifacts} />
     </div>
   )
 }

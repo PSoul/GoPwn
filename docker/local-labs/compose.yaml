@@ -12,6 +12,6 @@ services:
     image: webgoat/webgoat:latest
     container_name: llm-pentest-webgoat
     ports:
-      - "8080:8080"
-      - "9090:9090"
+      - "18080:8080"
+      - "19090:9090"
     restart: unless-stopped

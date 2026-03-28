@@ -29,7 +29,7 @@ describe("projects api routes", () => {
 
     expect(response.status).toBe(200)
     expect(payload.project.name).toBe(fixture.project.name)
-    expect(payload.detail.currentStage.title).toBe("授权与范围定义")
+    expect(payload.detail.currentStage.title).toBe("种子目标接收")
   })
 
   it("returns 404 when the project does not exist", async () => {

@@ -13,6 +13,7 @@ export interface McpConnectorExecutionContext {
   priorOutputs: McpWorkflowSmokePayload["outputs"]
   project: ProjectRecord
   run: McpRunRecord
+  signal?: AbortSignal
   tool: McpToolRecord | null
 }
 

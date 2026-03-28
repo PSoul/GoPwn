@@ -3,6 +3,8 @@ import path from "node:path"
 
 import { defaultGlobalApprovalControl, defaultProjectFormPreset } from "@/lib/platform-config"
 import { generateProjectId, isAsciiProjectId } from "@/lib/project-id"
+import { normalizeProjectSchedulerControl } from "@/lib/project-scheduler-lifecycle"
+import { normalizeProjectTargets, SINGLE_USER_LABEL } from "@/lib/project-targets"
 import type {
   ApprovalControl,
   ApprovalRecord,
@@ -21,6 +23,7 @@ import type {
   ProjectFindingRecord,
   ProjectFormPreset,
   ProjectRecord,
+  ProjectSchedulerControl,
 } from "@/lib/prototype-types"
 
 export type PrototypeStore = {
@@ -41,6 +44,7 @@ export type PrototypeStore = {
   projectDetails: ProjectDetailRecord[]
   projectFindings: ProjectFindingRecord[]
   projectFormPresets: Record<string, ProjectFormPreset>
+  projectSchedulerControls: Record<string, ProjectSchedulerControl>
   projects: ProjectRecord[]
   scopeRules: PolicyRecord[]
   workLogs: LogRecord[]
@@ -101,7 +105,7 @@ function getStorePath() {
 
 function buildInitialStore(): PrototypeStore {
   return {
-    version: 8,
+    version: 11,
     auditLogs: [],
     approvalPolicies: [],
     approvals: [],
@@ -118,9 +122,127 @@ function buildInitialStore(): PrototypeStore {
     projectDetails: [],
     projectFindings: [],
     projectFormPresets: {},
+    projectSchedulerControls: {},
     projects: [],
     scopeRules: [],
     workLogs: [],
+  }
+}
+
+function stripLegacyProjectFields(project: ProjectRecord): ProjectRecord {
+  const normalizedProject = { ...project } as ProjectRecord & Record<string, unknown>
+
+  delete normalizedProject.seed
+  delete normalizedProject.targetType
+  delete normalizedProject.targetSummary
+  delete normalizedProject.owner
+  delete normalizedProject.priority
+  delete normalizedProject.authorizationSummary
+  delete normalizedProject.scopeSummary
+  delete normalizedProject.forbiddenActions
+  delete normalizedProject.defaultConcurrency
+  delete normalizedProject.rateLimit
+  delete normalizedProject.timeout
+  delete normalizedProject.approvalMode
+  delete normalizedProject.tags
+
+  return normalizedProject
+}
+
+function migrateSimplifiedProjectModel(store: PrototypeStore): PrototypeStore {
+  const projects = store.projects.map((project) => {
+    if (project.targetInput && Array.isArray(project.targets) && typeof project.description === "string") {
+      return stripLegacyProjectFields(project)
+    }
+
+    const targetInput =
+      typeof project.targetInput === "string" && project.targetInput.trim().length > 0
+        ? project.targetInput
+        : typeof project.seed === "string" && project.seed.trim().length > 0
+        ? project.seed
+        : typeof project.targetSummary === "string"
+        ? project.targetSummary
+        : ""
+    const targets =
+      Array.isArray(project.targets) && project.targets.length > 0 ? project.targets : normalizeProjectTargets(targetInput)
+    const description =
+      typeof project.description === "string" && project.description.trim().length > 0
+        ? project.description
+        : typeof project.targetSummary === "string" && project.targetSummary.trim().length > 0
+        ? project.targetSummary
+        : typeof project.summary === "string"
+        ? project.summary
+        : ""
+
+    return stripLegacyProjectFields({
+      ...project,
+      targetInput,
+      targets,
+      description,
+    })
+  })
+
+  const projectFormPresets = Object.fromEntries(
+    Object.entries(store.projectFormPresets).map(([projectId, preset]) => {
+      const project = projects.find((item) => item.id === projectId)
+      const targetInput =
+        typeof preset.targetInput === "string" && preset.targetInput.trim().length > 0
+          ? preset.targetInput
+          : typeof preset.seed === "string" && preset.seed.trim().length > 0
+          ? preset.seed
+          : project?.targetInput ?? ""
+      const description =
+        typeof preset.description === "string" && preset.description.trim().length > 0
+          ? preset.description
+          : typeof preset.targetSummary === "string" && preset.targetSummary.trim().length > 0
+          ? preset.targetSummary
+          : project?.description ?? ""
+
+      return [
+        projectId,
+        {
+          name: preset.name ?? project?.name ?? "",
+          targetInput,
+          description,
+        },
+      ]
+    }),
+  )
+
+  const projectDetails = store.projectDetails.map((detail) => {
+    const project = projects.find((item) => item.id === detail.projectId)
+
+    if (!project) {
+      return detail
+    }
+
+    return {
+      ...detail,
+      target: detail.target || project.targetInput,
+      discoveredInfo:
+        detail.discoveredInfo.length > 0
+          ? detail.discoveredInfo
+          : [
+              {
+                title: "项目说明",
+                detail: project.description,
+                meta: project.lastUpdated,
+                tone: "info" as const,
+              },
+            ],
+      currentStage: {
+        ...detail.currentStage,
+        owner: detail.currentStage.owner || SINGLE_USER_LABEL,
+      },
+    }
+  })
+
+  return {
+    ...store,
+    version: Math.max(store.version, 10),
+    projects,
+    projectDetails,
+    projectFormPresets,
   }
 }
 
@@ -145,6 +267,7 @@ function normalizeStore(store: Partial<PrototypeStore>): PrototypeStore {
     projectDetails: Array.isArray(store.projectDetails) ? store.projectDetails : initial.projectDetails,
     projectFindings: Array.isArray(store.projectFindings) ? store.projectFindings : initial.projectFindings,
     projectFormPresets: store.projectFormPresets ?? initial.projectFormPresets,
+    projectSchedulerControls: store.projectSchedulerControls ?? initial.projectSchedulerControls,
     projects: Array.isArray(store.projects) ? store.projects : initial.projects,
     scopeRules: Array.isArray(store.scopeRules) ? store.scopeRules : initial.scopeRules,
     workLogs: Array.isArray(store.workLogs) ? store.workLogs : initial.workLogs,
@@ -262,6 +385,9 @@ function migrateProjectIds(store: PrototypeStore): PrototypeStore {
   const projectFormPresets = Object.fromEntries(
     Object.entries(store.projectFormPresets).map(([projectId, preset]) => [mapId(projectId), preset]),
   )
+  const projectSchedulerControls = Object.fromEntries(
+    Object.entries(store.projectSchedulerControls).map(([projectId, control]) => [mapId(projectId), control]),
+  )
 
   const approvals = store.approvals.map((approval) =>
     idMap.has(approval.projectId)
@@ -344,6 +470,7 @@ function migrateProjectIds(store: PrototypeStore): PrototypeStore {
     projects,
     projectDetails,
     projectFormPresets,
+    projectSchedulerControls,
     approvals,
     assets,
     evidenceRecords,
@@ -388,6 +515,9 @@ function purgeSeededBusinessRecords(store: PrototypeStore): PrototypeStore {
     projectFormPresets: Object.fromEntries(
       Object.entries(store.projectFormPresets).filter(([projectId]) => !seededIds.has(projectId)),
     ),
+    projectSchedulerControls: Object.fromEntries(
+      Object.entries(store.projectSchedulerControls).filter(([projectId]) => !seededIds.has(projectId)),
+    ),
     orchestratorPlans: Object.fromEntries(
       Object.entries(store.orchestratorPlans).filter(([projectId]) => !seededIds.has(projectId)),
     ),
@@ -409,11 +539,40 @@ function ensureStoreFile() {
   }
 }
 
+function ensureProjectSchedulerControls(store: PrototypeStore) {
+  const nextControls = { ...store.projectSchedulerControls }
+  let changed = false
+
+  for (const project of store.projects) {
+    const normalizedControl = normalizeProjectSchedulerControl({
+      control: nextControls[project.id],
+      projectStatus: project.status,
+      updatedAt: project.lastUpdated,
+    })
+
+    if (JSON.stringify(normalizedControl) !== JSON.stringify(nextControls[project.id])) {
+      nextControls[project.id] = normalizedControl
+      changed = true
+    }
+  }
+
+  if (!changed) {
+    return store
+  }
+
+  return {
+    ...store,
+    projectSchedulerControls: nextControls,
+  }
+}
+
 export function readPrototypeStore(): PrototypeStore {
   ensureStoreFile()
   const rawStore = JSON.parse(readFileSync(getStorePath(), "utf8")) as Partial<PrototypeStore>
   const normalized = normalizeStore(rawStore)
-  const store = purgeSeededBusinessRecords(migrateProjectIds(normalized))
+  const store = ensureProjectSchedulerControls(
+    migrateSimplifiedProjectModel(purgeSeededBusinessRecords(migrateProjectIds(normalized))),
+  )
 
   if (JSON.stringify(rawStore) !== JSON.stringify(store)) {
     writePrototypeStore(store)

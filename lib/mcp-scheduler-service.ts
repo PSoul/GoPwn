@@ -1,14 +1,21 @@
+import { setInterval as setIntervalPromise } from "node:timers/promises"
+
 import { getStoredApprovalById } from "@/lib/approval-repository"
 import { resolveMcpConnector } from "@/lib/mcp-connectors/registry"
+import { registerActiveExecution, unregisterActiveExecution } from "@/lib/mcp-execution-runtime"
 import { executeStoredMcpRun } from "@/lib/mcp-execution-service"
 import { getStoredMcpRunById, updateStoredMcpRun } from "@/lib/mcp-gateway-repository"
 import { getStoredMcpToolById } from "@/lib/mcp-repository"
+import { isStoredProjectSchedulerPaused } from "@/lib/project-scheduler-control-repository"
 import {
+  claimStoredSchedulerTask,
   createStoredSchedulerTask,
   getStoredSchedulerTaskById,
   getStoredSchedulerTaskByRunId,
+  heartbeatStoredSchedulerTask,
   listReadyStoredSchedulerTasks,
   listStoredSchedulerTasks,
+  recoverExpiredStoredSchedulerTasks,
   updateStoredSchedulerTask,
 } from "@/lib/mcp-scheduler-repository"
 import { formatTimestamp } from "@/lib/prototype-record-utils"
@@ -21,6 +28,14 @@ import type {
   ProjectRecord,
 } from "@/lib/prototype-types"
 
+const TASK_LEASE_DURATION_MS = 30_000
+const TASK_HEARTBEAT_INTERVAL_MS = 5_000
+
+type SchedulerTaskOwnership = {
+  leaseToken: string
+  workerId: string
+}
+
 function addMinutes(timestamp: string, minutes: number) {
   const base = new Date(timestamp.replace(" ", "T"))
   base.setMinutes(base.getMinutes() + minutes)
@@ -30,6 +45,64 @@ function addMinutes(timestamp: string, minutes: number) {
 
 function appendRunSummary(run: McpRunRecord, lines: string[]) {
   return Array.from(new Set([...run.summaryLines, ...lines]))
+}
+
+function buildSchedulerWorkerId() {
+  return `worker-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`
+}
+
+function isAbortError(error: unknown) {
+  return error instanceof Error && error.name === "AbortError"
+}
+
+function buildLeaseClearingPatch() {
+  return {
+    heartbeatAt: undefined,
+    leaseExpiresAt: undefined,
+    leaseStartedAt: undefined,
+    leaseToken: undefined,
+    workerId: undefined,
+  } as const
+}
+
+function taskMatchesOwnership(task: McpSchedulerTaskRecord | null, ownership: SchedulerTaskOwnership) {
+  return Boolean(task && task.workerId === ownership.workerId && task.leaseToken === ownership.leaseToken)
+}
+
+async function withTaskHeartbeat<T>(
+  taskId: string,
+  ownership: SchedulerTaskOwnership,
+  controller: AbortController,
+  work: () => Promise<T>,
+) {
+  const heartbeatLoop = (async () => {
+    try {
+      for await (const heartbeatTick of setIntervalPromise(TASK_HEARTBEAT_INTERVAL_MS, undefined, {
+        ref: false,
+        signal: controller.signal,
+      })) {
+        void heartbeatTick
+        heartbeatStoredSchedulerTask(taskId, {
+          leaseDurationMs: TASK_LEASE_DURATION_MS,
+          leaseToken: ownership.leaseToken,
+          workerId: ownership.workerId,
+        })
+      }
+    } catch (error) {
+      if (!isAbortError(error)) {
+        throw error
+      }
+    }
+  })()
+
+  try {
+    return await work()
+  } finally {
+    if (!controller.signal.aborted) {
+      controller.abort("Scheduler task work finished.")
+    }
+    await heartbeatLoop
+  }
 }
 
 function resolveProjectAndTool(run: McpRunRecord) {
@@ -81,7 +154,9 @@ export function ensureStoredSchedulerTaskForRun(run: McpRunRecord) {
       ? "waiting_approval"
       : run.status === "已延后"
         ? "delayed"
-        : run.status === "已阻塞" || run.status === "已拒绝"
+        : run.status === "已取消" || run.status === "已拒绝"
+          ? "cancelled"
+          : run.status === "已阻塞"
           ? "failed"
           : run.status === "已执行"
             ? "completed"
@@ -108,31 +183,57 @@ export async function processStoredSchedulerTask(
 
   if (!run) {
     return updateStoredSchedulerTask(task.id, {
+      ...buildLeaseClearingPatch(),
       lastError: "关联 MCP run 不存在。",
       status: "failed",
       summaryLines: [...task.summaryLines, "关联 MCP run 丢失，任务已标记失败。"],
     })
   }
 
-  const runningTask = updateStoredSchedulerTask(task.id, {
-    attempts: task.attempts + 1,
-    status: "running",
-    summaryLines: appendRunSummary(run, [`任务已进入执行态，第 ${task.attempts + 1} 次尝试。`]),
+  const claimedTask = claimStoredSchedulerTask(task.id, {
+    leaseDurationMs: TASK_LEASE_DURATION_MS,
+    workerId: buildSchedulerWorkerId(),
   })
+  const ownership =
+    claimedTask?.workerId && claimedTask.leaseToken
+      ? {
+          leaseToken: claimedTask.leaseToken,
+          workerId: claimedTask.workerId,
+        }
+      : null
+
+  if (!claimedTask || !ownership) {
+    return null
+  }
 
   updateStoredMcpRun(run.id, {
-    connectorMode: runningTask?.connectorMode ?? task.connectorMode,
+    connectorMode: claimedTask.connectorMode,
     status: "执行中",
-    summaryLines: appendRunSummary(run, [`${task.toolName} 已由调度器认领执行。`]),
+    summaryLines: appendRunSummary(run, [
+      `${task.toolName} 已由调度器认领执行。`,
+      `执行 worker ${ownership.workerId} 已建立运行租约。`,
+    ]),
   })
 
-  const result = await executeStoredMcpRun(run.id, priorOutputs)
+  const controller = new AbortController()
+  registerActiveExecution(run.id, controller)
+
+  let result
+
+  try {
+    result = await withTaskHeartbeat(task.id, ownership, controller, () =>
+      executeStoredMcpRun(run.id, priorOutputs, ownership, controller.signal),
+    )
+  } finally {
+    unregisterActiveExecution(run.id, controller)
+  }
 
   if (!result) {
     const failedTask = updateStoredSchedulerTask(task.id, {
+      ...buildLeaseClearingPatch(),
       lastError: "执行器未返回结果。",
       status: "failed",
-      summaryLines: [...task.summaryLines, "执行器未返回结果，任务已标记失败。"],
+      summaryLines: [...claimedTask.summaryLines, "执行器未返回结果，任务已标记失败。"],
     })
 
     const failedRun = updateStoredMcpRun(run.id, {
@@ -148,12 +249,39 @@ export async function processStoredSchedulerTask(
     }
   }
 
+  if (result.status === "aborted") {
+    const currentTask = getStoredSchedulerTaskByRunId(run.id)
+    const cancelledTask = taskMatchesOwnership(currentTask, ownership)
+      ? updateStoredSchedulerTask(currentTask!.id, buildLeaseClearingPatch())
+      : currentTask
+    const cancelledRun = getStoredMcpRunById(run.id)
+
+    return {
+      status: "cancelled" as const,
+      run: cancelledRun ?? run,
+      task: cancelledTask ?? task,
+      outputs: priorOutputs,
+    }
+  }
+
+  if (result.status === "ownership_lost") {
+    const currentTask = getStoredSchedulerTaskByRunId(run.id)
+
+    return {
+      status: "ownership_lost" as const,
+      run: getStoredMcpRunById(run.id) ?? run,
+      task: currentTask ?? task,
+      outputs: priorOutputs,
+    }
+  }
+
   if (result.status === "succeeded") {
     const completedTask = updateStoredSchedulerTask(task.id, {
+      ...buildLeaseClearingPatch(),
       connectorMode: result.mode,
       lastError: undefined,
       status: "completed",
-      summaryLines: appendRunSummary(result.run, result.run.summaryLines),
+      summaryLines: Array.from(new Set([...claimedTask.summaryLines, ...result.run.summaryLines])),
     })
 
     return {
@@ -164,17 +292,18 @@ export async function processStoredSchedulerTask(
     }
   }
 
-  const currentAttempt = (runningTask?.attempts ?? task.attempts + 1)
+  const currentAttempt = claimedTask.attempts
   const canRetry = result.status === "retryable_failure" && currentAttempt <= task.maxAttempts
 
   if (canRetry) {
     const retryAt = addMinutes(formatTimestamp(), result.retryAfterMinutes ?? 10)
     const delayedTask = updateStoredSchedulerTask(task.id, {
+      ...buildLeaseClearingPatch(),
       availableAt: retryAt,
       connectorMode: result.mode,
       lastError: result.errorMessage,
       status: "retry_scheduled",
-      summaryLines: [...task.summaryLines, ...result.summaryLines, `已安排重试时间：${retryAt}。`],
+      summaryLines: [...claimedTask.summaryLines, ...result.summaryLines, `已安排重试时间：${retryAt}。`],
     })
     const delayedRun = updateStoredMcpRun(run.id, {
       connectorMode: result.mode,
@@ -191,10 +320,11 @@ export async function processStoredSchedulerTask(
   }
 
   const failedTask = updateStoredSchedulerTask(task.id, {
+    ...buildLeaseClearingPatch(),
     connectorMode: result.mode,
     lastError: result.errorMessage,
     status: "failed",
-    summaryLines: [...task.summaryLines, ...result.summaryLines, `最终失败：${result.errorMessage}`],
+    summaryLines: [...claimedTask.summaryLines, ...result.summaryLines, `最终失败：${result.errorMessage}`],
   })
   const failedRun = updateStoredMcpRun(run.id, {
     connectorMode: result.mode,
@@ -211,18 +341,25 @@ export async function processStoredSchedulerTask(
 }
 
 export async function drainStoredSchedulerTasks(input: {
+  ignoreProjectLifecycle?: boolean
   projectId?: string
   runId?: string
   priorOutputs?: McpWorkflowSmokePayload["outputs"]
 } = {}) {
+  const now = formatTimestamp()
   let outputs = input.priorOutputs ?? {}
   const runs: McpRunRecord[] = []
   const tasks: McpSchedulerTaskRecord[] = []
-  const readyTasks = listReadyStoredSchedulerTasks({
-    now: formatTimestamp(),
+  recoverExpiredStoredSchedulerTasks({
+    now,
     projectId: input.projectId,
     runId: input.runId,
   })
+  const readyTasks = listReadyStoredSchedulerTasks({
+    now,
+    projectId: input.projectId,
+    runId: input.runId,
+  }).filter((task) => input.ignoreProjectLifecycle || !isStoredProjectSchedulerPaused(task.projectId))
 
   for (const task of readyTasks) {
     const result = await processStoredSchedulerTask(task.id, outputs)

@@ -1,5 +1,8 @@
 import { callMcpServerTool } from "@/lib/mcp-client-service"
+import { resolveLocalLabHttpTarget } from "@/lib/local-lab-catalog"
+import { createExecutionAbortError, isExecutionAbortError, throwIfExecutionAborted } from "@/lib/mcp-execution-abort"
 import { findStoredEnabledMcpServerByToolBinding } from "@/lib/mcp-server-repository"
+import { getProjectPrimaryTarget } from "@/lib/project-targets"
 import type { McpConnector, McpConnectorExecutionContext, McpConnectorResult } from "@/lib/mcp-connectors/types"
 
 type WebSurfaceStructuredContent = {
@@ -25,12 +28,14 @@ export const realWebSurfaceMcpConnector: McpConnector = {
   key: "real-web-surface-mcp",
   mode: "real",
   supports: ({ project, run }) => {
-    const target = run.target || project.seed
+    const target = run.target || getProjectPrimaryTarget(project)
 
     return run.toolName === "web-surface-map" && isHttpTarget(target) && Boolean(findStoredEnabledMcpServerByToolBinding(run.toolName))
   },
   async execute(context: McpConnectorExecutionContext): Promise<McpConnectorResult> {
-    const target = context.run.target || context.project.seed
+    throwIfExecutionAborted(context.signal)
+
+    const target = context.run.target || getProjectPrimaryTarget(context.project)
     const server = findStoredEnabledMcpServerByToolBinding(context.run.toolName)
 
     if (!server) {
@@ -44,12 +49,16 @@ export const realWebSurfaceMcpConnector: McpConnector = {
     }
 
     try {
+      const localLabTarget = resolveLocalLabHttpTarget(target)
       const result = await callMcpServerTool<WebSurfaceStructuredContent>({
         server,
         toolName: "probe_web_surface",
         arguments: {
           targetUrl: target,
+          dockerContainerName: localLabTarget?.dockerContainerName,
+          internalTargetUrl: localLabTarget?.internalTargetUrl,
         },
+        signal: context.signal,
         target,
       })
       const webEntries = result.structuredContent.webEntries ?? []
@@ -65,9 +74,20 @@ export const realWebSurfaceMcpConnector: McpConnector = {
         structuredContent: {
           webEntries,
         },
-        summaryLines: webEntries.length > 0 ? [`真实 MCP 已完成 ${webEntries.length} 个 Web 页面入口探测。`, summarizeEntry(webEntries[0])] : ["真实 MCP 已执行，但未返回可用的页面入口结果。"],
+        summaryLines:
+          webEntries.length > 0
+            ? [
+                `真实 MCP 已完成 ${webEntries.length} 个 Web 页面入口探测。`,
+                summarizeEntry(webEntries[0]),
+                localLabTarget?.dockerContainerName ? `已为本地靶场注入 docker fallback 参数。` : "当前目标走宿主机直连探测。",
+              ]
+            : ["真实 MCP 已执行，但未返回可用的页面入口结果。"],
       }
     } catch (error) {
+      if (isExecutionAbortError(error) || context.signal?.aborted) {
+        throw createExecutionAbortError(error)
+      }
+
       return {
         status: "retryable_failure",
         connectorKey: "real-web-surface-mcp",

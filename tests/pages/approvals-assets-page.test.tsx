@@ -1,5 +1,12 @@
 import { cleanup, render, screen } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/assets",
+  useRouter: () => ({
+    replace: vi.fn(),
+  }),
+}))
 
 import ApprovalsPage from "@/app/(console)/approvals/page"
 import AssetsPage from "@/app/(console)/assets/page"
@@ -16,8 +23,9 @@ describe("Approvals and assets pages", () => {
 
   it("renders asset list and asset detail profile", async () => {
     const fixture = await createWorkflowFixture({ workflow: "with-approval" })
-    render(<AssetsPage />)
+    render(await AssetsPage({ searchParams: Promise.resolve({}) }))
     expect(screen.getByText("资产中心")).toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: "域名 / Web" })).toBeInTheDocument()
     cleanup()
 
     render(await AssetDetailPage({ params: Promise.resolve({ assetId: fixture.assets[0].id }) }))

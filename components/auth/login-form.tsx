@@ -75,7 +75,14 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"section
               <div className="space-y-5">
                 <div className="grid gap-2">
                   <Label htmlFor="account">账号</Label>
-                  <Input id="account" value={account} onChange={(event) => setAccount(event.target.value)} placeholder="researcher@company.local" className="h-12 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900" />
+                  <Input
+                    id="account"
+                    autoComplete="username"
+                    value={account}
+                    onChange={(event) => setAccount(event.target.value)}
+                    placeholder="researcher@company.local"
+                    className="h-12 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
+                  />
                 </div>
 
                 <div className="grid gap-2">
@@ -85,13 +92,27 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"section
                       忘记密码
                     </a>
                   </div>
-                  <Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="h-12 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900" />
+                  <Input
+                    id="password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    className="h-12 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
+                  />
                 </div>
 
                 <div className="grid gap-2">
                   <Label htmlFor="captcha">验证码</Label>
                   <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
-                    <Input id="captcha" value={captcha} onChange={(event) => setCaptcha(event.target.value)} placeholder="请输入图形验证码" className="h-12 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900" />
+                    <Input
+                      id="captcha"
+                      autoComplete="off"
+                      value={captcha}
+                      onChange={(event) => setCaptcha(event.target.value)}
+                      placeholder="请输入图形验证码"
+                      className="h-12 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
+                    />
                     <div className="flex h-12 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-100 text-sm font-medium tracking-[0.35em] text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
                       7K2Q
                     </div>

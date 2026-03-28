@@ -11,7 +11,9 @@ export type ProjectStage =
   | "风险聚合与项目结论"
   | "报告与回归验证"
 
-export type ProjectStatus = "运行中" | "待处理" | "已阻塞" | "已完成"
+export type ProjectStatus = "运行中" | "待处理" | "已暂停" | "已停止" | "已阻塞" | "已完成"
+
+export type ProjectSchedulerLifecycle = "idle" | "running" | "paused" | "stopped"
 
 export type Tone = "neutral" | "info" | "success" | "warning" | "danger"
 
@@ -44,11 +46,9 @@ export interface ProjectRecord {
   id: string
   code: string
   name: string
-  seed: string
-  targetType: string
-  targetSummary: string
-  owner: string
-  priority: "高" | "中" | "低"
+  targetInput: string
+  targets: string[]
+  description: string
   stage: ProjectStage
   status: ProjectStatus
   pendingApprovals: number
@@ -60,14 +60,19 @@ export interface ProjectRecord {
   lastActor: string
   riskSummary: string
   summary: string
-  authorizationSummary: string
-  scopeSummary: string
-  forbiddenActions: string
-  defaultConcurrency: string
-  rateLimit: string
-  timeout: string
-  approvalMode: string
-  tags: string[]
+  seed?: string
+  targetType?: string
+  targetSummary?: string
+  owner?: string
+  priority?: "高" | "中" | "低"
+  authorizationSummary?: string
+  scopeSummary?: string
+  forbiddenActions?: string
+  defaultConcurrency?: string
+  rateLimit?: string
+  timeout?: string
+  approvalMode?: string
+  tags?: string[]
 }
 
 export interface TimelineStage {
@@ -146,6 +151,13 @@ export interface ApprovalControl {
   note: string
 }
 
+export interface ProjectSchedulerControl {
+  lifecycle: ProjectSchedulerLifecycle
+  paused: boolean
+  note: string
+  updatedAt: string
+}
+
 export interface ProjectDetailRecord {
   projectId: string
   target: string
@@ -170,20 +182,55 @@ export interface ProjectDetailRecord {
 
 export interface ProjectFormPreset {
   name: string
-  seed: string
-  targetType: string
-  owner: string
-  priority: "高" | "中" | "低"
-  targetSummary: string
-  authorizationSummary: string
-  scopeSummary: string
-  forbiddenActions: string
-  defaultConcurrency: string
-  rateLimit: string
-  timeout: string
-  approvalMode: string
-  tags: string
-  deliveryNotes: string
+  targetInput: string
+  description: string
+  seed?: string
+  targetType?: string
+  owner?: string
+  priority?: "高" | "中" | "低"
+  targetSummary?: string
+  authorizationSummary?: string
+  scopeSummary?: string
+  forbiddenActions?: string
+  defaultConcurrency?: string
+  rateLimit?: string
+  timeout?: string
+  approvalMode?: string
+  tags?: string
+  deliveryNotes?: string
+}
+
+export type AssetViewKey =
+  | "domains-web"
+  | "hosts-ip"
+  | "ports-services"
+  | "fingerprints"
+  | "pending-review"
+
+export interface AssetCollectionView {
+  key: AssetViewKey
+  label: string
+  description: string
+  count: number
+  items: AssetRecord[]
+}
+
+export interface DashboardRecentResultRecord {
+  id: string
+  title: string
+  subtitle: string
+  meta: string
+  href: string
+  status: string
+  tone: Tone
+}
+
+export interface DashboardSystemRecord {
+  title: string
+  value: string
+  detail: string
+  href: string
+  tone: Tone
 }
 
 export interface ApprovalRecord {
@@ -249,6 +296,9 @@ export interface EvidenceRecord {
   linkedAssetLabel: string
   timeline: string[]
   verdict: string
+  capturedUrl?: string
+  screenshotArtifactPath?: string
+  htmlArtifactPath?: string
 }
 
 export interface McpToolRecord {
@@ -318,7 +368,7 @@ export interface McpServerInvocationRecord {
   id: string
   serverId: string
   toolName: string
-  status: "succeeded" | "failed" | "timeout"
+  status: "succeeded" | "failed" | "timeout" | "cancelled"
   target: string
   summary: string
   durationMs: number
@@ -366,7 +416,7 @@ export interface McpRunRecord {
   riskLevel: "高" | "中" | "低"
   boundary: "外部目标交互" | "平台内部处理"
   dispatchMode: "自动执行" | "审批后执行" | "阻塞"
-  status: "待审批" | "执行中" | "已执行" | "已阻塞" | "已拒绝" | "已延后"
+  status: "待审批" | "执行中" | "已执行" | "已阻塞" | "已拒绝" | "已延后" | "已取消"
   requestedBy: string
   createdAt: string
   updatedAt: string
@@ -402,6 +452,13 @@ export interface McpSchedulerTaskRecord {
   updatedAt: string
   lastError?: string
   linkedApprovalId?: string
+  workerId?: string
+  leaseToken?: string
+  leaseStartedAt?: string
+  leaseExpiresAt?: string
+  heartbeatAt?: string
+  recoveryCount?: number
+  lastRecoveredAt?: string
   summaryLines: string[]
 }
 
@@ -470,6 +527,12 @@ export interface LocalLabRecord {
   image: string
   ports: string[]
   status: "online" | "offline" | "unknown"
+  availability: "host" | "container" | "none" | "unknown"
+  statusNote: string
+  dockerContainerName?: string
+  internalBaseUrl?: string
+  internalHealthUrl?: string
+  effectiveHostPort?: number
 }
 
 export interface OrchestratorPlanItem {
@@ -491,6 +554,23 @@ export interface ProjectOrchestratorPanelPayload {
   provider: LlmProviderStatus
   localLabs: LocalLabRecord[]
   lastPlan: OrchestratorPlanRecord | null
+}
+
+export interface ProjectReportExportRecord {
+  id: string
+  projectId: string
+  runId: string
+  exportedAt: string
+  summary: string
+  digestLines: string[]
+  assetCount: number
+  evidenceCount: number
+  findingCount: number
+}
+
+export interface ProjectReportExportPayload {
+  latest: ProjectReportExportRecord | null
+  totalExports: number
 }
 
 export interface LogRecord {
@@ -538,7 +618,10 @@ export interface ProjectOperationsPayload {
   detail: ProjectDetailRecord
   approvals: ApprovalRecord[]
   mcpRuns: McpRunRecord[]
+  schedulerControl: ProjectSchedulerControl
+  schedulerTasks: McpSchedulerTaskRecord[]
   orchestrator: ProjectOrchestratorPanelPayload
+  reportExport: ProjectReportExportPayload
 }
 
 export interface ProjectContextPayload {
@@ -584,6 +667,9 @@ export interface DashboardPayload {
   mcpTools: McpToolRecord[]
   projectTasks: TaskRecord[]
   projects: ProjectRecord[]
+  assetViews: AssetCollectionView[]
+  recentResults: DashboardRecentResultRecord[]
+  systemOverview: DashboardSystemRecord[]
 }
 
 export interface ApprovalCollectionPayload {
@@ -594,6 +680,7 @@ export interface ApprovalCollectionPayload {
 export interface AssetCollectionPayload {
   items: AssetRecord[]
   total: number
+  views: AssetCollectionView[]
 }
 
 export interface AssetDetailPayload {
@@ -607,6 +694,10 @@ export interface EvidenceCollectionPayload {
 
 export interface EvidenceDetailPayload {
   record: EvidenceRecord
+  artifacts?: {
+    screenshotUrl?: string
+    htmlUrl?: string
+  }
 }
 
 export interface ApprovalDecisionInput {
@@ -700,4 +791,9 @@ export interface LocalValidationRunPayload {
   runs: McpRunRecord[]
   status: "completed" | "waiting_approval" | "blocked"
   approval?: ApprovalRecord
+}
+
+export interface ProjectReportExportActionPayload {
+  dispatch: McpDispatchPayload
+  reportExport: ProjectReportExportPayload
 }

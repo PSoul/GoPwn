@@ -2,8 +2,8 @@
 
 ## Project Snapshot
 
-- Date: `2026-03-27`
-- Current focus: the real-data hardening slice is landing on `codex/real-data-platform-hardening-2026-03-27`, removing runtime demo seeds, promoting LLM settings into real persisted configuration, enforcing validated MCP registration, and preserving real local-lab closure data in normal project routes when workspace-mode persistence is enabled.
+- Date: `2026-03-28`
+- Current focus: `codex/evidence-capture-mcp-2026-03-28` extends the real-MCP platform runtime with a new `截图与证据采集类` stdio MCP, runtime artifact persistence, authenticated artifact streaming, and evidence-detail UI support for real screenshots + HTML snapshots. The prior UI/流程重构 and lifecycle-control work remains intact: new projects still default to `idle`, require manual start before LLM orchestration begins, and support pause/resume/stop as real backend-controlled runtime transitions.
 - Working mode: each major feature area uses its own isolated git branch/worktree so the existing branch is not disturbed.
 
 ## Phase 1: Frontend Prototype Closure
@@ -22,6 +22,9 @@
 ### Acceptance Criteria
 
 - frontend visual tone stays close to the provided backend and login templates
+- project create/edit only requires the minimal three-field project model, with execution/approval policy moved back to MCP/settings surfaces
+- dashboard first screen answers project/asset/finding/approval questions before exposing deeper control surfaces
+- asset center and project result surfaces use typed full-width tables instead of one mixed long page
 - project overview is results-first and no longer mixes high-volume tables into one page
 - settings are split into focused subpages instead of a single long control surface
 - `npx vitest run`, `npm run lint`, `npm run build`, and `npm run e2e` all pass
@@ -166,10 +169,23 @@
 - completed: add a strict MCP server registration contract, registration API, contract docs, and settings-page registration flow
 - completed: remove automatic demo MCP server seeding; new servers now appear only after explicit validated registration
 - completed: isolate Playwright browser runs behind a temporary prototype-store directory so E2E tests verify the empty-first runtime deterministically
-- in progress: stabilize WebGoat host-side reachability in the current Windows + Docker Desktop environment so the second lab can be validated with the same runner
+- completed: stabilize WebGoat host-side reachability in the current Windows + Docker Desktop environment by standardizing host publishing to `18080:8080` and `19090:9090`
+- completed: add built-in fallback for internal MCP capabilities (`目标解析类`, `报告导出类`) so empty workspaces do not block core closure flows
+- completed: execute a real low-risk WebGoat validation through the same live runner, keeping the resulting project in the workspace store and proving real MCP-backed result persistence
+- completed: verify browser-side report export from the WebGoat project operations page and capture a screenshot artifact under `output/playwright/`
+- completed: add a real stdio MCP server + connector for `受控验证类`, implemented as a generic auditable HTTP request workbench (`auth-guard-check`)
+- completed: extend live-validation bootstrapping so `web-surface-stdio`, `http-structure-stdio`, and `http-validation-stdio` can all auto-register in an empty workspace
+- completed: add a real Playwright-backed `截图与证据采集类` stdio MCP plus a real connector for `capture-evidence`
+- completed: persist screenshot/HTML artifacts under the runtime store instead of in JSON records, and expose them through an authenticated `/api/artifacts/[...artifactPath]` route
+- completed: upgrade evidence-detail payloads and UI so researchers can directly preview screenshots and open stored HTML snapshots
+- completed: extend live-validation MCP bootstrap so `evidence-capture-stdio` can auto-register in an empty workspace
+- completed: steer the WebGoat high-risk closure toward `/WebGoat/actuator`, then validate a real anonymous-management-surface finding through approval resume
+- completed: execute a real WebGoat high-risk closure in workspace mode, preserving one real finding (`Spring Actuator 管理端点匿名暴露`) plus matching evidence and report artifacts
+- completed: normalize `HTTP / API 结构发现类` output into persisted candidate assets and evidence/context records instead of leaving it mostly in run history
+- completed: verify the resulting WebGoat finding page and post-finding report export flow in the browser UI, capturing screenshots under `output/playwright/`
 - in progress: replace or augment more of the file-backed prototype runtime with database-backed persistence suitable for longer-running environments
 - pending: wire project/task execution state to durable queues, cancellation, and better operator controls
-- pending: expand real connector families beyond DNS + Web surface probing into API reconnaissance and evidence capture
+- pending: expand real connector families beyond DNS + Web surface probing + HTTP controlled validation + evidence capture into deeper API reconnaissance and network discovery
 - pending: refine the LLM provider configuration surface further with masked secrets, profile validation UX, and clearer operational fallback behavior
 - pending: add local-lab-backed regression suites that can optionally run against real Docker targets in CI or controlled local environments
 
@@ -177,10 +193,12 @@
 
 - partially met: backend state now includes a durable SQLite slice for external MCP server registry metadata and real-call audit history
 - met: at least one non-DNS external interaction family runs through a real MCP/server integration path
-- met: at least one real LLM + real MCP + local Docker target validation flow has now been executed and captured as a reusable artifact
+- met: at least two real LLM + real MCP + local Docker target validation flows have now been executed and captured as reusable artifacts, including a real-finding WebGoat closure
 - met: a clean environment can now auto-bootstrap a real validation project instead of relying on older seed IDs
 - met: real closure data can now be preserved into the normal workspace runtime when workspace-mode persistence is selected
 - met: runtime settings and MCP registration surfaces no longer depend on static demo configuration
+- met: WebGoat can now move from low-risk discovery into approval-gated real controlled validation without falling back to synthetic findings
+- met: the platform can now capture and render real screenshot/HTML evidence through a registered MCP family instead of only textual screenshot notes
 - project execution, approvals, evidence, and findings remain auditable after backend hardening
 - the local Docker validation stack remains usable as a regression harness while the backend evolves
 
@@ -189,26 +207,79 @@
 - Real project id: `proj-20260327-f6a3fd0c`
 - Run artifact: `output/live-validation/2026-03-27T05-09-27-704Z-juice-shop/report.md`
 - Notes: this run used the real SiliconFlow-backed orchestrator, the real `web-surface-stdio` MCP path, approval resume, and workspace-mode persistence so the result stayed visible in normal UI routes.
+- Real project id: `proj-20260327-4e3a91b0`
+- Run artifact: `output/live-validation/2026-03-27T11-12-11-708Z-webgoat/report.md`
+- Notes: this run used the real SiliconFlow-backed orchestrator, real `web-surface-stdio` + `http-structure-stdio` + `http-validation-stdio` MCP paths, approval resume, workspace-mode persistence, one real finding, and browser-side verification of the finding page plus report export.
+- Real project id: `proj-20260327-af2ebd69`
+- Run artifact: `output/live-validation/2026-03-27T11-38-59-701Z-webgoat/report.md`
+- Notes: this rerun verified that `HTTP / API 结构发现类` output now persists as real evidence/context (`HTTP / API 结构线索识别`) alongside the WebGoat Actuator finding in the normal workspace store.
 
-## Recommended Next Phase
+## Phase 8: Platform Stabilization and Durable Execution Controls
 
-- Name: `Phase 8 - Additional MCP Families and Durable Execution Controls`
-- Suggested branch/worktree: create a fresh isolated branch after this slice is merged or parked
-- Goal: build on the now-proven real project closure path by adding more real MCP families, stronger durable execution controls, and a second local-lab target.
+- Status: In progress across `codex/platform-stabilization-2026-03-27`, `codex/durable-worker-orphan-recovery-2026-03-27`, `codex/cooperative-cancellation-2026-03-27`, and `codex/second-local-lab-webgoat-2026-03-27`
+- Goal: prioritize operator-visible runtime control before expanding more MCP capability families, so the scheduler queue and project lifecycle can be safely started, paused, resumed, stopped, cancelled, and retried from the real project operations surface.
+
+### Task Checklist
+
+- completed: persist per-project scheduler-control state in the prototype store and initialize it for newly created projects
+- completed: expose `schedulerControl` and `schedulerTasks` on the project operations payload
+- completed: add repository helpers for project-level pause/resume, queued-task cancel, and failed-task retry
+- completed: make the scheduler drain loop respect project pause state and keep cancelled work out of future drains
+- completed: add project-scoped scheduler control and scheduler task action APIs with request validation
+- completed: add a dedicated runtime queue panel on the operations page with pause/resume, cancel, retry, and explicit disabled states
+- completed: allow operators to issue a stop request for `running` tasks and prevent cancelled work from continuing result commit when writeback has not happened yet
+- completed: add durable worker lease metadata, heartbeat refresh, orphan `running` task recovery, and stale-lease writeback fencing
+- completed: surface worker / lease / recovery metadata directly in the project runtime queue panel
+- completed: cover repository, API, payload, component, and page integration paths with targeted tests
+- completed: introduce shared `AbortController` propagation for already-running tasks so the scheduler heartbeat, execution layer, local connectors, real DNS/TLS checkpoints, and the real stdio Web-surface MCP path cooperatively stop when operators request cancellation
+- completed: add an explicit project lifecycle state machine (`idle | running | paused | stopped`) so new projects stay idle until the researcher manually starts them
+- completed: wire lifecycle `start / resume` transitions to real LLM kickoff planning, persist the latest plan, and automatically dispatch only the low-risk first-step items
+- completed: make `stop` terminal for the project lifecycle, cancelling queued work and requesting cooperative abort for already-running executions
+- completed: centralize the platform LLM-brain prompts so lifecycle kickoff, local-lab planning, and provider calls all use one shared prompt contract
+- completed: add a minimal `pages/_document.tsx` compatibility shim so `next build` remains stable in the current Windows + App Router workspace setup
+- partially met: move the current file-backed queue toward a more durable long-lived worker/executor model suitable for longer sessions
 
 ### Priority Tasks
 
-- add another real MCP family such as API structure discovery or evidence capture
-- wire project/task execution state to more durable queues, cancellation controls, and clearer operator recovery paths
-- stabilize WebGoat host-side reachability so the second lab can be validated through the same runner
+- completed: stabilize WebGoat host-side reachability so the second lab can be validated through the same runner
+- completed: unify the default WebGoat port assumptions across compose, runner, API, and UI around `18080/19090`
+- completed: add another real MCP family by landing the HTTP controlled-validation path used for the WebGoat actuator closure
+- completed: require explicit manual start before ordinary project LLM orchestration begins, while still allowing explicit operator-triggered local validation and manual MCP dispatch to promote a project into `running`
 - expand local-lab-backed regression coverage for real Docker targets in controlled environments
 - add masked-secret mode for LLM settings while keeping a debug toggle for local development
 
 ### Acceptance Criteria
 
-- at least one new real MCP family is visible in the registry and usable from dispatch flows
-- durable queue / cancellation behavior is operator-visible and survives restarts more cleanly than the current file-backed baseline
-- WebGoat or another second local target can be validated through the same end-to-end runner
+- met: project-level scheduler pause/resume is operator-visible and blocks future queue pickup
+- met: new projects no longer auto-run on creation; manual start now gates the first LLM orchestration pass
+- met: project pause/resume/stop are now real backend lifecycle transitions instead of UI-only status toggles
+- met: queued tasks can be cancelled and failed tasks can be retried from the project operations page
+- met: the operations API contract now carries real runtime scheduler state instead of only high-level task cards
+- partially met: operators can now issue stop requests for `running` tasks, recover orphan executions, block stale late writeback, and cooperatively interrupt the platform heartbeat, local connectors, real DNS/TLS checkpoints, and the real stdio Web-surface MCP path; broader remote rollback and additional connector families are still pending
+- met: WebGoat can now be validated through the same end-to-end runner in a real finding closure path, including approval resume and browser-side report export
+- met: this slice has already been verified with `pnpm test`, `pnpm lint`, `pnpm build`, and `pnpm e2e`
+
+## Recommended Next Phase
+
+- Name: `Phase 9 - Network Discovery and Full Closure Regression`
+- Suggested branch/worktree: create a fresh isolated branch after this slice is merged or parked
+- Goal: build on the now-proven Juice Shop + WebGoat real closures by wiring evidence capture into the live validation closure path, then expanding the next batch of MCP families around network discovery and richer API recon.
+
+### Priority Tasks
+
+- completed in current slice: add a real `截图与证据采集类` MCP so Web 页面探测 and受控验证 can produce richer screenshots/HTML evidence without manual inspection
+- thread the new `capture-evidence` capability through `npm run live:validate` and preserve at least one real lab closure that leaves screenshot/HTML artifacts visible from the normal evidence route
+- add a next real family such as `端口探测类` or richer API recon so the platform can go beyond pure Web entry validation
+- refine the LLM runtime from stateless request/response planning into a more durable long-session control loop only if future operator needs prove that explicit model-side pause/resume signaling is necessary
+- expand regression coverage for long-running queue recovery, environment-blocked lab runs, report export, and second-lab execution
+
+### Acceptance Criteria
+
+- running-task interruption and recovery are operator-visible and survive restarts more cleanly than the current file-backed baseline
+- met in current slice: structure-discovery output is no longer just visible in run history and now lands as clearer evidence/context in project surfaces
+- met in current slice: at least one new real MCP family beyond the current DNS/Web/HTTP-validation trio is visible in the registry and usable from dispatch flows without destabilizing the queue
+- at least one preserved local-lab closure should expose screenshot/HTML artifacts through the normal evidence route, not only through isolated connector tests
+- local-lab health, fallback, and diagnostics stay consistent across the runner, API, and operations UI
 
 ## Notes for Future LLM Sessions
 

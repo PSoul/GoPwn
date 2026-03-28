@@ -2,7 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { ProjectInventoryTable } from "@/components/projects/project-inventory-table"
-import { PageHeader } from "@/components/shared/page-header"
+import { ProjectWorkspaceIntro } from "@/components/projects/project-workspace-intro"
 import { SectionCard } from "@/components/shared/section-card"
 import { Button } from "@/components/ui/button"
 import { getProjectInventoryPayload } from "@/lib/prototype-api"
@@ -23,7 +23,7 @@ export default async function ProjectNetworkResultsPage({
 
   return (
     <div className="space-y-5">
-      <PageHeader
+      <ProjectWorkspaceIntro
         title="IP / 端口 / 服务"
         description="网络面结果独立成整页表格，后续出现大量开放端口和服务画像时依然能稳定承载。"
         actions={
@@ -33,7 +33,7 @@ export default async function ProjectNetworkResultsPage({
         }
       />
 
-      <SectionCard title={project.name} description={group.description}>
+      <SectionCard title="结果表" description={group.description}>
         <ProjectInventoryTable group={group} />
       </SectionCard>
     </div>

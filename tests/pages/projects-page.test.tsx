@@ -27,8 +27,9 @@ describe("Project pages", () => {
   it("renders the project creation form sections", () => {
     render(<NewProjectPage />)
 
-    expect(screen.getByText("授权与范围")).toBeInTheDocument()
-    expect(screen.getByText("执行与审批策略")).toBeInTheDocument()
+    expect(screen.getByText("项目基础信息")).toBeInTheDocument()
+    expect(screen.getByText("项目预览")).toBeInTheDocument()
+    expect(screen.getByText("工作台提示")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "创建项目" })).toBeInTheDocument()
   })
 
