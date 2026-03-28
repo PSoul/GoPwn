@@ -9,6 +9,9 @@ const HTTP_STRUCTURE_SERVER_SCRIPT = "scripts/mcp/http-structure-server.mjs"
 const HTTP_VALIDATION_SERVER_NAME = "http-validation-stdio"
 const HTTP_VALIDATION_TOOL_NAME = "auth-guard-check"
 const HTTP_VALIDATION_SERVER_SCRIPT = "scripts/mcp/http-validation-server.mjs"
+const EVIDENCE_CAPTURE_SERVER_NAME = "evidence-capture-stdio"
+const EVIDENCE_CAPTURE_TOOL_NAME = "capture-evidence"
+const EVIDENCE_CAPTURE_SERVER_SCRIPT = "scripts/mcp/evidence-capture-server.mjs"
 const DEFAULT_WEBGOAT_HOST_PORT = 18080
 
 function getConfiguredWebGoatHostPort() {
@@ -315,6 +318,71 @@ function buildHttpValidationRegistrationPayload() {
   }
 }
 
+function buildEvidenceCaptureRegistrationPayload() {
+  return {
+    serverName: EVIDENCE_CAPTURE_SERVER_NAME,
+    version: "1.0.0",
+    transport: "stdio",
+    command: "node",
+    args: [EVIDENCE_CAPTURE_SERVER_SCRIPT],
+    endpoint: `stdio://${EVIDENCE_CAPTURE_SERVER_NAME}`,
+    enabled: true,
+    notes: "真实截图与证据采集 MCP server，用于沉淀关键页面截图和 HTML 快照。",
+    tools: [
+      {
+        toolName: EVIDENCE_CAPTURE_TOOL_NAME,
+        title: "Capture Page Evidence",
+        description: "对目标 URL 采集整页截图和 HTML 快照，回流到证据中心供复核使用。",
+        version: "1.0.0",
+        capability: "截图与证据采集类",
+        boundary: "外部目标交互",
+        riskLevel: "低",
+        requiresApproval: false,
+        resultMappings: ["evidence", "workLogs"],
+        inputSchema: {
+          type: "object",
+          properties: {
+            targetUrl: {
+              type: "string",
+              description: "需要采证的 HTTP 或 HTTPS URL。",
+            },
+            screenshotPath: {
+              type: "string",
+            },
+            htmlPath: {
+              type: "string",
+            },
+          },
+          required: ["targetUrl", "screenshotPath", "htmlPath"],
+          additionalProperties: false,
+        },
+        outputSchema: {
+          type: "object",
+          properties: {
+            finalUrl: {
+              type: "string",
+            },
+            pageTitle: {
+              type: "string",
+            },
+            statusCode: {
+              type: "number",
+            },
+            htmlPreview: {
+              type: "string",
+            },
+          },
+        },
+        defaultConcurrency: "1",
+        rateLimit: "6 req/min",
+        timeout: "20s",
+        retry: "1 次",
+        owner: "平台自动验证",
+      },
+    ],
+  }
+}
+
 export async function ensureLiveValidationProject({
   baseUrl,
   cookie,
@@ -386,6 +454,12 @@ export async function ensureWebSurfaceMcpRegistration({
   const hasHttpValidationToolContract = toolContracts.some(
     (contract) => contract.serverName === HTTP_VALIDATION_SERVER_NAME && contract.toolName === HTTP_VALIDATION_TOOL_NAME,
   )
+  const hasEvidenceCaptureServer = servers.some(
+    (server) => server.serverName === EVIDENCE_CAPTURE_SERVER_NAME && server.enabled,
+  )
+  const hasEvidenceCaptureToolContract = toolContracts.some(
+    (contract) => contract.serverName === EVIDENCE_CAPTURE_SERVER_NAME && contract.toolName === EVIDENCE_CAPTURE_TOOL_NAME,
+  )
   const registeredServerNames = []
 
   if (!hasEnabledServer || !hasToolContract) {
@@ -418,12 +492,22 @@ export async function ensureWebSurfaceMcpRegistration({
     registeredServerNames.push(registrationResult?.payload?.server?.serverName ?? HTTP_VALIDATION_SERVER_NAME)
   }
 
+  if (!hasEvidenceCaptureServer || !hasEvidenceCaptureToolContract) {
+    const registrationResult = await requestJson(`${baseUrl}/api/settings/mcp-servers/register`, {
+      method: "POST",
+      cookie,
+      body: buildEvidenceCaptureRegistrationPayload(),
+    })
+
+    registeredServerNames.push(registrationResult?.payload?.server?.serverName ?? EVIDENCE_CAPTURE_SERVER_NAME)
+  }
+
   return {
     registered: registeredServerNames.length > 0,
     serverName: WEB_SURFACE_SERVER_NAME,
     serverNames:
       registeredServerNames.length > 0
         ? registeredServerNames
-        : [WEB_SURFACE_SERVER_NAME, HTTP_STRUCTURE_SERVER_NAME, HTTP_VALIDATION_SERVER_NAME],
+        : [WEB_SURFACE_SERVER_NAME, HTTP_STRUCTURE_SERVER_NAME, HTTP_VALIDATION_SERVER_NAME, EVIDENCE_CAPTURE_SERVER_NAME],
   }
 }

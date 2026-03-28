@@ -15,11 +15,11 @@
 
 ## 1. 当前状态
 
-- 当前版本：`v0.2.0`
+- 当前版本：`v0.2.1`
 - 当前形态：可运行全栈原型
 - 版本定位：第二阶段原型里程碑，重点补齐了 `WebGoat` 真实 finding 闭环、项目生命周期控制、durable worker 与 cooperative cancellation
 - 当前主线：已完成 `Juice Shop` 与 `WebGoat` 两条本地真实闭环验证
-- 当前进行中：更多真实 MCP 能力族、证据采集与 API Recon 扩展、以及更 durable 的长期运行后端
+- 当前进行中：更多真实 MCP 能力族、端口/服务发现、以及更 durable 的长期运行后端
 
 ### 已完成的核心能力
 
@@ -44,6 +44,9 @@
 - 真实 `HTTP / API 结构发现类` stdio MCP
 - 真实 `HTTP / API 结构发现类` 结果归一化落库，能把 GraphQL / Swagger / Actuator 候选入口沉淀成资产与证据
 - 真实 `受控验证类` HTTP workbench stdio MCP
+- 真实 `截图与证据采集类` Playwright stdio MCP
+- 真实页面截图与 HTML 快照 artifact 持久化，以及带会话校验的 artifact 读取 API
+- 证据详情页支持直接预览截图并打开 HTML 快照
 
 ### 已确认跑通的真实闭环
 
@@ -67,7 +70,7 @@
 
 ### 当前主要缺口
 
-- `WebGoat` 的 HTTP 结构发现结果已经能回流为证据与候选资产，但还缺少独立的截图 / HTML 证据采集能力继续把证据链做厚
+- `截图与证据采集类` 已经具备真实 MCP 与页面展示能力，但还没有接入到 `live:validate` 的真实项目闭环中形成一条固定回归样例
 - 本地靶场健康状态、runner 诊断、页面提示还没有完全统一
 - MCP 能力族目前仍偏少，真实接入还不够丰富
 - 后端持久化仍有一部分在文件存储层，尚未完全演进到更 durable 的长期运行形态
@@ -294,6 +297,7 @@ $env:LIVE_VALIDATION_STATE_MODE = "isolated"
 - [x] 真实 Web 页面探测 stdio MCP connector
 - [x] 真实 HTTP / API 结构发现 stdio MCP connector
 - [x] 真实 HTTP 受控验证 stdio MCP connector
+- [x] 真实截图与证据采集 stdio MCP connector
 - [x] 调度任务队列、pause / resume / retry / cancel
 - [x] 项目生命周期控制：手动开始、暂停、继续、停止
 - [x] Durable worker lease 与 orphan running task 恢复
@@ -318,6 +322,7 @@ $env:LIVE_VALIDATION_STATE_MODE = "isolated"
 - [x] 补一条可复用的“第二靶场回归验证”脚本与文档
 - [x] 为 `WebGoat` 接入真实 `受控验证类` MCP，把低风险识别闭环扩展成真实漏洞发现闭环
 - [x] 把 `HTTP / API 结构发现类` 的结果从运行记录提升为真实资产与证据沉淀
+- [x] 补齐 `截图与证据采集类`，让平台能够沉淀真实页面截图与 HTML 快照
 
 ### P1：运行时与后端稳定性
 
@@ -327,6 +332,7 @@ $env:LIVE_VALIDATION_STATE_MODE = "isolated"
 - [ ] 补更明确的 worker 诊断、lease 争抢、ownership lost 可视化
 - [ ] 增强异常恢复后的审计链，确保“谁接手、何时恢复、为什么恢复”可追溯
 - [ ] 评估是否要把当前“按次请求式 LLM 编排”演进成更强的状态化控制环，并定义真正的模型侧 pause / resume 语义
+- [ ] 让截图与 HTML artifact 生命周期进入更 durable 的存储与清理策略
 
 ### P1：真实数据与闭环质量
 
@@ -354,7 +360,7 @@ $env:LIVE_VALIDATION_STATE_MODE = "isolated"
 ### P2：新增真实 MCP 能力族
 
 - [x] `HTTP / API 结构发现类`
-- [ ] `截图与证据采集类`
+- [x] `截图与证据采集类`
 - [ ] `端口探测类`
 - [x] `受控验证类`
 - [x] `报告导出类`
@@ -395,9 +401,9 @@ $env:LIVE_VALIDATION_STATE_MODE = "isolated"
 
 建议先按下面顺序继续推进：
 
-1. 统一本地靶场健康诊断语义
-2. 补 `截图与证据采集类`
-3. 补 `端口探测类` 或更强的 API Recon 能力
+1. 把 `截图与证据采集类` 接入 `live:validate` 与真实项目闭环
+2. 补 `端口探测类` 或更强的 API Recon 能力
+3. 统一本地靶场健康诊断语义
 4. 补第二靶场与真实 finding 的自动化回归
 5. 再继续扩大 durable backend 与运维观测能力
 
@@ -406,4 +412,4 @@ $env:LIVE_VALIDATION_STATE_MODE = "isolated"
 - 当前仓库已经适合继续做下一阶段真实后端与真实 MCP 扩展，但还不适合作为生产系统直接上线
 - 如果你是新的 LLM 接手本项目，先读 `code_index.md`，再读 `roadmap.md`
 - 如果你准备新增一个 MCP，请不要跳过合同和模板，先从文档入手再接实现
-- 当前版本 `v0.2.0` 更适合视为“可演示、可验证、可继续接入真实 MCP 的原型里程碑”，而不是最终生产版本
+- 当前版本 `v0.2.1` 更适合视为“可演示、可验证、可继续接入真实 MCP 的原型里程碑”，而不是最终生产版本

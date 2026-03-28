@@ -600,6 +600,99 @@ function normalizeExecutionArtifacts(
     }
   }
 
+  if (context.run.toolName === "capture-evidence") {
+    const capturedUrl = (rawResult.structuredContent.capturedUrl as string | undefined) ?? context.run.target
+    const pageTitle = (rawResult.structuredContent.pageTitle as string | undefined) ?? "Untitled"
+    const statusCode = (rawResult.structuredContent.statusCode as number | undefined) ?? 0
+    const htmlPreview = (rawResult.structuredContent.htmlPreview as string | undefined) ?? ""
+    const screenshotArtifactPath = rawResult.structuredContent.screenshotArtifactPath as string | undefined
+    const htmlArtifactPath = rawResult.structuredContent.htmlArtifactPath as string | undefined
+    const targetHost = getHostFromTarget(capturedUrl)
+    const entryAssetId = buildStableRecordId("asset", context.project.id, "entry", capturedUrl)
+    const existingAsset = existingAssets.get(entryAssetId) ?? getStoredAssetById(entryAssetId)
+
+    return {
+      actor,
+      assets: [
+        {
+          id: entryAssetId,
+          projectId: context.project.id,
+          projectName: context.project.name,
+          type: capturedUrl.includes("/graphql") ? "api" : "entry",
+          label: capturedUrl,
+          profile: statusCode > 0 ? `页面采证 · HTTP ${statusCode}` : "页面采证",
+          scopeStatus: "已纳入",
+          lastSeen: timestamp,
+          host: targetHost,
+          ownership: `${context.project.name} 页面证据采样入口`,
+          confidence: "0.86",
+          exposure:
+            htmlArtifactPath || screenshotArtifactPath
+              ? `已沉淀真实页面截图${htmlArtifactPath ? "与 HTML 快照" : ""}，标题 ${pageTitle}。`
+              : `已完成页面采证，标题 ${pageTitle}。`,
+          linkedEvidenceId: evidenceId,
+          linkedTaskTitle: context.run.requestedAction,
+          issueLead: "可从证据详情直接复核页面上下文、截图与 HTML 原貌。",
+          relations: mergeRelations(existingAsset?.relations, [
+            {
+              id: buildStableRecordId("asset-rel", capturedUrl, "evidence"),
+              label: evidenceId,
+              type: "evidence",
+              relation: "页面采证",
+              scopeStatus: "已纳入",
+            },
+          ]),
+        },
+      ],
+      evidence: [
+        {
+          id: evidenceId,
+          projectId: context.project.id,
+          projectName: context.project.name,
+          title: `${pageTitle} 页面截图与 HTML 快照`,
+          source: "截图与证据采集类",
+          confidence: "0.86",
+          conclusion: "证据已归档",
+          linkedApprovalId,
+          rawOutput: rawResult.rawOutput,
+          screenshotNote:
+            screenshotArtifactPath && htmlArtifactPath
+              ? "已生成真实页面截图与 HTML 快照，可直接在下方预览或打开原始产物。"
+              : screenshotArtifactPath
+                ? "已生成真实页面截图，可直接在下方预览。"
+                : "本轮没有生成可预览截图，但页面上下文仍已作为证据记录归档。",
+          structuredSummary: [
+            statusCode > 0
+              ? `页面 ${capturedUrl} 采证完成，标题 ${pageTitle}，主响应状态 HTTP ${statusCode}。`
+              : `页面 ${capturedUrl} 采证完成，标题 ${pageTitle}。`,
+            htmlPreview
+              ? `HTML 快照摘要：${htmlPreview}`
+              : "HTML 快照已归档，可在证据详情中查看原始页面源码快照。",
+          ],
+          linkedTaskTitle: context.run.requestedAction,
+          linkedAssetLabel: capturedUrl,
+          timeline: [`${timestamp} 真实页面截图与 HTML 快照归档完成`],
+          verdict: "当前页面上下文已可直接复核，后续可围绕页面线索继续进入结构发现或受控验证。",
+          capturedUrl,
+          screenshotArtifactPath,
+          htmlArtifactPath,
+        },
+      ],
+      findings: [],
+      workLogs: [
+        {
+          id: `work-${context.run.id}`,
+          category: "证据采集",
+          summary: `${capturedUrl} 已完成页面截图与 HTML 快照归档。`,
+          projectName: context.project.name,
+          actor,
+          timestamp,
+          status: "已完成",
+        },
+      ],
+    }
+  }
+
   if (context.run.toolName === "report-exporter") {
     const reportDigest = (rawResult.structuredContent.reportDigest as string[]) ?? []
 

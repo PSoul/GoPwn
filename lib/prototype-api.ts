@@ -78,6 +78,7 @@ import {
   updateStoredProject,
 } from "@/lib/project-repository"
 import { getDefaultProjectFormPreset, readPrototypeStore } from "@/lib/prototype-store"
+import { buildRuntimeArtifactUrl } from "@/lib/runtime-artifacts"
 import { listStoredWorkLogs } from "@/lib/work-log-repository"
 import type {
   ApprovalControlPatch,
@@ -741,7 +742,13 @@ export function getEvidenceDetailPayload(evidenceId: string): EvidenceDetailPayl
     return null
   }
 
-  return { record }
+  return {
+    record,
+    artifacts: {
+      screenshotUrl: buildRuntimeArtifactUrl(record.screenshotArtifactPath) ?? undefined,
+      htmlUrl: buildRuntimeArtifactUrl(record.htmlArtifactPath) ?? undefined,
+    },
+  }
 }
 
 export function getProjectRecord(projectId: string): ProjectRecord | null {

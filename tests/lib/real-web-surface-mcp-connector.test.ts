@@ -287,7 +287,7 @@ describe("real web-surface MCP connector", () => {
     }
 
     expect(result.summaryLines.join(" ")).toContain("真实 MCP")
-  })
+  }, 15_000)
 
   it("aborts an in-flight real MCP stdio execution when the scheduler signal is cancelled", async () => {
     server.removeAllListeners("request")

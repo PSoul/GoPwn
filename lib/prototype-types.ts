@@ -296,6 +296,9 @@ export interface EvidenceRecord {
   linkedAssetLabel: string
   timeline: string[]
   verdict: string
+  capturedUrl?: string
+  screenshotArtifactPath?: string
+  htmlArtifactPath?: string
 }
 
 export interface McpToolRecord {
@@ -691,6 +694,10 @@ export interface EvidenceCollectionPayload {
 
 export interface EvidenceDetailPayload {
   record: EvidenceRecord
+  artifacts?: {
+    screenshotUrl?: string
+    htmlUrl?: string
+  }
 }
 
 export interface ApprovalDecisionInput {

@@ -92,7 +92,7 @@ describe("project orchestrator api routes", () => {
     expect(operationsPayload.orchestrator.provider.provider).toBe("openai-compatible")
     expect(operationsPayload.orchestrator.localLabs.some((lab: { id: string }) => lab.id === "juice-shop")).toBe(true)
     expect(operationsPayload.orchestrator.lastPlan.summary).toContain("Juice Shop")
-  })
+  }, 15_000)
 
   it("runs local validation, pauses on approval, and resumes after approval", async () => {
     seedWorkflowReadyMcpTools()

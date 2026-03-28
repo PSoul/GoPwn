@@ -105,7 +105,7 @@ function getStorePath() {
 
 function buildInitialStore(): PrototypeStore {
   return {
-    version: 10,
+    version: 11,
     auditLogs: [],
     approvalPolicies: [],
     approvals: [],

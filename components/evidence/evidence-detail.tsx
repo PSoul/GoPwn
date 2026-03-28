@@ -1,8 +1,20 @@
+import Image from "next/image"
+
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
+import { Button } from "@/components/ui/button"
 import type { EvidenceRecord } from "@/lib/prototype-types"
 
-export function EvidenceDetail({ record }: { record: EvidenceRecord }) {
+export function EvidenceDetail({
+  record,
+  artifacts,
+}: {
+  record: EvidenceRecord
+  artifacts?: {
+    screenshotUrl?: string
+    htmlUrl?: string
+  }
+}) {
   return (
     <div className="space-y-6">
       <SectionCard
@@ -50,15 +62,50 @@ export function EvidenceDetail({ record }: { record: EvidenceRecord }) {
           <SectionCard title="截图" eyebrow="Screenshot" description="截图不是装饰，而是帮助研究员快速确认页面上下文与肉眼可见线索。">
             <div className="rounded-[28px] border border-slate-200/80 bg-[linear-gradient(135deg,_rgba(14,165,233,0.16),_rgba(15,23,42,0.03))] p-6 dark:border-slate-800 dark:bg-[linear-gradient(135deg,_rgba(14,165,233,0.2),_rgba(2,6,23,0.5))]">
               <div className="rounded-[24px] border border-white/70 bg-white/80 p-5 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.4)] dark:border-slate-700 dark:bg-slate-900/80">
-                <div className="mb-4 flex items-center gap-2">
-                  <div className="h-2.5 w-2.5 rounded-full bg-rose-400" />
-                  <div className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-                  <div className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2.5 w-2.5 rounded-full bg-rose-400" />
+                    <div className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+                    <div className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {artifacts?.screenshotUrl ? (
+                      <Button asChild variant="outline" size="sm" className="rounded-full border-slate-300 dark:border-slate-700">
+                        <a href={artifacts.screenshotUrl} target="_blank" rel="noreferrer">
+                          打开截图
+                        </a>
+                      </Button>
+                    ) : null}
+                    {artifacts?.htmlUrl ? (
+                      <Button asChild variant="outline" size="sm" className="rounded-full border-slate-300 dark:border-slate-700">
+                        <a href={artifacts.htmlUrl} target="_blank" rel="noreferrer">
+                          打开 HTML
+                        </a>
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
-                <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-6 dark:border-slate-800 dark:bg-slate-950/80">
-                  <p className="text-sm font-semibold text-slate-950 dark:text-white">采证画面说明</p>
-                  <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{record.screenshotNote}</p>
-                </div>
+                {artifacts?.screenshotUrl ? (
+                  <div className="space-y-4">
+                    <Image
+                      src={artifacts.screenshotUrl}
+                      alt={`${record.title} screenshot`}
+                      width={1440}
+                      height={900}
+                      unoptimized
+                      className="w-full rounded-2xl border border-slate-200/80 bg-slate-50 object-cover shadow-[0_20px_60px_-40px_rgba(15,23,42,0.4)] dark:border-slate-800 dark:bg-slate-950/80"
+                    />
+                    <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-6 dark:border-slate-800 dark:bg-slate-950/80">
+                      <p className="text-sm font-semibold text-slate-950 dark:text-white">采证画面说明</p>
+                      <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{record.screenshotNote}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-6 dark:border-slate-800 dark:bg-slate-950/80">
+                    <p className="text-sm font-semibold text-slate-950 dark:text-white">采证画面说明</p>
+                    <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{record.screenshotNote}</p>
+                  </div>
+                )}
               </div>
             </div>
           </SectionCard>

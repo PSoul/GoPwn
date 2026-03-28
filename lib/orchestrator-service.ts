@@ -190,6 +190,7 @@ function buildProjectFallbackPlanItems(
   const parseCapability = findCapabilityByName(availableTools, "目标解析类")
   const dnsCapability = findCapabilityByKeywords(availableTools, ["dns", "子域", "证书"])
   const webCapability = findCapabilityByKeywords(availableTools, ["web", "页面", "入口", "header", "surface"])
+  const evidenceCapability = findCapabilityByKeywords(availableTools, ["截图", "证据", "capture", "snapshot"])
   const networkCapability = findCapabilityByKeywords(availableTools, ["端口", "服务", "网络", "扫描"])
   const targets = project.targets.slice(0, 4)
   const lifecycleReason =
@@ -245,6 +246,19 @@ function buildProjectFallbackPlanItems(
 
     appendUniquePlanItem(
       items,
+      evidenceCapability && webTarget
+        ? {
+            capability: evidenceCapability,
+            requestedAction: "采集关键页面截图与 HTML 证据",
+            target: webTarget,
+            riskLevel: "低",
+            rationale: "把关键页面上下文沉淀成可复核的截图和 HTML 快照，避免只有摘要没有原貌。",
+          }
+        : null,
+    )
+
+    appendUniquePlanItem(
+      items,
       networkCapability && (targetType === "ip" || targetType === "cidr")
         ? {
             capability: networkCapability,
@@ -271,6 +285,7 @@ function buildLocalLabFallbackPlanItems(
   const includeHttpStructure = canUseHttpStructureDiscovery(normalizedTarget)
   const parseCapability = findCapabilityByName(availableTools, "目标解析类")
   const webCapability = findCapabilityByKeywords(availableTools, ["web", "页面", "入口", "surface"])
+  const evidenceCapability = findCapabilityByKeywords(availableTools, ["截图", "证据", "capture", "snapshot"])
   const structureCapability = includeHttpStructure
     ? findCapabilityByKeywords(availableTools, ["http", "api", "graphql", "swagger", "openapi", "actuator"])
     : null
@@ -298,6 +313,18 @@ function buildLocalLabFallbackPlanItems(
           target: webProbeTarget,
           riskLevel: "低",
           rationale: "先获取入口、标题和响应特征，确认调度与结果沉淀链路是通的。",
+        }
+      : null,
+  )
+  appendUniquePlanItem(
+    items,
+    evidenceCapability
+      ? {
+          capability: evidenceCapability,
+          requestedAction: "采集本地靶场关键页面截图与 HTML 证据",
+          target: webProbeTarget,
+          riskLevel: "低",
+          rationale: "在进入后续验证前先沉淀真实页面上下文，便于确认登录页、入口和最终结果是否一致。",
         }
       : null,
   )
@@ -391,6 +418,15 @@ function inferCapabilityFromItem(
     capabilityText.includes("poc")
   ) {
     return findCapabilityByKeywords(availableTools, ["验证", "auth", "登录", "poc", "漏洞"]) ?? fallback.capability
+  }
+
+  if (
+    capabilityText.includes("截图") ||
+    capabilityText.includes("证据") ||
+    capabilityText.includes("capture") ||
+    capabilityText.includes("snapshot")
+  ) {
+    return findCapabilityByKeywords(availableTools, ["截图", "证据", "capture", "snapshot"]) ?? fallback.capability
   }
 
   return fallback.capability
