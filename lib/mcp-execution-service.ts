@@ -93,6 +93,15 @@ function buildHttpStructureAssetType(kind: string) {
   return kind === "actuator" ? "entry" : "api"
 }
 
+function isControlledValidationArtifactShape(rawResult: Extract<McpConnectorResult, { status: "succeeded" }>) {
+  return (
+    "requestSummary" in rawResult.structuredContent ||
+    "responseSummary" in rawResult.structuredContent ||
+    "responseSignals" in rawResult.structuredContent ||
+    "finding" in rawResult.structuredContent
+  )
+}
+
 function normalizeExecutionArtifacts(
   context: McpConnectorExecutionContext,
   rawResult: Extract<McpConnectorResult, { status: "succeeded" }>,
@@ -494,7 +503,7 @@ function normalizeExecutionArtifacts(
     }
   }
 
-  if (context.run.toolName === "auth-guard-check") {
+  if (context.run.capability === "受控验证类" && isControlledValidationArtifactShape(rawResult)) {
     const finding = (rawResult.structuredContent.finding as {
       affectedSurface: string
       severity: ProjectFindingRecord["severity"]

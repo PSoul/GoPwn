@@ -72,7 +72,7 @@ describe("real http-validation MCP connector", () => {
     rmSync(tempDir, { force: true, recursive: true })
   })
 
-  function registerValidationServer() {
+  function registerValidationServer(toolName = "auth-guard-check") {
     registerStoredMcpServer({
       serverName: "http-validation-stdio",
       version: "1.0.0",
@@ -84,7 +84,7 @@ describe("real http-validation MCP connector", () => {
       notes: "真实 HTTP 受控验证 MCP server",
       tools: [
         {
-          toolName: "auth-guard-check",
+          toolName,
           title: "HTTP 受控验证",
           description: "执行需要审批的高风险 HTTP 受控验证。",
           version: "1.0.0",
@@ -124,7 +124,7 @@ describe("real http-validation MCP connector", () => {
     })
   }
 
-  function buildContext(target: string): McpConnectorExecutionContext {
+  function buildContext(target: string, toolName = "auth-guard-check"): McpConnectorExecutionContext {
     return {
       approval: null,
       priorOutputs: {},
@@ -163,7 +163,7 @@ describe("real http-validation MCP connector", () => {
         projectName: "WebGoat Local Validation",
         capability: "受控验证类",
         toolId: "tool-auth-guard-check",
-        toolName: "auth-guard-check",
+        toolName,
         requestedAction: "验证 WebGoat Actuator 匿名暴露",
         target,
         riskLevel: "高",
@@ -232,5 +232,23 @@ describe("real http-validation MCP connector", () => {
     }
 
     expect(result.summaryLines.join(" ")).toContain("docker fallback")
+  })
+
+  it("supports any registered controlled-validation tool binding that exposes the shared HTTP validation MCP shape", async () => {
+    registerValidationServer("http-request-workbench")
+    const context = buildContext(targetUrl, "http-request-workbench")
+
+    expect(realHttpValidationMcpConnector.supports(context)).toBe(true)
+
+    const result = await realHttpValidationMcpConnector.execute(context)
+
+    expect(result.status).toBe("succeeded")
+
+    if (result.status !== "succeeded") {
+      throw new Error("Expected a successful generic HTTP workbench validation result.")
+    }
+
+    expect(result.outputs.validatedTargets).toEqual([targetUrl])
+    expect((result.structuredContent.responseSummary as { statusCode: number }).statusCode).toBe(200)
   })
 })

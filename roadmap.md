@@ -3,8 +3,8 @@
 ## Project Snapshot
 
 - Date: `2026-03-28`
-- Current focus: `codex/evidence-capture-mcp-2026-03-28` extends the real-MCP platform runtime with a new `截图与证据采集类` stdio MCP, runtime artifact persistence, authenticated artifact streaming, and evidence-detail UI support for real screenshots + HTML snapshots. The prior UI/流程重构 and lifecycle-control work remains intact: new projects still default to `idle`, require manual start before LLM orchestration begins, and support pause/resume/stop as real backend-controlled runtime transitions.
-- Working mode: each major feature area uses its own isolated git branch/worktree so the existing branch is not disturbed.
+- Current focus: 平台主线已收敛到 `v0.2.1` 基线，包含真实证据采集、生命周期控制、durable worker、cooperative cancellation 与双本地靶场闭环。下一阶段不再在本仓库里直接扩具体 MCP，而是把新增 MCP 的起步工作迁到独立脚手架仓库。
+- Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
 
 ## Phase 1: Frontend Prototype Closure
 
@@ -261,30 +261,31 @@
 
 ## Recommended Next Phase
 
-- Name: `Phase 9 - Network Discovery and Full Closure Regression`
-- Suggested branch/worktree: create a fresh isolated branch after this slice is merged or parked
-- Goal: build on the now-proven Juice Shop + WebGoat real closures by wiring evidence capture into the live validation closure path, then expanding the next batch of MCP families around network discovery and richer API recon.
+- Name: `Phase 9 - Standalone MCP Scaffold Expansion`
+- Suggested branch/worktree: 平台主仓库保持在 `main`，新的 MCP 工作优先转到独立仓库 `D:\dev\llmpentest-mcp-scaffold`
+- Goal: 让后续 MCP 开发不再耦合平台主仓库，通过独立脚手架仓库交付能力族 starter、合同镜像、stdio smoke 和平台注册工作流；平台主仓库只在确有必要时补最小桥接。
 
 ### Priority Tasks
 
-- completed in current slice: add a real `截图与证据采集类` MCP so Web 页面探测 and受控验证 can produce richer screenshots/HTML evidence without manual inspection
-- thread the new `capture-evidence` capability through `npm run live:validate` and preserve at least one real lab closure that leaves screenshot/HTML artifacts visible from the normal evidence route
-- add a next real family such as `端口探测类` or richer API recon so the platform can go beyond pure Web entry validation
-- refine the LLM runtime from stateless request/response planning into a more durable long-session control loop only if future operator needs prove that explicit model-side pause/resume signaling is necessary
-- expand regression coverage for long-running queue recovery, environment-blocked lab runs, report export, and second-lab execution
+- create or expand starter packs in the standalone scaffold repo, beginning with `端口探测类`
+- keep the platform-side MCP contract mirror and scaffold docs in sync with the real platform fields
+- only return to the platform repo when a new capability family needs:
+  - a new capability enum
+  - a new connector
+  - new normalization/writeback logic
+- continue platform-side regression hardening around queue recovery, environment-blocked lab runs, report export, and second-lab execution
 
 ### Acceptance Criteria
 
-- running-task interruption and recovery are operator-visible and survive restarts more cleanly than the current file-backed baseline
-- met in current slice: structure-discovery output is no longer just visible in run history and now lands as clearer evidence/context in project surfaces
-- met in current slice: at least one new real MCP family beyond the current DNS/Web/HTTP-validation trio is visible in the registry and usable from dispatch flows without destabilizing the queue
-- at least one preserved local-lab closure should expose screenshot/HTML artifacts through the normal evidence route, not only through isolated connector tests
-- local-lab health, fallback, and diagnostics stay consistent across the runner, API, and operations UI
+- the standalone scaffold repo can independently build, test, validate contracts, and smoke its stdio example
+- new MCP work no longer needs to start inside the platform repo by default
+- platform docs clearly explain when to stay in the scaffold repo and when to return for runtime bridge work
+- platform-side queue, closure, and diagnostics hardening continues without being blocked by MCP family scaffolding work
 
 ## Notes for Future LLM Sessions
 
 - Read `code_index.md` first for code structure.
 - Read this roadmap second for phase boundaries and current priorities.
 - Treat the provided backend template as the primary visual reference.
-- Do not develop major new work on an existing branch when a new isolated branch/worktree is requested.
+- Do not develop new MCP servers directly in this platform repo by default; prefer `D:\dev\llmpentest-mcp-scaffold`.
 - Keep the "LLM = brain, MCP = limbs" boundary explicit: external interactions should flow through MCP, while normalization and platform-side aggregation can stay internal.

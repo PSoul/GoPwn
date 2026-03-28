@@ -19,7 +19,7 @@
 - 当前形态：可运行全栈原型
 - 版本定位：第二阶段原型里程碑，重点补齐了 `WebGoat` 真实 finding 闭环、项目生命周期控制、durable worker 与 cooperative cancellation
 - 当前主线：已完成 `Juice Shop` 与 `WebGoat` 两条本地真实闭环验证
-- 当前进行中：更多真实 MCP 能力族、端口/服务发现、以及更 durable 的长期运行后端
+- 当前进行中：主线已收敛到 `v0.2.1` 基线；新增 MCP 将优先迁移到独立脚手架仓库中开发，平台主仓库继续负责运行时、调度、审批和结果沉淀
 
 ### 已完成的核心能力
 
@@ -240,11 +240,16 @@ $env:LIVE_VALIDATION_STATE_MODE = "isolated"
 
 当前平台已经具备严格的 MCP 注册合同校验能力，新接入的 MCP 必须先通过合同验证，才能进入平台调度候选池。
 
+从本阶段开始，推荐先在独立脚手架仓库中开发和校验新 MCP，再注册回平台：
+
+- 推荐脚手架仓库：`D:\dev\llmpentest-mcp-scaffold`
+
 建议优先阅读：
 
 - `docs/contracts/mcp-server-contract.md`
 - `docs/templates/mcp-connector-template.md`
 - `docs/operations/mcp-onboarding-guide.md`
+- `docs/operations/standalone-mcp-scaffold-workflow.md`
 
 当前合同重点约束：
 
@@ -268,6 +273,8 @@ $env:LIVE_VALIDATION_STATE_MODE = "isolated"
   - MCP Server 注册合同
 - `docs/templates/mcp-connector-template.md`
   - MCP 接入模板
+- `docs/operations/standalone-mcp-scaffold-workflow.md`
+  - 如何从独立脚手架仓库开发、校验并注册新 MCP
 
 ## 11. 运行产物说明
 
@@ -315,14 +322,11 @@ $env:LIVE_VALIDATION_STATE_MODE = "isolated"
 
 ### P0：当前最高优先级
 
-- [x] 跑通第二个本地靶场 `WebGoat` 的低风险真实闭环
-- [x] 统一 `local lab catalog`、runner、API、前端页面的 WebGoat 默认端口到 `18080/19090`
+- [x] 把平台主线收敛到 `v0.2.1`
+- [x] 新建独立 MCP 脚手架仓库，避免后续 MCP 开发继续耦合在平台主仓库中
+- [x] 提供独立脚手架仓库的示例 MCP、合同校验、平台注册 helper 与交接文档
+- [ ] 把脚手架仓库继续抽象成更多能力族 starter，而不是只有单示例
 - [ ] 把当前 `WebGoat` 的“offline / 不可达”提示继续收敛成更可执行的环境诊断信息
-- [x] 为第二个靶场闭环补齐真实项目数据、证据沉淀与页面导出
-- [x] 补一条可复用的“第二靶场回归验证”脚本与文档
-- [x] 为 `WebGoat` 接入真实 `受控验证类` MCP，把低风险识别闭环扩展成真实漏洞发现闭环
-- [x] 把 `HTTP / API 结构发现类` 的结果从运行记录提升为真实资产与证据沉淀
-- [x] 补齐 `截图与证据采集类`，让平台能够沉淀真实页面截图与 HTML 快照
 
 ### P1：运行时与后端稳定性
 
@@ -401,9 +405,9 @@ $env:LIVE_VALIDATION_STATE_MODE = "isolated"
 
 建议先按下面顺序继续推进：
 
-1. 把 `截图与证据采集类` 接入 `live:validate` 与真实项目闭环
-2. 补 `端口探测类` 或更强的 API Recon 能力
-3. 统一本地靶场健康诊断语义
+1. 在独立脚手架仓库中继续抽出更多 starter，优先 `端口探测类`
+2. 平台主仓库继续稳住 durable backend、诊断语义和项目闭环
+3. 只有当新能力族需要平台新桥接时，再回平台主仓库补连接器或归一化
 4. 补第二靶场与真实 finding 的自动化回归
 5. 再继续扩大 durable backend 与运维观测能力
 
@@ -411,5 +415,5 @@ $env:LIVE_VALIDATION_STATE_MODE = "isolated"
 
 - 当前仓库已经适合继续做下一阶段真实后端与真实 MCP 扩展，但还不适合作为生产系统直接上线
 - 如果你是新的 LLM 接手本项目，先读 `code_index.md`，再读 `roadmap.md`
-- 如果你准备新增一个 MCP，请不要跳过合同和模板，先从文档入手再接实现
+- 如果你准备新增一个 MCP，请优先去独立脚手架仓库 `D:\dev\llmpentest-mcp-scaffold`
 - 当前版本 `v0.2.1` 更适合视为“可演示、可验证、可继续接入真实 MCP 的原型里程碑”，而不是最终生产版本

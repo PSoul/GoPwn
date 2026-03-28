@@ -1,4 +1,6 @@
 import { mkdtempSync, rmSync } from "node:fs"
+import { createServer } from "node:http"
+import type { AddressInfo } from "node:net"
 import { tmpdir } from "node:os"
 import path from "node:path"
 
@@ -7,19 +9,36 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { listStoredAssets } from "@/lib/asset-repository"
 import { executeStoredMcpRun } from "@/lib/mcp-execution-service"
 import { dispatchStoredMcpRun, getStoredMcpRunById } from "@/lib/mcp-gateway-repository"
+import { registerStoredMcpServer } from "@/lib/mcp-server-repository"
 import { getStoredSchedulerTaskByRunId, updateStoredSchedulerTask } from "@/lib/mcp-scheduler-repository"
+import { readPrototypeStore } from "@/lib/prototype-store"
 import { createStoredProjectFixture, seedWorkflowReadyMcpTools } from "@/tests/helpers/project-fixtures"
 
 describe("MCP execution service cancellation guard", () => {
   let tempDir: string
+  let fixtureServer: ReturnType<typeof createServer> | null = null
+  let fixtureUrl = ""
 
   beforeEach(() => {
     tempDir = mkdtempSync(path.join(tmpdir(), "llm-pentest-execution-guard-store-"))
     process.env.PROTOTYPE_DATA_DIR = tempDir
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     delete process.env.PROTOTYPE_DATA_DIR
+    if (fixtureServer) {
+      await new Promise<void>((resolve, reject) => {
+        fixtureServer!.close((error) => {
+          if (error) {
+            reject(error)
+            return
+          }
+
+          resolve()
+        })
+      })
+      fixtureServer = null
+    }
     rmSync(tempDir, { force: true, recursive: true })
   })
 
@@ -119,5 +138,92 @@ describe("MCP execution service cancellation guard", () => {
     expect(result?.status).toBe("succeeded")
     expect(getStoredMcpRunById(payload!.run.id)?.status).toBe("已执行")
     expect(getStoredMcpRunById(payload!.run.id)?.toolName).toBe("report-exporter")
+  })
+
+  it("normalizes findings and evidence for a generic controlled-validation tool binding that reuses the shared HTTP validation MCP shape", async () => {
+    fixtureServer = createServer((_request, response) => {
+      response.writeHead(200, {
+        "content-type": "application/vnd.spring-boot.actuator.v3+json",
+        server: "fixture-spring",
+      })
+      response.end(
+        JSON.stringify({
+          _links: {
+            self: { href: "http://127.0.0.1/actuator" },
+            health: { href: "http://127.0.0.1/actuator/health" },
+            env: { href: "http://127.0.0.1/actuator/env" },
+          },
+        }),
+      )
+    })
+
+    await new Promise<void>((resolve) => {
+      fixtureServer!.listen(0, "127.0.0.1", () => resolve())
+    })
+
+    const { port } = fixtureServer.address() as AddressInfo
+    fixtureUrl = `http://127.0.0.1:${port}/actuator`
+
+    registerStoredMcpServer({
+      serverName: "http-validation-stdio",
+      version: "1.0.0",
+      transport: "stdio",
+      command: "node",
+      args: ["scripts/mcp/http-validation-server.mjs"],
+      endpoint: "stdio://http-validation-stdio",
+      enabled: true,
+      notes: "真实 HTTP 受控验证 MCP server",
+      tools: [
+        {
+          toolName: "http-request-workbench",
+          title: "HTTP 请求工作台",
+          description: "执行需要审批的通用 HTTP 受控验证。",
+          version: "1.0.0",
+          capability: "受控验证类",
+          boundary: "外部目标交互",
+          riskLevel: "高",
+          requiresApproval: true,
+          resultMappings: ["findings", "evidence", "workLogs"],
+          inputSchema: {
+            type: "object",
+            properties: {
+              targetUrl: {
+                type: "string",
+              },
+            },
+            required: ["targetUrl"],
+            additionalProperties: false,
+          },
+          outputSchema: {
+            type: "object",
+          },
+          defaultConcurrency: "1",
+          rateLimit: "2 req/min",
+          timeout: "20s",
+          retry: "1 次",
+          owner: "测试夹具",
+        },
+      ],
+    })
+
+    const fixture = createStoredProjectFixture({
+      seed: fixtureUrl,
+      targetType: "url",
+    })
+    const payload = dispatchStoredMcpRun(fixture.project.id, {
+      capability: "受控验证类",
+      requestedAction: "验证 actuator 工作台示例",
+      target: fixtureUrl,
+      riskLevel: "高",
+    })
+
+    expect(payload?.run.toolName).toBe("http-request-workbench")
+
+    const result = await executeStoredMcpRun(payload!.run.id)
+
+    expect(result?.status).toBe("succeeded")
+    expect(getStoredMcpRunById(payload!.run.id)?.status).toBe("已执行")
+    expect(readPrototypeStore().projectFindings.some((item) => item.projectId === fixture.project.id)).toBe(true)
+    expect(readPrototypeStore().evidenceRecords.some((item) => item.projectId === fixture.project.id)).toBe(true)
   })
 })

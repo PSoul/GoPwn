@@ -66,7 +66,11 @@ export const realHttpValidationMcpConnector: McpConnector = {
   supports: ({ project, run }) => {
     const target = run.target || getProjectPrimaryTarget(project)
 
-    return run.toolName === "auth-guard-check" && isHttpTarget(target) && Boolean(findStoredEnabledMcpServerByToolBinding(run.toolName))
+    return (
+      run.capability === "受控验证类" &&
+      isHttpTarget(target) &&
+      Boolean(findStoredEnabledMcpServerByToolBinding(run.toolName))
+    )
   },
   async execute(context: McpConnectorExecutionContext): Promise<McpConnectorResult> {
     throwIfExecutionAborted(context.signal)

@@ -29,6 +29,7 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
 - the same slice also adds a real HTTP controlled-validation MCP path, upgrades HTTP/API structure-discovery normalization so candidate endpoints land as assets and evidence, and verifies both the WebGoat finding page and the project-side report export in the browser UI without relying on mock/demo state
 - the latest lifecycle-control slice adds an explicit project lifecycle state machine (`idle | running | paused | stopped`), requires manual start before the LLM begins project orchestration, makes pause/resume drive backend scheduling behavior, and centralizes the platform's LLM-brain prompts in one shared module
 - the latest evidence-capture slice adds a real Playwright-backed `截图与证据采集类` stdio MCP, runtime artifact persistence for screenshots/HTML snapshots, an authenticated artifact streaming API, and evidence-detail UI that can render the stored screenshot instead of only showing a note
+- from this phase onward, this repository is no longer the preferred birthplace for brand-new MCP servers; new MCP work should start in the standalone scaffold repo at `D:\dev\llmpentest-mcp-scaffold`, and this repository should only take the platform-runtime bridge work that those MCPs require
 
 ## 2. Routing Map
 
@@ -609,6 +610,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Operator guide for `/settings/llm`, including editable fields, `/api/settings/llm` request/response shape, and the runtime store-first resolution order before environment-variable fallback.
 - `docs/operations/mcp-onboarding-guide.md`
   Current MCP onboarding guide explaining the boundary model, strict registration flow, persistence targets, and testing checklist for future MCP tool families.
+- `docs/operations/standalone-mcp-scaffold-workflow.md`
+  Bridge document explaining when new MCP work belongs in the standalone scaffold repo, how to register scaffolded MCPs back into the platform, and when the platform repo still needs bridge changes.
 - `docs/contracts/mcp-server-contract.md`
   Machine-oriented field contract for MCP server/tool registration, including required fields, enum constraints, schema rules, the strict validation path new MCP integrations must satisfy before registration succeeds, and the recommended request/response evidence fields for `受控验证类` tools.
 - `docs/templates/mcp-connector-template.md`
