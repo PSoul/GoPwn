@@ -67,6 +67,7 @@
 1. 平台主仓库 `README.md`
 2. 平台主仓库 `roadmap.md`
 3. 平台主仓库 `code_index.md`
-4. 脚手架仓库 `README.md`
-5. 脚手架仓库 `docs/capability-matrix.md`
-6. 脚手架仓库 `docs/integration/platform-registration-workflow.md`
+4. 平台主仓库 `docs/prompts/2026-03-28-phase-11-platform-runtime-bridge-hardening-prompt.md`
+5. 脚手架仓库 `README.md`
+6. 脚手架仓库 `docs/capability-matrix.md`
+7. 脚手架仓库 `docs/integration/platform-registration-workflow.md`

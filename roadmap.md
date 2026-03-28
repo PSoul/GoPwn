@@ -282,6 +282,11 @@
 - platform docs clearly explain when to stay in the scaffold repo and when to return for runtime bridge work
 - platform-side queue, closure, and diagnostics hardening continues without being blocked by MCP family scaffolding work
 
+### Suggested Prompt
+
+- `docs/prompts/2026-03-28-phase-11-platform-runtime-bridge-hardening-prompt.md`
+  - 当下一次回到宿主平台仓库继续开发时，优先使用这份 prompt；它聚焦宿主平台运行时、桥接、配置和闭环硬化，而不是继续在本仓库里新增 MCP server
+
 ## Notes for Future LLM Sessions
 
 - Read `code_index.md` first for code structure.

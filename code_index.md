@@ -650,6 +650,8 @@ This workspace is a Next.js App Router frontend prototype for an authorized exte
   Recommended follow-up prompt for the next isolated slice, focused on durable execution controls, additional real connector families, and stabilizing WebGoat/local-lab regression behavior.
 - `docs/prompts/2026-03-27-phase-09-real-project-closure-and-new-mcp-families-prompt.md`
   Recommended follow-up prompt for turning local-lab validation into a true project closure flow and adding another real MCP family.
+- `docs/prompts/2026-03-28-phase-11-platform-runtime-bridge-hardening-prompt.md`
+  Self-contained handoff prompt for future work inside the host platform repository itself. It explains repository boundaries from zero context and focuses on runtime hardening, deterministic MCP bridge selection, diagnostics, and config governance instead of birthing new MCP servers here.
 - `output/live-validation/`
   Runtime-generated, git-ignored validation artifact directory. Successful local runs currently emit Markdown and JSON reports here, including confirmed `Juice Shop`, low-risk `WebGoat`, and real-finding `WebGoat` validation samples from `2026-03-27`.
 - `docs/superpowers/specs/2026-03-26-mcp-gateway-registry-spec.md`

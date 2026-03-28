@@ -275,6 +275,8 @@ $env:LIVE_VALIDATION_STATE_MODE = "isolated"
   - MCP 接入模板
 - `docs/operations/standalone-mcp-scaffold-workflow.md`
   - 如何从独立脚手架仓库开发、校验并注册新 MCP
+- `docs/prompts/2026-03-28-phase-11-platform-runtime-bridge-hardening-prompt.md`
+  - 下一阶段给“宿主平台仓库”本身使用的接手 prompt，重点是 runtime bridge、调度、配置与结果归一化硬化，而不是继续在这里孵化新 MCP
 
 ## 11. 运行产物说明
 
