@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "httpx": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "cwd": "/path/to/httpx-mcp-server",
+      "env": {
+        "HTTPX_PATH": "/usr/local/bin/httpx"
+      }
+    }
+  }
+}

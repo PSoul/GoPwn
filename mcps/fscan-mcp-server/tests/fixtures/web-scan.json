@@ -1,0 +1,9 @@
+[
+  {
+    "time": "2024-03-28T10:34:00Z",
+    "type": "VULN",
+    "target": "192.168.1.100",
+    "status": "vulnerable",
+    "details": { "port": "80", "service": "http", "type": "shiro-key", "url": "http://192.168.1.100" }
+  }
+]

@@ -24,6 +24,18 @@ type LocalLabBrainPromptInput = {
   projectStage: string
 }
 
+type ProjectReviewerPromptInput = {
+  assetCount: number
+  description: string
+  evidenceCount: number
+  findingCount: number
+  latestReportSummary: string
+  projectName: string
+  recentContext: string[]
+  stage: string
+  targets: string[]
+}
+
 function formatToolLine(tool: ProjectBrainPromptInput["availableTools"][number]) {
   return `- capability=${tool.capability}; tool=${tool.toolName}; risk=${tool.riskLevel}; boundary=${tool.boundary}; approval=${tool.requiresApproval ? "required" : "optional"}`
 }
@@ -83,6 +95,8 @@ export function buildProjectBrainPrompt(input: ProjectBrainPromptInput) {
     "- 默认给出 3 到 6 条 item。",
     "- 可以包含后续需要审批的动作，但只有在低风险结果已经支撑它时才允许出现高风险动作。",
     "- 对同一个 target，先安排整理/发现，再安排验证；不要直接跳到高风险动作。",
+    "- 范围约束：只能围绕项目输入目标本身、域名目标的子域、以及原始 IP/CIDR 展开；不要因为结果里出现了新域名或新网段就自动越界。",
+    "- 如果目标是 URL 且 host 为 IP 或 localhost，不要安排 DNS / 子域类动作。",
   ].join("\n")
 }
 
@@ -99,5 +113,25 @@ export function buildLocalLabBrainPrompt(input: LocalLabBrainPromptInput) {
     "输出要求：",
     "- target 必须直接填写可访问 URL。",
     "- 优先目标解析、Web 入口识别、结构发现；高风险验证仅在 approvalScenario=include-high-risk 时出现。",
+  ].join("\n")
+}
+
+export function buildProjectReviewerPrompt(input: ProjectReviewerPromptInput) {
+  const recentContext =
+    input.recentContext.length > 0 ? input.recentContext.map((line) => `- ${line}`).join("\n") : "- 当前没有更多运行上下文。"
+  const targets = input.targets.length > 0 ? input.targets.map((target) => `- ${target}`).join("\n") : "- (empty)"
+
+  return [
+    "请基于当前项目已沉淀的真实资产、证据、漏洞/发现和最近活动，生成项目最终结论。",
+    "不要发明新的资产、漏洞或执行结果，只能总结已有事实。",
+    "summary 必须是一段完整的中文最终结论。",
+    "items 只保留 1 到 3 条后续建议，不要再输出新的 MCP 计划。",
+    `项目名称：${input.projectName}`,
+    `当前阶段：${input.stage}`,
+    `项目说明：${input.description || "无"}`,
+    `目标列表：\n${targets}`,
+    `当前计数：资产=${input.assetCount}; 证据=${input.evidenceCount}; 漏洞/发现=${input.findingCount}`,
+    `最近报告摘要：${input.latestReportSummary || "尚未导出报告摘要。"}`,
+    `最近上下文：\n${recentContext}`,
   ].join("\n")
 }

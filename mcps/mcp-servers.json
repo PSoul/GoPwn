@@ -1,0 +1,89 @@
+{
+  "mcpServers": {
+    "fscan": {
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"],
+      "cwd": "mcps/fscan-mcp-server",
+      "env": {
+        "FSCAN_PATH": "mcps/fscan-mcp-server/bin/fscan.exe"
+      }
+    },
+    "subfinder": {
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"],
+      "cwd": "mcps/subfinder-mcp-server",
+      "env": {
+        "SUBFINDER_PATH": "mcps/subfinder-mcp-server/bin/subfinder.exe"
+      }
+    },
+    "httpx": {
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"],
+      "cwd": "mcps/httpx-mcp-server",
+      "env": {
+        "HTTPX_PATH": "mcps/httpx-mcp-server/bin/httpx.exe"
+      }
+    },
+    "curl": {
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"],
+      "cwd": "mcps/curl-mcp-server"
+    },
+    "netcat": {
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"],
+      "cwd": "mcps/netcat-mcp-server"
+    },
+    "afrog": {
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"],
+      "cwd": "mcps/afrog-mcp-server",
+      "env": {
+        "AFROG_PATH": "mcps/afrog-mcp-server/bin/afrog.exe"
+      }
+    },
+    "dirsearch": {
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"],
+      "cwd": "mcps/dirsearch-mcp-server",
+      "env": {
+        "DIRSEARCH_PATH": "dirsearch"
+      }
+    },
+    "fofa": {
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"],
+      "cwd": "mcps/fofa-mcp-server",
+      "env": {
+        "FOFA_EMAIL": "",
+        "FOFA_KEY": ""
+      }
+    },
+    "whois": {
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"],
+      "cwd": "mcps/whois-mcp-server"
+    },
+    "encode": {
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"],
+      "cwd": "mcps/encode-mcp-server"
+    },
+    "wafw00f": {
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"],
+      "cwd": "mcps/wafw00f-mcp-server",
+      "env": {
+        "WAFW00F_PATH": "wafw00f"
+      }
+    },
+    "github-recon": {
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"],
+      "cwd": "mcps/github-recon-mcp-server",
+      "env": {
+        "GITHUB_TOKEN": ""
+      }
+    }
+  }
+}

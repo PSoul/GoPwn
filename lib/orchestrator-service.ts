@@ -3,6 +3,13 @@ import { listStoredProjectApprovals } from "@/lib/approval-repository"
 import { listStoredAssets } from "@/lib/asset-repository"
 import { listStoredEvidence } from "@/lib/evidence-repository"
 import { buildLocalLabBrainPrompt, buildProjectBrainPrompt } from "@/lib/llm-brain-prompt"
+import {
+  buildAssetSnapshot,
+  buildCompressedRoundHistory,
+  buildLastRoundDetail,
+  buildMultiRoundBrainPrompt,
+  buildUnusedCapabilities,
+} from "@/lib/orchestrator-context-builder"
 import { getConfiguredLlmProviderStatus, resolveLlmProvider } from "@/lib/llm-provider/registry"
 import { buildLocalLabPlanSummary, getLocalLabById, listLocalLabs } from "@/lib/local-lab-catalog"
 import { findStoredEnabledMcpServerByToolBinding } from "@/lib/mcp-server-repository"
@@ -10,8 +17,15 @@ import { listStoredMcpTools } from "@/lib/mcp-repository"
 import { dispatchProjectMcpRunAndDrain } from "@/lib/project-mcp-dispatch-service"
 import { formatTimestamp } from "@/lib/prototype-record-utils"
 import { getStoredProjectById } from "@/lib/project-repository"
-import { listStoredProjectFindings } from "@/lib/project-results-repository"
-import { updateStoredProjectSchedulerControl } from "@/lib/project-scheduler-control-repository"
+import {
+  generateStoredProjectFinalConclusion,
+  getStoredProjectReportExportPayload,
+  listStoredProjectFindings,
+} from "@/lib/project-results-repository"
+import {
+  getStoredProjectSchedulerControl,
+  updateStoredProjectSchedulerControl,
+} from "@/lib/project-scheduler-control-repository"
 import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
 import type {
   ApprovalRecord,
@@ -23,9 +37,12 @@ import type {
   OrchestratorPlanItem,
   OrchestratorPlanPayload,
   OrchestratorPlanRecord,
+  OrchestratorRoundRecord,
   ProjectRecord,
 } from "@/lib/prototype-types"
 import { listStoredWorkLogs, upsertStoredWorkLogs } from "@/lib/work-log-repository"
+import { listStoredSchedulerTasks } from "@/lib/mcp-scheduler-repository"
+import { discoverAndRegisterMcpServers } from "@/lib/mcp-auto-discovery"
 
 type ProjectLifecyclePlanInput = {
   controlCommand: "replan" | "resume" | "start"
@@ -167,6 +184,102 @@ function toWebTarget(target: string) {
   return null
 }
 
+function isLocalHost(value: string) {
+  return ["localhost", "127.0.0.1"].includes(value.trim().toLowerCase())
+}
+
+function ipv4ToNumber(ip: string) {
+  const parts = ip.split(".").map((part) => Number(part))
+
+  if (parts.length !== 4 || parts.some((part) => Number.isNaN(part) || part < 0 || part > 255)) {
+    return null
+  }
+
+  return parts.reduce((accumulator, part) => (accumulator << 8) + part, 0) >>> 0
+}
+
+function isIpv4InCidr(ip: string, cidr: string) {
+  const [baseIp, rawMask] = cidr.split("/")
+  const candidate = ipv4ToNumber(ip)
+  const base = ipv4ToNumber(baseIp)
+  const maskBits = Number(rawMask)
+
+  if (candidate === null || base === null || Number.isNaN(maskBits) || maskBits < 0 || maskBits > 32) {
+    return false
+  }
+
+  const mask = maskBits === 0 ? 0 : ((0xffffffff << (32 - maskBits)) >>> 0)
+
+  return (candidate & mask) === (base & mask)
+}
+
+function extractComparableHost(target: string) {
+  const trimmed = target.trim()
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      return new URL(trimmed).hostname.toLowerCase()
+    } catch {
+      return trimmed.toLowerCase()
+    }
+  }
+
+  return trimmed.toLowerCase()
+}
+
+function isTargetWithinProjectScope(project: ProjectRecord, candidateTarget: string) {
+  const candidate = candidateTarget.trim()
+
+  if (!candidate) {
+    return false
+  }
+
+  const candidateHost = extractComparableHost(candidate)
+  const candidateType = classifyTarget(candidateHost)
+
+  return project.targets.some((projectTarget) => {
+    const normalizedProjectTarget = projectTarget.trim()
+    const projectHost = extractComparableHost(normalizedProjectTarget)
+    const projectType = classifyTarget(projectHost)
+
+    if (candidate.toLowerCase() === normalizedProjectTarget.toLowerCase()) {
+      return true
+    }
+
+    if (candidateHost === projectHost || (isLocalHost(candidateHost) && isLocalHost(projectHost))) {
+      return true
+    }
+
+    if (projectType === "domain") {
+      return candidateHost === projectHost || candidateHost.endsWith(`.${projectHost}`)
+    }
+
+    if (projectType === "url") {
+      const urlHost = extractComparableHost(normalizedProjectTarget)
+
+      if (isLocalHost(urlHost)) {
+        return isLocalHost(candidateHost)
+      }
+
+      return candidateHost === urlHost
+    }
+
+    if (projectType === "ip") {
+      return candidateType === "ip" ? candidateHost === projectHost : candidateHost === projectHost
+    }
+
+    if (projectType === "cidr") {
+      return candidateType === "ip" ? isIpv4InCidr(candidateHost, projectHost) : isIpv4InCidr(candidateHost, projectHost)
+    }
+
+    return false
+  })
+}
+
+function filterPlanItemsToProjectScope(project: ProjectRecord, items: OrchestratorPlanItem[]) {
+  return items.filter((item) => isTargetWithinProjectScope(project, item.target))
+}
+
 function appendUniquePlanItem(collection: OrchestratorPlanItem[], item: OrchestratorPlanItem | null) {
   if (!item) {
     return
@@ -220,7 +333,7 @@ function buildProjectFallbackPlanItems(
 
     appendUniquePlanItem(
       items,
-      dnsCapability && (targetType === "domain" || targetType === "url")
+      dnsCapability && (targetType === "domain" || (targetType === "url" && classifyTarget(host) === "domain"))
         ? {
             capability: dnsCapability,
             requestedAction: "补采域名、子域与证书情报",
@@ -548,6 +661,66 @@ function persistProjectOrchestratorPlan(projectId: string, plan: OrchestratorPla
   return plan
 }
 
+function hasActiveProjectSchedulerWork(projectId: string) {
+  return listStoredSchedulerTasks(projectId).some((task) =>
+    ["ready", "retry_scheduled", "delayed", "running", "waiting_approval"].includes(task.status),
+  )
+}
+
+async function settleProjectLifecycleClosure(projectId: string, note?: string) {
+  const project = getStoredProjectById(projectId)
+  const schedulerControl = getStoredProjectSchedulerControl(projectId)
+
+  if (!project || !schedulerControl) {
+    return null
+  }
+
+  if (schedulerControl.lifecycle !== "running" || ["已停止", "已完成"].includes(project.status)) {
+    return null
+  }
+
+  const pendingApprovals = listStoredProjectApprovals(projectId).filter((approval) => approval.status === "待处理")
+
+  if (pendingApprovals.length > 0 || hasActiveProjectSchedulerWork(projectId)) {
+    return null
+  }
+
+  const reportExport = getStoredProjectReportExportPayload(projectId)
+
+  if (!reportExport.latest) {
+    const dispatch = await dispatchProjectMcpRunAndDrain(projectId, {
+      capability: "报告导出类",
+      requestedAction: "导出项目报告",
+      target: project.code,
+      riskLevel: "低",
+    })
+
+    if (!dispatch || dispatch.approval || dispatch.run.status === "已阻塞") {
+      return null
+    }
+  }
+
+  const conclusion = await generateStoredProjectFinalConclusion(projectId)
+
+  if (conclusion) {
+    upsertStoredWorkLogs([
+      {
+        id: `work-project-closure-${projectId}-${Date.now()}`,
+        category: "项目收束",
+        summary: note
+          ? `${note} 项目已进入最终结论阶段并完成当前轮次收束。`
+          : "项目已进入最终结论阶段并完成当前轮次收束。",
+        projectName: project.name,
+        actor: conclusion.source === "reviewer" ? "reviewer-provider" : "reviewer-fallback",
+        timestamp: formatTimestamp(),
+        status: "已完成",
+      },
+    ])
+  }
+
+  return conclusion
+}
+
 async function executePlanItems(
   projectId: string,
   items: OrchestratorPlanItem[],
@@ -568,14 +741,12 @@ async function executePlanItems(
     })
 
     if (!payload) {
-      return {
-        runs,
-        status: "blocked",
-      }
+      continue
     }
 
     runs.push(payload.run)
 
+    // Only approval blocking stops the round — individual tool failures are tolerated
     if (payload.approval) {
       return {
         approval: payload.approval,
@@ -583,18 +754,11 @@ async function executePlanItems(
         status: "waiting_approval",
       }
     }
-
-    if (payload.run.status === "已阻塞") {
-      return {
-        runs,
-        status: "blocked",
-      }
-    }
   }
 
   return {
     runs,
-    status: "completed",
+    status: runs.length > 0 ? "completed" : "blocked",
   }
 }
 
@@ -655,12 +819,15 @@ export async function generateProjectLifecyclePlan(
     }),
     purpose: "orchestrator",
   })
-  const normalizedItems = normalizePlanItems({
-    availableTools,
-    fallbackItems,
-    items: providerResult.content.items,
-    mode: "project",
-  })
+  const normalizedItems = filterPlanItemsToProjectScope(
+    project,
+    normalizePlanItems({
+      availableTools,
+      fallbackItems,
+      items: providerResult.content.items,
+      mode: "project",
+    }),
+  )
   const plan = persistProjectOrchestratorPlan(
     projectId,
     normalizePlanRecord({
@@ -676,15 +843,207 @@ export async function generateProjectLifecyclePlan(
   }
 }
 
-export async function runProjectLifecycleKickoff(projectId: string, input: ProjectLifecyclePlanInput) {
+function recordOrchestratorRound(
+  projectId: string,
+  round: number,
+  startedAt: string,
+  execution: DispatchPlanResult,
+  planItemCount: number,
+): OrchestratorRoundRecord {
+  const store = readPrototypeStore()
+  const beforeAssets = listStoredAssets(projectId).length
+  const beforeEvidence = listStoredEvidence(projectId).length
+  const beforeFindings = listStoredProjectFindings(projectId).length
+
+  const record: OrchestratorRoundRecord = {
+    round,
+    startedAt,
+    completedAt: formatTimestamp(),
+    planItemCount,
+    executedCount: execution.runs.length,
+    newAssetCount: listStoredAssets(projectId).length - Math.max(0, beforeAssets - execution.runs.length),
+    newEvidenceCount: listStoredEvidence(projectId).length - Math.max(0, beforeEvidence - execution.runs.length),
+    newFindingCount: listStoredProjectFindings(projectId).length - Math.max(0, beforeFindings - execution.runs.length),
+    failedActions: execution.runs
+      .filter((r) => r.status === "已阻塞")
+      .map((r) => `${r.toolName}(${r.target})`),
+    blockedByApproval: execution.approval ? [`${execution.approval.actionType}(${execution.approval.target})`] : [],
+    summaryForNextRound: `第${round}轮执行${execution.runs.length}个动作`,
+  }
+
+  if (!store.orchestratorRounds[projectId]) {
+    store.orchestratorRounds[projectId] = []
+  }
+  store.orchestratorRounds[projectId].push(record)
+  writePrototypeStore(store)
+
+  return record
+}
+
+function shouldContinueAutoReplan(
+  projectId: string,
+  currentRound: number,
+  maxRounds: number,
+  lastPlanPayload: OrchestratorPlanPayload,
+  lastExecution: DispatchPlanResult,
+): { shouldContinue: boolean; reason: string } {
+  // Stop condition 1: Max rounds reached
+  if (currentRound >= maxRounds) {
+    return { shouldContinue: false, reason: `已达到最大轮次限制 (${maxRounds})` }
+  }
+
+  // Stop condition 2: LLM returned empty items
+  if (lastPlanPayload.plan.items.length === 0) {
+    return { shouldContinue: false, reason: "LLM 判断当前结果已足够完整" }
+  }
+
+  // Stop condition 3: Execution blocked by approval
+  if (lastExecution.status === "waiting_approval") {
+    return { shouldContinue: false, reason: "有未处理的高风险审批，暂停自动编排" }
+  }
+
+  // Stop condition 4: All executions failed
+  if (lastExecution.status === "blocked") {
+    return { shouldContinue: false, reason: "本轮执行全部失败或阻塞" }
+  }
+
+  // Stop condition 5: No progress (check last 2 rounds)
+  const store = readPrototypeStore()
+  const rounds = store.orchestratorRounds[projectId] ?? []
+
+  if (rounds.length >= 2) {
+    const lastTwo = rounds.slice(-2)
+    const noProgress = lastTwo.every(
+      (r) => r.newAssetCount === 0 && r.newFindingCount === 0 && r.newEvidenceCount === 0,
+    )
+
+    if (noProgress) {
+      return { shouldContinue: false, reason: "连续 2 轮无新增资产/证据/发现" }
+    }
+  }
+
+  // Stop condition 6: Check scheduler control (user may have paused/stopped)
+  const control = getStoredProjectSchedulerControl(projectId)
+
+  if (!control || control.lifecycle !== "running" || control.paused) {
+    return { shouldContinue: false, reason: "项目已被暂停或停止" }
+  }
+
+  return { shouldContinue: true, reason: "" }
+}
+
+async function generateMultiRoundPlan(
+  projectId: string,
+  currentRound: number,
+): Promise<OrchestratorPlanPayload | null> {
   const project = getStoredProjectById(projectId)
+
+  if (!project) {
+    return null
+  }
+
+  const control = getStoredProjectSchedulerControl(projectId)
+  const availableTools = getAvailableOrchestratorTools()
+  const provider = resolveLlmProvider()
+  const providerStatus = getConfiguredLlmProviderStatus()
+  const fallbackItems = buildProjectFallbackPlanItems(project, availableTools, "replan")
+
+  if (!provider) {
+    const plan = persistProjectOrchestratorPlan(
+      projectId,
+      normalizePlanRecord({
+        items: fallbackItems,
+        provider: providerStatus,
+        summary: `第${currentRound}轮使用本地回退策略生成 ${fallbackItems.length} 条动作。`,
+      }),
+    )
+
+    return { plan, provider: providerStatus }
+  }
+
+  const assets = listStoredAssets(projectId)
+  const evidence = listStoredEvidence(projectId)
+  const findings = listStoredProjectFindings(projectId)
+  const approvals = listStoredProjectApprovals(projectId)
+
+  const prompt = buildMultiRoundBrainPrompt({
+    projectName: project.name,
+    targetInput: project.targetInput,
+    targets: project.targets,
+    description: project.description,
+    currentStage: project.stage,
+    currentRound,
+    maxRounds: control?.maxRounds ?? 10,
+    autoReplan: control?.autoReplan ?? true,
+    assetCount: assets.length,
+    evidenceCount: evidence.length,
+    findingCount: findings.length,
+    pendingApprovals: approvals.filter((a) => a.status === "待处理").length,
+    roundHistory: buildCompressedRoundHistory(projectId),
+    assetSnapshot: buildAssetSnapshot(projectId),
+    lastRoundDetail: buildLastRoundDetail(projectId),
+    unusedCapabilities: buildUnusedCapabilities(projectId),
+    availableTools,
+  })
+
+  const providerResult = await provider.generatePlan({
+    prompt,
+    purpose: "orchestrator",
+  })
+
+  const normalizedItems = filterPlanItemsToProjectScope(
+    project,
+    normalizePlanItems({
+      availableTools,
+      fallbackItems,
+      items: providerResult.content.items,
+      mode: "project",
+    }),
+  )
+
+  const plan = persistProjectOrchestratorPlan(
+    projectId,
+    normalizePlanRecord({
+      items: normalizedItems,
+      provider: provider.getStatus(),
+      summary: providerResult.content.summary,
+    }),
+  )
+
+  return { plan, provider: provider.getStatus() }
+}
+
+export async function runProjectLifecycleKickoff(projectId: string, input: ProjectLifecyclePlanInput) {
+  // Auto-discover and register MCP tools on project start
+  if (input.controlCommand === "start") {
+    try {
+      discoverAndRegisterMcpServers()
+    } catch {
+      // best-effort: continue even if discovery fails
+    }
+  }
+
+  const project = getStoredProjectById(projectId)
+  const control = getStoredProjectSchedulerControl(projectId)
+
+  // First round uses existing plan generation
   const planPayload = await generateProjectLifecyclePlan(projectId, input)
 
   if (!project || !planPayload) {
     return null
   }
 
+  const startRound = (control?.currentRound ?? 0) + 1
+  const maxRounds = control?.maxRounds ?? 10
+  const autoReplan = control?.autoReplan ?? true
+
+  // Update current round
+  updateStoredProjectSchedulerControl(projectId, {
+    note: `第${startRound}轮编排已开始`,
+  })
+
   const automaticItems = planPayload.plan.items.filter((item) => item.riskLevel !== "高")
+  const highRiskItems = planPayload.plan.items.filter((item) => item.riskLevel === "高")
 
   upsertStoredWorkLogs([
     {
@@ -692,8 +1051,8 @@ export async function runProjectLifecycleKickoff(projectId: string, input: Proje
       category: "LLM 编排",
       summary:
         input.controlCommand === "resume"
-          ? `项目恢复后已重新生成 ${planPayload.plan.items.length} 条编排动作，其中 ${automaticItems.length} 条低风险动作会继续自动推进。`
-          : `项目开始后已生成 ${planPayload.plan.items.length} 条首轮编排动作，其中 ${automaticItems.length} 条低风险动作会自动进入调度。`,
+          ? `项目恢复后已重新生成 ${planPayload.plan.items.length} 条编排动作（第${startRound}轮），其中 ${automaticItems.length} 条低风险自动推进，${highRiskItems.length} 条高风险转入审批。`
+          : `项目开始后已生成 ${planPayload.plan.items.length} 条首轮编排动作（第${startRound}轮），其中 ${automaticItems.length} 条低风险自动进入调度，${highRiskItems.length} 条高风险转入审批。`,
       projectName: project.name,
       actor: planPayload.provider.enabled ? "orchestrator-provider" : "orchestrator-fallback",
       timestamp: formatTimestamp(),
@@ -701,10 +1060,110 @@ export async function runProjectLifecycleKickoff(projectId: string, input: Proje
     },
   ])
 
-  const execution = await executePlanItems(projectId, automaticItems)
+  // Execute first round
+  const roundStartedAt = formatTimestamp()
+  let execution = await executePlanItems(projectId, planPayload.plan.items)
+  let currentPlanPayload = planPayload
+  let currentRound = startRound
+
+  // Record first round
+  recordOrchestratorRound(projectId, currentRound, roundStartedAt, execution, planPayload.plan.items.length)
+
+  // Update round counter in scheduler control
+  const store = readPrototypeStore()
+  if (store.projectSchedulerControls[projectId]) {
+    store.projectSchedulerControls[projectId].currentRound = currentRound
+    writePrototypeStore(store)
+  }
+
+  // Multi-round auto-replan loop
+  if (autoReplan && execution.status === "completed") {
+    while (currentRound < maxRounds) {
+      const continueCheck = shouldContinueAutoReplan(
+        projectId,
+        currentRound,
+        maxRounds,
+        currentPlanPayload,
+        execution,
+      )
+
+      if (!continueCheck.shouldContinue) {
+        upsertStoredWorkLogs([
+          {
+            id: `work-auto-replan-stop-${projectId}-${Date.now()}`,
+            category: "LLM 编排",
+            summary: `自动续跑在第${currentRound}轮后停止: ${continueCheck.reason}`,
+            projectName: project.name,
+            actor: "orchestrator-auto-replan",
+            timestamp: formatTimestamp(),
+            status: "已完成",
+          },
+        ])
+        break
+      }
+
+      currentRound += 1
+
+      upsertStoredWorkLogs([
+        {
+          id: `work-auto-replan-${projectId}-${Date.now()}-r${currentRound}`,
+          category: "LLM 编排",
+          summary: `自动续跑：开始第${currentRound}轮编排`,
+          projectName: project.name,
+          actor: "orchestrator-auto-replan",
+          timestamp: formatTimestamp(),
+          status: "进行中",
+        },
+      ])
+
+      const nextPlan = await generateMultiRoundPlan(projectId, currentRound)
+
+      if (!nextPlan || nextPlan.plan.items.length === 0) {
+        upsertStoredWorkLogs([
+          {
+            id: `work-auto-replan-empty-${projectId}-${Date.now()}`,
+            category: "LLM 编排",
+            summary: `第${currentRound}轮 LLM 返回空计划，自动收束`,
+            projectName: project.name,
+            actor: "orchestrator-auto-replan",
+            timestamp: formatTimestamp(),
+            status: "已完成",
+          },
+        ])
+        break
+      }
+
+      currentPlanPayload = nextPlan
+
+      const nextRoundStart = formatTimestamp()
+      execution = await executePlanItems(projectId, nextPlan.plan.items)
+
+      recordOrchestratorRound(projectId, currentRound, nextRoundStart, execution, nextPlan.plan.items.length)
+
+      // Update round counter
+      const storeUpdate = readPrototypeStore()
+      if (storeUpdate.projectSchedulerControls[projectId]) {
+        storeUpdate.projectSchedulerControls[projectId].currentRound = currentRound
+        writePrototypeStore(storeUpdate)
+      }
+
+      // If not completed (blocked/waiting_approval), stop the loop
+      if (execution.status !== "completed") {
+        break
+      }
+    }
+  }
+
+  // Final closure attempt
+  if (execution.status === "completed") {
+    await settleProjectLifecycleClosure(
+      projectId,
+      `项目在第${currentRound}轮后完成所有编排计划。`,
+    )
+  }
 
   return {
-    ...planPayload,
+    ...currentPlanPayload,
     ...execution,
   }
 }
@@ -831,6 +1290,10 @@ export async function executeProjectLocalValidation(
   const execution = await executePlanItems(projectId, planPayload.plan.items, {
     ignoreProjectLifecycle: true,
   })
+
+  if (execution.status === "completed") {
+    await settleProjectLifecycleClosure(projectId, `${localLab.name} 本地闭环已跑空当前计划。`)
+  }
 
   return {
     approval: execution.approval,

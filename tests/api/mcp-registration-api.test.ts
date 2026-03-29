@@ -8,40 +8,43 @@ import { POST as registerMcpServer } from "@/app/api/settings/mcp-servers/regist
 import { GET as getMcpSettings } from "@/app/api/settings/mcp-tools/route"
 
 const validRegistrationPayload = {
-  serverName: "web-surface-stdio",
+  serverName: "external-intel-stdio",
   version: "1.0.0",
   transport: "stdio",
   command: "node",
-  args: ["scripts/mcp/web-surface-server.mjs"],
-  endpoint: "stdio://web-surface-stdio",
+  args: ["scripts/mcp/external-intel-server.mjs"],
+  endpoint: "stdio://external-intel-stdio",
   enabled: true,
-  notes: "真实 Web 页面探测 MCP server",
+  notes: "真实外部情报查询 MCP server",
   tools: [
     {
-      toolName: "web-surface-map",
-      title: "Web 页面探测",
-      description: "补采页面入口与响应特征。",
+      toolName: "external-intel-query",
+      title: "外部情报查询",
+      description: "查询第三方外部情报平台并回传结构化结果。",
       version: "1.0.0",
-      capability: "Web 页面探测类",
-      boundary: "外部目标交互",
-      riskLevel: "中",
+      capability: "外部情报查询类",
+      boundary: "外部第三方API",
+      riskLevel: "低",
       requiresApproval: false,
-      resultMappings: ["webEntries", "evidence"],
+      resultMappings: ["intelligence"],
       inputSchema: {
         type: "object",
         properties: {
-          targetUrl: {
+          query: {
             type: "string",
           },
         },
-        required: ["targetUrl"],
+        required: ["query"],
         additionalProperties: false,
       },
       outputSchema: {
         type: "object",
         properties: {
-          webEntries: {
+          structuredResults: {
             type: "array",
+          },
+          totalCount: {
+            type: "integer",
           },
         },
         additionalProperties: true,
@@ -81,20 +84,44 @@ describe("mcp registration api route", () => {
     const payload = await response.json()
 
     expect(response.status).toBe(201)
-    expect(payload.server.serverName).toBe("web-surface-stdio")
-    expect(payload.server.toolBindings).toContain("web-surface-map")
-    expect(payload.serverContract.toolNames).toContain("web-surface-map")
-    expect(payload.toolContracts[0].toolName).toBe("web-surface-map")
-    expect(payload.toolRecords[0].toolName).toBe("web-surface-map")
+    expect(payload.server.serverName).toBe("external-intel-stdio")
+    expect(payload.server.toolBindings).toContain("external-intel-query")
+    expect(payload.serverContract.toolNames).toContain("external-intel-query")
+    expect(payload.toolContracts[0].toolName).toBe("external-intel-query")
+    expect(payload.toolContracts[0].boundary).toBe("外部第三方API")
+    expect(payload.toolContracts[0].resultMappings).toEqual(["intelligence"])
+    expect(payload.toolRecords[0].toolName).toBe("external-intel-query")
 
     const settingsResponse = await getMcpSettings()
     const settingsPayload = await settingsResponse.json()
 
     expect(settingsResponse.status).toBe(200)
     expect(settingsPayload.servers).toHaveLength(1)
-    expect(settingsPayload.tools.some((item: { toolName: string }) => item.toolName === "web-surface-map")).toBe(true)
+    expect(settingsPayload.tools.some((item: { toolName: string }) => item.toolName === "external-intel-query")).toBe(true)
     expect(settingsPayload.serverContracts).toHaveLength(1)
     expect(settingsPayload.toolContracts).toHaveLength(1)
+  })
+
+  it("accepts stdio registrations that omit optional endpoint and notes fields", async () => {
+    const response = await registerMcpServer(
+      new Request("http://localhost/api/settings/mcp-servers/register", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          ...validRegistrationPayload,
+          endpoint: undefined,
+          notes: undefined,
+        }),
+      }),
+    )
+    const payload = await response.json()
+
+    expect(response.status).toBe(201)
+    expect(payload.server.endpoint).toBe("")
+    expect(payload.server.notes).toBe("")
+    expect(payload.serverContract.endpoint).toBe("")
   })
 
   it("rejects MCP registrations that omit a required input schema", async () => {
@@ -120,6 +147,31 @@ describe("mcp registration api route", () => {
 
     expect(response.status).toBe(400)
     expect(payload.error).toContain("inputSchema")
+  })
+
+  it("rejects MCP registrations that omit a required output schema", async () => {
+    const invalidPayload = {
+      ...validRegistrationPayload,
+      tools: validRegistrationPayload.tools.map((tool) => {
+        const nextTool = { ...tool }
+        delete (nextTool as Partial<typeof tool>).outputSchema
+        return nextTool
+      }),
+    }
+
+    const response = await registerMcpServer(
+      new Request("http://localhost/api/settings/mcp-servers/register", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(invalidPayload),
+      }),
+    )
+    const payload = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(payload.error).toContain("outputSchema")
   })
 
   it("rejects duplicate tool names within the same server registration", async () => {

@@ -58,6 +58,7 @@ export function ProjectReportExportPanel({
   }
 
   const latest = payload.latest
+  const finalConclusion = payload.finalConclusion
 
   return (
     <SectionCard
@@ -142,6 +143,23 @@ export function ProjectReportExportPanel({
                 </div>
                 <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">导出时间：{latest.exportedAt}</p>
               </div>
+
+              {finalConclusion ? (
+                <div className="rounded-[20px] border border-emerald-200/80 bg-emerald-50/80 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-slate-950 dark:text-white">最终结论</p>
+                    <StatusBadge tone={finalConclusion.source === "reviewer" ? "success" : "info"}>
+                      {finalConclusion.source === "reviewer" ? "LLM 审阅" : "本地回退"}
+                    </StatusBadge>
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">{finalConclusion.summary}</p>
+                  <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">生成时间：{finalConclusion.generatedAt}</p>
+                </div>
+              ) : latest.conclusionSummary ? (
+                <div className="rounded-[20px] border border-emerald-200/80 bg-emerald-50/80 p-4 text-sm leading-6 text-slate-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-slate-200">
+                  {latest.conclusionSummary}
+                </div>
+              ) : null}
             </div>
           ) : (
             <div className="mt-4 rounded-[20px] border border-dashed border-slate-300 bg-slate-50/80 px-6 py-10 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">

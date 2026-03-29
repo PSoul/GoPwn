@@ -76,6 +76,40 @@ export function ProjectSummary({
             ))}
           </div>
 
+          {detail.finalConclusion ? (
+            <div className="rounded-[24px] border border-emerald-200/80 bg-emerald-50/80 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-950 dark:text-white">最终结论</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">{detail.finalConclusion.summary}</p>
+                </div>
+                <StatusBadge tone={detail.finalConclusion.source === "reviewer" ? "success" : "info"}>
+                  {detail.finalConclusion.source === "reviewer" ? "LLM 审阅" : "本地回退"}
+                </StatusBadge>
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <div className="rounded-[20px] border border-emerald-200/80 bg-white/80 p-4 dark:border-emerald-900/60 dark:bg-slate-950/50">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">结论锚点</p>
+                  <div className="mt-2 space-y-1 text-sm leading-6 text-slate-700 dark:text-slate-200">
+                    {detail.finalConclusion.keyPoints.map((point) => (
+                      <p key={point}>{point}</p>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-[20px] border border-emerald-200/80 bg-white/80 p-4 dark:border-emerald-900/60 dark:bg-slate-950/50">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">后续建议</p>
+                  <div className="mt-2 space-y-1 text-sm leading-6 text-slate-700 dark:text-slate-200">
+                    {detail.finalConclusion.nextActions.map((action) => (
+                      <p key={action}>{action}</p>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">{detail.finalConclusion.generatedAt}</p>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           <div className="rounded-[24px] border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -134,8 +168,32 @@ export function ProjectSummary({
           </div>
 
           <div className="rounded-[24px] border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70">
-            <p className="text-sm font-semibold text-slate-950 dark:text-white">当前阻塞与下一步</p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-slate-950 dark:text-white">项目收束状态</p>
+              <StatusBadge tone={detail.closureStatus.tone}>{detail.closureStatus.label}</StatusBadge>
+            </div>
             <div className="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-300">
+              <p>{detail.closureStatus.summary}</p>
+              <div className="flex flex-wrap gap-2">
+                <StatusBadge tone={detail.closureStatus.reportExported ? "success" : "neutral"}>
+                  报告{detail.closureStatus.reportExported ? "已导出" : "待导出"}
+                </StatusBadge>
+                <StatusBadge tone={detail.closureStatus.finalConclusionGenerated ? "success" : "neutral"}>
+                  结论{detail.closureStatus.finalConclusionGenerated ? "已生成" : "待生成"}
+                </StatusBadge>
+              </div>
+              {detail.closureStatus.blockers.length > 0 ? (
+                <div className="space-y-2 rounded-[20px] border border-slate-200/80 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/60">
+                  {detail.closureStatus.blockers.map((blocker) => (
+                    <div key={`${blocker.title}-${blocker.detail}`}>
+                      <p className="font-medium text-slate-950 dark:text-white">{blocker.title}</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{blocker.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p>当前没有新的收束阻塞，可以直接围绕现有结果继续复核或导出。</p>
+              )}
               <p>阻塞原因：{detail.blockingReason}</p>
               <p>下一步：{detail.nextStep}</p>
               <p>当前操作者：{SINGLE_USER_LABEL}</p>

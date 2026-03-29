@@ -2,7 +2,12 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ProjectSchedulerRuntimePanel } from "@/components/projects/project-scheduler-runtime-panel"
-import type { McpSchedulerTaskRecord, ProjectSchedulerControl } from "@/lib/prototype-types"
+import type {
+  McpSchedulerTaskRecord,
+  ProjectClosureStatusRecord,
+  ProjectSchedulerControl,
+  ProjectStatus,
+} from "@/lib/prototype-types"
 
 const refresh = vi.fn()
 
@@ -17,6 +22,16 @@ const initialControl: ProjectSchedulerControl = {
   paused: false,
   note: "默认允许调度器继续处理待执行任务。",
   updatedAt: "2026-03-27 15:00",
+}
+
+const runningClosureStatus: ProjectClosureStatusRecord = {
+  state: "running",
+  label: "运行中",
+  tone: "info",
+  summary: "当前项目仍在执行中，LLM 与调度器会继续推进 MCP 动作。",
+  blockers: [],
+  reportExported: false,
+  finalConclusionGenerated: false,
 }
 
 const schedulerTasks: McpSchedulerTaskRecord[] = [
@@ -109,6 +124,8 @@ describe("ProjectSchedulerRuntimePanel", () => {
     render(
       <ProjectSchedulerRuntimePanel
         projectId="proj-runtime"
+        projectStatus={"待处理" satisfies ProjectStatus}
+        closureStatus={runningClosureStatus}
         initialControl={{ ...initialControl, lifecycle: "idle", paused: false }}
         initialTasks={schedulerTasks}
       />,
@@ -170,6 +187,8 @@ describe("ProjectSchedulerRuntimePanel", () => {
     render(
       <ProjectSchedulerRuntimePanel
         projectId="proj-runtime"
+        projectStatus={"运行中" satisfies ProjectStatus}
+        closureStatus={runningClosureStatus}
         initialControl={initialControl}
         initialTasks={schedulerTasks}
       />,
@@ -215,6 +234,8 @@ describe("ProjectSchedulerRuntimePanel", () => {
     render(
       <ProjectSchedulerRuntimePanel
         projectId="proj-runtime"
+        projectStatus={"运行中" satisfies ProjectStatus}
+        closureStatus={runningClosureStatus}
         initialControl={initialControl}
         initialTasks={schedulerTasks}
       />,
@@ -253,6 +274,8 @@ describe("ProjectSchedulerRuntimePanel", () => {
     render(
       <ProjectSchedulerRuntimePanel
         projectId="proj-runtime"
+        projectStatus={"运行中" satisfies ProjectStatus}
+        closureStatus={runningClosureStatus}
         initialControl={initialControl}
         initialTasks={schedulerTasks}
       />,
@@ -295,6 +318,8 @@ describe("ProjectSchedulerRuntimePanel", () => {
     render(
       <ProjectSchedulerRuntimePanel
         projectId="proj-runtime"
+        projectStatus={"运行中" satisfies ProjectStatus}
+        closureStatus={runningClosureStatus}
         initialControl={initialControl}
         initialTasks={schedulerTasks}
       />,
@@ -321,6 +346,8 @@ describe("ProjectSchedulerRuntimePanel", () => {
     render(
       <ProjectSchedulerRuntimePanel
         projectId="proj-runtime"
+        projectStatus={"运行中" satisfies ProjectStatus}
+        closureStatus={runningClosureStatus}
         initialControl={initialControl}
         initialTasks={schedulerTasks}
       />,
@@ -335,6 +362,8 @@ describe("ProjectSchedulerRuntimePanel", () => {
     render(
       <ProjectSchedulerRuntimePanel
         projectId="proj-runtime"
+        projectStatus={"运行中" satisfies ProjectStatus}
+        closureStatus={runningClosureStatus}
         initialControl={initialControl}
         initialTasks={[
           {
@@ -350,5 +379,33 @@ describe("ProjectSchedulerRuntimePanel", () => {
     expect(screen.getByText(/租约截止 2026-03-27 15:05/)).toBeInTheDocument()
     expect(screen.getByText(/最近心跳 2026-03-27 15:04/)).toBeInTheDocument()
     expect(screen.getByText(/恢复 1 次/)).toBeInTheDocument()
+  })
+
+  it("locks lifecycle controls after a project has completed its current round", () => {
+    const completedClosureStatus: ProjectClosureStatusRecord = {
+      state: "completed",
+      label: "已完成当前轮次",
+      tone: "success",
+      summary: "当前轮次已经自动收束，报告与最终结论都已稳定落库。",
+      blockers: [],
+      reportExported: true,
+      finalConclusionGenerated: true,
+    }
+
+    render(
+      <ProjectSchedulerRuntimePanel
+        projectId="proj-runtime"
+        projectStatus={"已完成" satisfies ProjectStatus}
+        closureStatus={completedClosureStatus}
+        initialControl={initialControl}
+        initialTasks={[]}
+      />,
+    )
+
+    expect(screen.getAllByText("当前轮次已经自动收束，报告与最终结论都已稳定落库。").length).toBeGreaterThan(0)
+    expect(screen.getByRole("button", { name: "开始项目" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "暂停项目" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "继续项目" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "停止项目" })).toBeDisabled()
   })
 })

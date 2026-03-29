@@ -71,14 +71,18 @@ export async function callMcpServerTool<TStructuredContent extends Record<string
   signal?: AbortSignal
   target: string
   timeoutMs?: number
+  cwd?: string
+  env?: Record<string, string>
 }) {
   const startedAt = Date.now()
   const timeoutMs = input.timeoutMs ?? 15_000
+  const serverCwd = input.cwd ?? process.cwd()
   const transport = new StdioClientTransport({
     command: input.server.command,
     args: input.server.args,
-    cwd: process.cwd(),
+    cwd: serverCwd,
     stderr: "pipe",
+    env: input.env ? { ...process.env, ...input.env } as Record<string, string> : undefined,
   })
   const stderrChunks: string[] = []
   transport.stderr?.on("data", (chunk) => {

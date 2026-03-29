@@ -1,0 +1,26 @@
+{
+  "total_count": 2,
+  "incomplete_results": false,
+  "items": [
+    {
+      "full_name": "testorg/internal-tools",
+      "html_url": "https://github.com/testorg/internal-tools",
+      "description": "Internal tooling repository",
+      "language": "Python",
+      "stargazers_count": 42,
+      "forks_count": 5,
+      "updated_at": "2025-01-15T10:30:00Z",
+      "topics": ["internal", "tools", "automation"]
+    },
+    {
+      "full_name": "testorg/api-gateway",
+      "html_url": "https://github.com/testorg/api-gateway",
+      "description": "API Gateway service",
+      "language": "Go",
+      "stargazers_count": 128,
+      "forks_count": 23,
+      "updated_at": "2025-02-20T14:00:00Z",
+      "topics": ["api", "gateway", "microservices"]
+    }
+  ]
+}

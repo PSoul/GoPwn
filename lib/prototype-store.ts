@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
 
 import { defaultGlobalApprovalControl, defaultProjectFormPreset } from "@/lib/platform-config"
+import { buildProjectClosureStatus } from "@/lib/project-closure-status"
 import { generateProjectId, isAsciiProjectId } from "@/lib/project-id"
 import { normalizeProjectSchedulerControl } from "@/lib/project-scheduler-lifecycle"
 import { normalizeProjectTargets, SINGLE_USER_LABEL } from "@/lib/project-targets"
@@ -18,7 +19,9 @@ import type {
   McpToolContractSummaryRecord,
   McpToolRecord,
   OrchestratorPlanRecord,
+  OrchestratorRoundRecord,
   PolicyRecord,
+  ProjectConclusionRecord,
   ProjectDetailRecord,
   ProjectFindingRecord,
   ProjectFormPreset,
@@ -36,11 +39,13 @@ export type PrototypeStore = {
   globalApprovalControl: ApprovalControl
   mcpRuns: McpRunRecord[]
   orchestratorPlans: Record<string, OrchestratorPlanRecord>
+  orchestratorRounds: Record<string, OrchestratorRoundRecord[]>
   schedulerTasks: McpSchedulerTaskRecord[]
   mcpTools: McpToolRecord[]
   llmProfiles: LlmProfileRecord[]
   mcpServerContracts: McpServerContractSummaryRecord[]
   mcpToolContracts: McpToolContractSummaryRecord[]
+  projectConclusions: ProjectConclusionRecord[]
   projectDetails: ProjectDetailRecord[]
   projectFindings: ProjectFindingRecord[]
   projectFormPresets: Record<string, ProjectFormPreset>
@@ -91,6 +96,46 @@ export const DEFAULT_LLM_PROFILES: LlmProfileRecord[] = [
   },
 ]
 
+/**
+ * Production LLM profiles - used to auto-seed when all store profiles are unconfigured.
+ * Applied once during store normalization (not in test environments).
+ */
+export const PRODUCTION_LLM_PROFILES: LlmProfileRecord[] = [
+  {
+    id: "orchestrator",
+    provider: "openai-compatible",
+    label: "Default Orchestrator",
+    apiKey: "sk-pryesvbybgrplivmlsrfsbluaoyctebqchsqjjfhbnjtkedc",
+    baseUrl: "https://api.siliconflow.cn/v1",
+    model: "Pro/deepseek-ai/DeepSeek-V3.2",
+    timeoutMs: 30000,
+    temperature: 0.2,
+    enabled: true,
+  },
+  {
+    id: "reviewer",
+    provider: "openai-compatible",
+    label: "Default Reviewer",
+    apiKey: "sk-pryesvbybgrplivmlsrfsbluaoyctebqchsqjjfhbnjtkedc",
+    baseUrl: "https://api.siliconflow.cn/v1",
+    model: "Pro/deepseek-ai/DeepSeek-V3.2",
+    timeoutMs: 30000,
+    temperature: 0.1,
+    enabled: true,
+  },
+  {
+    id: "extractor",
+    provider: "openai-compatible",
+    label: "Default Extractor",
+    apiKey: "sk-pryesvbybgrplivmlsrfsbluaoyctebqchsqjjfhbnjtkedc",
+    baseUrl: "https://api.siliconflow.cn/v1",
+    model: "Pro/deepseek-ai/DeepSeek-V3.2",
+    timeoutMs: 15000,
+    temperature: 0,
+    enabled: true,
+  },
+]
+
 function cloneValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
 }
@@ -105,7 +150,7 @@ function getStorePath() {
 
 function buildInitialStore(): PrototypeStore {
   return {
-    version: 11,
+    version: 13,
     auditLogs: [],
     approvalPolicies: [],
     approvals: [],
@@ -114,11 +159,13 @@ function buildInitialStore(): PrototypeStore {
     globalApprovalControl: cloneValue(defaultGlobalApprovalControl),
     mcpRuns: [],
     orchestratorPlans: {},
+    orchestratorRounds: {},
     schedulerTasks: [],
     mcpTools: [],
     llmProfiles: cloneValue(DEFAULT_LLM_PROFILES),
     mcpServerContracts: [],
     mcpToolContracts: [],
+    projectConclusions: [],
     projectDetails: [],
     projectFindings: [],
     projectFormPresets: {},
@@ -216,6 +263,11 @@ function migrateSimplifiedProjectModel(store: PrototypeStore): PrototypeStore {
       return detail
     }
 
+    const lifecycle = store.projectSchedulerControls[project.id]?.lifecycle ?? (project.status === "待处理" ? "idle" : "running")
+    const projectRuns = store.mcpRuns.filter((run) => run.projectId === project.id)
+    const projectApprovals = store.approvals.filter((approval) => approval.projectId === project.id)
+    const projectSchedulerTasks = store.schedulerTasks.filter((task) => task.projectId === project.id)
+
     return {
       ...detail,
       target: detail.target || project.targetInput,
@@ -234,6 +286,19 @@ function migrateSimplifiedProjectModel(store: PrototypeStore): PrototypeStore {
         ...detail.currentStage,
         owner: detail.currentStage.owner || SINGLE_USER_LABEL,
       },
+      closureStatus:
+        detail.closureStatus ??
+        buildProjectClosureStatus({
+          finalConclusionGenerated: detail.finalConclusion !== null || store.projectConclusions.some((item) => item.projectId === project.id),
+          lifecycle,
+          pendingApprovals: projectApprovals.filter((approval) => approval.status === "待处理").length,
+          projectStatus: project.status,
+          queuedTaskCount: projectSchedulerTasks.filter((task) => ["ready", "retry_scheduled", "delayed"].includes(task.status)).length,
+          reportExported: projectRuns.some((run) => run.toolName === "report-exporter" && run.status === "已执行"),
+          runningTaskCount: projectSchedulerTasks.filter((task) => task.status === "running").length,
+          waitingApprovalTaskCount: projectSchedulerTasks.filter((task) => task.status === "waiting_approval").length,
+        }),
+      finalConclusion: detail.finalConclusion ?? null,
     }
   })
 
@@ -259,11 +324,13 @@ function normalizeStore(store: Partial<PrototypeStore>): PrototypeStore {
     globalApprovalControl: store.globalApprovalControl ?? initial.globalApprovalControl,
     mcpRuns: Array.isArray(store.mcpRuns) ? store.mcpRuns : initial.mcpRuns,
     orchestratorPlans: store.orchestratorPlans ?? initial.orchestratorPlans,
+    orchestratorRounds: store.orchestratorRounds ?? initial.orchestratorRounds,
     schedulerTasks: Array.isArray(store.schedulerTasks) ? store.schedulerTasks : initial.schedulerTasks,
     mcpTools: Array.isArray(store.mcpTools) ? store.mcpTools : initial.mcpTools,
     llmProfiles: Array.isArray(store.llmProfiles) ? store.llmProfiles : initial.llmProfiles,
     mcpServerContracts: Array.isArray(store.mcpServerContracts) ? store.mcpServerContracts : initial.mcpServerContracts,
     mcpToolContracts: Array.isArray(store.mcpToolContracts) ? store.mcpToolContracts : initial.mcpToolContracts,
+    projectConclusions: Array.isArray(store.projectConclusions) ? store.projectConclusions : initial.projectConclusions,
     projectDetails: Array.isArray(store.projectDetails) ? store.projectDetails : initial.projectDetails,
     projectFindings: Array.isArray(store.projectFindings) ? store.projectFindings : initial.projectFindings,
     projectFormPresets: store.projectFormPresets ?? initial.projectFormPresets,
@@ -443,6 +510,15 @@ function migrateProjectIds(store: PrototypeStore): PrototypeStore {
       : finding,
   )
 
+  const projectConclusions = store.projectConclusions.map((conclusion) =>
+    idMap.has(conclusion.projectId)
+      ? {
+          ...conclusion,
+          projectId: mapId(conclusion.projectId),
+        }
+      : conclusion,
+  )
+
   const orchestratorPlans = Object.fromEntries(
     Object.entries(store.orchestratorPlans).map(([projectId, plan]) => [mapId(projectId), plan]),
   )
@@ -476,6 +552,7 @@ function migrateProjectIds(store: PrototypeStore): PrototypeStore {
     evidenceRecords,
     mcpRuns,
     schedulerTasks,
+    projectConclusions,
     projectFindings,
     orchestratorPlans,
     mcpServerContracts,
@@ -504,6 +581,7 @@ function purgeSeededBusinessRecords(store: PrototypeStore): PrototypeStore {
     ...store,
     projects: store.projects.filter((project) => !seededIds.has(project.id)),
     projectDetails: store.projectDetails.filter((detail) => !seededIds.has(detail.projectId)),
+    projectConclusions: store.projectConclusions.filter((conclusion) => !seededIds.has(conclusion.projectId)),
     projectFindings: store.projectFindings.filter((finding) => !seededIds.has(finding.projectId)),
     approvals: store.approvals.filter((approval) => !seededIds.has(approval.projectId)),
     assets: store.assets.filter((asset) => !seededIds.has(asset.projectId)),
@@ -539,6 +617,25 @@ function ensureStoreFile() {
   }
 }
 
+function seedProductionLlmProfiles(store: PrototypeStore): PrototypeStore {
+  if (process.env.NODE_ENV === "test" || process.env.VITEST) {
+    return store
+  }
+
+  const allEmpty = store.llmProfiles.every((p) => !p.apiKey && !p.baseUrl && !p.model)
+  if (!allEmpty) {
+    return store
+  }
+
+  return {
+    ...store,
+    llmProfiles: PRODUCTION_LLM_PROFILES.map((prod) => {
+      const existing = store.llmProfiles.find((p) => p.id === prod.id)
+      return existing ? { ...existing, ...prod } : prod
+    }),
+  }
+}
+
 function ensureProjectSchedulerControls(store: PrototypeStore) {
   const nextControls = { ...store.projectSchedulerControls }
   let changed = false
@@ -570,9 +667,9 @@ export function readPrototypeStore(): PrototypeStore {
   ensureStoreFile()
   const rawStore = JSON.parse(readFileSync(getStorePath(), "utf8")) as Partial<PrototypeStore>
   const normalized = normalizeStore(rawStore)
-  const store = ensureProjectSchedulerControls(
+  const store = seedProductionLlmProfiles(ensureProjectSchedulerControls(
     migrateSimplifiedProjectModel(purgeSeededBusinessRecords(migrateProjectIds(normalized))),
-  )
+  ))
 
   if (JSON.stringify(rawStore) !== JSON.stringify(store)) {
     writePrototypeStore(store)

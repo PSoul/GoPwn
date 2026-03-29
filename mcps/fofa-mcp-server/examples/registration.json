@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "fofa": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "cwd": "/path/to/fofa-mcp-server",
+      "env": {
+        "FOFA_EMAIL": "your-email@example.com",
+        "FOFA_KEY": "your-fofa-api-key"
+      }
+    }
+  }
+}

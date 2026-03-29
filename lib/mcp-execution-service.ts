@@ -724,6 +724,12 @@ function normalizeExecutionArtifacts(
     }
   }
 
+  // Generic handler for real stdio MCP tools (httpx_probe, subfinder_enum, fscan_port_scan, etc.)
+  // Extract assets, evidence, and findings from structured content returned by MCP servers
+  if (rawResult.mode === "real" && rawResult.structuredContent && Object.keys(rawResult.structuredContent).length > 0) {
+    return normalizeStdioMcpArtifacts(context, rawResult, { timestamp, evidenceId, linkedApprovalId, existingAssets, actor })
+  }
+
   return {
     actor,
     assets: [],
@@ -740,6 +746,238 @@ function normalizeExecutionArtifacts(
         status: "已完成",
       },
     ],
+  }
+}
+
+function normalizeStdioMcpArtifacts(
+  context: McpConnectorExecutionContext,
+  rawResult: Extract<McpConnectorResult, { status: "succeeded" }>,
+  shared: {
+    timestamp: string
+    evidenceId: string
+    linkedApprovalId: string
+    existingAssets: Map<string, AssetRecord>
+    actor: string
+  },
+): NormalizedExecutionArtifacts {
+  const { timestamp, evidenceId, linkedApprovalId, existingAssets, actor } = shared
+  const sc = rawResult.structuredContent
+  const assets: AssetRecord[] = []
+  const findings: ProjectFindingRecord[] = []
+
+  // Extract domain/subdomain assets
+  if (Array.isArray(sc.domains)) {
+    for (const domain of sc.domains as string[]) {
+      const host = typeof domain === "string" ? domain : String(domain)
+      const assetId = buildStableRecordId("asset", context.project.id, "domain", host)
+      const existing = existingAssets.get(assetId)
+      assets.push({
+        id: assetId,
+        projectId: context.project.id,
+        projectName: context.project.name,
+        type: "domain",
+        label: host,
+        profile: `${context.run.toolName} 发现`,
+        scopeStatus: "已纳入",
+        lastSeen: timestamp,
+        host,
+        ownership: `${context.project.name} MCP 结果`,
+        confidence: "0.80",
+        exposure: `由 ${context.run.toolName} 在 ${context.run.requestedAction} 中发现。`,
+        linkedEvidenceId: evidenceId,
+        linkedTaskTitle: context.run.requestedAction,
+        issueLead: "可继续衔接 Web 入口识别和端口扫描。",
+        relations: mergeRelations(existing?.relations, [{
+          id: buildStableRecordId("asset-rel", host, "evidence"),
+          label: evidenceId,
+          type: "evidence",
+          relation: "MCP 发现证据",
+          scopeStatus: "已纳入",
+        }]),
+      })
+    }
+  }
+
+  // Extract network/port assets
+  if (Array.isArray(sc.network)) {
+    for (const entry of sc.network as Array<{ host?: string; port?: number; service?: string; protocol?: string }>) {
+      const host = entry.host ?? context.run.target
+      const port = entry.port ?? 0
+      const label = port ? `${host}:${port}` : host
+      const assetId = buildStableRecordId("asset", context.project.id, "port", label)
+      const existing = existingAssets.get(assetId)
+      assets.push({
+        id: assetId,
+        projectId: context.project.id,
+        projectName: context.project.name,
+        type: port ? "port" : "host",
+        label,
+        profile: entry.service ? `${entry.service} · ${entry.protocol ?? "tcp"}` : `${context.run.toolName} 发现`,
+        scopeStatus: "已纳入",
+        lastSeen: timestamp,
+        host,
+        ownership: `${context.project.name} MCP 结果`,
+        confidence: "0.82",
+        exposure: entry.service ? `端口 ${port} 运行 ${entry.service}` : `由 ${context.run.toolName} 发现`,
+        linkedEvidenceId: evidenceId,
+        linkedTaskTitle: context.run.requestedAction,
+        issueLead: entry.service ? `${entry.service} 服务可继续进行版本识别和漏洞检测。` : "可继续补采服务版本信息。",
+        relations: mergeRelations(existing?.relations, [{
+          id: buildStableRecordId("asset-rel", label, "evidence"),
+          label: evidenceId,
+          type: "evidence",
+          relation: "端口/服务发现证据",
+          scopeStatus: "已纳入",
+        }]),
+      })
+    }
+  }
+
+  // Extract web entry assets
+  if (Array.isArray(sc.webEntries)) {
+    for (const entry of sc.webEntries as Array<{ url?: string; statusCode?: number; title?: string; fingerprint?: string; headers?: string[] }>) {
+      const url = entry.url ?? context.run.target
+      const host = getHostFromTarget(url)
+      const assetId = buildStableRecordId("asset", context.project.id, "entry", url)
+      const existing = existingAssets.get(assetId)
+      assets.push({
+        id: assetId,
+        projectId: context.project.id,
+        projectName: context.project.name,
+        type: "entry",
+        label: url,
+        profile: entry.fingerprint ? `${entry.fingerprint} · ${entry.statusCode ?? "?"}` : `HTTP ${entry.statusCode ?? "?"}`,
+        scopeStatus: "已纳入",
+        lastSeen: timestamp,
+        host,
+        ownership: `${context.project.name} Web 暴露面`,
+        confidence: "0.81",
+        exposure: entry.title ? `页面标题 ${entry.title}` : `由 ${context.run.toolName} 发现`,
+        linkedEvidenceId: evidenceId,
+        linkedTaskTitle: context.run.requestedAction,
+        issueLead: "可继续衔接目录扫描、漏洞检测或证据采集。",
+        relations: mergeRelations(existing?.relations, [
+          {
+            id: buildStableRecordId("asset-rel", url, "host"),
+            label: host,
+            type: "domain",
+            relation: "所属主机",
+            scopeStatus: "已纳入",
+          },
+          {
+            id: buildStableRecordId("asset-rel", url, "evidence"),
+            label: evidenceId,
+            type: "evidence",
+            relation: "Web 发现证据",
+            scopeStatus: "已纳入",
+          },
+        ]),
+      })
+    }
+  }
+
+  // Extract vulnerability findings
+  if (Array.isArray(sc.findings)) {
+    for (const finding of sc.findings as Array<{ title?: string; severity?: string; url?: string; target?: string; description?: string }>) {
+      const title = finding.title ?? `${context.run.toolName} 发现`
+      const severity = (finding.severity?.includes("高") || finding.severity?.toLowerCase().includes("high") || finding.severity?.toLowerCase().includes("critical"))
+        ? "高危" as const
+        : (finding.severity?.includes("中") || finding.severity?.toLowerCase().includes("medium"))
+          ? "中危" as const
+          : "低危" as const
+      findings.push({
+        id: buildStableRecordId("finding", context.project.id, finding.url ?? context.run.target, title),
+        projectId: context.project.id,
+        severity,
+        status: "待复核",
+        title,
+        summary: finding.description ?? `由 ${context.run.toolName} 在 ${finding.url ?? finding.target ?? context.run.target} 发现。`,
+        affectedSurface: finding.url ?? finding.target ?? context.run.target,
+        evidenceId,
+        owner: context.run.toolName,
+        updatedAt: timestamp,
+      })
+    }
+  }
+
+  // Extract generic assets
+  if (Array.isArray(sc.assets)) {
+    for (const entry of sc.assets as Array<{ type?: string; label?: string; host?: string }>) {
+      const label = entry.label ?? entry.host ?? ""
+      if (!label) continue
+      const assetType = entry.type ?? "host"
+      const assetId = buildStableRecordId("asset", context.project.id, assetType, label)
+      if (assets.some((a) => a.id === assetId)) continue
+      const existing = existingAssets.get(assetId)
+      assets.push({
+        id: assetId,
+        projectId: context.project.id,
+        projectName: context.project.name,
+        type: assetType,
+        label,
+        profile: `${context.run.toolName} 发现`,
+        scopeStatus: "已纳入",
+        lastSeen: timestamp,
+        host: entry.host ?? label,
+        ownership: `${context.project.name} MCP 结果`,
+        confidence: "0.75",
+        exposure: `由 ${context.run.toolName} 发现`,
+        linkedEvidenceId: evidenceId,
+        linkedTaskTitle: context.run.requestedAction,
+        issueLead: "可继续补采详细信息。",
+        relations: mergeRelations(existing?.relations, [{
+          id: buildStableRecordId("asset-rel", label, "evidence"),
+          label: evidenceId,
+          type: "evidence",
+          relation: "发现证据",
+          scopeStatus: "已纳入",
+        }]),
+      })
+    }
+  }
+
+  // Build evidence record from raw output
+  const summaryParts: string[] = []
+  if (assets.length > 0) summaryParts.push(`发现 ${assets.length} 个资产`)
+  if (findings.length > 0) summaryParts.push(`发现 ${findings.length} 个漏洞/问题`)
+  const summaryText = summaryParts.length > 0 ? summaryParts.join("，") : `${context.run.toolName} 已执行完成`
+
+  const evidence: EvidenceRecord[] = (assets.length > 0 || findings.length > 0)
+    ? [{
+        id: evidenceId,
+        projectId: context.project.id,
+        projectName: context.project.name,
+        title: `${context.run.toolName} 执行结果`,
+        source: context.run.capability,
+        confidence: findings.length > 0 ? "0.85" : "0.78",
+        conclusion: findings.length > 0 ? "待复核问题" : "结果已归档",
+        linkedApprovalId,
+        rawOutput: rawResult.rawOutput ?? [],
+        screenshotNote: "当前为 MCP 工具结构化输出，无页面截图。",
+        structuredSummary: [summaryText, ...rawResult.summaryLines.slice(0, 3)],
+        linkedTaskTitle: context.run.requestedAction,
+        linkedAssetLabel: assets[0]?.label ?? context.run.target,
+        timeline: [`${timestamp} ${context.run.toolName} 执行完成`],
+        verdict: findings.length > 0
+          ? "已产生新的安全发现，建议进一步复核确认。"
+          : "结果已归档，可继续向后续阶段流转。",
+      }]
+    : []
+
+  return {
+    actor,
+    assets,
+    evidence,
+    findings,
+    workLogs: [{
+      id: `work-${context.run.id}`,
+      category: context.run.capability,
+      summary: summaryText,
+      projectName: context.project.name,
+      actor,
+      timestamp,
+      status: findings.length > 0 ? "待复核" : "已完成",
+    }],
   }
 }
 

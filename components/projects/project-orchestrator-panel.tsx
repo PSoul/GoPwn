@@ -23,15 +23,18 @@ const labTone: Record<LocalLabRecord["status"], "success" | "warning" | "danger"
 export function ProjectOrchestratorPanel({
   projectId,
   initialPayload,
+  readOnlyReason,
 }: {
   projectId: string
   initialPayload: ProjectOrchestratorPanelPayload
+  readOnlyReason?: string
 }) {
   const [panel, setPanel] = useState(initialPayload)
   const [busyLabId, setBusyLabId] = useState<string | null>(null)
   const [includeHighRisk, setIncludeHighRisk] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const isReadOnly = Boolean(readOnlyReason)
 
   function updateLabStatus(nextLab: LocalLabRecord) {
     setPanel((current) => ({
@@ -41,6 +44,10 @@ export function ProjectOrchestratorPanel({
   }
 
   async function generatePlan(lab: LocalLabRecord) {
+    if (isReadOnly) {
+      return
+    }
+
     setBusyLabId(lab.id)
     setMessage(null)
     setErrorMessage(null)
@@ -77,6 +84,10 @@ export function ProjectOrchestratorPanel({
   }
 
   async function runLocalValidation(lab: LocalLabRecord) {
+    if (isReadOnly) {
+      return
+    }
+
     setBusyLabId(lab.id)
     setMessage(null)
     setErrorMessage(null)
@@ -165,9 +176,16 @@ export function ProjectOrchestratorPanel({
             <Switch
               checked={includeHighRisk}
               aria-label="包含高风险审批动作"
+              disabled={isReadOnly}
               onCheckedChange={setIncludeHighRisk}
             />
           </div>
+
+          {readOnlyReason ? (
+            <div className="rounded-[20px] border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              {readOnlyReason}
+            </div>
+          ) : null}
 
           {message ? (
             <div className="rounded-[20px] border border-emerald-200/80 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100">
@@ -218,7 +236,7 @@ export function ProjectOrchestratorPanel({
                   <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                     <Button
                       type="button"
-                      disabled={isBusy}
+                      disabled={isBusy || isReadOnly}
                       variant="outline"
                       className="rounded-full"
                       aria-label={`为 ${lab.name} 生成计划`}
@@ -228,7 +246,7 @@ export function ProjectOrchestratorPanel({
                     </Button>
                     <Button
                       type="button"
-                      disabled={isBusy}
+                      disabled={isBusy || isReadOnly}
                       className="rounded-full bg-slate-950 text-white hover:bg-slate-800 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
                       aria-label={`运行 ${lab.name} 本地验证`}
                       onClick={() => runLocalValidation(lab)}

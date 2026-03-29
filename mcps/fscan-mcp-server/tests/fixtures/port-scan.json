@@ -1,0 +1,5 @@
+[
+  {"time": "2024-03-28T10:31:00Z", "type": "PORT", "target": "192.168.1.1", "status": "open", "details": { "port": 22 }},
+  {"time": "2024-03-28T10:31:01Z", "type": "PORT", "target": "192.168.1.1", "status": "open", "details": { "port": 80 }},
+  {"time": "2024-03-28T10:31:02Z", "type": "SERVICE", "target": "192.168.1.1", "status": "identified", "details": { "port": 80, "service": "http", "title": "Welcome", "fingerprints": ["nginx"] }}
+]

@@ -154,6 +154,57 @@ describe("project orchestrator api routes", () => {
     ).toBe(true)
   })
 
+  it("continues project closure after approval resumes and lands on report export plus final conclusion", async () => {
+    seedWorkflowReadyMcpTools()
+    const fixture = createStoredProjectFixture({
+      targetInput: "http://127.0.0.1:3000",
+      description: "审批恢复后需要继续把项目收束到最终结论。",
+    })
+    const validationResponse = await postLocalValidation(
+      new Request(`http://localhost/api/projects/${fixture.project.id}/orchestrator/local-validation`, {
+        method: "POST",
+        body: JSON.stringify({
+          labId: "juice-shop",
+          approvalScenario: "include-high-risk",
+        }),
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+      buildProjectContext(fixture.project.id),
+    )
+    const validationPayload = await validationResponse.json()
+
+    expect(validationResponse.status).toBe(202)
+    expect(validationPayload.status).toBe("waiting_approval")
+
+    const approvalResponse = await patchApproval(
+      new Request(`http://localhost/api/approvals/${validationPayload.approval.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ decision: "已批准" }),
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+      buildApprovalContext(validationPayload.approval.id),
+    )
+
+    expect(approvalResponse.status).toBe(200)
+
+    const operationsResponse = await getProjectOperations(
+      new Request(`http://localhost/api/projects/${fixture.project.id}/operations`),
+      buildProjectContext(fixture.project.id),
+    )
+    const operationsPayload = await operationsResponse.json()
+
+    expect(operationsResponse.status).toBe(200)
+    expect(operationsPayload.project.status).toBe("已完成")
+    expect(operationsPayload.reportExport.latest).not.toBeNull()
+    expect(operationsPayload.reportExport.latest.conclusionSummary).toContain("最终结论")
+    expect(operationsPayload.detail.finalConclusion).not.toBeNull()
+    expect(operationsPayload.detail.finalConclusion.summary).toContain("最终结论")
+  })
+
   it("normalizes real-provider plans with markdown-wrapped JSON and near-match capability labels", async () => {
     seedWorkflowReadyMcpTools()
     const fixture = createStoredProjectFixture()

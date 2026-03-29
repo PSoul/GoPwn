@@ -27,6 +27,12 @@ export default async function ProjectOperationsPage({
     notFound()
   }
   const { approvals, detail, mcpRuns, orchestrator, project, reportExport, schedulerControl, schedulerTasks } = payload
+  const projectReadOnlyReason =
+    project.status === "已完成"
+      ? "当前项目已完成当前轮次，如需继续扩展测试，请新建下一轮项目。"
+      : project.status === "已停止"
+        ? "当前项目已停止，后续不会再继续派发新的编排动作。"
+        : undefined
 
   return (
     <div className="space-y-5">
@@ -49,11 +55,17 @@ export default async function ProjectOperationsPage({
 
       <ProjectSchedulerRuntimePanel
         projectId={project.id}
+        projectStatus={project.status}
+        closureStatus={detail.closureStatus}
         initialControl={schedulerControl}
         initialTasks={schedulerTasks}
       />
 
-      <ProjectOrchestratorPanel projectId={project.id} initialPayload={orchestrator} />
+      <ProjectOrchestratorPanel
+        projectId={project.id}
+        initialPayload={orchestrator}
+        readOnlyReason={projectReadOnlyReason}
+      />
 
       <ProjectReportExportPanel projectId={project.id} initialPayload={reportExport} />
 
@@ -62,6 +74,7 @@ export default async function ProjectOperationsPage({
         defaultTarget={getProjectPrimaryTarget(project)}
         capabilities={mcpCapabilityRecords.map((item) => item.name)}
         initialRuns={mcpRuns}
+        readOnlyReason={projectReadOnlyReason}
       />
 
       <ProjectTaskBoard tasks={detail.tasks} />

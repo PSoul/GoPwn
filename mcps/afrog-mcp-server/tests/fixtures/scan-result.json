@@ -1,0 +1,4 @@
+[
+  {"pocinfo":{"id":"CVE-2021-44228","name":"Apache Log4j2 RCE","severity":"critical","author":"test"},"target":"http://192.168.1.100:8080","fulloutput":"vulnerable","result":"true"},
+  {"pocinfo":{"id":"CVE-2023-1234","name":"Spring Boot Actuator","severity":"medium","author":"test"},"target":"http://192.168.1.100:8080","fulloutput":"exposed","result":"true"}
+]

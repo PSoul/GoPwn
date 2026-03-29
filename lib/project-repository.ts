@@ -1,4 +1,5 @@
 import { defaultGlobalApprovalControl } from "@/lib/platform-config"
+import { buildProjectClosureStatus } from "@/lib/project-closure-status"
 import { buildDefaultProjectSchedulerControl } from "@/lib/project-scheduler-lifecycle"
 import { normalizeProjectTargets, SINGLE_USER_LABEL } from "@/lib/project-targets"
 import { generateProjectId } from "@/lib/project-id"
@@ -80,6 +81,17 @@ function buildProjectRecord(input: ProjectMutationInput, existingProjects: Proje
 }
 
 function buildProjectDetail(project: ProjectRecord): ProjectDetailRecord {
+  const closureStatus = buildProjectClosureStatus({
+    finalConclusionGenerated: false,
+    lifecycle: "idle",
+    pendingApprovals: 0,
+    projectStatus: project.status,
+    queuedTaskCount: 0,
+    reportExported: false,
+    runningTaskCount: 0,
+    waitingApprovalTaskCount: 0,
+  })
+
   return {
     projectId: project.id,
     target: project.targetInput,
@@ -173,6 +185,8 @@ function buildProjectDetail(project: ProjectRecord): ProjectDetailRecord {
       description: "审批开关由系统设置与 MCP 工具契约统一控制，项目页只展示当前生效状态。",
       note: defaultGlobalApprovalControl.note,
     },
+    closureStatus,
+    finalConclusion: null,
   }
 }
 
@@ -223,6 +237,16 @@ function mergeProjectFormPreset(preset: ProjectFormPreset, patch: ProjectPatchIn
 function updateProjectDetail(detail: ProjectDetailRecord, project: ProjectRecord): ProjectDetailRecord {
   const nextDiscoveredInfo = detail.discoveredInfo.filter((item) => item.title !== "项目说明" && item.title !== "目标录入完成")
   const waitingToStart = project.status === "待处理"
+  const closureStatus = buildProjectClosureStatus({
+    finalConclusionGenerated: detail.finalConclusion !== null || detail.closureStatus.finalConclusionGenerated,
+    lifecycle: waitingToStart ? "idle" : "running",
+    pendingApprovals: project.pendingApprovals,
+    projectStatus: project.status,
+    queuedTaskCount: 0,
+    reportExported: detail.closureStatus.reportExported,
+    runningTaskCount: 0,
+    waitingApprovalTaskCount: 0,
+  })
 
   return {
     ...detail,
@@ -260,6 +284,8 @@ function updateProjectDetail(detail: ProjectDetailRecord, project: ProjectRecord
       updatedAt: project.lastUpdated,
       owner: SINGLE_USER_LABEL,
     },
+    closureStatus,
+    finalConclusion: detail.finalConclusion ?? null,
     tasks: detail.tasks.map((task, index) =>
       index === 0
         ? {
@@ -390,6 +416,16 @@ export function archiveStoredProject(projectId: string) {
             owner: SINGLE_USER_LABEL,
             updatedAt: archivedProject.lastUpdated,
           },
+          closureStatus: buildProjectClosureStatus({
+            finalConclusionGenerated: store.projectDetails[detailIndex].finalConclusion !== null,
+            lifecycle: "idle",
+            pendingApprovals: 0,
+            projectStatus: archivedProject.status,
+            queuedTaskCount: 0,
+            reportExported: store.projectDetails[detailIndex].closureStatus.reportExported,
+            runningTaskCount: 0,
+            waitingApprovalTaskCount: 0,
+          }),
         }
       : buildProjectDetail(archivedProject)
 

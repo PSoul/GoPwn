@@ -823,6 +823,15 @@ export async function updateApprovalDecisionPayload(approvalId: string, input: A
         runId: linkedRunId,
       })
     }
+
+    const schedulerControl = getStoredProjectSchedulerControl(approval.projectId)
+
+    if (schedulerControl?.lifecycle === "running") {
+      await runProjectLifecycleKickoff(approval.projectId, {
+        controlCommand: "resume",
+        note: "审批通过后，继续根据当前结果推进项目后续动作并判断是否可以收束。",
+      })
+    }
   }
 
   return approval

@@ -1,0 +1,59 @@
+{
+  "serverName": "fscan-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP Server wrapping fscan for comprehensive intranet scanning",
+  "transport": "stdio",
+  "command": "node",
+  "args": ["dist/index.js"],
+  "enabled": true,
+  "tools": [
+    {
+      "toolName": "fscan_host_discovery",
+      "description": "Discover alive hosts using ICMP/ping scanning",
+      "capability": "asset-discovery",
+      "resultMappings": ["assets"],
+      "riskLevel": "medium",
+      "boundary": "external-target"
+    },
+    {
+      "toolName": "fscan_port_scan",
+      "description": "Scan open ports and identify services",
+      "capability": "port-scanning",
+      "resultMappings": ["network"],
+      "riskLevel": "medium",
+      "boundary": "external-target"
+    },
+    {
+      "toolName": "fscan_service_bruteforce",
+      "description": "Brute force credentials for network services",
+      "capability": "asset-discovery",
+      "resultMappings": ["findings"],
+      "riskLevel": "high",
+      "boundary": "external-target"
+    },
+    {
+      "toolName": "fscan_vuln_scan",
+      "description": "Scan for known vulnerabilities (MS17-010, SMBGhost)",
+      "capability": "controlled-validation",
+      "resultMappings": ["findings"],
+      "riskLevel": "high",
+      "boundary": "external-target"
+    },
+    {
+      "toolName": "fscan_web_scan",
+      "description": "Scan web applications for vulnerabilities using POC detection",
+      "capability": "controlled-validation",
+      "resultMappings": ["findings"],
+      "riskLevel": "high",
+      "boundary": "external-target"
+    },
+    {
+      "toolName": "fscan_full_scan",
+      "description": "Run comprehensive scan with all capabilities",
+      "capability": "asset-discovery",
+      "resultMappings": ["network", "findings", "assets"],
+      "riskLevel": "high",
+      "boundary": "external-target"
+    }
+  ]
+}

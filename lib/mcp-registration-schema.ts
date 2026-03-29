@@ -28,7 +28,7 @@ export const mcpToolRegistrationSchema = z.object({
   requiresApproval: z.boolean(),
   resultMappings: z.array(z.enum(MCP_RESULT_MAPPINGS)).min(1),
   inputSchema: jsonSchemaLikeObject,
-  outputSchema: jsonSchemaLikeObject.optional(),
+  outputSchema: jsonSchemaLikeObject,
   defaultConcurrency: z.string().trim().min(1),
   rateLimit: z.string().trim().min(1),
   timeout: z.string().trim().min(1),
@@ -43,9 +43,9 @@ export const mcpServerRegistrationSchema = z
     transport: z.enum(MCP_TRANSPORTS),
     command: z.string().trim().optional(),
     args: z.array(z.string().trim()).default([]),
-    endpoint: z.string().trim().min(1),
+    endpoint: z.string().trim().min(1).optional(),
     enabled: z.boolean(),
-    notes: z.string().trim().min(1),
+    notes: z.string().trim().optional(),
     tools: z.array(mcpToolRegistrationSchema).min(1),
   })
   .superRefine((value, context) => {

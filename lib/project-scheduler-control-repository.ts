@@ -77,7 +77,7 @@ export function isStoredProjectSchedulerPaused(projectId: string) {
 }
 
 export type ProjectSchedulerControlPatchInput = Partial<
-  Pick<ProjectSchedulerControl, "lifecycle" | "note" | "paused">
+  Pick<ProjectSchedulerControl, "lifecycle" | "note" | "paused" | "autoReplan" | "maxRounds">
 >
 
 export type ProjectSchedulerControlUpdateResult = {
@@ -180,9 +180,17 @@ function getLifecycleMeta(nextLifecycle: ProjectSchedulerLifecycle) {
 function validateLifecycleTransition(
   current: ProjectSchedulerLifecycle,
   next: ProjectSchedulerLifecycle,
+  currentProjectStatus: string,
 ): ProjectSchedulerControlUpdateError | null {
   if (current === next) {
     return null
+  }
+
+  if (currentProjectStatus === "已完成") {
+    return {
+      error: "Project scheduler lifecycle is already completed and cannot be restarted.",
+      status: 409,
+    }
   }
 
   if (current === "stopped" && next !== "stopped") {
@@ -215,7 +223,7 @@ export function updateStoredProjectSchedulerControl(
     updatedAt: project.lastUpdated,
   })
   const nextLifecycle = resolveLifecycleFromPatch(current, patch)
-  const transitionError = validateLifecycleTransition(current.lifecycle, nextLifecycle)
+  const transitionError = validateLifecycleTransition(current.lifecycle, nextLifecycle, project.status)
 
   if (transitionError) {
     return transitionError
@@ -235,6 +243,8 @@ export function updateStoredProjectSchedulerControl(
           ? patch.paused
           : nextLifecycle === "paused" || nextLifecycle === "stopped"
         : nextLifecycle === "paused" || nextLifecycle === "stopped",
+    autoReplan: typeof patch.autoReplan === "boolean" ? patch.autoReplan : current.autoReplan,
+    maxRounds: typeof patch.maxRounds === "number" ? patch.maxRounds : current.maxRounds,
     note: patch.note ?? current.note,
     updatedAt: timestamp,
   }

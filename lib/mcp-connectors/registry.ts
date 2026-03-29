@@ -4,9 +4,11 @@ import { realEvidenceCaptureMcpConnector } from "@/lib/mcp-connectors/real-evide
 import { realHttpStructureMcpConnector } from "@/lib/mcp-connectors/real-http-structure-mcp-connector"
 import { realHttpValidationMcpConnector } from "@/lib/mcp-connectors/real-http-validation-mcp-connector"
 import { realWebSurfaceMcpConnector } from "@/lib/mcp-connectors/real-web-surface-mcp-connector"
+import { stdioMcpConnector } from "@/lib/mcp-connectors/stdio-mcp-connector"
 import type { McpConnector, McpConnectorExecutionContext } from "@/lib/mcp-connectors/types"
 
 const orderedConnectors: McpConnector[] = [
+  stdioMcpConnector,
   realDnsIntelligenceConnector,
   realEvidenceCaptureMcpConnector,
   realHttpStructureMcpConnector,

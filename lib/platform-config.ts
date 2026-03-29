@@ -14,17 +14,22 @@ export const MCP_CAPABILITY_NAMES = [
   "目标解析类",
   "DNS / 子域 / 证书情报类",
   "端口探测类",
+  "资产探测类",
   "Web 页面探测类",
   "HTTP / API 结构发现类",
+  "HTTP 数据包交互类",
+  "TCP 数据包交互类",
   "受控验证类",
   "截图与证据采集类",
   "报告导出类",
+  "外部情报查询类",
+  "编解码与密码学工具类",
 ] as const
 
-export const MCP_BOUNDARY_TYPES = ["外部目标交互", "平台内部处理"] as const
+export const MCP_BOUNDARY_TYPES = ["外部目标交互", "平台内部处理", "外部第三方API"] as const
 export const MCP_RISK_LEVELS = ["高", "中", "低"] as const
 export const MCP_TRANSPORTS = ["stdio", "streamable_http", "sse"] as const
-export const MCP_RESULT_MAPPINGS = ["domains", "webEntries", "network", "findings", "evidence", "workLogs"] as const
+export const MCP_RESULT_MAPPINGS = ["domains", "webEntries", "network", "findings", "evidence", "workLogs", "assets", "intelligence"] as const
 
 export const dashboardMetrics: MetricCard[] = [
   { label: "项目总数", value: "0", delta: "等待真实项目", tone: "neutral" },
@@ -75,6 +80,16 @@ export const mcpCapabilityRecords: McpCapabilityRecord[] = [
     connectedTools: [],
   },
   {
+    id: "cap-asset-discovery",
+    name: "资产探测类",
+    description: "综合资产探测，包含主机、服务、开放端口和关联资产的聚合识别。",
+    defaultRiskLevel: "高",
+    defaultApprovalRule: "必须逐项审批",
+    boundary: "外部目标交互",
+    mappedStages: ["发现与指纹识别"],
+    connectedTools: [],
+  },
+  {
     id: "cap-api-surface",
     name: "HTTP / API 结构发现类",
     description: "负责识别 API 入口、接口结构线索、文档入口等。",
@@ -82,6 +97,26 @@ export const mcpCapabilityRecords: McpCapabilityRecord[] = [
     defaultApprovalRule: "默认低风险自动执行",
     boundary: "外部目标交互",
     mappedStages: ["发现与指纹识别", "待验证项生成"],
+    connectedTools: [],
+  },
+  {
+    id: "cap-http-packet",
+    name: "HTTP 数据包交互类",
+    description: "发送完整 HTTP 请求并返回结构化响应，适合低风险协议级交互和样本采集。",
+    defaultRiskLevel: "中",
+    defaultApprovalRule: "受项目策略限制，可自动执行",
+    boundary: "外部目标交互",
+    mappedStages: ["发现与指纹识别", "受控 PoC 验证"],
+    connectedTools: [],
+  },
+  {
+    id: "cap-tcp-packet",
+    name: "TCP 数据包交互类",
+    description: "执行非 HTTP 的原始 TCP/UDP 协议交互，用于协议确认、服务识别和证据采样。",
+    defaultRiskLevel: "中",
+    defaultApprovalRule: "受项目策略限制，可自动执行",
+    boundary: "外部目标交互",
+    mappedStages: ["发现与指纹识别"],
     connectedTools: [],
   },
   {
@@ -114,6 +149,26 @@ export const mcpCapabilityRecords: McpCapabilityRecord[] = [
     mappedStages: ["报告与回归验证"],
     connectedTools: [],
   },
+  {
+    id: "cap-external-intel",
+    name: "外部情报查询类",
+    description: "调用第三方情报 API 获取资产、组织、开放端口和情报侧线索，不直接与目标交互。",
+    defaultRiskLevel: "低",
+    defaultApprovalRule: "默认自动执行",
+    boundary: "外部第三方API",
+    mappedStages: ["持续信息收集"],
+    connectedTools: [],
+  },
+  {
+    id: "cap-encode-crypto",
+    name: "编解码与密码学工具类",
+    description: "提供 Base64、URL 编解码、哈希计算等辅助能力，不与目标直接交互。",
+    defaultRiskLevel: "低",
+    defaultApprovalRule: "默认自动执行",
+    boundary: "平台内部处理",
+    mappedStages: ["发现与指纹识别", "受控 PoC 验证"],
+    connectedTools: [],
+  },
 ]
 
 export const mcpBoundaryRules: McpBoundaryRule[] = [
@@ -127,6 +182,11 @@ export const mcpBoundaryRules: McpBoundaryRule[] = [
     description: "任务规划、证据归一化、结果聚合、状态推进等内部处理动作可以留在平台内部完成，避免错误抽象。",
     type: "平台内部处理",
   },
+  {
+    title: "第三方情报查询必须走统一 API 边界",
+    description: "FOFA、Shodan 等外部情报源需要通过统一凭据与审计出口调用，避免把第三方 API 误判成目标交互。",
+    type: "外部第三方API",
+  },
 ]
 
 export const mcpRegistrationFields: McpRegistrationField[] = [
@@ -139,7 +199,7 @@ export const mcpRegistrationFields: McpRegistrationField[] = [
   { label: "是否必须审批", description: "标记该工具默认是否只能在人工确认后运行。" },
   { label: "默认限制", description: "包括并发、速率、超时和重试建议，作为调度默认值。" },
   { label: "启用状态", description: "决定该工具当前是否可被网关挑选进入执行路径。" },
-  { label: "调用边界", description: "明确它属于外部目标交互还是平台内部处理能力。" },
+  { label: "调用边界", description: "明确它属于外部目标交互、平台内部处理还是外部第三方 API 调用。" },
 ]
 
 export const systemControlOverview: ControlSetting[] = [

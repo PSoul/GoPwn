@@ -2,7 +2,8 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { McpGatewayClient } from "@/components/settings/mcp-gateway-client"
-import { mcpBoundaryRules, mcpCapabilityRecords, mcpRegistrationFields, mcpTools } from "@/lib/prototype-data"
+import { mcpBoundaryRules, mcpCapabilityRecords, mcpRegistrationFields } from "@/lib/platform-config"
+import { mcpTools } from "@/lib/prototype-data"
 import type {
   McpServerContractSummaryRecord,
   McpServerInvocationRecord,
@@ -182,6 +183,24 @@ describe("McpGatewayClient", () => {
     expect(screen.getByText("已连接 MCP 服务器")).toBeInTheDocument()
     expect(screen.getAllByText("web-surface-stdio").length).toBeGreaterThan(0)
     expect(screen.getByText("probe_web_surface")).toBeInTheDocument()
+  })
+
+  it("renders template-source guidance and phased runtime support note", () => {
+    render(
+      <McpGatewayClient
+        initialTools={mcpTools}
+        initialServers={serverFixtures}
+        initialInvocations={invocationFixtures}
+        capabilities={mcpCapabilityRecords}
+        boundaryRules={mcpBoundaryRules}
+        registrationFields={mcpRegistrationFields}
+        initialServerContracts={serverContractFixtures}
+        initialToolContracts={toolContractFixtures}
+      />,
+    )
+
+    expect(screen.getByText(/D:\\dev\\llmpentest-mcp-template/)).toBeInTheDocument()
+    expect(screen.getByText(/并非所有模板能力都已完成运行时桥接/)).toBeInTheDocument()
   })
 
   it("submits a validated MCP registration payload from the settings client", async () => {

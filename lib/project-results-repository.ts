@@ -1,3 +1,6 @@
+import { buildProjectReviewerPrompt } from "@/lib/llm-brain-prompt"
+import { resolveLlmProvider } from "@/lib/llm-provider/registry"
+import { buildProjectClosureStatus } from "@/lib/project-closure-status"
 import { formatTimestamp, toDisplayCount } from "@/lib/prototype-record-utils"
 import { SINGLE_USER_LABEL } from "@/lib/project-targets"
 import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
@@ -6,6 +9,7 @@ import type {
   AssetRecord,
   McpRunRecord,
   ProjectDetailRecord,
+  ProjectConclusionRecord,
   ProjectFindingRecord,
   ProjectInventoryGroup,
   ProjectKnowledgeItem,
@@ -18,6 +22,7 @@ import type {
   TimelineStage,
   Tone,
 } from "@/lib/prototype-types"
+import { upsertStoredWorkLogs } from "@/lib/work-log-repository"
 
 const stageOrder: ProjectStage[] = [
   "授权与范围定义",
@@ -243,6 +248,7 @@ function resolveCurrentStage(
   runs: McpRunRecord[],
   findings: ProjectFindingRecord[],
   evidenceCount: number,
+  finalConclusion: ProjectConclusionRecord | null,
 ): ProjectStageSnapshot {
   const pendingApprovals = approvals.filter((approval) => approval.status === "待处理")
   const approvedValidationRun = runs.find(
@@ -253,6 +259,16 @@ function resolveCurrentStage(
   let title: ProjectStage = project.stage
   let summary = project.summary
   let blocker = project.riskSummary
+
+  if (finalConclusion) {
+    return {
+      title: "风险聚合与项目结论",
+      summary: finalConclusion.summary,
+      blocker: "项目已经形成最终结论，当前无新的待处理审批或调度阻塞。",
+      owner: finalConclusion.source === "reviewer" ? "结果审阅模型" : SINGLE_USER_LABEL,
+      updatedAt: finalConclusion.generatedAt,
+    }
+  }
 
   if (reportRun) {
     title = findings.length > 0 ? "风险聚合与项目结论" : "报告与回归验证"
@@ -324,12 +340,163 @@ function parseReportDigestFromLog(summary: string) {
     .filter(Boolean)
 }
 
+function normalizeConclusionSummary(summary: string, fallback: string) {
+  const trimmed = summary.trim() || fallback.trim()
+
+  if (!trimmed) {
+    return "最终结论：当前项目已收束，但还没有足够结果可供展示。"
+  }
+
+  return trimmed.startsWith("最终结论：") ? trimmed : `最终结论：${trimmed}`
+}
+
+function buildFallbackConclusionRecord(input: {
+  assetCount: number
+  evidenceCount: number
+  findingCount: number
+  projectId: string
+}): Omit<ProjectConclusionRecord, "generatedAt" | "id" | "source"> {
+  const findingLead =
+    input.findingCount > 0
+      ? `当前累计 ${input.findingCount} 条漏洞/发现，后续重点应围绕这些结果做复核与修复追踪。`
+      : "当前没有新增漏洞/发现，结论以资产面与证据面为主。"
+
+  return {
+    assetCount: input.assetCount,
+    evidenceCount: input.evidenceCount,
+    findingCount: input.findingCount,
+    keyPoints: [
+      `资产 ${input.assetCount} 条`,
+      `证据 ${input.evidenceCount} 条`,
+      `漏洞/发现 ${input.findingCount} 条`,
+    ],
+    nextActions:
+      input.findingCount > 0
+        ? ["复核高风险发现证据", "整理修复建议并回填报告", "视需要开启下一轮验证"]
+        : ["复核当前资产与证据", "确认是否需要补充更深一轮验证", "导出并归档当前报告"],
+    projectId: input.projectId,
+    summary: normalizeConclusionSummary(
+      `本轮项目已完成首轮收束，已沉淀 ${input.assetCount} 条资产、${input.evidenceCount} 条证据和 ${input.findingCount} 条漏洞/发现。 ${findingLead}`,
+      "本轮项目已完成首轮收束。",
+    ),
+  }
+}
+
+function buildConclusionWorkLog(record: ProjectConclusionRecord, projectName: string) {
+  return {
+    id: `work-project-conclusion-${record.projectId}-${record.generatedAt.replace(/[^0-9]/g, "")}`,
+    category: "项目结论",
+    summary: record.summary,
+    projectName,
+    actor: record.source === "reviewer" ? "reviewer-provider" : "reviewer-fallback",
+    timestamp: record.generatedAt,
+    status: "已完成",
+  }
+}
+
+export function listStoredProjectConclusions(projectId?: string) {
+  const conclusions = readPrototypeStore().projectConclusions
+
+  if (!projectId) {
+    return conclusions
+  }
+
+  return conclusions.filter((item) => item.projectId === projectId)
+}
+
+export function getStoredProjectLatestConclusion(projectId: string) {
+  return listStoredProjectConclusions(projectId)[0] ?? null
+}
+
+export async function generateStoredProjectFinalConclusion(projectId: string) {
+  const store = readPrototypeStore()
+  const project = store.projects.find((item) => item.id === projectId)
+
+  if (!project) {
+    return null
+  }
+
+  const assetCount = store.assets.filter((asset) => asset.projectId === projectId).length
+  const evidenceCount = store.evidenceRecords.filter((record) => record.projectId === projectId).length
+  const findingCount = store.projectFindings.filter((finding) => finding.projectId === projectId).length
+  const reportExport = listStoredProjectReportExports(projectId)[0] ?? null
+  const existingConclusion = getStoredProjectLatestConclusion(projectId)
+  const timestamp = formatTimestamp()
+  const fallback = buildFallbackConclusionRecord({
+    assetCount,
+    evidenceCount,
+    findingCount,
+    projectId,
+  })
+  const provider = resolveLlmProvider()
+  let nextRecord: ProjectConclusionRecord = {
+    ...fallback,
+    generatedAt: timestamp,
+    id: existingConclusion?.id ?? `conclusion-${projectId}`,
+    source: "fallback",
+  }
+
+  if (provider) {
+    try {
+      const providerResult = await provider.generatePlan({
+        prompt: buildProjectReviewerPrompt({
+          assetCount,
+          description: project.description,
+          evidenceCount,
+          findingCount,
+          latestReportSummary: reportExport?.summary ?? "",
+          projectName: project.name,
+          recentContext: store.workLogs
+            .filter((log) => log.projectName === project.name)
+            .slice(0, 6)
+            .map((log) => `${log.category} / ${log.summary}`),
+          stage: project.stage,
+          targets: project.targets,
+        }),
+        purpose: "reviewer",
+      })
+      const reviewerKeyPoints = providerResult.content.items
+        .slice(0, 3)
+        .map((item) => `${item.requestedAction} @ ${item.target}`)
+        .filter(Boolean)
+      const reviewerNextActions = providerResult.content.items
+        .slice(0, 3)
+        .map((item) => item.rationale || item.requestedAction)
+        .filter(Boolean)
+      nextRecord = {
+        ...nextRecord,
+        keyPoints: reviewerKeyPoints.length > 0 ? reviewerKeyPoints : nextRecord.keyPoints,
+        nextActions: reviewerNextActions.length > 0 ? reviewerNextActions : nextRecord.nextActions,
+        source: "reviewer",
+        summary: normalizeConclusionSummary(providerResult.content.summary, fallback.summary),
+      }
+    } catch {
+      nextRecord = {
+        ...nextRecord,
+        summary: fallback.summary,
+        source: "fallback",
+      }
+    }
+  }
+
+  store.projectConclusions = [
+    nextRecord,
+    ...store.projectConclusions.filter((record) => record.projectId !== projectId),
+  ].sort((left, right) => right.generatedAt.localeCompare(left.generatedAt))
+  writePrototypeStore(store)
+  upsertStoredWorkLogs([buildConclusionWorkLog(nextRecord, project.name)])
+  refreshStoredProjectResults(projectId)
+
+  return nextRecord
+}
+
 function toStoredProjectReportExportRecord(
   run: McpRunRecord,
   reportLogSummary: string | undefined,
   assetCount: number,
   evidenceCount: number,
   findingCount: number,
+  conclusion: ProjectConclusionRecord | null,
 ): ProjectReportExportRecord {
   const digestLines = parseReportDigestFromLog(reportLogSummary ?? "")
 
@@ -346,6 +513,9 @@ function toStoredProjectReportExportRecord(
     assetCount,
     evidenceCount,
     findingCount,
+    conclusionGeneratedAt: conclusion?.generatedAt ?? null,
+    conclusionSource: conclusion?.source ?? null,
+    conclusionSummary: conclusion?.summary ?? null,
   }
 }
 
@@ -371,6 +541,7 @@ export function listStoredProjectReportExports(projectId: string): ProjectReport
   const assetCount = store.assets.filter((asset) => asset.projectId === projectId).length
   const evidenceCount = store.evidenceRecords.filter((record) => record.projectId === projectId).length
   const findingCount = store.projectFindings.filter((finding) => finding.projectId === projectId).length
+  const conclusion = store.projectConclusions.find((record) => record.projectId === projectId) ?? null
 
   return [...projectRuns]
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
@@ -381,14 +552,17 @@ export function listStoredProjectReportExports(projectId: string): ProjectReport
         assetCount,
         evidenceCount,
         findingCount,
+        conclusion,
       ),
     )
 }
 
 export function getStoredProjectReportExportPayload(projectId: string): ProjectReportExportPayload {
   const records = listStoredProjectReportExports(projectId)
+  const finalConclusion = getStoredProjectLatestConclusion(projectId)
 
   return {
+    finalConclusion,
     latest: records[0] ?? null,
     totalExports: records.length,
   }
@@ -439,11 +613,35 @@ export function refreshStoredProjectResults(projectId: string) {
   const projectEvidence = store.evidenceRecords.filter((record) => record.projectId === projectId)
   const projectWorkLogs = store.workLogs.filter((log) => log.projectName === project.name)
   const projectFindings = store.projectFindings.filter((finding) => finding.projectId === projectId)
+  const latestConclusion = store.projectConclusions.find((conclusion) => conclusion.projectId === projectId) ?? null
   const projectApprovals = store.approvals.filter((approval) => approval.projectId === projectId)
   const projectRuns = store.mcpRuns.filter((run) => run.projectId === projectId)
+  const projectSchedulerTasks = store.schedulerTasks.filter((task) => task.projectId === projectId)
+  const schedulerLifecycle = store.projectSchedulerControls[projectId]?.lifecycle ?? (project.status === "待处理" ? "idle" : "running")
+  const waitingApprovalTaskCount = projectSchedulerTasks.filter((task) => task.status === "waiting_approval").length
+  const runningTaskCount = projectSchedulerTasks.filter((task) => task.status === "running").length
+  const queuedTaskCount = projectSchedulerTasks.filter((task) => ["ready", "retry_scheduled", "delayed"].includes(task.status)).length
+  const reportExported = projectRuns.some((run) => run.toolName === "report-exporter" && run.status === "已执行")
   const domainAssets = projectAssets.filter(isDomainAsset)
   const networkAssets = projectAssets.filter(isNetworkAsset)
-  const currentStage = resolveCurrentStage(project, projectApprovals, projectRuns, projectFindings, projectEvidence.length)
+  const currentStage = resolveCurrentStage(
+    project,
+    projectApprovals,
+    projectRuns,
+    projectFindings,
+    projectEvidence.length,
+    latestConclusion,
+  )
+  const closureStatus = buildProjectClosureStatus({
+    finalConclusionGenerated: latestConclusion !== null,
+    lifecycle: schedulerLifecycle,
+    pendingApprovals: projectApprovals.filter((approval) => approval.status === "待处理").length,
+    projectStatus: project.status,
+    queuedTaskCount,
+    reportExported,
+    runningTaskCount,
+    waitingApprovalTaskCount,
+  })
   const derivedKnowledge = buildDerivedKnowledge(
     detail,
     projectAssets,
@@ -454,14 +652,18 @@ export function refreshStoredProjectResults(projectId: string) {
     projectWorkLogs,
   )
   const pendingApprovals = projectApprovals.filter((approval) => approval.status === "待处理").length
-  const openTasks = Math.max(
-    detail.tasks.filter((task) => !["succeeded", "cancelled"].includes(task.status)).length +
-      projectRuns.filter((run) => ["待审批", "已阻塞", "已延后"].includes(run.status)).length,
-    pendingApprovals + projectFindings.filter((finding) => finding.status !== "已缓解").length,
-  )
+  const openTasks = latestConclusion
+    ? 0
+    : Math.max(
+        detail.tasks.filter((task) => !["succeeded", "cancelled"].includes(task.status)).length +
+          projectRuns.filter((run) => ["待审批", "已阻塞", "已延后"].includes(run.status)).length,
+        pendingApprovals + projectFindings.filter((finding) => finding.status !== "已缓解").length,
+      )
 
   const nextProjectStatus =
-    project.status === "已完成"
+    latestConclusion
+      ? "已完成"
+      : project.status === "已完成"
       ? "已完成"
       : project.status === "已停止"
         ? "已停止"
@@ -482,13 +684,17 @@ export function refreshStoredProjectResults(projectId: string) {
     assetCount: projectAssets.length,
     evidenceCount: projectEvidence.length,
     summary:
-      projectFindings.length > 0
+      latestConclusion
+        ? latestConclusion.summary
+        : projectFindings.length > 0
         ? `结果面已沉淀 ${projectAssets.length} 条资产、${projectEvidence.length} 条证据和 ${projectFindings.length} 条漏洞/发现，项目可以继续围绕现有结果推进。`
         : projectAssets.length > 0 || projectEvidence.length > 0
           ? `结果面已沉淀 ${projectAssets.length} 条资产和 ${projectEvidence.length} 条证据，当前重点是继续把结果做厚，而不是回到流程细节。`
           : project.summary,
     riskSummary:
-      projectFindings.length > 0
+      latestConclusion
+        ? latestConclusion.keyPoints.join("；")
+        : projectFindings.length > 0
         ? `${projectFindings.filter((finding) => finding.severity === "高危").length} 条高危或待复核发现已形成列表。`
         : pendingApprovals > 0
           ? `${pendingApprovals} 个高风险动作仍在等待审批。`
@@ -500,26 +706,34 @@ export function refreshStoredProjectResults(projectId: string) {
   store.projectDetails[detailIndex] = {
     ...detail,
     blockingReason:
-      pendingApprovals > 0
+      latestConclusion
+        ? "项目已完成当前轮次并形成最终结论，当前没有新的审批或调度阻塞。"
+        : pendingApprovals > 0
         ? `当前仍有 ${pendingApprovals} 个待审批动作，后续高风险验证会继续受控推进。`
         : projectFindings.length > 0
           ? "当前没有硬阻塞，重点转为复核现有问题、补齐证据和继续扩展结果面。"
           : "当前没有硬阻塞，可继续补采域名、服务和 Web 入口结果。",
     nextStep:
-      projectFindings.length > 0
+      latestConclusion
+        ? "查看最终结论与报告摘要，如需继续扩展测试，请新建下一轮项目。"
+        : projectFindings.length > 0
         ? "优先在漏洞与发现页复核当前问题，同时补齐关联证据与受影响资产。"
         : domainAssets.length > 0
           ? "继续围绕 Web 入口、网络面和证据锚点补厚当前项目结果。"
           : "继续推进被动情报补采和入口识别。",
     currentFocus:
-      projectFindings.length > 0
+      latestConclusion
+        ? "当前项目已收束，重点转为复核最终结论、报告摘要和导出结果。"
+        : projectFindings.length > 0
         ? "先围绕已出现的漏洞与发现补厚证据，再决定是否扩展验证。"
         : pendingApprovals > 0
           ? "优先处理审批阻塞，并确保已到手的资产和证据先沉淀到结果页。"
           : "优先扩大当前可见资产、入口和证据的覆盖面。",
-    timeline: buildTimeline(currentStage, pendingApprovals > 0),
+    timeline: buildTimeline(currentStage, latestConclusion ? false : pendingApprovals > 0),
     resultMetrics: buildResultMetrics(domainAssets, networkAssets, projectFindings, projectEvidence.length),
     assetGroups: buildAssetGroups(projectAssets),
+    closureStatus,
+    finalConclusion: latestConclusion,
     findings: projectFindings,
     currentStage,
     ...derivedKnowledge,

@@ -163,3 +163,37 @@ test("project operations page can generate a local orchestrator plan", async ({ 
   await expect(page.getByText("最近一次导出结果")).toBeVisible({ timeout: 15_000 })
   await expect(page.getByRole("button", { name: "导出项目报告" })).toBeVisible()
 })
+
+test("manual start can auto-settle a project into final conclusion and lock terminal controls", async ({ page }) => {
+  await loginAsResearcher(page)
+  const { projectId, projectName } = await createProject(page)
+
+  await page.goto(`/projects/${projectId}/operations`)
+  await expect(page.getByRole("heading", { name: "任务与调度详情" })).toBeVisible()
+
+  const startResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes(`/api/projects/${projectId}/scheduler-control`) &&
+      response.request().method() === "PATCH",
+    { timeout: 15_000 },
+  )
+
+  await page.getByRole("button", { name: "开始项目" }).click()
+
+  const startResponse = await startResponsePromise
+  expect(startResponse.ok()).toBe(true)
+
+  await expect(page.getByText("已完成当前轮次").first()).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText("项目收束诊断")).toBeVisible()
+  await expect(page.getByText("当前轮次已经自动收束，报告与最终结论都已稳定落库。").first()).toBeVisible()
+  await expect(page.getByRole("button", { name: "开始项目" })).toBeDisabled()
+  await expect(page.getByRole("button", { name: "为 OWASP Juice Shop 生成计划" })).toBeDisabled()
+  await expect(page.getByRole("button", { name: "发起 MCP 调度" })).toBeDisabled()
+
+  await page.goto(`/projects/${projectId}`)
+  await expect(page.locator("h1", { hasText: projectName })).toBeVisible()
+  await expect(page.getByText("项目收束状态")).toBeVisible()
+  await expect(page.getByText("最终结论").first()).toBeVisible()
+  await expect(page.getByText("报告已导出").first()).toBeVisible()
+  await expect(page.getByText("结论已生成").first()).toBeVisible()
+})

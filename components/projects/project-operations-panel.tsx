@@ -154,6 +154,39 @@ export function ProjectOperationsPanel({
             </div>
           </div>
 
+          <div className="rounded-[24px] border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-slate-950 dark:text-white">项目收束诊断</p>
+              <StatusBadge tone={detail.closureStatus.tone}>{detail.closureStatus.label}</StatusBadge>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{detail.closureStatus.summary}</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <StatusBadge tone={detail.closureStatus.reportExported ? "success" : "neutral"}>
+                报告{detail.closureStatus.reportExported ? "已导出" : "待导出"}
+              </StatusBadge>
+              <StatusBadge tone={detail.closureStatus.finalConclusionGenerated ? "success" : "neutral"}>
+                结论{detail.closureStatus.finalConclusionGenerated ? "已生成" : "待生成"}
+              </StatusBadge>
+            </div>
+            <div className="mt-4 space-y-2">
+              {detail.closureStatus.blockers.length > 0 ? (
+                detail.closureStatus.blockers.map((blocker) => (
+                  <div
+                    key={`${blocker.title}-${blocker.detail}`}
+                    className="rounded-[20px] border border-slate-200/80 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/60"
+                  >
+                    <p className="text-sm font-medium text-slate-950 dark:text-white">{blocker.title}</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{blocker.detail}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-[20px] border border-slate-200/80 bg-slate-50/80 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
+                  当前没有新的收束阻塞，系统会根据现有状态继续保持完成态或等待下一轮人工动作。
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-[24px] border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70">
               <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">

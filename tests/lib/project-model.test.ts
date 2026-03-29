@@ -4,6 +4,7 @@ import path from "node:path"
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
+import { buildProjectClosureStatus } from "@/lib/project-closure-status"
 import { projectMutationSchema } from "@/lib/project-write-schema"
 import { createStoredProject } from "@/lib/project-repository"
 import { getDefaultProjectFormPreset, readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
@@ -130,6 +131,17 @@ describe("simplified project model", () => {
             description: "旧审批",
             note: "旧备注",
           },
+          closureStatus: buildProjectClosureStatus({
+            finalConclusionGenerated: false,
+            lifecycle: "running",
+            pendingApprovals: 0,
+            projectStatus: "运行中",
+            queuedTaskCount: 0,
+            reportExported: false,
+            runningTaskCount: 0,
+            waitingApprovalTaskCount: 0,
+          }),
+          finalConclusion: null,
         },
       ],
       projectFormPresets: {

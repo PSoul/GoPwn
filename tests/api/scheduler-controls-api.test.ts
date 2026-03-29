@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 import { PATCH as patchProjectSchedulerControl } from "@/app/api/projects/[projectId]/scheduler-control/route"
 import { PATCH as patchProjectSchedulerTask } from "@/app/api/projects/[projectId]/scheduler-tasks/[taskId]/route"
+import { GET as getProjectDetail } from "@/app/api/projects/[projectId]/route"
 import { GET as getProjectOperations } from "@/app/api/projects/[projectId]/operations/route"
 import { dispatchStoredMcpRun, updateStoredMcpRun } from "@/lib/mcp-gateway-repository"
 import { getStoredSchedulerTaskByRunId, updateStoredSchedulerTask } from "@/lib/mcp-scheduler-repository"
@@ -61,7 +62,7 @@ describe("scheduler control api routes", () => {
     expect(Array.isArray(operationsPayload.schedulerTasks)).toBe(true)
   })
 
-  it("starts an idle project only after manual start, supports pause/resume, and refuses restart after stop", async () => {
+  it("starts an idle project only after manual start and still refuses restart after stop", async () => {
     seedWorkflowReadyMcpTools()
     const fixture = createStoredProjectFixture({
       targetInput: "http://127.0.0.1:18080/WebGoat",
@@ -83,7 +84,7 @@ describe("scheduler control api routes", () => {
 
     expect(startResponse.status).toBe(200)
     expect(startPayload.schedulerControl.lifecycle).toBe("running")
-    expect(startPayload.project.status).toBe("运行中")
+    expect(startPayload.project.status).toBe("已完成")
 
     const operationsAfterStart = await getProjectOperations(
       new Request(`http://localhost/api/projects/${fixture.project.id}/operations`),
@@ -93,43 +94,16 @@ describe("scheduler control api routes", () => {
 
     expect(startedOperationsPayload.schedulerControl.lifecycle).toBe("running")
     expect(startedOperationsPayload.orchestrator.lastPlan).not.toBeNull()
+    expect(startedOperationsPayload.reportExport.latest).not.toBeNull()
+    expect(startedOperationsPayload.detail.finalConclusion).not.toBeNull()
 
-    const pauseResponse = await patchProjectSchedulerControl(
-      new Request(`http://localhost/api/projects/${fixture.project.id}/scheduler-control`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          lifecycle: "paused",
-          note: "研究员临时暂停项目。",
-        }),
-        headers: { "content-type": "application/json" },
-      }),
-      buildProjectContext(fixture.project.id),
-    )
-    const pausePayload = await pauseResponse.json()
-
-    expect(pauseResponse.status).toBe(200)
-    expect(pausePayload.schedulerControl.lifecycle).toBe("paused")
-    expect(pausePayload.project.status).toBe("已暂停")
-
-    const resumeResponse = await patchProjectSchedulerControl(
-      new Request(`http://localhost/api/projects/${fixture.project.id}/scheduler-control`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          lifecycle: "running",
-          note: "研究员恢复项目执行。",
-        }),
-        headers: { "content-type": "application/json" },
-      }),
-      buildProjectContext(fixture.project.id),
-    )
-    const resumePayload = await resumeResponse.json()
-
-    expect(resumeResponse.status).toBe(200)
-    expect(resumePayload.schedulerControl.lifecycle).toBe("running")
-    expect(resumePayload.project.status).toBe("运行中")
+    const stoppedFixture = createStoredProjectFixture({
+      targetInput: "https://staging.example.com/login",
+      description: "停止后不可重启测试项目。",
+    })
 
     const stopResponse = await patchProjectSchedulerControl(
-      new Request(`http://localhost/api/projects/${fixture.project.id}/scheduler-control`, {
+      new Request(`http://localhost/api/projects/${stoppedFixture.project.id}/scheduler-control`, {
         method: "PATCH",
         body: JSON.stringify({
           lifecycle: "stopped",
@@ -137,7 +111,7 @@ describe("scheduler control api routes", () => {
         }),
         headers: { "content-type": "application/json" },
       }),
-      buildProjectContext(fixture.project.id),
+      buildProjectContext(stoppedFixture.project.id),
     )
     const stopPayload = await stopResponse.json()
 
@@ -146,7 +120,7 @@ describe("scheduler control api routes", () => {
     expect(stopPayload.project.status).toBe("已停止")
 
     const restartResponse = await patchProjectSchedulerControl(
-      new Request(`http://localhost/api/projects/${fixture.project.id}/scheduler-control`, {
+      new Request(`http://localhost/api/projects/${stoppedFixture.project.id}/scheduler-control`, {
         method: "PATCH",
         body: JSON.stringify({
           lifecycle: "running",
@@ -154,12 +128,63 @@ describe("scheduler control api routes", () => {
         }),
         headers: { "content-type": "application/json" },
       }),
-      buildProjectContext(fixture.project.id),
+      buildProjectContext(stoppedFixture.project.id),
     )
     const restartPayload = await restartResponse.json()
 
     expect(restartResponse.status).toBe(409)
     expect(restartPayload.error).toContain("stopped")
+  })
+
+  it("skips DNS expansion for direct URL/IP targets and auto-settles into report export plus final conclusion", async () => {
+    seedWorkflowReadyMcpTools()
+    const fixture = createStoredProjectFixture({
+      targetInput: "http://127.0.0.1:18080/WebGoat",
+      description: "直接 URL/IP 目标不应该被误判成需要 DNS 扩展。",
+    })
+
+    const startResponse = await patchProjectSchedulerControl(
+      new Request(`http://localhost/api/projects/${fixture.project.id}/scheduler-control`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          lifecycle: "running",
+          note: "研究员开始直接 URL/IP 目标项目。",
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+      buildProjectContext(fixture.project.id),
+    )
+
+    expect(startResponse.status).toBe(200)
+
+    const detailResponse = await getProjectDetail(
+      new Request(`http://localhost/api/projects/${fixture.project.id}`),
+      buildProjectContext(fixture.project.id),
+    )
+    const detailPayload = await detailResponse.json()
+
+    expect(detailResponse.status).toBe(200)
+    expect(detailPayload.project.status).toBe("已完成")
+    expect(detailPayload.detail.finalConclusion).not.toBeNull()
+    expect(detailPayload.detail.finalConclusion.summary).toContain("最终结论")
+
+    const operationsResponse = await getProjectOperations(
+      new Request(`http://localhost/api/projects/${fixture.project.id}/operations`),
+      buildProjectContext(fixture.project.id),
+    )
+    const operationsPayload = await operationsResponse.json()
+
+    expect(operationsResponse.status).toBe(200)
+    expect(
+      operationsPayload.orchestrator.lastPlan.items.some(
+        (item: { capability: string }) => item.capability === "DNS / 子域 / 证书情报类",
+      ),
+    ).toBe(false)
+    expect(
+      operationsPayload.mcpRuns.some((item: { capability: string }) => item.capability === "DNS / 子域 / 证书情报类"),
+    ).toBe(false)
+    expect(operationsPayload.reportExport.latest).not.toBeNull()
+    expect(operationsPayload.reportExport.latest.conclusionSummary).toContain("最终结论")
   })
 
   it("cancels a queued scheduler task through the project api", async () => {

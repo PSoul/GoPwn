@@ -1,0 +1,217 @@
+import { listStoredAssets } from "@/lib/asset-repository"
+import { listStoredProjectFindings } from "@/lib/project-results-repository"
+import { listStoredMcpTools } from "@/lib/mcp-repository"
+import { listBuiltInMcpTools } from "@/lib/built-in-mcp-tools"
+import { readPrototypeStore } from "@/lib/prototype-store"
+import type { OrchestratorRoundRecord, McpToolRecord } from "@/lib/prototype-types"
+
+function formatSnapshotSection(label: string, items: string[], maxItems: number): string {
+  if (items.length === 0) {
+    return `${label}(0): 暂无`
+  }
+
+  const display = items.slice(0, maxItems)
+  const suffix = items.length > maxItems ? ` (+${items.length - maxItems} more)` : ""
+
+  return `${label}(${items.length}): ${display.join(", ")}${suffix}`
+}
+
+export function buildAssetSnapshot(projectId: string): string {
+  const assets = listStoredAssets(projectId)
+  const findings = listStoredProjectFindings(projectId)
+
+  const domains = assets
+    .filter((a) => a.type === "domain")
+    .map((a) => `${a.label} [${a.scopeStatus}]`)
+  const hosts = assets
+    .filter((a) => a.type === "host")
+    .map((a) => a.label)
+  const ports = assets
+    .filter((a) => a.type === "port")
+    .map((a) => a.label)
+  const services = assets
+    .filter((a) => a.type === "service")
+    .map((a) => a.label)
+  const entries = assets
+    .filter((a) => a.type === "entry")
+    .map((a) => a.label)
+  const fingerprints = assets
+    .filter((a) => a.type === "fingerprint")
+    .map((a) => a.label)
+  const vulns = findings.map((f) => `${f.title} [${f.severity}/${f.status}]`)
+
+  return [
+    formatSnapshotSection("域名", domains, 20),
+    formatSnapshotSection("主机", hosts, 20),
+    formatSnapshotSection("端口", ports, 20),
+    formatSnapshotSection("服务", services, 20),
+    formatSnapshotSection("Web入口", entries, 20),
+    formatSnapshotSection("指纹", fingerprints, 10),
+    formatSnapshotSection("漏洞/发现", vulns, 20),
+  ].join("\n")
+}
+
+export function buildRoundSummary(projectId: string, round: OrchestratorRoundRecord): string {
+  const parts = [
+    `第${round.round}轮: 执行${round.executedCount}/${round.planItemCount}个动作`,
+    `新增${round.newAssetCount}个资产/${round.newFindingCount}个发现`,
+  ]
+
+  if (round.failedActions.length > 0) {
+    parts.push(`${round.failedActions.length}个失败`)
+  }
+
+  if (round.blockedByApproval.length > 0) {
+    parts.push(`${round.blockedByApproval.length}个待审批`)
+  }
+
+  return parts.join(", ")
+}
+
+export function buildCompressedRoundHistory(projectId: string): string {
+  const store = readPrototypeStore()
+  const rounds = store.orchestratorRounds[projectId] ?? []
+
+  if (rounds.length === 0) {
+    return "尚未执行过任何编排轮次。"
+  }
+
+  const lines: string[] = []
+
+  if (rounds.length <= 3) {
+    // All rounds get full summaries
+    for (const round of rounds) {
+      lines.push(buildRoundSummary(projectId, round))
+    }
+  } else {
+    // Older rounds get compressed, recent 3 get full detail
+    const olderRounds = rounds.slice(0, -3)
+    const recentRounds = rounds.slice(-3)
+
+    // Compress older rounds into groups of 3
+    for (let i = 0; i < olderRounds.length; i += 3) {
+      const group = olderRounds.slice(i, i + 3)
+      const totalAssets = group.reduce((sum, r) => sum + r.newAssetCount, 0)
+      const totalFindings = group.reduce((sum, r) => sum + r.newFindingCount, 0)
+      const totalExecuted = group.reduce((sum, r) => sum + r.executedCount, 0)
+      const roundRange = group.length === 1
+        ? `第${group[0].round}轮`
+        : `第${group[0].round}-${group[group.length - 1].round}轮`
+
+      lines.push(`${roundRange}概要: 执行${totalExecuted}个动作, 新增${totalAssets}个资产/${totalFindings}个发现`)
+    }
+
+    // Recent 3 rounds get full summaries
+    for (const round of recentRounds) {
+      lines.push(buildRoundSummary(projectId, round))
+    }
+  }
+
+  return lines.join("\n")
+}
+
+export function buildLastRoundDetail(projectId: string): string {
+  const store = readPrototypeStore()
+  const runs = store.mcpRuns.filter((r) => r.projectId === projectId)
+
+  if (runs.length === 0) {
+    return "上一轮没有执行记录。"
+  }
+
+  // Get the most recent runs (last 10)
+  const recentRuns = runs.slice(-10)
+
+  return recentRuns
+    .map((run) => {
+      const statusLabel = run.status === "已执行" ? "成功" : run.status === "已阻塞" ? "失败" : run.status
+      return `- ${run.toolName}(${run.target}) → ${statusLabel}`
+    })
+    .join("\n")
+}
+
+export function buildUnusedCapabilities(projectId: string): string {
+  const store = readPrototypeStore()
+  const runs = store.mcpRuns.filter((r) => r.projectId === projectId)
+  const usedCapabilities = new Set(runs.map((r) => r.capability))
+
+  const allTools = [...listStoredMcpTools(), ...listBuiltInMcpTools()].filter(
+    (t) => t.status === "启用",
+  )
+  const allCapabilities = new Set(allTools.map((t) => t.capability))
+
+  const unused = Array.from(allCapabilities).filter((c) => !usedCapabilities.has(c))
+
+  if (unused.length === 0) {
+    return "所有已注册的能力类型都已在本项目中使用过。"
+  }
+
+  return unused.map((cap) => {
+    const tools = allTools.filter((t) => t.capability === cap)
+    return `- ${cap} (${tools.map((t) => t.toolName).join(", ")})`
+  }).join("\n")
+}
+
+export function buildMultiRoundBrainPrompt(input: {
+  projectName: string
+  targetInput: string
+  targets: string[]
+  description: string
+  currentStage: string
+  currentRound: number
+  maxRounds: number
+  autoReplan: boolean
+  assetCount: number
+  evidenceCount: number
+  findingCount: number
+  pendingApprovals: number
+  roundHistory: string
+  assetSnapshot: string
+  lastRoundDetail: string
+  unusedCapabilities: string
+  availableTools: Pick<McpToolRecord, "boundary" | "capability" | "requiresApproval" | "riskLevel" | "toolName">[]
+  note?: string
+}): string {
+  const formatToolLine = (tool: typeof input.availableTools[number]) =>
+    `- capability=${tool.capability}; tool=${tool.toolName}; risk=${tool.riskLevel}; boundary=${tool.boundary}; approval=${tool.requiresApproval ? "required" : "optional"}`
+
+  const targets = input.targets.length > 0
+    ? input.targets.map((t) => `- ${t}`).join("\n")
+    : input.targetInput.trim() || "- (empty)"
+
+  return [
+    `当前是第 ${input.currentRound} 轮编排（共最多 ${input.maxRounds} 轮）。请基于已有结果决定下一步。`,
+    "",
+    `项目名称：${input.projectName}`,
+    `当前阶段：${input.currentStage}`,
+    `项目说明：${input.description || "无"}`,
+    `目标列表：\n${targets}`,
+    `自动续跑：${input.autoReplan ? "开启" : "关闭"}`,
+    "",
+    `当前结果摘要：资产=${input.assetCount}; 证据=${input.evidenceCount}; 漏洞/发现=${input.findingCount}; 待审批=${input.pendingApprovals}`,
+    "",
+    "[历史轮次摘要]",
+    input.roundHistory,
+    "",
+    "[当前资产画像]",
+    input.assetSnapshot,
+    "",
+    "[上一轮执行详情]",
+    input.lastRoundDetail,
+    "",
+    "[尚未使用的能力]",
+    input.unusedCapabilities,
+    "",
+    input.note ? `研究员备注：${input.note}` : "",
+    "",
+    "当前可用 MCP 能力与工具：",
+    ...input.availableTools.map(formatToolLine),
+    "",
+    "输出要求：",
+    "- 如果你认为当前结果已经足够完整，返回 items: [] 并在 summary 中说明收尾原因。",
+    "- 不要重复已经成功执行过的相同动作（相同工具+相同目标）。",
+    "- 优先覆盖尚未使用的能力维度。",
+    "- 默认给出 3 到 6 条 item。",
+    "- 可以包含后续需要审批的动作，但只有在低风险结果已经支撑它时才允许出现高风险动作。",
+    "- 范围约束：只能围绕项目输入目标本身及其子域展开。",
+  ].filter(Boolean).join("\n")
+}

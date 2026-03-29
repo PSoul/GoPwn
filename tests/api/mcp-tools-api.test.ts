@@ -39,6 +39,8 @@ describe("mcp tools api routes", () => {
     expect(payload.tools.length).toBeGreaterThan(0)
     expect(payload.servers).toHaveLength(0)
     expect(payload.capabilities.some((item: { name: string }) => item.name === "受控验证类")).toBe(true)
+    expect(payload.capabilities.some((item: { name: string }) => item.name === "外部情报查询类")).toBe(true)
+    expect(payload.boundaryRules.some((item: { type: string }) => item.type === "外部第三方API")).toBe(true)
     expect(payload.registrationFields.some((item: { label: string }) => item.label === "工具名称")).toBe(true)
   })
 

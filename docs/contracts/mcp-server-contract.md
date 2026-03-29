@@ -1,20 +1,12 @@
 # MCP Server Contract
 
-## 1. 目的
+## 1. 协议来源
 
-这个合同定义了“一个新 MCP server 如何被本平台接受并注册”。
+本仓库的宿主合同以 `D:\dev\llmpentest-mcp-template` 为标准源。
 
-平台目标不是简单保存 server 信息，而是确保：
+这里的文档用于说明“宿主平台当前接受什么注册载荷、如何持久化、哪些能力只是先注册后接入运行时”，不复制模板仓的 schema 原件。
 
-- 字段完整
-- 能力族明确
-- 风险与审批规则明确
-- 结果映射明确
-- 注册后可直接进入真实调度候选池
-
-## 2. 顶层结构
-
-注册 payload 结构如下：
+## 2. 注册顶层结构
 
 ```json
 {
@@ -23,37 +15,33 @@
   "transport": "stdio",
   "command": "node",
   "args": ["scripts/mcp/web-surface-server.mjs"],
-  "endpoint": "stdio://web-surface-stdio",
   "enabled": true,
-  "notes": "真实 Web 页面探测 MCP server",
   "tools": []
 }
 ```
 
-## 3. 顶层字段要求
-
-### 必填字段
+### 顶层必填字段
 
 - `serverName`
 - `version`
 - `transport`
-- `endpoint`
 - `enabled`
-- `notes`
 - `tools`
 
-### `transport` 枚举
+### 顶层可选字段
 
-- `stdio`
-- `streamable_http`
-- `sse`
+- `command`
+- `args`
+- `endpoint`
+- `notes`
 
-### 条件字段
+### 传输约束
 
-- 当 `transport = stdio` 时，`command` 必填
-- `args` 为字符串数组，可为空
+- `transport = stdio` 时，`command` 必填。
+- `args` 为字符串数组，可省略，默认按空数组处理。
+- `endpoint` 与 `notes` 可以省略；宿主持久化时会统一归一为 `""`，避免存储层迁移。
 
-## 4. Tool 字段要求
+## 3. Tool 合同要求
 
 每个 `tools[]` 项必须包含：
 
@@ -67,38 +55,41 @@
 - `requiresApproval`
 - `resultMappings`
 - `inputSchema`
+- `outputSchema`
 - `defaultConcurrency`
 - `rateLimit`
 - `timeout`
 - `retry`
 - `owner`
 
-### 可选字段
+### 额外规则
 
-- `outputSchema`
+- `toolName` 在单次 server 注册请求中必须唯一。
+- `inputSchema` 和 `outputSchema` 都必须是 JSON Schema 风格对象，且不能为空对象。
+- 宿主当前采用 “JSON Schema-like object” 校验策略：对象至少应包含 `type`、`properties`、`items`、`oneOf`、`anyOf`、`allOf`、`$schema` 之一。
 
-### `toolName` 规则
-
-- 在单个 server 注册请求中必须唯一
-- 建议使用平台稳定名称，而不是一次性的临时名称
-
-## 5. 平台枚举约束
+## 4. 平台枚举约束
 
 ### `capability`
 
 - `目标解析类`
 - `DNS / 子域 / 证书情报类`
 - `端口探测类`
+- `资产探测类`
 - `Web 页面探测类`
 - `HTTP / API 结构发现类`
+- `HTTP 数据包交互类`
+- `TCP 数据包交互类`
 - `受控验证类`
 - `截图与证据采集类`
 - `报告导出类`
+- `外部情报查询类`
 
 ### `boundary`
 
 - `外部目标交互`
 - `平台内部处理`
+- `外部第三方API`
 
 ### `riskLevel`
 
@@ -114,96 +105,25 @@
 - `findings`
 - `evidence`
 - `workLogs`
+- `assets`
+- `intelligence`
 
-## 6. Schema 约束
+## 5. 宿主支持口径
 
-### `inputSchema`
+- 当前宿主已经完成严格合同校验，以上枚举值都可以合法注册。
+- 并非所有模板能力都已完成运行时桥接。
+- 当前主仓优先保证“可注册、可校验、可说明”，新增能力的实际执行、归一化和调度桥接会分阶段补齐。
 
-- 必填
-- 必须是 JSON Schema 风格对象
-- 至少应能表达工具主输入
+这意味着：
 
-### `outputSchema`
+- 新能力族或新映射可以先作为合同能力进入注册表。
+- 是否已经具备真实连接器和归一化落库，需要结合运行时实现另行判断。
 
-- 可选
-- 如果工具会输出结构化内容，建议显式声明
-
-当前平台校验采用“JSON Schema-like object”策略：
-
-- 不能为空对象
-- 至少要包含 `type`、`properties`、`items`、`oneOf`、`anyOf`、`allOf`、`$schema` 之一
-
-### `受控验证类` 推荐结果字段
-
-如果工具属于 `受控验证类`，建议 `outputSchema` 至少能表达以下结构，方便平台后续直接把结果沉淀到证据、发现和审计链路中：
-
-- `requestSummary`
-  - `method`
-  - `url`
-  - `headers`
-  - `bodyPreview`
-- `responseSummary`
-  - `statusCode`
-  - `finalUrl`
-  - `headers`
-  - `bodyPreview`
-  - `contentType`
-- `responseSignals`
-  - 匹配到的关键信号列表，例如状态码、响应头、目录暴露、关键字段等
-- `finding`
-  - `title`
-  - `summary`
-  - `severity`
-  - `status`
-  - `affectedSurface`
-- `verdict`
-  - 面向研究员的结论摘要
-
-这样可以保证工具不只是“返回原始响应”，而是返回平台可理解、可归档、可追踪的验证证据。
-
-### `HTTP / API 结构发现类` 推荐结果字段
-
-如果工具属于 `HTTP / API 结构发现类`，建议 `outputSchema` 至少能表达以下结构，方便平台把结构发现结果沉淀为资产、证据和项目上下文：
-
-- `webEntries`
-  - `url`
-  - `finalUrl`
-  - `title`
-  - `statusCode`
-  - `headers`
-  - `fingerprint`
-- `structureEntries`
-  - `kind`
-  - `label`
-  - `url`
-  - `confidence`
-  - `source`
-- `transport`
-  - `host`
-  - `docker`
-
-其中：
-
-- `webEntries` 用于描述本次实际探测到的基础入口和响应特征
-- `structureEntries` 用于描述从 HTML、响应头或其他低风险线索中识别出的 API / 文档 / 管理端点候选入口
-- `transport` 用于保留这是宿主机直连还是容器内 fallback 的采样方式
-
-这样平台就可以把“结构发现”从单纯运行记录提升为真正可复核的结果面资产与证据。
-
-## 7. 注册成功后会写到哪里
+## 6. 注册成功后会写到哪里
 
 ### SQLite
 
 - `mcp_servers`
-
-用于保存：
-
-- server 基础信息
-- transport
-- command / args
-- enabled 状态
-- tool bindings
-- 最近心跳时间
 
 ### JSON prototype store
 
@@ -211,27 +131,21 @@
 - `mcpToolContracts`
 - `mcpTools`
 
-用于保存：
+宿主持久化时会把可选输入统一标准化，确保设置页、调度层和审计层读取到的是稳定字段。
 
-- 已验证合同摘要
-- 平台真实可调度工具记录
-- 设置页与调度层读取所需的标准化字段
+## 7. 失败行为
 
-## 8. 失败行为
+- 注册失败返回 `400`
+- `error` 会携带首个失败字段路径与原因
 
-注册失败时：
+常见示例：
 
-- 返回 `400`
-- `error` 中包含第一个失败字段路径与原因
-
-示例：
-
-- `tools.0.inputSchema: Required`
+- `tools.0.outputSchema: Required`
 - `command: command is required when transport is stdio`
+- `tools.1.toolName: toolName must be unique within a server registration`
 
-## 9. 推荐实践
+## 8. 推荐实践
 
-- 每个能力族先只接一个稳定的真实 server，再逐步扩容
-- `toolName` 尽量与平台能力命名习惯一致
-- 在注册前先补测试，再贴进设置页
-- 如果要跑真实 E2E，优先使用本地临时 store，避免污染已有数据
+- 优先在 `D:\dev\llmpentest-mcp-template` 对照 schema、示例和文档完成合同自检。
+- 具体 MCP server 的实现应放在独立实现仓库或专门目录中，不建议继续在宿主平台主仓里直接孵化。
+- 注册前至少补齐注册/API 测试；如果能力已经接入运行时，再补连接器和结果沉淀测试。

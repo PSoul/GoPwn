@@ -310,6 +310,10 @@ export function McpGatewayClient({
       >
         <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
           <div className="space-y-4">
+            <div className="rounded-3xl border border-sky-200/80 bg-sky-50/80 p-4 text-sm leading-6 text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-100">
+              <p>协议来源：`D:\dev\llmpentest-mcp-template`。</p>
+              <p className="mt-2">并非所有模板能力都已完成运行时桥接；当前平台先保证“可注册、可校验、可说明”，新增能力的执行接入仍按运行时桥接节奏逐步补齐。</p>
+            </div>
             <Textarea
               aria-label="MCP 注册 JSON"
               value={registrationDraft}
@@ -532,7 +536,7 @@ export function McpGatewayClient({
                       <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
                         {server.transport} · {[server.command, ...server.args].join(" ")}
                       </p>
-                      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{server.endpoint}</p>
+                      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{server.endpoint || "未声明 endpoint"}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <StatusBadge tone={server.enabled ? "success" : "neutral"}>{server.enabled ? "已启用" : "已停用"}</StatusBadge>
@@ -543,7 +547,7 @@ export function McpGatewayClient({
                   </div>
                   <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">绑定工具：{server.toolBindings.join("、")}</p>
                   <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                    最近心跳：{server.lastSeen} · {server.notes}
+                    最近心跳：{server.lastSeen} · {server.notes || "未填写备注"}
                   </p>
                 </div>
                 ))

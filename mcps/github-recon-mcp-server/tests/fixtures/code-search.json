@@ -1,0 +1,54 @@
+{
+  "total_count": 2,
+  "incomplete_results": false,
+  "items": [
+    {
+      "name": "config.yml",
+      "path": "deploy/config.yml",
+      "sha": "abc123def456",
+      "url": "https://api.github.com/repos/testorg/testrepo/contents/deploy/config.yml",
+      "html_url": "https://github.com/testorg/testrepo/blob/main/deploy/config.yml",
+      "score": 1.5,
+      "repository": {
+        "full_name": "testorg/testrepo",
+        "html_url": "https://github.com/testorg/testrepo",
+        "description": "Test repository"
+      },
+      "text_matches": [
+        {
+          "fragment": "password: s3cret123",
+          "matches": [
+            {
+              "text": "password",
+              "indices": [0, 8]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": ".env.example",
+      "path": ".env.example",
+      "sha": "def789abc012",
+      "url": "https://api.github.com/repos/testorg/another-repo/contents/.env.example",
+      "html_url": "https://github.com/testorg/another-repo/blob/main/.env.example",
+      "score": 1.2,
+      "repository": {
+        "full_name": "testorg/another-repo",
+        "html_url": "https://github.com/testorg/another-repo",
+        "description": "Another test repo"
+      },
+      "text_matches": [
+        {
+          "fragment": "API_KEY=test_key_123",
+          "matches": [
+            {
+              "text": "API_KEY",
+              "indices": [0, 7]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "curl-mcp-server": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "cwd": "/path/to/curl-mcp-server"
+    }
+  }
+}

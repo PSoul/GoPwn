@@ -7,11 +7,14 @@ import { Activity, PauseCircle, PlayCircle, RotateCcw, Square, TimerReset } from
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import type {
+  ProjectClosureStatusRecord,
   McpSchedulerTaskRecord,
   ProjectSchedulerControl,
   ProjectSchedulerLifecycle,
+  ProjectStatus,
 } from "@/lib/prototype-types"
 
 const taskStatusTone: Record<McpSchedulerTaskRecord["status"], "neutral" | "info" | "success" | "warning" | "danger"> = {
@@ -75,10 +78,14 @@ function getLifecycleDescription(lifecycle: ProjectSchedulerLifecycle) {
 
 export function ProjectSchedulerRuntimePanel({
   projectId,
+  projectStatus,
+  closureStatus,
   initialControl,
   initialTasks,
 }: {
   projectId: string
+  projectStatus: ProjectStatus
+  closureStatus: ProjectClosureStatusRecord
   initialControl: ProjectSchedulerControl
   initialTasks: McpSchedulerTaskRecord[]
 }) {
@@ -94,10 +101,14 @@ export function ProjectSchedulerRuntimePanel({
   const queuedCount = tasks.filter((task) => ["ready", "retry_scheduled", "delayed"].includes(task.status)).length
   const failedCount = tasks.filter((task) => task.status === "failed").length
   const runningCount = tasks.filter((task) => task.status === "running").length
-  const canStart = control.lifecycle === "idle"
-  const canPause = control.lifecycle === "running"
-  const canResume = control.lifecycle === "paused"
-  const canStop = control.lifecycle !== "stopped"
+  const isTerminalProject = projectStatus === "已完成" || projectStatus === "已停止" || ["completed", "stopped"].includes(closureStatus.state)
+  const lifecycleDescription = isTerminalProject ? closureStatus.summary : getLifecycleDescription(control.lifecycle)
+  const lifecycleTone = isTerminalProject ? closureStatus.tone : lifecycleToneMap[control.lifecycle]
+  const lifecycleLabel = isTerminalProject ? closureStatus.label : lifecycleLabelMap[control.lifecycle]
+  const canStart = control.lifecycle === "idle" && !isTerminalProject
+  const canPause = control.lifecycle === "running" && !isTerminalProject
+  const canResume = control.lifecycle === "paused" && !isTerminalProject
+  const canStop = control.lifecycle !== "stopped" && !isTerminalProject
 
   function refreshServerState() {
     startTransition(() => {
@@ -199,16 +210,71 @@ export function ProjectSchedulerRuntimePanel({
               <div>
                 <p className="text-sm font-semibold text-slate-950 dark:text-white">项目生命周期</p>
                 <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                  {getLifecycleDescription(control.lifecycle)}
+                  {lifecycleDescription}
                 </p>
               </div>
-              <StatusBadge tone={lifecycleToneMap[control.lifecycle]}>{lifecycleLabelMap[control.lifecycle]}</StatusBadge>
+              <StatusBadge tone={lifecycleTone}>{lifecycleLabel}</StatusBadge>
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
               <StatusBadge tone={queuedCount > 0 ? "info" : "neutral"}>待执行 {queuedCount}</StatusBadge>
               <StatusBadge tone={runningCount > 0 ? "info" : "neutral"}>执行中 {runningCount}</StatusBadge>
               <StatusBadge tone={failedCount > 0 ? "danger" : "neutral"}>失败待恢复 {failedCount}</StatusBadge>
+              <StatusBadge tone={closureStatus.reportExported ? "success" : "neutral"}>
+                报告{closureStatus.reportExported ? "已导出" : "待导出"}
+              </StatusBadge>
+              <StatusBadge tone={closureStatus.finalConclusionGenerated ? "success" : "neutral"}>
+                结论{closureStatus.finalConclusionGenerated ? "已生成" : "待生成"}
+              </StatusBadge>
+            </div>
+
+            {isTerminalProject || closureStatus.blockers.length > 0 ? (
+              <div className="mt-4 rounded-[20px] border border-slate-200/80 bg-white/90 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/70">
+                <p className="text-sm font-semibold text-slate-950 dark:text-white">收束状态</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{closureStatus.summary}</p>
+                {closureStatus.blockers.length > 0 ? (
+                  <div className="mt-3 space-y-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                    {closureStatus.blockers.map((blocker) => (
+                      <p key={`${blocker.title}-${blocker.detail}`}>{blocker.title}：{blocker.detail}</p>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="flex items-center justify-between gap-4 rounded-[20px] border border-slate-200/80 bg-white/90 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/70">
+                <div>
+                  <p className="text-sm font-semibold text-slate-950 dark:text-white">自动续跑</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                    开启后 LLM 每轮结束自动规划下一轮，关闭则需手动触发。
+                  </p>
+                </div>
+                <Switch
+                  checked={control.autoReplan}
+                  aria-label="自动续跑开关"
+                  disabled={isTerminalProject}
+                  onCheckedChange={async (checked) => {
+                    setControl((current) => ({ ...current, autoReplan: checked }))
+                    try {
+                      await fetch(`/api/projects/${projectId}/scheduler-control`, {
+                        method: "PATCH",
+                        headers: { "content-type": "application/json" },
+                        body: JSON.stringify({ autoReplan: checked }),
+                      })
+                    } catch { /* best-effort */ }
+                  }}
+                />
+              </div>
+              <div className="rounded-[20px] border border-slate-200/80 bg-white/90 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/70">
+                <p className="text-sm font-semibold text-slate-950 dark:text-white">编排轮次</p>
+                <p className="mt-1 text-lg font-semibold text-slate-950 dark:text-white">
+                  {control.currentRound} / {control.maxRounds}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                  当前已执行轮次 / 最大允许轮次
+                </p>
+              </div>
             </div>
 
             <div className="mt-5 space-y-3">
@@ -217,6 +283,7 @@ export function ProjectSchedulerRuntimePanel({
                 aria-label="调度控制备注"
                 value={control.note}
                 onChange={(event) => setControl((current) => ({ ...current, note: event.target.value }))}
+                disabled={isTerminalProject}
                 className="min-h-24 rounded-[24px] border-slate-200 bg-white/90 dark:border-slate-800 dark:bg-slate-950/70"
               />
             </div>
@@ -280,12 +347,14 @@ export function ProjectSchedulerRuntimePanel({
             <div className="rounded-[24px] border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70">
               <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
                 <PauseCircle className="h-4 w-4" />
-                <p className="text-sm font-semibold">当前状态</p>
+              <p className="text-sm font-semibold">当前状态</p>
               </div>
               <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
-                {lifecycleLabelMap[control.lifecycle]}
+                {lifecycleLabel}
               </p>
-              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">开始后才会向 LLM 发出调度指令，停止后不可恢复。</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                {isTerminalProject ? "当前项目已经进入终态，如需继续扩展测试，请新建下一轮项目。" : "开始后才会向 LLM 发出调度指令，停止后不可恢复。"}
+              </p>
             </div>
             <div className="rounded-[24px] border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70">
               <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">

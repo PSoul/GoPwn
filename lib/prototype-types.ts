@@ -143,6 +143,37 @@ export interface ProjectStageSnapshot {
   updatedAt: string
 }
 
+export type ProjectClosureState = "waiting_start" | "running" | "blocked" | "settling" | "completed" | "stopped"
+
+export interface ProjectClosureBlockerRecord {
+  title: string
+  detail: string
+  tone: Tone
+}
+
+export interface ProjectClosureStatusRecord {
+  state: ProjectClosureState
+  label: string
+  tone: Tone
+  summary: string
+  blockers: ProjectClosureBlockerRecord[]
+  reportExported: boolean
+  finalConclusionGenerated: boolean
+}
+
+export interface ProjectConclusionRecord {
+  id: string
+  projectId: string
+  generatedAt: string
+  source: "reviewer" | "fallback"
+  summary: string
+  keyPoints: string[]
+  nextActions: string[]
+  assetCount: number
+  evidenceCount: number
+  findingCount: number
+}
+
 export interface ApprovalControl {
   enabled: boolean
   mode: string
@@ -154,8 +185,25 @@ export interface ApprovalControl {
 export interface ProjectSchedulerControl {
   lifecycle: ProjectSchedulerLifecycle
   paused: boolean
+  autoReplan: boolean
+  maxRounds: number
+  currentRound: number
   note: string
   updatedAt: string
+}
+
+export interface OrchestratorRoundRecord {
+  round: number
+  startedAt: string
+  completedAt: string
+  planItemCount: number
+  executedCount: number
+  newAssetCount: number
+  newEvidenceCount: number
+  newFindingCount: number
+  failedActions: string[]
+  blockedByApproval: string[]
+  summaryForNextRound: string
 }
 
 export interface ProjectDetailRecord {
@@ -178,6 +226,8 @@ export interface ProjectDetailRecord {
   findings: ProjectFindingRecord[]
   currentStage: ProjectStageSnapshot
   approvalControl: ApprovalControl
+  closureStatus: ProjectClosureStatusRecord
+  finalConclusion: ProjectConclusionRecord | null
 }
 
 export interface ProjectFormPreset {
@@ -312,7 +362,7 @@ export interface McpToolRecord {
   description: string
   inputMode: string
   outputMode: string
-  boundary: "外部目标交互" | "平台内部处理"
+  boundary: "外部目标交互" | "平台内部处理" | "外部第三方API"
   requiresApproval: boolean
   endpoint: string
   owner: string
@@ -330,7 +380,7 @@ export interface McpCapabilityRecord {
   description: string
   defaultRiskLevel: "高" | "中" | "低"
   defaultApprovalRule: string
-  boundary: "外部目标交互" | "平台内部处理"
+  boundary: "外部目标交互" | "平台内部处理" | "外部第三方API"
   mappedStages: string[]
   connectedTools: string[]
 }
@@ -338,7 +388,7 @@ export interface McpCapabilityRecord {
 export interface McpBoundaryRule {
   title: string
   description: string
-  type: "外部目标交互" | "平台内部处理"
+  type: "外部目标交互" | "平台内部处理" | "外部第三方API"
 }
 
 export interface McpRegistrationField {
@@ -375,7 +425,7 @@ export interface McpServerInvocationRecord {
   createdAt: string
 }
 
-export type McpResultMapping = "domains" | "webEntries" | "network" | "findings" | "evidence" | "workLogs"
+export type McpResultMapping = "domains" | "webEntries" | "network" | "findings" | "evidence" | "workLogs" | "assets" | "intelligence"
 
 export interface McpServerContractSummaryRecord {
   serverId: string
@@ -385,7 +435,7 @@ export interface McpServerContractSummaryRecord {
   enabled: boolean
   toolNames: string[]
   command?: string
-  endpoint?: string
+  endpoint: string
   projectId?: string
   updatedAt: string
 }
@@ -396,7 +446,7 @@ export interface McpToolContractSummaryRecord {
   toolName: string
   title: string
   capability: string
-  boundary: "外部目标交互" | "平台内部处理"
+  boundary: "外部目标交互" | "平台内部处理" | "外部第三方API"
   riskLevel: "高" | "中" | "低"
   requiresApproval: boolean
   resultMappings: McpResultMapping[]
@@ -414,7 +464,7 @@ export interface McpRunRecord {
   requestedAction: string
   target: string
   riskLevel: "高" | "中" | "低"
-  boundary: "外部目标交互" | "平台内部处理"
+  boundary: "外部目标交互" | "平台内部处理" | "外部第三方API"
   dispatchMode: "自动执行" | "审批后执行" | "阻塞"
   status: "待审批" | "执行中" | "已执行" | "已阻塞" | "已拒绝" | "已延后" | "已取消"
   requestedBy: string
@@ -566,11 +616,15 @@ export interface ProjectReportExportRecord {
   assetCount: number
   evidenceCount: number
   findingCount: number
+  conclusionSummary: string | null
+  conclusionGeneratedAt: string | null
+  conclusionSource: ProjectConclusionRecord["source"] | null
 }
 
 export interface ProjectReportExportPayload {
   latest: ProjectReportExportRecord | null
   totalExports: number
+  finalConclusion: ProjectConclusionRecord | null
 }
 
 export interface LogRecord {

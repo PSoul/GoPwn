@@ -38,6 +38,9 @@ describe("project surface api routes", () => {
     expect(operationsPayload.schedulerTasks.length).toBeGreaterThan(0)
     expect(operationsPayload.detail.approvalControl.enabled).toBe(true)
     expect(operationsPayload.orchestrator.localLabs.length).toBeGreaterThan(0)
+    expect(["running", "settling", "completed"]).toContain(operationsPayload.detail.closureStatus.state)
+    expect(typeof operationsPayload.detail.closureStatus.finalConclusionGenerated).toBe("boolean")
+    expect(operationsPayload.detail.closureStatus.reportExported).toBe(true)
   })
 
   it("returns result-table payloads for domains, network, and findings", async () => {

@@ -1,0 +1,16 @@
+[
+  {
+    "time": "2024-03-28T10:33:00Z",
+    "type": "VULN",
+    "target": "192.168.1.20",
+    "status": "vulnerable",
+    "details": { "port": "3306", "service": "mysql", "username": "root", "password": "123456", "type": "weak-password" }
+  },
+  {
+    "time": "2024-03-28T10:33:01Z",
+    "type": "VULN",
+    "target": "192.168.1.21",
+    "status": "vulnerable",
+    "details": { "port": "6379", "service": "redis", "type": "unauthorized" }
+  }
+]

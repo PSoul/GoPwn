@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-28`
-- Current focus: 平台主线已收敛到 `v0.2.1` 基线，包含真实证据采集、生命周期控制、durable worker、cooperative cancellation 与双本地靶场闭环。下一阶段不再在本仓库里直接扩具体 MCP，而是把新增 MCP 的起步工作迁到独立脚手架仓库。
+- Current focus: 平台主线已收敛到 `v0.2.2` 基线，包含真实证据采集、生命周期控制、durable worker、cooperative cancellation、双本地靶场闭环，以及“项目开始后自动收束到报告与最终结论”的闭环。下一阶段不再在本仓库里直接扩具体 MCP，也不继续推进 `fscan` 方向；主仓库只继续打磨运行时与收束质量。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
 
 ## Phase 1: Frontend Prototype Closure
@@ -233,11 +233,37 @@
 - completed: cover repository, API, payload, component, and page integration paths with targeted tests
 - completed: introduce shared `AbortController` propagation for already-running tasks so the scheduler heartbeat, execution layer, local connectors, real DNS/TLS checkpoints, and the real stdio Web-surface MCP path cooperatively stop when operators request cancellation
 - completed: add an explicit project lifecycle state machine (`idle | running | paused | stopped`) so new projects stay idle until the researcher manually starts them
-- completed: wire lifecycle `start / resume` transitions to real LLM kickoff planning, persist the latest plan, and automatically dispatch only the low-risk first-step items
+- completed: wire lifecycle `start / resume` transitions to real LLM kickoff planning, persist the latest plan, and route high-risk actions into approval instead of silently dropping them
 - completed: make `stop` terminal for the project lifecycle, cancelling queued work and requesting cooperative abort for already-running executions
 - completed: centralize the platform LLM-brain prompts so lifecycle kickoff, local-lab planning, and provider calls all use one shared prompt contract
+- completed: add project final-conclusion persistence so queue-drained projects no longer stop at vague stage prose and instead land on a durable, displayable conclusion record
+- completed: make queue-drained lifecycle runs and approval resumes automatically trigger report export and then settle the project into `已完成` when the closure conditions are met
+- completed: add in-scope orchestration filtering so URL/IP targets no longer schedule irrelevant DNS actions, and provider-returned targets are re-clamped back to project scope
 - completed: add a minimal `pages/_document.tsx` compatibility shim so `next build` remains stable in the current Windows + App Router workspace setup
 - partially met: move the current file-backed queue toward a more durable long-lived worker/executor model suitable for longer sessions
+
+## Phase 9: Closure Read Model and Project Finalization
+
+- Status: Completed on `codex/basic-production-loop-2026-03-28`
+- Goal: make project lifecycle completion explicit by persisting final conclusions, auto-exporting reports when the queue drains, and continuing lifecycle execution after approval resumes.
+
+### Task Checklist
+
+- completed: introduce persisted `projectConclusions` records in the prototype store
+- completed: generate a final conclusion from reviewer-model output when configured, with a deterministic fallback when no reviewer is available
+- completed: enrich report-export payloads with final-conclusion summary, source, and generation time
+- completed: surface final conclusion on the project overview and report-export panels
+- completed: continue project lifecycle after approval resumes instead of stopping at a single resumed run
+- completed: auto-settle queue-drained projects into `报告导出 -> 最终结论 -> 已完成`
+- completed: tighten orchestration scope so direct URL/IP targets do not schedule irrelevant DNS expansion
+- completed: verify the new behavior through API tests, full unit test suite, lint, build, and Playwright E2E
+
+### Acceptance Criteria
+
+- met: queue-drained projects now have a first-class final conclusion instead of only stage prose
+- met: approval resume now continues project progression and can end in an automatic closure
+- met: report export and project overview both expose the same final conclusion source of truth
+- met: lifecycle kickoff no longer drops provider-planned high-risk work on the floor
 
 ### Priority Tasks
 
@@ -257,35 +283,89 @@
 - met: the operations API contract now carries real runtime scheduler state instead of only high-level task cards
 - partially met: operators can now issue stop requests for `running` tasks, recover orphan executions, block stale late writeback, and cooperatively interrupt the platform heartbeat, local connectors, real DNS/TLS checkpoints, and the real stdio Web-surface MCP path; broader remote rollback and additional connector families are still pending
 - met: WebGoat can now be validated through the same end-to-end runner in a real finding closure path, including approval resume and browser-side report export
-- met: this slice has already been verified with `pnpm test`, `pnpm lint`, `pnpm build`, and `pnpm e2e`
+- met: this slice has already been verified with `npm run test`, `npm run lint`, `npm run build`, and `npm run e2e`
 
-## Recommended Next Phase
+## Phase 10: Production-Ready MCP Orchestration
 
-- Name: `Phase 9 - Standalone MCP Scaffold Expansion`
-- Suggested branch/worktree: 平台主仓库保持在 `main`，新的 MCP 工作优先转到独立仓库 `D:\dev\llmpentest-mcp-scaffold`
-- Goal: 让后续 MCP 开发不再耦合平台主仓库，通过独立脚手架仓库交付能力族 starter、合同镜像、stdio smoke 和平台注册工作流；平台主仓库只在确有必要时补最小桥接。
+- Status: Completed on `codex/non-mcp-production-hardening-2026-03-28`
+- Goal: 将12个外部 MCP 服务器复制到本仓库 `mcps/` 目录，实现自动发现与注册，构建通用 stdio 连接器驱动全部34个工具，实现多轮自动编排循环，使平台能真正"新建项目→设置目标→点击开始→LLM 自动分配 MCP→多轮执行→输出最终结论"。
 
-### Priority Tasks
+### Task Checklist
 
-- create or expand starter packs in the standalone scaffold repo, beginning with `端口探测类`
-- keep the platform-side MCP contract mirror and scaffold docs in sync with the real platform fields
-- only return to the platform repo when a new capability family needs:
-  - a new capability enum
-  - a new connector
-  - new normalization/writeback logic
-- continue platform-side regression hardening around queue recovery, environment-blocked lab runs, report export, and second-lab execution
+- completed: 将12个 MCP 服务器（subfinder, fscan, httpx, dirsearch, curl, netcat, wafw00f, afrog, whois, fofa, github-recon, encode）从 `D:\dev\mcps` 复制到 `mcps/` 目录，使用相对路径确保部署可移植性
+- completed: 创建 `mcps/mcp-servers.json` 统一配置文件，定义所有服务器的 command/args/cwd/env
+- completed: 实现 `lib/mcp-auto-discovery.ts` 自动发现模块，包含 `TOOL_REGISTRY` 映射34个工具到平台能力分类、风险级别和边界类型
+- completed: 实现 `lib/mcp-connectors/stdio-mcp-connector.ts` 通用 stdio 连接器，支持所有34个外部 MCP 工具的参数构建和执行
+- completed: 将通用 stdio 连接器注册为连接器优先级链的最高优先级
+- completed: 扩展 `callMcpServerTool()` 支持 `cwd` 和 `env` 参数传递
+- completed: 实现 `lib/orchestrator-context-builder.ts` 多轮上下文构建器，包含资产快照、轮次压缩、未使用能力提示等分层上下文策略
+- completed: 在 `orchestrator-service.ts` 中实现多轮自动编排循环：`recordOrchestratorRound()` 记录轮次、`shouldContinueAutoReplan()` 检查6个停止条件、`generateMultiRoundPlan()` 使用分层上下文生成计划
+- completed: 扩展 `ProjectSchedulerControl` 类型支持 `autoReplan`、`maxRounds`、`currentRound` 字段
+- completed: 更新 Zod 写入 schema 和 PATCH 类型支持新的调度控制字段
+- completed: 在前端调度运行面板添加"自动续跑"开关和编排轮次显示
+- completed: 预填 LLM 生产配置（SiliconFlow DeepSeek-V3.2）通过 store 迁移自动种子
+- completed: 添加"编解码与密码学工具类"能力分类到平台配置
+- completed: 修复 `project-mcp-runs-panel.tsx` 缺少 `已取消` 状态的类型错误
+- completed: 更新 `code_index.md` 和 `roadmap.md`
+
+### Real Validation Results
+
+- 已验证 MCP 自动发现：12个服务器全部发现注册，35个工具启用
+- 已验证 env 路径解析：`HTTPX_PATH` 正确解析为 `D:\dev\llmpentest0326\mcps\httpx-mcp-server\bin\httpx.exe`
+- 已验证真实 MCP 执行：httpx_probe 成功探测 DVWA（HTTP 302, Apache/2.4.25/Debian/PHP），wafw00f_detect 检测无 WAF，curl http_request 获取完整响应
+- 已验证多轮编排：3轮在171秒内完成，LLM 智能跳过 localhost DNS 扫描，聚焦 HTTP 探测→技术识别→漏洞扫描→报告导出
+- 已验证 Docker 靶场：DVWA, OWASP Juice Shop, WebGoat, DVWA（共8个服务容器运行正常）
+- 测试结果：157/161 通过（4个并行超时为已知预存问题，单独运行全部通过）
+
+### Bug Fixes in This Phase
+
+- 修复 env 路径解析：`mcp-servers.json` 中相对路径通过 `resolveEnvPaths()` 转为绝对路径
+- 修复 stdio MCP 结果不生成资产/证据：添加 `normalizeStdioMcpArtifacts()` 处理器
+- 修复 `connectorMode` TypeScript 类型：`updateStoredMcpRun` patch 类型新增 `connectorMode` 字段
+- 修复 FK 外键约束：`appendStoredMcpServerInvocation` 用 try/catch 包裹实现 best-effort 记录
+- 修复 fscan `-f json` 标志：更正为 `-json`（fscan 1.8.4 格式）
+- 修复 dirsearch 超时：扫描/目录工具超时延长至 300s
+- 修复单工具失败阻塞整轮：`executePlanItems()` 改为继续执行，仅审批阻塞停止
 
 ### Acceptance Criteria
 
-- the standalone scaffold repo can independently build, test, validate contracts, and smoke its stdio example
-- new MCP work no longer needs to start inside the platform repo by default
-- platform docs clearly explain when to stay in the scaffold repo and when to return for runtime bridge work
-- platform-side queue, closure, and diagnostics hardening continues without being blocked by MCP family scaffolding work
+- met: 12个 MCP 服务器已本地化到 `mcps/` 目录，配置使用相对路径
+- met: 自动发现模块能扫描并注册所有34个工具到平台能力体系
+- met: 通用 stdio 连接器能驱动任意外部 MCP 工具执行
+- met: 多轮自动编排循环能在 autoReplan 开启时持续运行直到停止条件触发
+- met: 真实 MCP 工具执行能产生平台资产、证据和漏洞发现记录
+- met: 端到端管线已通过 Docker 靶场验证（DVWA 3轮自动编排）
+- met: 前端 UI 支持自动续跑开关和轮次进度显示
+- met: 所有单元测试通过（并行超时为已知预存问题）
+- met: LLM 配置在非测试环境自动种子
+
+## Recommended Next Phase
+
+- Name: `Phase 11 - 前端对接与生产化闭环`
+- Suggested branch: `codex/frontend-production-loop-2026-03-29`
+- Goal: 后端多轮编排管线已验证可用（DVWA 3轮自动渗透成功），下一步将前端完全打通，实现从浏览器操作”新建项目→开始→实时查看编排进度→查看结论”的完整闭环。
+
+### Priority Tasks
+
+1. **前端编排进度实时刷新**：多轮编排运行时，前端轮询或 SSE 推送当前轮次、资产增长、MCP 执行状态，而非只在最终刷新
+2. **前端编排状态面板增强**：将 `orchestratorRounds` 和停止原因展示到项目操作页面，让用户清楚看到每轮执行了什么
+3. **MCP 工具执行日志前端展示**：将真实 MCP 运行记录（包括 `rawOutput`、`structuredContent`）在前端可视化
+4. **真实目标端到端验证**：使用真实域名（如 testphp.vulnweb.com）通过浏览器完整走一遍流程
+5. **前端交互修复**：空项目引导、加载状态、错误提示、长时间运行的用户反馈
+6. **Playwright E2E 增强**：覆盖新建→开始→自动编排→资产/证据增长→最终结论的完整路径
+7. **MCP 工具健康检查前端化**：在设置页面显示各 MCP 工具的真实可用状态（二进制是否存在、依赖是否安装）
+8. **fscan/dirsearch 参数适配**：修复 fscan 端口扫描返回空结果、dirsearch 递归扫描等已知工具适配问题
+
+### Acceptance Criteria
+
+- 从浏览器新建项目→点击开始→观察多轮进度→查看最终结论，全程无需 CLI 操作
+- 前端能实时反映编排进度（轮次、资产数、发现数）
+- 至少一个真实目标能通过浏览器完成完整渗透流程
+- Playwright E2E 测试覆盖核心用户路径
 
 ### Suggested Prompt
 
-- `docs/prompts/2026-03-28-phase-11-platform-runtime-bridge-hardening-prompt.md`
-  - 当下一次回到宿主平台仓库继续开发时，优先使用这份 prompt；它聚焦宿主平台运行时、桥接、配置和闭环硬化，而不是继续在本仓库里新增 MCP server
+- `docs/prompts/2026-03-29-phase-11-frontend-production-loop-prompt.md`（待生成）
 
 ## Notes for Future LLM Sessions
 

@@ -35,6 +35,7 @@ const statusTone: Record<McpRunRecord["status"], "neutral" | "info" | "success" 
   已阻塞: "danger",
   已拒绝: "neutral",
   已延后: "warning",
+  已取消: "neutral",
 }
 
 const riskTone: Record<McpRunRecord["riskLevel"], "success" | "warning" | "danger"> = {
@@ -52,11 +53,13 @@ export function ProjectMcpRunsPanel({
   defaultTarget,
   capabilities,
   initialRuns,
+  readOnlyReason,
 }: {
   projectId: string
   defaultTarget: string
   capabilities: string[]
   initialRuns: McpRunRecord[]
+  readOnlyReason?: string
 }) {
   const defaultCapability = capabilities[0] ?? "Web 页面探测类"
   const preset = getPreset(defaultCapability)
@@ -69,8 +72,13 @@ export function ProjectMcpRunsPanel({
   const [message, setMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [workflowSummary, setWorkflowSummary] = useState<string[] | null>(null)
+  const isReadOnly = Boolean(readOnlyReason)
 
   async function submitDispatch() {
+    if (isReadOnly) {
+      return
+    }
+
     setIsSubmitting(true)
     setMessage(null)
     setErrorMessage(null)
@@ -124,6 +132,10 @@ export function ProjectMcpRunsPanel({
   }
 
   async function runWorkflowSmoke(scenario: "baseline" | "with-approval") {
+    if (isReadOnly) {
+      return
+    }
+
     setIsSubmitting(true)
     setMessage(null)
     setErrorMessage(null)
@@ -190,11 +202,16 @@ export function ProjectMcpRunsPanel({
             <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
               用几类最基础的 MCP 工具把整条链路串一遍，验证“自动执行”和“审批阻塞”两种主路径都能被平台正确处理。
             </p>
+            {readOnlyReason ? (
+              <div className="mt-4 rounded-[20px] border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+                {readOnlyReason}
+              </div>
+            ) : null}
             <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-              <Button type="button" disabled={isSubmitting} variant="outline" className="rounded-full" onClick={() => runWorkflowSmoke("baseline")}>
+              <Button type="button" disabled={isSubmitting || isReadOnly} variant="outline" className="rounded-full" onClick={() => runWorkflowSmoke("baseline")}>
                 运行基础流程
               </Button>
-              <Button type="button" disabled={isSubmitting} variant="outline" className="rounded-full" onClick={() => runWorkflowSmoke("with-approval")}>
+              <Button type="button" disabled={isSubmitting || isReadOnly} variant="outline" className="rounded-full" onClick={() => runWorkflowSmoke("with-approval")}>
                 运行含审批流程
               </Button>
             </div>
@@ -202,7 +219,7 @@ export function ProjectMcpRunsPanel({
 
           <div className="space-y-3">
             <p className="text-sm font-medium text-slate-950 dark:text-white">能力族</p>
-            <Select value={capability} onValueChange={handleCapabilityChange}>
+            <Select value={capability} onValueChange={handleCapabilityChange} disabled={isReadOnly}>
               <SelectTrigger className="h-11 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
                 <SelectValue placeholder="选择能力族" />
               </SelectTrigger>
@@ -221,6 +238,7 @@ export function ProjectMcpRunsPanel({
             <Input
               value={requestedAction}
               onChange={(event) => setRequestedAction(event.target.value)}
+              disabled={isReadOnly}
               className="h-11 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
             />
           </div>
@@ -230,6 +248,7 @@ export function ProjectMcpRunsPanel({
             <Input
               value={target}
               onChange={(event) => setTarget(event.target.value)}
+              disabled={isReadOnly}
               className="h-11 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
             />
           </div>
@@ -241,6 +260,7 @@ export function ProjectMcpRunsPanel({
                 <Button
                   key={item}
                   type="button"
+                  disabled={isReadOnly}
                   variant={riskLevel === item ? "default" : "outline"}
                   size="sm"
                   className="rounded-full"
@@ -282,7 +302,7 @@ export function ProjectMcpRunsPanel({
                 低风险动作更容易自动执行，中高风险动作默认会进入审批，除非项目和全局策略明确放开。
               </p>
             </div>
-            <Button type="button" disabled={isSubmitting} className="rounded-full" onClick={submitDispatch}>
+            <Button type="button" disabled={isSubmitting || isReadOnly} className="rounded-full" onClick={submitDispatch}>
               {isSubmitting ? "提交中..." : "发起 MCP 调度"}
             </Button>
           </div>

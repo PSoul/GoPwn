@@ -56,7 +56,7 @@ function buildServerContract(serverId: string, input: McpServerRegistrationInput
     enabled: input.enabled,
     toolNames: input.tools.map((tool) => tool.toolName),
     command: input.command,
-    endpoint: input.endpoint,
+    endpoint: input.endpoint ?? "",
     updatedAt,
   }
 }
@@ -100,14 +100,14 @@ function buildToolRecord(
     outputMode: formatSchemaMode(tool.outputSchema, "structuredContent"),
     boundary: tool.boundary,
     requiresApproval: tool.requiresApproval,
-    endpoint: input.endpoint,
+    endpoint: input.endpoint ?? "",
     owner: tool.owner,
     defaultConcurrency: tool.defaultConcurrency,
     rateLimit: tool.rateLimit,
     timeout: tool.timeout,
     retry: tool.retry,
     lastCheck: updatedAt,
-    notes: input.notes,
+    notes: input.notes ?? "",
   }
 }
 
@@ -162,11 +162,11 @@ export function registerStoredMcpServer(input: McpServerRegistrationInput) {
         transport: input.transport,
         command: input.command ?? "",
         argsJson: JSON.stringify(input.args),
-        endpoint: input.endpoint,
+        endpoint: input.endpoint ?? "",
         enabled: input.enabled ? 1 : 0,
         status: input.enabled ? "已连接" : "停用",
         toolBindingsJson: JSON.stringify(input.tools.map((tool) => tool.toolName)),
-        notes: input.notes,
+        notes: input.notes ?? "",
         lastSeen: updatedAt,
       })
   } finally {
@@ -309,38 +309,43 @@ export function appendStoredMcpServerInvocation(
       createdAt: input.createdAt ?? formatTimestamp(),
     }
 
-    database
-      .prepare(`
-        INSERT INTO mcp_server_invocations (
-          id,
-          server_id,
-          tool_name,
-          status,
-          target,
-          summary,
-          duration_ms,
-          created_at
-        ) VALUES (
-          :id,
-          :serverId,
-          :toolName,
-          :status,
-          :target,
-          :summary,
-          :durationMs,
-          :createdAt
-        )
-      `)
-      .run({
-        id: record.id,
-        serverId: record.serverId,
-        toolName: record.toolName,
-        status: record.status,
-        target: record.target,
-        summary: record.summary,
-        durationMs: record.durationMs,
-        createdAt: record.createdAt,
-      })
+    try {
+      database
+        .prepare(`
+          INSERT INTO mcp_server_invocations (
+            id,
+            server_id,
+            tool_name,
+            status,
+            target,
+            summary,
+            duration_ms,
+            created_at
+          ) VALUES (
+            :id,
+            :serverId,
+            :toolName,
+            :status,
+            :target,
+            :summary,
+            :durationMs,
+            :createdAt
+          )
+        `)
+        .run({
+          id: record.id,
+          serverId: record.serverId,
+          toolName: record.toolName,
+          status: record.status,
+          target: record.target,
+          summary: record.summary,
+          durationMs: record.durationMs,
+          createdAt: record.createdAt,
+        })
+    } catch {
+      // Best-effort: FK constraint may fail for synthetic/auto-discovered server IDs
+      // Invocation logging is non-critical — the execution itself should still proceed
+    }
 
     return record
   } finally {

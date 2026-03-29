@@ -1,0 +1,27 @@
+{
+  "serverName": "subfinder-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP Server wrapping subfinder for passive subdomain enumeration",
+  "transport": "stdio",
+  "command": "node",
+  "args": ["dist/index.js"],
+  "enabled": true,
+  "tools": [
+    {
+      "toolName": "subfinder_enum",
+      "description": "Passive subdomain enumeration for a target domain",
+      "capability": "asset-discovery",
+      "resultMappings": ["domains"],
+      "riskLevel": "low",
+      "boundary": "external-target"
+    },
+    {
+      "toolName": "subfinder_verify",
+      "description": "Enumerate subdomains and verify with DNS resolution",
+      "capability": "asset-discovery",
+      "resultMappings": ["domains"],
+      "riskLevel": "low",
+      "boundary": "external-target"
+    }
+  ]
+}

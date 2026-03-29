@@ -275,7 +275,7 @@ export function getStoredMcpRunById(runId: string) {
 
 export function updateStoredMcpRun(
   runId: string,
-  patch: Partial<Pick<McpRunRecord, "status" | "summaryLines" | "updatedAt">>,
+  patch: Partial<Pick<McpRunRecord, "status" | "summaryLines" | "updatedAt" | "connectorMode">>,
 ) {
   const store = readPrototypeStore()
   const runIndex = store.mcpRuns.findIndex((run) => run.id === runId)

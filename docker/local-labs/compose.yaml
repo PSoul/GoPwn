@@ -15,3 +15,74 @@ services:
       - "18080:8080"
       - "19090:9090"
     restart: unless-stopped
+
+  # DVWA - 经典 PHP 漏洞靶场 (SQL注入/XSS/命令注入/文件上传等)
+  dvwa:
+    image: vulnerables/web-dvwa:latest
+    container_name: llm-pentest-dvwa
+    ports:
+      - "8081:80"
+    restart: unless-stopped
+    depends_on:
+      - dvwa-mysql
+
+  # DVWA 后端 MySQL (root/root123 弱口令)
+  dvwa-mysql:
+    image: mysql:5.7
+    container_name: llm-pentest-dvwa-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: dvwa
+      MYSQL_USER: dvwa
+      MYSQL_PASSWORD: p@ssw0rd
+    ports:
+      - "13306:3306"
+    restart: unless-stopped
+
+  # 独立 MySQL 弱口令靶标 (root/123456)
+  mysql-weak:
+    image: mysql:5.7
+    container_name: llm-pentest-mysql-weak
+    environment:
+      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_DATABASE: testdb
+    ports:
+      - "13307:3306"
+    restart: unless-stopped
+
+  # WordPress + 弱口令 CMS
+  wordpress:
+    image: wordpress:6.4-apache
+    container_name: llm-pentest-wordpress
+    ports:
+      - "8082:80"
+    environment:
+      WORDPRESS_DB_HOST: wp-mysql:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress123
+      WORDPRESS_DB_NAME: wordpress
+    depends_on:
+      - wp-mysql
+    restart: unless-stopped
+
+  wp-mysql:
+    image: mysql:5.7
+    container_name: llm-pentest-wp-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress123
+    restart: unless-stopped
+
+  # phpMyAdmin (管理面板暴露面)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: llm-pentest-phpmyadmin
+    ports:
+      - "8083:80"
+    environment:
+      PMA_HOSTS: dvwa-mysql,mysql-weak,wp-mysql
+      PMA_USER: root
+      PMA_PASSWORD: root123
+    restart: unless-stopped

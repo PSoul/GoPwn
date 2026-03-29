@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "afrog": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "cwd": "/path/to/afrog-mcp-server",
+      "env": {
+        "AFROG_PATH": "/usr/local/bin/afrog"
+      }
+    }
+  }
+}

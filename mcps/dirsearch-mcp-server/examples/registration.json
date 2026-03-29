@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "dirsearch": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "cwd": "/path/to/dirsearch-mcp-server",
+      "env": {
+        "DIRSEARCH_PATH": "/usr/local/bin/dirsearch"
+      }
+    }
+  }
+}

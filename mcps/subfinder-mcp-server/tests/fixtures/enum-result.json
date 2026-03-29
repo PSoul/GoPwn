@@ -1,0 +1,5 @@
+[
+  {"host":"api.example.com","input":"example.com","source":"crtsh"},
+  {"host":"mail.example.com","input":"example.com","source":"virustotal"},
+  {"host":"dev.example.com","input":"example.com","source":"hackertarget"}
+]

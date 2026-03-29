@@ -1,12 +1,13 @@
-# 独立 MCP 脚手架工作流
+# MCP 协议模板协同工作流
 
 ## 1. 目的
 
-从本阶段开始，平台主仓库不再承担“直接孵化所有新 MCP server”的职责。后续新增 MCP，优先在独立脚手架仓库中开发、校验和整理文档，再注册回平台。
+从本阶段开始，平台主仓库不再承担“协议标准源 + 具体 MCP 实现”双重职责。
 
-推荐脚手架仓库路径：
+后续新增 MCP 建议分成两步：
 
-- `D:\dev\llmpentest-mcp-scaffold`
+1. 先以 `D:\dev\llmpentest-mcp-template` 为协议标准完成合同对齐。
+2. 再在独立实现仓库或专门工作目录里开发具体 MCP server，最后把注册 JSON 回填到平台。
 
 ## 2. 职责边界
 
@@ -17,33 +18,37 @@
 - 连接器选择、执行、归一化和审计
 - 平台 UI、API、运行态控制
 
-### 独立脚手架仓库负责
+### 协议模板仓负责
 
-- MCP server 模板
-- 能力族 starter
-- 平台合同镜像校验
-- 示例合同 JSON
-- stdio smoke
+- 四层 schema
+- 示例 JSON
+- 协议说明文档
+- 示例校验与一致性测试
+
+### 独立实现仓库负责
+
+- 具体 MCP server 代码
+- 运行时 smoke
 - 平台自动注册 helper
-- 面向后续 LLM 的 handoff 文档
+- 与具体工具相关的适配逻辑
 
 ## 3. 推荐开发流程
 
-1. 在脚手架仓库选择或复制一个示例 starter
-2. 修改能力族、输入输出 schema、结果映射和默认策略
-3. 跑脚手架本地校验：
+1. 在 `D:\dev\llmpentest-mcp-template` 确认能力族、边界、结果映射和字段合同
+2. 参考模板仓里的 schema、examples 和文档准备注册 JSON
+3. 在模板仓跑协议校验：
    - `npm run build`
    - `npm run test`
-   - `npm run contract:validate`
-   - `npm run smoke:stdio`
-4. 把合同注册回平台：
+   - `npm run validate:examples`
+4. 在独立实现仓库开发具体 MCP server，并补充该仓库自己的 smoke 或注册 helper
+5. 把合同注册回平台：
    - 手工粘贴到 `/settings/mcp-tools`
-   - 或使用脚手架仓库内的自动注册 helper
-5. 如果平台现有连接器/归一化逻辑不够，再回平台主仓库补最小桥接
+   - 或使用实现仓库内的自动注册 helper
+6. 如果平台现有连接器/归一化逻辑不够，再回平台主仓库补最小桥接
 
 ## 4. 什么情况下必须改平台主仓库
 
-以下情况不能只改脚手架仓库：
+以下情况不能只改模板仓或实现仓：
 
 - 新能力族不在平台注册枚举里
 - 新能力的输出需要新的资产/证据/发现归一化逻辑
@@ -56,7 +61,7 @@
 
 这意味着：
 
-- 脚手架仓库里的 `HTTP 请求工作台` 示例可以直接接回平台
+- 只要合同形状和共享 MCP 方法满足现有桥接约束，同类 MCP 可以先复用已有运行时路径
 - 后续同类 `受控验证类` MCP 不需要每次都先补一个新的平台连接器
 - 但跨能力族时，仍然要按实际情况补平台桥接
 
@@ -67,7 +72,7 @@
 1. 平台主仓库 `README.md`
 2. 平台主仓库 `roadmap.md`
 3. 平台主仓库 `code_index.md`
-4. 平台主仓库 `docs/prompts/2026-03-28-phase-11-platform-runtime-bridge-hardening-prompt.md`
-5. 脚手架仓库 `README.md`
-6. 脚手架仓库 `docs/capability-matrix.md`
-7. 脚手架仓库 `docs/integration/platform-registration-workflow.md`
+4. 平台主仓库 `docs/contracts/mcp-server-contract.md`
+5. 平台主仓库 `docs/templates/mcp-connector-template.md`
+6. 平台主仓库 `docs/operations/mcp-onboarding-guide.md`
+7. 模板仓库 `README.md`

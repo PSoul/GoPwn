@@ -24,6 +24,9 @@ export function buildDefaultProjectSchedulerControl(
   return {
     lifecycle,
     paused: lifecycle === "paused" || lifecycle === "stopped",
+    autoReplan: true,
+    maxRounds: 10,
+    currentRound: 0,
     note: getLifecycleNote(lifecycle),
     updatedAt,
   }
@@ -70,6 +73,9 @@ export function normalizeProjectSchedulerControl(input: {
           ? input.control.paused
           : lifecycle === "paused" || lifecycle === "stopped"
         : base.paused,
+    autoReplan: typeof input.control?.autoReplan === "boolean" ? input.control.autoReplan : base.autoReplan,
+    maxRounds: typeof input.control?.maxRounds === "number" ? input.control.maxRounds : base.maxRounds,
+    currentRound: typeof input.control?.currentRound === "number" ? input.control.currentRound : base.currentRound,
     note: input.control?.note?.trim() || base.note,
     updatedAt: input.control?.updatedAt ?? input.updatedAt,
   }

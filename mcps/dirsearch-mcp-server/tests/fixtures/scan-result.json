@@ -1,0 +1,1 @@
+{"results":[{"status":200,"url":"http://example.com/admin/login.php","content-length":4521,"redirect":""},{"status":301,"url":"http://example.com/api","content-length":0,"redirect":"http://example.com/api/"},{"status":200,"url":"http://example.com/robots.txt","content-length":128,"redirect":""}]}

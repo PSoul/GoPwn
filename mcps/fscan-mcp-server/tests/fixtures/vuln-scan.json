@@ -1,0 +1,16 @@
+[
+  {
+    "time": "2024-03-28T10:32:00Z",
+    "type": "VULN",
+    "target": "192.168.1.10",
+    "status": "vulnerable",
+    "details": { "port": "445", "type": "MS17-010", "os": "Windows 7" }
+  },
+  {
+    "time": "2024-03-28T10:32:01Z",
+    "type": "VULN",
+    "target": "192.168.1.10",
+    "status": "backdoor",
+    "details": { "port": "445", "type": "DOUBLEPULSAR", "os": "Windows 7" }
+  }
+]

@@ -1,3 +1,4 @@
+import { buildProjectClosureStatus } from "@/lib/project-closure-status"
 import type {
   ApprovalControl,
   ApprovalRecord,
@@ -847,6 +848,17 @@ export const projectDetails: ProjectDetailRecord[] = [
     findings: projectFindings.huayao,
     currentStage: projectStageSnapshots.huayao,
     approvalControl: projectApprovalControls.huayao,
+    closureStatus: buildProjectClosureStatus({
+      finalConclusionGenerated: false,
+      lifecycle: "running",
+      pendingApprovals: 2,
+      projectStatus: "运行中",
+      queuedTaskCount: 1,
+      reportExported: false,
+      runningTaskCount: 0,
+      waitingApprovalTaskCount: 1,
+    }),
+    finalConclusion: null,
   },
   {
     projectId: "proj-xingtu",
@@ -881,6 +893,17 @@ export const projectDetails: ProjectDetailRecord[] = [
     findings: projectFindings.xingtu,
     currentStage: projectStageSnapshots.xingtu,
     approvalControl: projectApprovalControls.xingtu,
+    closureStatus: buildProjectClosureStatus({
+      finalConclusionGenerated: false,
+      lifecycle: "running",
+      pendingApprovals: 1,
+      projectStatus: "运行中",
+      queuedTaskCount: 1,
+      reportExported: false,
+      runningTaskCount: 0,
+      waitingApprovalTaskCount: 0,
+    }),
+    finalConclusion: null,
   },
   {
     projectId: "proj-yunlan",
@@ -915,6 +938,17 @@ export const projectDetails: ProjectDetailRecord[] = [
     findings: projectFindings.yunlan,
     currentStage: projectStageSnapshots.yunlan,
     approvalControl: projectApprovalControls.yunlan,
+    closureStatus: buildProjectClosureStatus({
+      finalConclusionGenerated: false,
+      lifecycle: "running",
+      pendingApprovals: 3,
+      projectStatus: "已阻塞",
+      queuedTaskCount: 1,
+      reportExported: false,
+      runningTaskCount: 0,
+      waitingApprovalTaskCount: 1,
+    }),
+    finalConclusion: null,
   },
 ]
 

@@ -56,7 +56,8 @@ describe("approval and control api routes", () => {
 
     expect(projectResponse.status).toBe(200)
     expect(projectPayload.project.pendingApprovals).toBe(0)
-    expect(projectPayload.detail.activity.some((item: { title: string }) => item.title.includes(approvalId))).toBe(true)
+    expect(projectPayload.detail.finalConclusion).not.toBeNull()
+    expect(projectPayload.detail.currentStage.title).toBe("风险聚合与项目结论")
 
     const auditResponse = await getAuditLogs()
     const auditPayload = await auditResponse.json()
