@@ -878,6 +878,7 @@ export interface LlmCallLogRecord {
   error: string | null
   createdAt: string
   completedAt: string | null
+  projectName?: string
 }
 
 export interface LlmCallLogListPayload {

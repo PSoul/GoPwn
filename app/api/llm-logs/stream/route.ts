@@ -1,10 +1,11 @@
 import { llmLogBus } from "@/lib/llm-call-logger"
 import type { LlmLogEvent } from "@/lib/llm-call-logger"
+import { withApiHandler } from "@/lib/api-handler"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
 
-export async function GET() {
+export const GET = withApiHandler(async () => {
   const encoder = new TextEncoder()
   let cleanup: (() => void) | null = null
 
@@ -51,4 +52,4 @@ export async function GET() {
       "X-Accel-Buffering": "no",
     },
   })
-}
+})

@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-29`
-- Current focus: Phase 13 生产加固已完成。SSE 实时日志流、认证加固（CSRF + 验证码 + 速率限制）、E2E 测试稳定性提升。
+- Current focus: Phase 14 AI 聊天窗项目上下文已完成。全局 AI 聊天窗支持按项目筛选、URL 感知自动切换当前项目、项目名标签显示。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
 
 ## Phase 12: 漏洞驾驶舱重构 (Vuln Cockpit Redesign)
@@ -436,10 +436,37 @@
 - [x] `npm run build` 通过（无 TypeScript 错误）
 - [x] prototype-smoke.spec.ts 8/8 通过
 
+## Phase 14: AI 聊天窗项目上下文 (Chat Widget Project Context)
+
+- Status: Completed on `2026-03-29`
+- Branch: `feat/phase14-chat-project-context`
+- Goal: 解决全局 AI 聊天窗口无法区分不同项目对话的问题，加固 SSE 端点安全性。
+
+### 交付清单
+
+1. **LlmCallLogRecord 扩展** — 添加 `projectName?: string` 可选字段，向后兼容
+2. **服务端项目名注入** — `createLlmCallLog()` 创建时自动查找项目名，SSE 事件携带项目名
+3. **API 查询时 enrichment** — `/api/llm-logs/recent` 对旧日志补充项目名（复用 projectNameMap 模式）
+4. **AI 聊天窗 UI 升级**:
+   - 每条日志气泡显示紫色项目名标签（仅"全部项目"模式下显示）
+   - 项目筛选下拉（全部项目 / 当前项目 / 各项目名）
+   - URL 感知：进入 `/projects/[id]` 自动切换到当前项目筛选
+   - 手动选择后保持用户选择，不自动覆盖
+5. **SSE 端点安全加固** — `/api/llm-logs/stream` 用 `withApiHandler` 包裹
+6. **E2E 测试** — 漏洞中心 waitForResponse 修复，聊天窗增加项目筛选器断言
+
+### 验收标准
+
+- [x] `npm run build` 通过
+- [x] AI 聊天窗显示项目名标签
+- [x] 项目筛选下拉可切换
+- [x] 进入项目页自动切换到当前项目
+- [x] SSE 端点使用 withApiHandler
+
 ## Recommended Next Phase
 
-- Name: `Phase 14 - UI 体验优化与性能调优`
-- Goal: 优化前端加载性能（首屏编译时间、代码分割），完善错误边界和空状态体验，添加更多 E2E 覆盖，使平台达到内部发布标准。
+- Name: `Phase 15 - 错误边界与空状态体验`
+- Goal: 完善错误边界、空状态提示、API 失败友好提示，确保所有 E2E 测试稳定通过。
 
 ## Notes for Future LLM Sessions
 

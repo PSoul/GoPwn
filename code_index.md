@@ -77,7 +77,7 @@
 | `components/layout/app-shell.tsx` | 应用外壳（侧边栏 + 顶栏 + AI 悬浮窗） |
 | `components/layout/app-header.tsx` | 顶部导航栏 |
 | `components/layout/app-sidebar.tsx` | 侧边栏导航（总览/发现/系统分组） |
-| `components/layout/ai-chat-widget.tsx` | 全局 AI 思考日志悬浮窗（SSE 实时推送 + 轮询降级） |
+| `components/layout/ai-chat-widget.tsx` | 全局 AI 思考日志悬浮窗（SSE 实时推送 + 项目筛选 + URL 感知 + 轮询降级） |
 
 ### 项目组件
 

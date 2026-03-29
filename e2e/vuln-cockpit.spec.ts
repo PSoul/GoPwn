@@ -44,11 +44,20 @@ test("sidebar shows updated navigation terminology", async ({ page }) => {
 
 test("vuln center page loads and shows stats cards", async ({ page }) => {
   await loginAsResearcher(page)
+
+  // Wait for API response before checking UI
+  const summaryResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/vuln-center/summary") &&
+      response.request().method() === "GET",
+    { timeout: 15_000 },
+  )
   await page.goto("/vuln-center")
+  await summaryResponsePromise
 
   await expect(page.getByRole("heading", { name: "漏洞中心" })).toBeVisible()
-  // Wait for async data load
-  await expect(page.getByText("漏洞总数")).toBeVisible({ timeout: 15_000 })
+  // After API response, stats or empty state should render
+  await expect(page.getByText("漏洞总数")).toBeVisible({ timeout: 10_000 })
   await expect(page.getByText("高危").first()).toBeVisible()
   await expect(page.getByText("中危").first()).toBeVisible()
   await expect(page.getByText("低危/情报").first()).toBeVisible()
@@ -143,6 +152,9 @@ test("AI chat widget is present and toggleable", async ({ page }) => {
   await expect(page.getByRole("button", { name: "全部", exact: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "编排", exact: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "审阅", exact: true })).toBeVisible()
+
+  // Project filter dropdown button should be visible
+  await expect(page.getByLabel("筛选项目")).toBeVisible()
 
   // Minimize button
   await minimizeButton.click()

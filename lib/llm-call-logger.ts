@@ -26,9 +26,13 @@ export function createLlmCallLog(input: {
   model: string
   provider: string
 }): LlmCallLogRecord {
+  const store = readPrototypeStore()
+  const projectName = store.projects.find((p) => p.id === input.projectId)?.name ?? "未知项目"
+
   const record: LlmCallLogRecord = {
     id: generateId(),
     projectId: input.projectId,
+    projectName,
     role: input.role,
     phase: input.phase,
     prompt: input.prompt,
@@ -42,8 +46,6 @@ export function createLlmCallLog(input: {
     createdAt: new Date().toISOString(),
     completedAt: null,
   }
-
-  const store = readPrototypeStore()
   if (!store.llmCallLogs) {
     store.llmCallLogs = []
   }

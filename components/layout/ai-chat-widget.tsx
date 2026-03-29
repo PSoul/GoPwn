@@ -1,7 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
-import { BrainCircuit, Loader2, Minimize2 } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { usePathname } from "next/navigation"
+import { BrainCircuit, ChevronDown, Loader2, Minimize2 } from "lucide-react"
 
 import { StatusBadge } from "@/components/shared/status-badge"
 import { apiFetch } from "@/lib/api-client"
@@ -25,10 +26,35 @@ export function AiChatWidget() {
   const [expanded, setExpanded] = useState(false)
   const [logs, setLogs] = useState<LlmCallLogRecord[]>([])
   const [roleFilter, setRoleFilter] = useState<LlmCallRole | "all">("all")
+  const [projectFilter, setProjectFilter] = useState<string>("all")
+  const [projectDropdownOpen, setProjectDropdownOpen] = useState(false)
   const [hasNew, setHasNew] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const prevCountRef = useRef(0)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const userManualFilterRef = useRef(false)
+
+  // Detect current project from URL
+  const pathname = usePathname()
+  const currentProjectId = pathname?.match(/\/projects\/([^/]+)/)?.[1] ?? null
+
+  // Auto-switch to current project when navigating to a project page
+  useEffect(() => {
+    if (currentProjectId && !userManualFilterRef.current) {
+      setProjectFilter(currentProjectId)
+    } else if (!currentProjectId && !userManualFilterRef.current) {
+      setProjectFilter("all")
+    }
+  }, [currentProjectId])
+
+  // Build unique project list from loaded logs
+  const projectOptions = useMemo(() => {
+    const map = new Map<string, string>()
+    logs.forEach((l) => {
+      if (l.projectName) map.set(l.projectId, l.projectName)
+    })
+    return Array.from(map.entries()) // [[id, name], ...]
+  }, [logs])
 
   // Restore expanded state from localStorage
   useEffect(() => {
@@ -115,12 +141,26 @@ export function AiChatWidget() {
     setHasNew(false)
   }
 
-  const filteredLogs = roleFilter === "all"
-    ? logs
-    : logs.filter((l) => l.role === roleFilter)
+  function handleProjectFilterChange(value: string) {
+    userManualFilterRef.current = value !== "all"
+    setProjectFilter(value)
+    setProjectDropdownOpen(false)
+  }
+
+  // Apply both role and project filters
+  const filteredLogs = logs.filter((l) => {
+    if (roleFilter !== "all" && l.role !== roleFilter) return false
+    if (projectFilter !== "all" && l.projectId !== projectFilter) return false
+    return true
+  })
 
   // Reverse to show oldest first (chat style)
   const chatLogs = [...filteredLogs].reverse()
+
+  // Get active project filter label
+  const activeProjectLabel = projectFilter === "all"
+    ? "全部项目"
+    : projectOptions.find(([id]) => id === projectFilter)?.[1] ?? "当前项目"
 
   if (!expanded) {
     return (
@@ -177,6 +217,52 @@ export function AiChatWidget() {
             {key === "all" ? "全部" : roleLabels[key]}
           </button>
         ))}
+
+        {/* Project filter dropdown */}
+        <div className="relative ml-auto">
+          <button
+            type="button"
+            onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
+            className="flex items-center gap-0.5 rounded-full bg-violet-100 px-2 py-1 text-[10px] font-medium text-violet-700 transition-colors hover:bg-violet-200 dark:bg-violet-950 dark:text-violet-300 dark:hover:bg-violet-900"
+            aria-label="筛选项目"
+          >
+            <span className="max-w-[72px] truncate">{activeProjectLabel}</span>
+            <ChevronDown className="h-2.5 w-2.5 shrink-0" />
+          </button>
+          {projectDropdownOpen && (
+            <div className="absolute right-0 top-full z-10 mt-1 w-44 rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+              <button
+                type="button"
+                className={`block w-full px-3 py-1.5 text-left text-[11px] hover:bg-slate-50 dark:hover:bg-slate-800 ${projectFilter === "all" ? "font-semibold text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-300"}`}
+                onClick={() => handleProjectFilterChange("all")}
+              >
+                全部项目
+              </button>
+              {currentProjectId && (
+                <button
+                  type="button"
+                  className={`block w-full px-3 py-1.5 text-left text-[11px] hover:bg-slate-50 dark:hover:bg-slate-800 ${projectFilter === currentProjectId ? "font-semibold text-violet-700 dark:text-violet-300" : "text-slate-600 dark:text-slate-300"}`}
+                  onClick={() => handleProjectFilterChange(currentProjectId)}
+                >
+                  当前项目
+                </button>
+              )}
+              {projectOptions.length > 0 && (
+                <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
+              )}
+              {projectOptions.map(([id, name]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`block w-full truncate px-3 py-1.5 text-left text-[11px] hover:bg-slate-50 dark:hover:bg-slate-800 ${projectFilter === id ? "font-semibold text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-300"}`}
+                  onClick={() => handleProjectFilterChange(id)}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Chat area */}
@@ -189,11 +275,16 @@ export function AiChatWidget() {
           <div className="space-y-3">
             {chatLogs.map((log) => (
               <div key={log.id} className="space-y-1">
-                {/* Role label + timestamp */}
-                <div className="flex items-center gap-2">
+                {/* Role label + project badge + timestamp */}
+                <div className="flex items-center gap-1.5">
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${roleBgColor[log.role]}`}>
                     {roleLabels[log.role]}
                   </span>
+                  {log.projectName && projectFilter === "all" && (
+                    <span className="max-w-[100px] truncate rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-medium text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+                      {log.projectName}
+                    </span>
+                  )}
                   <span className="text-[10px] text-slate-400">
                     {new Date(log.createdAt).toLocaleTimeString("zh-CN")}
                   </span>
