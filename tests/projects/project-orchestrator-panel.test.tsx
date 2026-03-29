@@ -158,7 +158,7 @@ describe("ProjectOrchestratorPanel", () => {
     )
 
     expect(screen.getByText("当前项目已完成当前轮次，如需继续扩展测试，请新建下一轮项目。")).toBeInTheDocument()
-    expect(screen.getByRole("switch", { name: "包含高风险审批动作" })).toBeDisabled()
+    expect(screen.getByRole("switch", { name: /审批演练开关/ })).toBeDisabled()
     expect(screen.getByRole("button", { name: "为 OWASP Juice Shop 生成计划" })).toBeDisabled()
     expect(screen.getByRole("button", { name: "运行 OWASP Juice Shop 本地验证" })).toBeDisabled()
   })

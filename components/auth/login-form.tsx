@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { ShieldCheck, Siren, UserCircle2 } from "lucide-react"
+import { RefreshCw, ShieldCheck, Siren, UserCircle2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -15,10 +15,24 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"section
   const [account, setAccount] = useState("")
   const [password, setPassword] = useState("")
   const [captcha, setCaptcha] = useState("")
+  const [captchaId, setCaptchaId] = useState("")
+  const [captchaCode, setCaptchaCode] = useState("----")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const isBusy = isSubmitting
+
+  const refreshCaptcha = useCallback(async () => {
+    try {
+      const res = await fetch("/api/auth/captcha")
+      const data = (await res.json()) as { captchaId: string; code: string }
+      setCaptchaId(data.captchaId)
+      setCaptchaCode(data.code)
+      setCaptcha("")
+    } catch { /* best-effort */ }
+  }, [])
+
+  useEffect(() => { refreshCaptcha() }, [refreshCaptcha])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -35,13 +49,15 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"section
           account,
           password,
           captcha,
-          redirectTo: searchParams.get("from") || "/dashboard",
+          captchaId,
+          redirectTo: searchParams?.get("from") || "/dashboard",
         }),
       })
       const payload = (await response.json()) as { error?: string; redirectTo?: string }
 
       if (!response.ok) {
         setErrorMessage(payload.error ?? "登录失败，请稍后再试。")
+        refreshCaptcha()
         return
       }
 
@@ -104,18 +120,24 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"section
 
                 <div className="grid gap-2">
                   <Label htmlFor="captcha">验证码</Label>
-                  <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
+                  <div className="grid gap-3 sm:grid-cols-[1fr_160px]">
                     <Input
                       id="captcha"
                       autoComplete="off"
                       value={captcha}
                       onChange={(event) => setCaptcha(event.target.value)}
-                      placeholder="请输入图形验证码"
+                      placeholder="请输入验证码"
                       className="h-12 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
                     />
-                    <div className="flex h-12 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-100 text-sm font-medium tracking-[0.35em] text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-                      7K2Q
-                    </div>
+                    <button
+                      type="button"
+                      onClick={refreshCaptcha}
+                      className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-100 text-sm font-medium tracking-[0.35em] text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-600"
+                      title="点击刷新验证码"
+                    >
+                      {captchaCode}
+                      <RefreshCw className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                    </button>
                   </div>
                 </div>
 
@@ -133,8 +155,8 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"section
                   <p className="mt-1">
                     密码 <span className="rounded bg-white px-1.5 py-0.5 font-mono text-[13px] text-slate-900 dark:bg-slate-950 dark:text-slate-100">Prototype@2026</span>
                   </p>
-                  <p className="mt-1">
-                    验证码 <span className="rounded bg-white px-1.5 py-0.5 font-mono text-[13px] text-slate-900 dark:bg-slate-950 dark:text-slate-100">7K2Q</span>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    验证码由右侧动态生成，直接输入即可
                   </p>
                 </div>
               </div>

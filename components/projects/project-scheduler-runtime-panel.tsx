@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { ChevronDown, Loader2, PauseCircle, PlayCircle, Square } from "lucide-react"
 
 import { StatusBadge } from "@/components/shared/status-badge"
+import { StubBadge } from "@/components/ui/stub-badge"
 import { Button } from "@/components/ui/button"
 import type {
   ProjectClosureStatusRecord,
@@ -14,6 +15,7 @@ import type {
   ProjectSchedulerLifecycle,
   ProjectStatus,
 } from "@/lib/prototype-types"
+import { apiFetch } from "@/lib/api-client"
 
 const lifecycleLabelMap: Record<ProjectSchedulerLifecycle, string> = {
   idle: "待开始",
@@ -81,7 +83,7 @@ export function ProjectSchedulerRuntimePanel({
 
   const pollOperations = useCallback(async () => {
     try {
-      const res = await fetch(`/api/projects/${projectId}/operations`)
+      const res = await apiFetch(`/api/projects/${projectId}/operations`)
       if (!res.ok) return
       const payload = await res.json()
       if (payload.schedulerControl) setControl(payload.schedulerControl)
@@ -106,7 +108,7 @@ export function ProjectSchedulerRuntimePanel({
     setActiveAction(nextLifecycle)
     setMessage(null)
     try {
-      const res = await fetch(`/api/projects/${projectId}/scheduler-control`, {
+      const res = await apiFetch(`/api/projects/${projectId}/scheduler-control`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ lifecycle: nextLifecycle, note: control.note }),
@@ -125,7 +127,7 @@ export function ProjectSchedulerRuntimePanel({
   async function runTaskAction(task: McpSchedulerTaskRecord, action: "cancel" | "retry") {
     setActiveAction(task.id)
     try {
-      const res = await fetch(`/api/projects/${projectId}/scheduler-tasks/${task.id}`, {
+      const res = await apiFetch(`/api/projects/${projectId}/scheduler-tasks/${task.id}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action, note: action === "cancel" ? "手动取消" : "手动重试" }),
@@ -250,6 +252,7 @@ export function ProjectSchedulerRuntimePanel({
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium text-slate-900 dark:text-white">{task.toolName}</span>
                           <StatusBadge tone={taskStatusTone[task.status]}>{task.status}</StatusBadge>
+                          <StubBadge mode={task.connectorMode} />
                         </div>
                         <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{task.target}</p>
                         {task.lastError && <p className="mt-0.5 text-xs text-rose-600 dark:text-rose-400">{task.lastError}</p>}

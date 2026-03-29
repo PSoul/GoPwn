@@ -1,11 +1,8 @@
 import { approvalControlPatchSchema } from "@/lib/approval-write-schema"
 import { updateProjectApprovalControlPayload } from "@/lib/prototype-api"
+import { withApiHandler } from "@/lib/api-handler"
 
-type ProjectApprovalControlRouteContext = {
-  params: Promise<{ projectId: string }>
-}
-
-export async function PATCH(request: Request, { params }: ProjectApprovalControlRouteContext) {
+export const PATCH = withApiHandler(async (request, { params }) => {
   const { projectId } = await params
   const body = await request.json()
   const parsed = approvalControlPatchSchema.safeParse(body)
@@ -21,4 +18,4 @@ export async function PATCH(request: Request, { params }: ProjectApprovalControl
   }
 
   return Response.json(payload)
-}
+})

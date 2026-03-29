@@ -16,7 +16,7 @@ function buildWorkflowId() {
 export async function runProjectSmokeWorkflow(
   projectId: string,
   scenario: "baseline" | "with-approval",
-): McpWorkflowSmokePayload | null {
+): Promise<McpWorkflowSmokePayload | null> {
   const project = getStoredProjectById(projectId)
 
   if (!project) {

@@ -79,8 +79,8 @@ export const loginLimiter = createRateLimiter({
   maxRequests: process.env.NODE_ENV === "production" ? 5 : 50,
 })
 
-/** General API: 60 requests per 60 seconds per IP */
+/** General API: 60 requests per 60 seconds per IP (relaxed in development) */
 export const apiLimiter = createRateLimiter({
   windowMs: 60_000,
-  maxRequests: 60,
+  maxRequests: process.env.NODE_ENV === "production" ? 60 : 500,
 })

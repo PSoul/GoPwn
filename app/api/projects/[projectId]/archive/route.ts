@@ -1,10 +1,7 @@
 import { archiveProjectOverviewPayload } from "@/lib/prototype-api"
+import { withApiHandler } from "@/lib/api-handler"
 
-type ProjectArchiveRouteContext = {
-  params: Promise<{ projectId: string }>
-}
-
-export async function POST(_request: Request, { params }: ProjectArchiveRouteContext) {
+export const POST = withApiHandler(async (_request, { params }) => {
   const { projectId } = await params
   const payload = archiveProjectOverviewPayload(projectId)
 
@@ -13,4 +10,4 @@ export async function POST(_request: Request, { params }: ProjectArchiveRouteCon
   }
 
   return Response.json(payload)
-}
+})

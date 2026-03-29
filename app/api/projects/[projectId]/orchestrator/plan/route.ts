@@ -3,12 +3,9 @@ import {
   generateProjectOrchestratorPlanPayload,
   getProjectOrchestratorPayload,
 } from "@/lib/prototype-api"
+import { withApiHandler } from "@/lib/api-handler"
 
-type ProjectRouteContext = {
-  params: Promise<{ projectId: string }>
-}
-
-export async function GET(_request: Request, { params }: ProjectRouteContext) {
+export const GET = withApiHandler(async (_request, { params }) => {
   const { projectId } = await params
   const payload = await getProjectOrchestratorPayload(projectId)
 
@@ -17,9 +14,9 @@ export async function GET(_request: Request, { params }: ProjectRouteContext) {
   }
 
   return Response.json(payload)
-}
+})
 
-export async function POST(request: Request, { params }: ProjectRouteContext) {
+export const POST = withApiHandler(async (request, { params }) => {
   const { projectId } = await params
   const body = await request.json()
   const parsed = localValidationRunSchema.safeParse(body)
@@ -35,4 +32,4 @@ export async function POST(request: Request, { params }: ProjectRouteContext) {
   }
 
   return Response.json(payload)
-}
+})

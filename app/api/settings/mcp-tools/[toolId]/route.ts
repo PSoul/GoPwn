@@ -1,11 +1,8 @@
 import { mcpToolPatchSchema } from "@/lib/mcp-write-schema"
 import { getMcpToolPayload, updateMcpToolPayload } from "@/lib/prototype-api"
+import { withApiHandler } from "@/lib/api-handler"
 
-type McpToolRouteContext = {
-  params: Promise<{ toolId: string }>
-}
-
-export async function GET(_request: Request, { params }: McpToolRouteContext) {
+export const GET = withApiHandler(async (_request, { params }) => {
   const { toolId } = await params
   const payload = getMcpToolPayload(toolId)
 
@@ -14,9 +11,9 @@ export async function GET(_request: Request, { params }: McpToolRouteContext) {
   }
 
   return Response.json({ tool: payload })
-}
+})
 
-export async function PATCH(request: Request, { params }: McpToolRouteContext) {
+export const PATCH = withApiHandler(async (request, { params }) => {
   const { toolId } = await params
   const body = await request.json()
   const parsed = mcpToolPatchSchema.safeParse(body)
@@ -32,4 +29,4 @@ export async function PATCH(request: Request, { params }: McpToolRouteContext) {
   }
 
   return Response.json({ tool: payload })
-}
+})

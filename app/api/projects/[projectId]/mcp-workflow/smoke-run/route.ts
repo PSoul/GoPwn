@@ -1,11 +1,8 @@
 import { mcpWorkflowSmokeSchema } from "@/lib/mcp-write-schema"
 import { runProjectMcpWorkflowSmokePayload } from "@/lib/prototype-api"
+import { withApiHandler } from "@/lib/api-handler"
 
-type ProjectRouteContext = {
-  params: Promise<{ projectId: string }>
-}
-
-export async function POST(request: Request, { params }: ProjectRouteContext) {
+export const POST = withApiHandler(async (request, { params }) => {
   const { projectId } = await params
   const body = await request.json()
   const parsed = mcpWorkflowSmokeSchema.safeParse(body)
@@ -21,4 +18,4 @@ export async function POST(request: Request, { params }: ProjectRouteContext) {
   }
 
   return Response.json(payload, { status: payload.status === "completed" ? 200 : 202 })
-}
+})

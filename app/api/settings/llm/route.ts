@@ -1,11 +1,12 @@
 import { llmProfileWriteSchema } from "@/lib/llm-settings-write-schema"
 import { getLlmSettingsPayload, updateLlmSettingsPayload } from "@/lib/prototype-api"
+import { withApiHandler } from "@/lib/api-handler"
 
-export async function GET() {
+export const GET = withApiHandler(async () => {
   return Response.json(getLlmSettingsPayload())
-}
+})
 
-export async function PATCH(request: Request) {
+export const PATCH = withApiHandler(async (request) => {
   const body = await request.json()
   const parsed = llmProfileWriteSchema.safeParse(body)
 
@@ -23,4 +24,4 @@ export async function PATCH(request: Request) {
     profile,
     profiles: getLlmSettingsPayload().profiles,
   })
-}
+})

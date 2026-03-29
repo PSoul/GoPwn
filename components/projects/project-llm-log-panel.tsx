@@ -59,17 +59,59 @@ export function ProjectLlmLogPanel({
     void loadLogs()
   }, [loadLogs])
 
+  // SSE real-time streaming with polling fallback
+  const esRef = useRef<EventSource | null>(null)
   useEffect(() => {
-    if (autoRefresh) {
+    if (!autoRefresh) {
+      esRef.current?.close()
+      esRef.current = null
+      if (pollRef.current) {
+        clearInterval(pollRef.current)
+        pollRef.current = null
+      }
+      return
+    }
+
+    try {
+      const es = new EventSource("/api/llm-logs/stream")
+      esRef.current = es
+      es.addEventListener("log", (evt) => {
+        const event = JSON.parse(evt.data) as { type: string; log?: LlmCallLogRecord; logId?: string; chunk?: string }
+        // Only process events for this project
+        if (event.log && event.log.projectId !== projectId) return
+        if (event.type === "created" && event.log) {
+          setLogs((prev) => [event.log!, ...prev])
+        } else if (event.type === "updated" && event.logId && event.chunk) {
+          setLogs((prev) =>
+            prev.map((l) =>
+              l.id === event.logId ? { ...l, response: l.response + event.chunk! } : l,
+            ),
+          )
+        } else if ((event.type === "completed" || event.type === "failed") && event.log) {
+          setLogs((prev) =>
+            prev.map((l) => (l.id === event.log!.id ? event.log! : l)),
+          )
+        }
+      })
+      es.onerror = () => {
+        es.close()
+        esRef.current = null
+        // Fall back to polling
+        pollRef.current = setInterval(loadLogs, 3000)
+      }
+    } catch {
       pollRef.current = setInterval(loadLogs, 3000)
     }
+
     return () => {
+      esRef.current?.close()
+      esRef.current = null
       if (pollRef.current) {
         clearInterval(pollRef.current)
         pollRef.current = null
       }
     }
-  }, [autoRefresh, loadLogs])
+  }, [autoRefresh, loadLogs, projectId])
 
   function togglePrompt(id: string) {
     setExpandedPrompts((prev) => {

@@ -1,11 +1,8 @@
 import { getProjectOverviewPayload, updateProjectOverviewPayload } from "@/lib/prototype-api"
 import { projectPatchSchema } from "@/lib/project-write-schema"
+import { withApiHandler } from "@/lib/api-handler"
 
-type ProjectRouteContext = {
-  params: Promise<{ projectId: string }>
-}
-
-export async function GET(_request: Request, { params }: ProjectRouteContext) {
+export const GET = withApiHandler(async (_request, { params }) => {
   const { projectId } = await params
   const payload = getProjectOverviewPayload(projectId)
 
@@ -14,9 +11,9 @@ export async function GET(_request: Request, { params }: ProjectRouteContext) {
   }
 
   return Response.json(payload)
-}
+})
 
-export async function PATCH(request: Request, { params }: ProjectRouteContext) {
+export const PATCH = withApiHandler(async (request, { params }) => {
   const { projectId } = await params
   const body = await request.json()
   const parsed = projectPatchSchema.safeParse(body)
@@ -32,4 +29,4 @@ export async function PATCH(request: Request, { params }: ProjectRouteContext) {
   }
 
   return Response.json(payload)
-}
+})

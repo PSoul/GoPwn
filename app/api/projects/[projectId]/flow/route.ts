@@ -1,10 +1,7 @@
 import { getProjectFlowPayload } from "@/lib/prototype-api"
+import { withApiHandler } from "@/lib/api-handler"
 
-type ProjectRouteContext = {
-  params: Promise<{ projectId: string }>
-}
-
-export async function GET(_request: Request, { params }: ProjectRouteContext) {
+export const GET = withApiHandler(async (_request, { params }) => {
   const { projectId } = await params
   const payload = getProjectFlowPayload(projectId)
 
@@ -13,4 +10,4 @@ export async function GET(_request: Request, { params }: ProjectRouteContext) {
   }
 
   return Response.json(payload)
-}
+})

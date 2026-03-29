@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import type { ApprovalControl, ApprovalRecord, ProjectDetailRecord, ProjectRecord } from "@/lib/prototype-types"
+import { apiFetch } from "@/lib/api-client"
 
 const approvalTone = {
   待处理: "danger",
@@ -31,7 +32,7 @@ export function ProjectOperationsPanel({
     setIsSaving(true)
     setMessage(null)
     try {
-      const response = await fetch(`/api/projects/${project.id}/approval-control`, {
+      const response = await apiFetch(`/api/projects/${project.id}/approval-control`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -56,25 +57,23 @@ export function ProjectOperationsPanel({
 
       {/* Approval controls — compact */}
       <div className="mt-4 space-y-3">
-        <div className="flex items-center justify-between">
+        <label className="flex cursor-pointer items-center justify-between">
           <div>
-            <p className="text-sm text-slate-700 dark:text-slate-200">高风险动作需审批</p>
+            <span className="text-sm text-slate-700 dark:text-slate-200">高风险动作需审批</span>
             <p className="text-xs text-slate-500 dark:text-slate-400">{control.description}</p>
           </div>
           <Switch
             checked={control.enabled}
-            aria-label="项目审批开关"
             onCheckedChange={(checked) => setControl((c) => ({ ...c, enabled: checked }))}
           />
-        </div>
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-slate-700 dark:text-slate-200">低风险自动放行</p>
+        </label>
+        <label className="flex cursor-pointer items-center justify-between">
+          <span className="text-sm text-slate-700 dark:text-slate-200">低风险自动放行</span>
           <Switch
             checked={control.autoApproveLowRisk}
-            aria-label="低风险自动放行"
             onCheckedChange={(checked) => setControl((c) => ({ ...c, autoApproveLowRisk: checked }))}
           />
-        </div>
+        </label>
         <div className="flex items-center gap-2">
           <Button size="sm" className="rounded-full" disabled={isSaving} onClick={() => saveControl(control)}>
             {isSaving ? "保存中..." : "保存"}

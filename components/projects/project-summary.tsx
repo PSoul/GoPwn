@@ -8,6 +8,7 @@ import { Loader2, PlayCircle } from "lucide-react"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
 import type { ProjectDetailRecord, ProjectRecord, Tone } from "@/lib/prototype-types"
+import { apiFetch } from "@/lib/api-client"
 
 const metricToneStyles: Record<Tone, string> = {
   neutral: "border-slate-200/80 dark:border-slate-800",
@@ -36,7 +37,7 @@ export function ProjectSummary({
   async function handleStartProject() {
     setIsStarting(true)
     try {
-      const res = await fetch(`/api/projects/${project.id}/scheduler-control`, {
+      const res = await apiFetch(`/api/projects/${project.id}/scheduler-control`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ lifecycle: "running" }),

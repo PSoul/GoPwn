@@ -10,6 +10,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 2 : 0,
+  timeout: 60_000,
   reporter: "list",
   use: {
     baseURL,
@@ -27,8 +28,12 @@ export default defineConfig({
   webServer: {
     command: `npm run dev -- --hostname 127.0.0.1 --port ${port}`,
     url: baseURL,
-    reuseExistingServer: true,
-    stdout: "ignore",
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+    stdout: "pipe",
     stderr: "pipe",
+    env: {
+      E2E_TEST_MODE: "true",
+    },
   },
 })

@@ -1,4 +1,15 @@
-const SESSION_SECRET = process.env.PROTOTYPE_SESSION_SECRET ?? "prototype-session-secret-2026"
+function getSessionSecret(): string {
+  const secret = process.env.PROTOTYPE_SESSION_SECRET
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("PROTOTYPE_SESSION_SECRET environment variable is required in production")
+    }
+    console.warn("[auth] PROTOTYPE_SESSION_SECRET not set — using insecure default. Set it before deploying.")
+    return "prototype-session-secret-dev-only"
+  }
+  return secret
+}
+
 export const AUTH_COOKIE_NAME = "prototype_session"
 const SESSION_TTL_MS = 1000 * 60 * 60 * 8
 
@@ -27,7 +38,7 @@ function bufferToBase64Url(buffer: ArrayBuffer) {
 
 async function sign(value: string) {
   const encoder = new TextEncoder()
-  const secret = encoder.encode(SESSION_SECRET)
+  const secret = encoder.encode(getSessionSecret())
   const data = encoder.encode(value)
   const key = await crypto.subtle.importKey(
     "raw",

@@ -39,7 +39,7 @@ function runResolverQuery<T>(
   return new Promise<T>((resolve, reject) => {
     const resolver = new Resolver()
     let settled = false
-    let cleanupAbort = () => undefined
+    let cleanupAbort: () => void = () => {}
 
     const finishResolve = (value: T) => {
       if (settled) {
@@ -146,7 +146,7 @@ function flattenTxtRecords(records: string[][]) {
 async function probeCertificate(host: string, signal?: AbortSignal) {
   return new Promise<CertificateSummary | null>((resolve) => {
     let settled = false
-    let cleanupAbort = () => undefined
+    let cleanupAbort: () => void = () => {}
     const finish = (value: CertificateSummary | null) => {
       if (settled) {
         return
@@ -174,8 +174,8 @@ async function probeCertificate(host: string, signal?: AbortSignal) {
 
         finish({
           fingerprint256: certificate.fingerprint256,
-          issuer: certificate.issuer,
-          subject: certificate.subject,
+          issuer: certificate.issuer as Record<string, string | string[]>,
+          subject: certificate.subject as Record<string, string | string[]>,
           subjectaltname: certificate.subjectaltname,
           valid_from: certificate.valid_from,
           valid_to: certificate.valid_to,
@@ -258,7 +258,10 @@ async function executeRealDnsCollection(context: McpConnectorExecutionContext): 
   )
 
   throwIfExecutionAborted(context.signal)
-  const resolvedAddresses = uniqueStrings([...aRecords, ...aaaaRecords])
+  const resolvedAddresses = uniqueStrings([
+    ...aRecords.map((r) => (typeof r === "string" ? r : r.address)),
+    ...aaaaRecords.map((r) => (typeof r === "string" ? r : r.address)),
+  ])
   const reverseHostnames = uniqueStrings(
     (
       await withAbortSignal(

@@ -368,6 +368,10 @@ export async function drainStoredSchedulerTasks(input: {
       continue
     }
 
+    if (!('outputs' in result)) {
+      continue
+    }
+
     outputs = result.outputs
     runs.push(result.run)
     tasks.push(result.task)

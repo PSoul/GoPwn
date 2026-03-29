@@ -16,9 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { apiFetch } from "@/lib/api-client"
-import type { ProjectFindingRecord, VulnCenterSummaryPayload } from "@/lib/prototype-types"
-
-type FindingWithProject = ProjectFindingRecord & { projectName: string }
+import type { VulnCenterSummaryPayload } from "@/lib/prototype-types"
 
 const severityTone = {
   高危: "danger",

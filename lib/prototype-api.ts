@@ -121,6 +121,7 @@ import type {
   ProjectReportExportPayload,
   SettingsSectionsPayload,
   SystemStatusPayload,
+  SystemStatusRecord,
   TaskRecord,
   Tone,
 } from "@/lib/prototype-types"
@@ -253,14 +254,14 @@ function buildCapabilityPayloadFromTools(tools: McpToolRecord[]) {
   }))
 }
 
-function buildSystemStatusPayloadFromTools(tools: McpToolRecord[]) {
+function buildSystemStatusPayloadFromTools(tools: McpToolRecord[]): SystemStatusRecord[] {
   const store = readPrototypeStore()
   const enabledCount = tools.filter((tool) => tool.status === "启用").length
   const abnormalTools = tools.filter((tool) => tool.status === "异常")
   const activeTasks = store.schedulerTasks.filter((task) => !["succeeded", "failed", "cancelled"].includes(task.status))
   const waitingApprovalTasks = activeTasks.filter((task) => task.status === "waiting_approval").length
   const runningTasks = activeTasks.filter((task) => task.status === "running").length
-  const retryTasks = activeTasks.filter((task) => task.status === "scheduled").length
+  const retryTasks = activeTasks.filter((task) => task.status === "retry_scheduled").length
   const browserTools = tools.filter((tool) => tool.capability === "截图与证据采集类" && tool.status === "启用")
   const webSurfaceTools = tools.filter((tool) => tool.capability === "Web 页面探测类" && tool.status === "启用")
   const auditLogTotal = store.auditLogs.length
@@ -546,7 +547,7 @@ function buildDashboardSystemOverview({
     },
     {
       title: "LLM 模型",
-      value: enabledModels.map((profile) => profile.model).join(" / ") || "未配置",
+      value: [...new Set(enabledModels.map((profile) => profile.model))].join(" / ") || "未配置",
       detail: "当前参与编排的模型配置。",
       href: "/settings/llm",
       tone: enabledModels.length > 0 ? "info" : "warning",
@@ -859,6 +860,10 @@ export async function updateProjectSchedulerControlPayload(
   }
 
   if ("status" in payload && typeof payload.status === "number" && "error" in payload) {
+    return payload
+  }
+
+  if (!('transition' in payload)) {
     return payload
   }
 

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { McpToolTable } from "@/components/settings/mcp-tool-table"
+import { apiFetch } from "@/lib/api-client"
 import type {
   McpBoundaryRule,
   McpCapabilityRecord,
@@ -153,7 +154,7 @@ export function McpGatewayClient({
     setErrorMessage(null)
 
     try {
-      const response = await fetch(`/api/settings/mcp-tools/${draft.id}`, {
+      const response = await apiFetch(`/api/settings/mcp-tools/${draft.id}`, {
         method: "PATCH",
         headers: {
           "content-type": "application/json",
@@ -194,7 +195,7 @@ export function McpGatewayClient({
     setErrorMessage(null)
 
     try {
-      const response = await fetch(`/api/settings/mcp-tools/${draft.id}/health-check`, {
+      const response = await apiFetch(`/api/settings/mcp-tools/${draft.id}/health-check`, {
         method: "POST",
       })
       const payload = (await response.json()) as { tool?: McpToolRecord; error?: string }
@@ -228,7 +229,7 @@ export function McpGatewayClient({
     }
 
     try {
-      const response = await fetch("/api/settings/mcp-servers/register", {
+      const response = await apiFetch("/api/settings/mcp-servers/register", {
         method: "POST",
         headers: {
           "content-type": "application/json",

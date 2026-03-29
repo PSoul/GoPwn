@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.worktrees
+mcps
+docker
+output
+.prototype-store
+*.md
+.env*
+!.env.example
+tsconfig.tsbuildinfo

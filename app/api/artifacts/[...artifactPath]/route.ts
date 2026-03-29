@@ -2,12 +2,9 @@ import { open } from "node:fs/promises"
 
 import { readSessionFromCookieHeader } from "@/lib/auth-session"
 import { getArtifactContentType, resolveRuntimeArtifactPath } from "@/lib/runtime-artifacts"
+import { withApiHandler } from "@/lib/api-handler"
 
-type ArtifactRouteContext = {
-  params: Promise<{ artifactPath: string[] }>
-}
-
-export async function GET(request: Request, { params }: ArtifactRouteContext) {
+export const GET = withApiHandler(async (request, { params }) => {
   const session = await readSessionFromCookieHeader(request.headers.get("cookie"))
 
   if (!session) {
@@ -25,7 +22,7 @@ export async function GET(request: Request, { params }: ArtifactRouteContext) {
   try {
     const file = await open(resolved.absolutePath)
 
-    return new Response(file.readableWebStream(), {
+    return new Response(file.readableWebStream() as unknown as BodyInit, {
       headers: {
         "Cache-Control": "no-store",
         "Content-Type": getArtifactContentType(resolved.relativePath),
@@ -34,4 +31,4 @@ export async function GET(request: Request, { params }: ArtifactRouteContext) {
   } catch {
     return Response.json({ error: `Artifact '${relativePath}' not found` }, { status: 404 })
   }
-}
+})

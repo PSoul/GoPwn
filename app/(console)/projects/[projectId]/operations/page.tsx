@@ -1,4 +1,3 @@
-import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { ProjectMcpRunsPanel } from "@/components/projects/project-mcp-runs-panel"
@@ -6,7 +5,6 @@ import { ProjectOrchestratorPanel } from "@/components/projects/project-orchestr
 import { ProjectOperationsPanel } from "@/components/projects/project-operations-panel"
 import { ProjectReportExportPanel } from "@/components/projects/project-report-export-panel"
 import { ProjectSchedulerRuntimePanel } from "@/components/projects/project-scheduler-runtime-panel"
-import { Button } from "@/components/ui/button"
 import { mcpCapabilityRecords } from "@/lib/platform-config"
 import { getProjectOperationsPayload } from "@/lib/prototype-api"
 import { getProjectPrimaryTarget } from "@/lib/project-targets"

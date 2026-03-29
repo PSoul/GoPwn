@@ -6,6 +6,7 @@ import { Download, FileText } from "lucide-react"
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
+import { apiFetch } from "@/lib/api-client"
 import type { ProjectReportExportActionPayload, ProjectReportExportPayload } from "@/lib/prototype-types"
 
 function buildDispatchMessage(payload: ProjectReportExportActionPayload) {
@@ -38,7 +39,7 @@ export function ProjectReportExportPanel({
     setErrorMessage(null)
 
     try {
-      const response = await fetch(`/api/projects/${projectId}/report-export`, {
+      const response = await apiFetch(`/api/projects/${projectId}/report-export`, {
         method: "POST",
       })
       const body = (await response.json()) as (ProjectReportExportActionPayload & { error?: string }) | { error?: string }

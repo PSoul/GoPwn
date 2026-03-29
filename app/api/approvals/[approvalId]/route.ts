@@ -1,12 +1,9 @@
 import { approvalDecisionSchema } from "@/lib/approval-write-schema"
 import { getStoredApprovalById } from "@/lib/approval-repository"
 import { updateApprovalDecisionPayload } from "@/lib/prototype-api"
+import { withApiHandler } from "@/lib/api-handler"
 
-type ApprovalRouteContext = {
-  params: Promise<{ approvalId: string }>
-}
-
-export async function GET(_request: Request, { params }: ApprovalRouteContext) {
+export const GET = withApiHandler(async (_request, { params }) => {
   const { approvalId } = await params
   const payload = getStoredApprovalById(approvalId)
 
@@ -15,9 +12,9 @@ export async function GET(_request: Request, { params }: ApprovalRouteContext) {
   }
 
   return Response.json({ approval: payload })
-}
+})
 
-export async function PATCH(request: Request, { params }: ApprovalRouteContext) {
+export const PATCH = withApiHandler(async (request, { params }) => {
   const { approvalId } = await params
   const body = await request.json()
   const parsed = approvalDecisionSchema.safeParse(body)
@@ -33,4 +30,4 @@ export async function PATCH(request: Request, { params }: ApprovalRouteContext) 
   }
 
   return Response.json({ approval: payload })
-}
+})

@@ -1,10 +1,7 @@
 import { getAssetDetailPayload } from "@/lib/prototype-api"
+import { withApiHandler } from "@/lib/api-handler"
 
-type AssetRouteContext = {
-  params: Promise<{ assetId: string }>
-}
-
-export async function GET(_request: Request, { params }: AssetRouteContext) {
+export const GET = withApiHandler(async (_request, { params }) => {
   const { assetId } = await params
   const payload = getAssetDetailPayload(assetId)
 
@@ -13,4 +10,4 @@ export async function GET(_request: Request, { params }: AssetRouteContext) {
   }
 
   return Response.json(payload)
-}
+})

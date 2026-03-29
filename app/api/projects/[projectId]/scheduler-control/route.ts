@@ -1,11 +1,8 @@
 import { projectSchedulerControlPatchSchema } from "@/lib/scheduler-write-schema"
 import { updateProjectSchedulerControlPayload } from "@/lib/prototype-api"
+import { withApiHandler } from "@/lib/api-handler"
 
-type ProjectSchedulerControlRouteContext = {
-  params: Promise<{ projectId: string }>
-}
-
-export async function PATCH(request: Request, { params }: ProjectSchedulerControlRouteContext) {
+export const PATCH = withApiHandler(async (request, { params }) => {
   const { projectId } = await params
   const body = await request.json()
   const parsed = projectSchedulerControlPatchSchema.safeParse(body)
@@ -25,4 +22,4 @@ export async function PATCH(request: Request, { params }: ProjectSchedulerContro
   }
 
   return Response.json(payload)
-}
+})

@@ -10,7 +10,7 @@ function formatDayStamp(date: Date) {
   return `${year}${month}${day}`
 }
 
-function buildHexSuffix(seed = randomUUID()) {
+function buildHexSuffix(seed: string = randomUUID()) {
   return createHash("sha256").update(seed).digest("hex").slice(0, 8)
 }
 

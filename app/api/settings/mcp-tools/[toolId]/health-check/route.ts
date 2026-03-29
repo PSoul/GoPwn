@@ -1,10 +1,7 @@
 import { runMcpHealthCheckPayload } from "@/lib/prototype-api"
+import { withApiHandler } from "@/lib/api-handler"
 
-type McpToolHealthRouteContext = {
-  params: Promise<{ toolId: string }>
-}
-
-export async function POST(_request: Request, { params }: McpToolHealthRouteContext) {
+export const POST = withApiHandler(async (_request, { params }) => {
   const { toolId } = await params
   const payload = runMcpHealthCheckPayload(toolId)
 
@@ -13,4 +10,4 @@ export async function POST(_request: Request, { params }: McpToolHealthRouteCont
   }
 
   return Response.json({ tool: payload })
-}
+})

@@ -15,7 +15,7 @@
 
 | 文件 | 用途 |
 |------|------|
-| `middleware.ts` | Next.js 中间件，处理身份验证、CSRF 防护和速率限制 |
+| `middleware.ts` | Next.js 中间件，处理身份验证、CSRF 双重提交 Cookie 防护、滑动窗口速率限制；E2E_TEST_MODE 下跳过 CSRF |
 | `tailwind.config.ts` | Tailwind CSS 主题和样式配置 |
 | `vitest.config.mts` | Vitest 单元测试配置 |
 | `playwright.config.ts` | Playwright E2E 测试配置 |
@@ -63,7 +63,10 @@
 | `GET /api/projects/[id]/llm-logs` | `app/api/projects/[projectId]/llm-logs/route.ts` | 项目 LLM 调用日志列表 |
 | `GET /api/projects/[id]/llm-logs/[logId]` | `app/api/projects/[projectId]/llm-logs/[logId]/route.ts` | 单条 LLM 调用详情 |
 | `GET /api/llm-logs/recent` | `app/api/llm-logs/recent/route.ts` | 全局最近 LLM 日志 |
+| `GET /api/llm-logs/stream` | `app/api/llm-logs/stream/route.ts` | SSE 实时日志流端点 |
 | `GET /api/vuln-center/summary` | `app/api/vuln-center/summary/route.ts` | 漏洞中心统计汇总 |
+| `GET /api/auth/captcha` | `app/api/auth/captcha/route.ts` | 验证码生成 |
+| `GET /api/health` | `app/api/health/route.ts` | 健康检查端点 |
 
 ## 3. Components 目录 (UI 组件)
 
@@ -74,7 +77,7 @@
 | `components/layout/app-shell.tsx` | 应用外壳（侧边栏 + 顶栏 + AI 悬浮窗） |
 | `components/layout/app-header.tsx` | 顶部导航栏 |
 | `components/layout/app-sidebar.tsx` | 侧边栏导航（总览/发现/系统分组） |
-| `components/layout/ai-chat-widget.tsx` | 全局 AI 思考日志悬浮窗 |
+| `components/layout/ai-chat-widget.tsx` | 全局 AI 思考日志悬浮窗（SSE 实时推送 + 轮询降级） |
 
 ### 项目组件
 
@@ -83,7 +86,7 @@
 | `components/projects/project-card.tsx` | 项目卡片（状态色带 + 指标标签） |
 | `components/projects/project-list-client.tsx` | 项目列表（搜索/筛选/卡片网格/归档） |
 | `components/projects/project-workspace-nav.tsx` | 项目工作区标签导航（8 个标签） |
-| `components/projects/project-llm-log-panel.tsx` | AI 日志面板（角色筛选/自动刷新/展开详情） |
+| `components/projects/project-llm-log-panel.tsx` | AI 日志面板（SSE 实时推送 + 角色筛选/展开详情） |
 | `components/projects/project-orchestrator-panel.tsx` | LLM 编排与本地闭环面板 |
 | `components/projects/project-scheduler-runtime-panel.tsx` | 调度器运行时控制面板 |
 | `components/projects/project-mcp-runs-panel.tsx` | MCP 执行运行管理面板 |
@@ -117,10 +120,11 @@
 
 | 文件 | 用途 |
 |------|------|
-| `lib/auth-session.ts` | 会话管理和验证 |
-| `lib/csrf.ts` | CSRF 双重提交 Cookie 防护 |
-| `lib/rate-limit.ts` | 滑动窗口速率限制 |
-| `lib/api-client.ts` | 前端 fetch 封装（自动附带 CSRF） |
+| `lib/auth-session.ts` | HMAC 签名会话 Cookie 管理和验证 |
+| `lib/auth-repository.ts` | 用户认证仓库（bcrypt 密码验证 + 验证码生成/校验 + 审计日志） |
+| `lib/csrf.ts` | CSRF 双重提交 Cookie 防护（ensureCsrfCookie / verifyCsrfToken） |
+| `lib/rate-limit.ts` | 滑动窗口速率限制（登录5次/分钟 + API 60次/分钟） |
+| `lib/api-client.ts` | 前端 fetch 封装（自动附带 CSRF header） |
 
 ### LLM 集成
 
@@ -129,7 +133,7 @@
 | `lib/llm-provider/openai-compatible-provider.ts` | OpenAI 兼容 LLM 提供商（支持流式输出 + 日志记录） |
 | `lib/llm-provider/types.ts` | LLM 提供商接口定义 |
 | `lib/llm-provider/registry.ts` | LLM 提供商注册表 |
-| `lib/llm-call-logger.ts` | LLM 调用日志服务（创建/追加/完成/失败） |
+| `lib/llm-call-logger.ts` | LLM 调用日志服务（创建/追加/完成/失败 + EventEmitter SSE 广播） |
 | `lib/llm-brain-prompt.ts` | LLM 系统提示和编排提示模板 |
 
 ### MCP 编排

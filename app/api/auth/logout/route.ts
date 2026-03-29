@@ -2,8 +2,9 @@ import { NextResponse } from "next/server"
 
 import { recordLogout } from "@/lib/auth-repository"
 import { AUTH_COOKIE_NAME, readSessionFromCookieHeader } from "@/lib/auth-session"
+import { withApiHandler } from "@/lib/api-handler"
 
-export async function POST(request: Request) {
+export const POST = withApiHandler(async (request) => {
   const session = await readSessionFromCookieHeader(request.headers.get("cookie"))
 
   if (session) {
@@ -25,4 +26,4 @@ export async function POST(request: Request) {
   })
 
   return response
-}
+})

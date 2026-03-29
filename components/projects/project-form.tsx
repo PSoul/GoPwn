@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { normalizeProjectTargets, SINGLE_USER_LABEL } from "@/lib/project-targets"
 import type { ProjectFormPreset, ProjectMutationInput, ProjectRecord } from "@/lib/prototype-types"
+import { apiFetch } from "@/lib/api-client"
 
 type ProjectFormProps = {
   mode: "create" | "edit"
@@ -49,7 +50,7 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
     const endpoint = isEdit && project ? `/api/projects/${project.id}` : "/api/projects"
 
     try {
-      const response = await fetch(endpoint, {
+      const response = await apiFetch(endpoint, {
         method,
         headers: {
           "content-type": "application/json",
@@ -65,7 +66,7 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
       }
 
       startTransition(() => {
-        router.push(`/projects/${payload.project.id}`)
+        router.push(`/projects/${payload.project!.id}`)
         router.refresh()
       })
     } catch {

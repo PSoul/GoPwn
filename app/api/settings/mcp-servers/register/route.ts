@@ -1,7 +1,8 @@
 import { mcpServerRegistrationSchema } from "@/lib/mcp-registration-schema"
 import { registerMcpServerPayload } from "@/lib/prototype-api"
+import { withApiHandler } from "@/lib/api-handler"
 
-export async function POST(request: Request) {
+export const POST = withApiHandler(async (request) => {
   const body = await request.json()
   const parsed = mcpServerRegistrationSchema.safeParse(body)
 
@@ -14,4 +15,4 @@ export async function POST(request: Request) {
   const payload = registerMcpServerPayload(parsed.data)
 
   return Response.json(payload, { status: 201 })
-}
+})

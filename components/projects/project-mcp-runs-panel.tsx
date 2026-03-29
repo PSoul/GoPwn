@@ -1,10 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { Bot, Router, ShieldCheck } from "lucide-react"
+import { Bot, ChevronDown, ChevronUp, Router, ShieldCheck } from "lucide-react"
 
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
+import { StubBadge } from "@/components/ui/stub-badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -15,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { McpRunRecord, McpWorkflowSmokePayload } from "@/lib/prototype-types"
+import { apiFetch } from "@/lib/api-client"
 
 const capabilityPresets: Record<string, { requestedAction: string; riskLevel: "高" | "中" | "低" }> = {
   "目标解析类": { requestedAction: "标准化种子目标", riskLevel: "低" },
@@ -68,6 +70,7 @@ export function ProjectMcpRunsPanel({
   const [requestedAction, setRequestedAction] = useState(preset.requestedAction)
   const [target, setTarget] = useState(defaultTarget)
   const [riskLevel, setRiskLevel] = useState<"高" | "中" | "低">(preset.riskLevel)
+  const [expanded, setExpanded] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -85,7 +88,7 @@ export function ProjectMcpRunsPanel({
     setWorkflowSummary(null)
 
     try {
-      const response = await fetch(`/api/projects/${projectId}/mcp-runs`, {
+      const response = await apiFetch(`/api/projects/${projectId}/mcp-runs`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -142,7 +145,7 @@ export function ProjectMcpRunsPanel({
     setWorkflowSummary(null)
 
     try {
-      const response = await fetch(`/api/projects/${projectId}/mcp-workflow/smoke-run`, {
+      const response = await apiFetch(`/api/projects/${projectId}/mcp-workflow/smoke-run`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -315,7 +318,7 @@ export function ProjectMcpRunsPanel({
       >
         <div className="space-y-3">
           {runs.length > 0 ? (
-            runs.map((run) => (
+            (expanded ? runs : runs.slice(0, 3)).map((run) => (
               <div
                 key={run.id}
                 className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60"
@@ -332,6 +335,7 @@ export function ProjectMcpRunsPanel({
                   <div className="flex flex-wrap gap-2">
                     <StatusBadge tone={statusTone[run.status]}>{run.status}</StatusBadge>
                     <StatusBadge tone={riskTone[run.riskLevel]}>风险 {run.riskLevel}</StatusBadge>
+                    <StubBadge mode={run.connectorMode ?? "local"} />
                   </div>
                 </div>
 
@@ -365,6 +369,21 @@ export function ProjectMcpRunsPanel({
             <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50/80 px-6 py-12 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
               当前项目还没有 MCP 运行记录，可以先发起一次低风险补采或结果刷新。
             </div>
+          )}
+          {runs.length > 3 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="w-full rounded-full text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+              onClick={() => setExpanded((v) => !v)}
+            >
+              {expanded ? (
+                <>收起 <ChevronUp className="ml-1.5 h-3.5 w-3.5" /></>
+              ) : (
+                <>展开全部 {runs.length} 条记录 <ChevronDown className="ml-1.5 h-3.5 w-3.5" /></>
+              )}
+            </Button>
           )}
         </div>
       </SectionCard>

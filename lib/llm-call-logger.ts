@@ -1,5 +1,18 @@
+import { EventEmitter } from "events"
+
 import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
 import type { LlmCallLogRecord, LlmCallRole, LlmCallPhase } from "@/lib/prototype-types"
+
+// ── Event bus (survives HMR via globalThis) ─────────────────
+const globalForBus = globalThis as unknown as { __llmLogBus?: EventEmitter }
+export const llmLogBus = (globalForBus.__llmLogBus ??= new EventEmitter())
+llmLogBus.setMaxListeners(100) // support many concurrent SSE clients
+
+export type LlmLogEvent =
+  | { type: "created"; log: LlmCallLogRecord }
+  | { type: "updated"; logId: string; chunk: string }
+  | { type: "completed"; log: LlmCallLogRecord }
+  | { type: "failed"; log: LlmCallLogRecord }
 
 function generateId() {
   return `llmlog_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
@@ -37,6 +50,8 @@ export function createLlmCallLog(input: {
   store.llmCallLogs.push(record)
   writePrototypeStore(store)
 
+  llmLogBus.emit("log", { type: "created", log: record } satisfies LlmLogEvent)
+
   return record
 }
 
@@ -47,6 +62,8 @@ export function appendLlmCallResponse(logId: string, chunk: string): void {
   if (!log) return
   log.response += chunk
   writePrototypeStore(store)
+
+  llmLogBus.emit("log", { type: "updated", logId, chunk } satisfies LlmLogEvent)
 }
 
 export function completeLlmCallLog(
@@ -70,6 +87,8 @@ export function completeLlmCallLog(
   log.durationMs = result.durationMs ?? null
   log.completedAt = new Date().toISOString()
   writePrototypeStore(store)
+
+  llmLogBus.emit("log", { type: "completed", log } satisfies LlmLogEvent)
 }
 
 export function failLlmCallLog(logId: string, error: string): void {
@@ -82,6 +101,8 @@ export function failLlmCallLog(logId: string, error: string): void {
   log.error = error
   log.completedAt = new Date().toISOString()
   writePrototypeStore(store)
+
+  llmLogBus.emit("log", { type: "failed", log } satisfies LlmLogEvent)
 }
 
 export function listLlmCallLogs(

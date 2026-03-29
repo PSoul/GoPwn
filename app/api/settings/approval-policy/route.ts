@@ -1,11 +1,12 @@
 import { approvalControlPatchSchema } from "@/lib/approval-write-schema"
 import { getApprovalPolicyPayload, updateGlobalApprovalControlPayload } from "@/lib/prototype-api"
+import { withApiHandler } from "@/lib/api-handler"
 
-export async function GET() {
+export const GET = withApiHandler(async () => {
   return Response.json(getApprovalPolicyPayload())
-}
+})
 
-export async function PATCH(request: Request) {
+export const PATCH = withApiHandler(async (request) => {
   const body = await request.json()
   const parsed = approvalControlPatchSchema.safeParse(body)
 
@@ -16,4 +17,4 @@ export async function PATCH(request: Request) {
   return Response.json({
     approvalControl: updateGlobalApprovalControlPayload(parsed.data),
   })
-}
+})

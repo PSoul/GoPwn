@@ -1,5 +1,6 @@
 import { listAssetsPayload } from "@/lib/prototype-api"
+import { withApiHandler } from "@/lib/api-handler"
 
-export async function GET() {
+export const GET = withApiHandler(async () => {
   return Response.json(listAssetsPayload())
-}
+})

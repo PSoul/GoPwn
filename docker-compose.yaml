@@ -1,0 +1,38 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://pentest:pentest@db:5432/pentest
+      - PROTOTYPE_SESSION_SECRET=${PROTOTYPE_SESSION_SECRET:-}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_BASE_URL=${LLM_BASE_URL:-}
+      - LLM_ORCHESTRATOR_MODEL=${LLM_ORCHESTRATOR_MODEL:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - app-data:/app/.prototype-store
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: pentest
+      POSTGRES_PASSWORD: pentest
+      POSTGRES_DB: pentest
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pentest"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  app-data:
+  pg-data:

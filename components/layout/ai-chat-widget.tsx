@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { BrainCircuit, ChevronDown, Loader2, Minimize2, X } from "lucide-react"
+import { BrainCircuit, Loader2, Minimize2 } from "lucide-react"
 
 import { StatusBadge } from "@/components/shared/status-badge"
 import { apiFetch } from "@/lib/api-client"
@@ -59,16 +59,49 @@ export function AiChatWidget() {
     } catch { /* best-effort */ }
   }, [expanded])
 
+  // SSE real-time streaming with polling fallback
   useEffect(() => {
-    void loadLogs()
-    pollRef.current = setInterval(loadLogs, 3000)
+    void loadLogs() // initial load
+
+    let es: EventSource | null = null
+    try {
+      es = new EventSource("/api/llm-logs/stream")
+      es.addEventListener("log", (evt) => {
+        const event = JSON.parse(evt.data) as { type: string; log?: LlmCallLogRecord; logId?: string; chunk?: string }
+        if (event.type === "created" && event.log) {
+          setLogs((prev) => [event.log!, ...prev].slice(0, 50))
+          if (!expanded) setHasNew(true)
+        } else if (event.type === "updated" && event.logId && event.chunk) {
+          setLogs((prev) =>
+            prev.map((l) =>
+              l.id === event.logId ? { ...l, response: l.response + event.chunk! } : l,
+            ),
+          )
+        } else if ((event.type === "completed" || event.type === "failed") && event.log) {
+          setLogs((prev) =>
+            prev.map((l) => (l.id === event.log!.id ? event.log! : l)),
+          )
+        }
+      })
+      es.onerror = () => {
+        // SSE failed — fall back to polling
+        es?.close()
+        es = null
+        pollRef.current = setInterval(loadLogs, 3000)
+      }
+    } catch {
+      // EventSource not available — fall back to polling
+      pollRef.current = setInterval(loadLogs, 3000)
+    }
+
     return () => {
+      es?.close()
       if (pollRef.current) {
         clearInterval(pollRef.current)
         pollRef.current = null
       }
     }
-  }, [loadLogs])
+  }, [loadLogs, expanded])
 
   // Auto-scroll to bottom when expanded and logs update
   useEffect(() => {

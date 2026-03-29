@@ -1,10 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { Bot, FlaskConical, ShieldCheck, Sparkles } from "lucide-react"
+import { Bot, ChevronDown, ChevronUp, FlaskConical, ShieldCheck, Sparkles } from "lucide-react"
 
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
+import { StubBadge } from "@/components/ui/stub-badge"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import type {
@@ -13,6 +14,7 @@ import type {
   OrchestratorPlanPayload,
   ProjectOrchestratorPanelPayload,
 } from "@/lib/prototype-types"
+import { apiFetch } from "@/lib/api-client"
 
 const labTone: Record<LocalLabRecord["status"], "success" | "warning" | "danger"> = {
   online: "success",
@@ -30,6 +32,7 @@ export function ProjectOrchestratorPanel({
   readOnlyReason?: string
 }) {
   const [panel, setPanel] = useState(initialPayload)
+  const [planExpanded, setPlanExpanded] = useState(false)
   const [busyLabId, setBusyLabId] = useState<string | null>(null)
   const [includeHighRisk, setIncludeHighRisk] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
@@ -53,7 +56,7 @@ export function ProjectOrchestratorPanel({
     setErrorMessage(null)
 
     try {
-      const response = await fetch(`/api/projects/${projectId}/orchestrator/plan`, {
+      const response = await apiFetch(`/api/projects/${projectId}/orchestrator/plan`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -93,7 +96,7 @@ export function ProjectOrchestratorPanel({
     setErrorMessage(null)
 
     try {
-      const response = await fetch(`/api/projects/${projectId}/orchestrator/local-validation`, {
+      const response = await apiFetch(`/api/projects/${projectId}/orchestrator/local-validation`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -144,6 +147,7 @@ export function ProjectOrchestratorPanel({
               <p className="text-sm font-semibold">编排提供方</p>
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
+              <StubBadge mode={panel.provider.enabled ? "real" : "local"} />
               <StatusBadge tone={panel.provider.enabled ? "success" : "warning"}>
                 {panel.provider.enabled ? "真实 LLM 已接入" : "本地回退模式"}
               </StatusBadge>
@@ -166,20 +170,19 @@ export function ProjectOrchestratorPanel({
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-4 rounded-[24px] border border-slate-200/80 bg-white/90 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/70">
+          <label className="flex cursor-pointer items-center justify-between gap-4 rounded-[24px] border border-slate-200/80 bg-white/90 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/70">
             <div>
-              <p className="text-sm font-semibold text-slate-950 dark:text-white">审批演练开关</p>
+              <span className="text-sm font-semibold text-slate-950 dark:text-white">审批演练开关</span>
               <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
                 开启后，计划中会故意夹带一条高风险动作，用来验证审批暂停与恢复链路。
               </p>
             </div>
             <Switch
               checked={includeHighRisk}
-              aria-label="包含高风险审批动作"
               disabled={isReadOnly}
               onCheckedChange={setIncludeHighRisk}
             />
-          </div>
+          </label>
 
           {readOnlyReason ? (
             <div className="rounded-[20px] border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
@@ -276,7 +279,7 @@ export function ProjectOrchestratorPanel({
             </div>
 
             <div className="space-y-3">
-              {panel.lastPlan.items.map((item, index) => (
+              {(planExpanded ? panel.lastPlan.items : panel.lastPlan.items.slice(0, 3)).map((item, index) => (
                 <div
                   key={`${item.capability}-${item.target}-${index}`}
                   className="rounded-[24px] border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70"
@@ -308,6 +311,21 @@ export function ProjectOrchestratorPanel({
                   </div>
                 </div>
               ))}
+              {panel.lastPlan.items.length > 3 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full rounded-full text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                  onClick={() => setPlanExpanded((v) => !v)}
+                >
+                  {planExpanded ? (
+                    <>收起 <ChevronUp className="ml-1.5 h-3.5 w-3.5" /></>
+                  ) : (
+                    <>展开全部 {panel.lastPlan.items.length} 步 <ChevronDown className="ml-1.5 h-3.5 w-3.5" /></>
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         ) : (

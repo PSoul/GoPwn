@@ -1,10 +1,13 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { ArrowUpRight, Search } from "lucide-react"
 
+import { Pagination } from "@/components/shared/pagination"
 import { StatusBadge } from "@/components/shared/status-badge"
+
+const ASSET_PAGE_SIZE = 25
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -414,6 +417,8 @@ export function AssetTable({
 }) {
   const [query, setQuery] = useState("")
   const [scopeFilter, setScopeFilter] = useState<ScopeFilter>("all")
+  const [page, setPage] = useState(1)
+  const resetPage = useCallback(() => setPage(1), [])
 
   const filteredRecords = useMemo(() => {
     const scoped = view.items.filter((asset) => (scopeFilter === "all" ? true : asset.scopeStatus === scopeFilter))
@@ -421,6 +426,11 @@ export function AssetTable({
 
     return typeof maxRows === "number" ? searched.slice(0, maxRows) : searched
   }, [maxRows, query, scopeFilter, view.items])
+
+  const paginatedRecords = useMemo(() => {
+    if (typeof maxRows === "number") return filteredRecords
+    return filteredRecords.slice((page - 1) * ASSET_PAGE_SIZE, page * ASSET_PAGE_SIZE)
+  }, [filteredRecords, maxRows, page])
 
   const columns = getColumnsForView(view.key)
   const pendingCount = view.items.filter((asset) => asset.scopeStatus !== "已纳入").length
@@ -447,13 +457,13 @@ export function AssetTable({
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => { setQuery(event.target.value); resetPage() }}
                 placeholder="搜索对象、主机、项目、画像或证据线索..."
                 className="h-11 rounded-2xl border-slate-200 bg-white pl-10 dark:border-slate-800 dark:bg-slate-950"
               />
             </label>
 
-            <Select value={scopeFilter} onValueChange={(value) => setScopeFilter(value as ScopeFilter)}>
+            <Select value={scopeFilter} onValueChange={(value) => { setScopeFilter(value as ScopeFilter); resetPage() }}>
               <SelectTrigger className="h-11 rounded-2xl border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
                 <SelectValue placeholder="范围状态" />
               </SelectTrigger>
@@ -483,8 +493,8 @@ export function AssetTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredRecords.length > 0 ? (
-                filteredRecords.map((asset) => (
+              {paginatedRecords.length > 0 ? (
+                paginatedRecords.map((asset) => (
                   <TableRow key={asset.id} className="bg-white/95 align-top dark:bg-slate-950/80">
                     {columns.map((column) => (
                       <TableCell key={`${asset.id}-${column.key}`} className={cn("py-4", column.className)}>
@@ -519,6 +529,10 @@ export function AssetTable({
           </Table>
         </div>
       </div>
+
+      {typeof maxRows !== "number" && (
+        <Pagination page={page} pageSize={ASSET_PAGE_SIZE} total={filteredRecords.length} onPageChange={setPage} />
+      )}
 
       {typeof maxRows === "number" && view.items.length > filteredRecords.length ? (
         <p className="text-xs text-slate-500 dark:text-slate-400">

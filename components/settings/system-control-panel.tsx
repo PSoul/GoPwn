@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
+import { apiFetch } from "@/lib/api-client"
 import type { ApprovalControl, ControlSetting, PolicyRecord } from "@/lib/prototype-types"
 
 const overviewIcons = [Gauge, ShieldCheck, Gauge, AlertTriangle]
@@ -33,7 +34,7 @@ export function SystemControlPanel({
     setErrorMessage(null)
 
     try {
-      const response = await fetch("/api/settings/approval-policy", {
+      const response = await apiFetch("/api/settings/approval-policy", {
         method: "PATCH",
         headers: {
           "content-type": "application/json",

@@ -1,11 +1,12 @@
 import { createProjectOverviewPayload, listProjectsPayload } from "@/lib/prototype-api"
 import { projectMutationSchema } from "@/lib/project-write-schema"
+import { withApiHandler } from "@/lib/api-handler"
 
-export async function GET() {
+export const GET = withApiHandler(async () => {
   return Response.json(listProjectsPayload())
-}
+})
 
-export async function POST(request: Request) {
+export const POST = withApiHandler(async (request) => {
   const body = await request.json()
   const parsed = projectMutationSchema.safeParse(body)
 
@@ -14,4 +15,4 @@ export async function POST(request: Request) {
   }
 
   return Response.json(createProjectOverviewPayload(parsed.data), { status: 201 })
-}
+})

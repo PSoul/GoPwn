@@ -13,7 +13,7 @@ export default function ProjectsPage() {
     <div className="space-y-5">
       <PageHeader
         title="项目管理"
-        description="项目列表现在承担前端原型版 CRUD 入口：搜索、筛选、查看详情、编辑和关闭动作都从这里进入。"
+        description="搜索、筛选与管理所有安全评估项目"
         actions={
           <Button asChild className="rounded-full bg-slate-950 px-5 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-200">
             <Link href="/projects/new">

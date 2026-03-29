@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-29`
-- Current focus: Phase 12 漏洞驾驶舱重构已完成。导航术语更新（证据与结果→漏洞中心），项目列表改为卡片网格布局，新增漏洞中心跨项目聚合页面，LLM 实时思考日志（项目 AI 日志标签页 + 全局悬浮聊天窗），LLM 提供商支持流式输出并自动记录调用日志。
+- Current focus: Phase 13 生产加固已完成。SSE 实时日志流、认证加固（CSRF + 验证码 + 速率限制）、E2E 测试稳定性提升。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
 
 ## Phase 12: 漏洞驾驶舱重构 (Vuln Cockpit Redesign)
@@ -413,14 +413,33 @@
 - met: 工具路由、超时、结果分类问题已修复并通过真实验证
 - met: Playwright E2E 和 Vitest 单元测试覆盖核心路径
 
+## Phase 13: 生产加固 (Production Hardening)
+
+- Status: Completed on `2026-03-29`
+- Branch: `feat/phase13-production-hardening`
+- Goal: 将平台安全性和可观测性提升到生产可用级别，加固认证链路，实现 LLM 日志 SSE 实时推送，稳定 E2E 测试。
+
+### 交付清单
+
+1. **SSE 实时日志流** — `GET /api/llm-logs/stream` 端点，基于 EventEmitter 的 SSE 推送，前端 EventSource 接收 + 轮询降级
+2. **认证加固** — HMAC 签名 session cookie、CSRF 双重提交 cookie（login 端 + middleware 全 mutation）、滑动窗口速率限制（login 5/min + API 60/min）、bcrypt 密码验证
+3. **验证码系统** — 服务端生成 4 位字母数字验证码、5 分钟过期、一次性使用、HMR 安全的 globalThis 存储
+4. **E2E 测试稳定性** — `E2E_TEST_MODE` 环境变量绕过 CSRF + 验证码校验、验证码容错（try/catch 降级 "TEST"）、选择器精确化（role button 替代 text 匹配）
+5. **TypeScript 清理** — 移除未使用导入、tsconfig 排除 mcps 目录、`@ts-ignore` → `@ts-expect-error`
+
+### 验收标准
+
+- [x] LLM 日志通过 SSE 实时推送到前端（created/updated/completed/failed 事件）
+- [x] 未认证用户无法访问 API（middleware 拦截）
+- [x] 登录端点受 CSRF 和速率限制保护
+- [x] E2E 测试在 E2E_TEST_MODE 下稳定运行
+- [x] `npm run build` 通过（无 TypeScript 错误）
+- [x] prototype-smoke.spec.ts 8/8 通过
+
 ## Recommended Next Phase
 
-- Name: `Phase 12 - UI 界面调整与用户体验优化`
-- Goal: 基于当前功能基线，优化前端 UI 交互体验，使平台更接近生产可用状态。
-
-### Notes
-
-用户指定下一阶段为 UI 界面调整，具体范围待用户确认后再制定详细任务清单。
+- Name: `Phase 14 - UI 体验优化与性能调优`
+- Goal: 优化前端加载性能（首屏编译时间、代码分割），完善错误边界和空状态体验，添加更多 E2E 覆盖，使平台达到内部发布标准。
 
 ## Notes for Future LLM Sessions
 

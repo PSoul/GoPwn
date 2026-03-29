@@ -43,8 +43,8 @@ export default function DashboardPage() {
               控制台概览
             </p>
             <h1 className="mt-2 text-[32px] font-semibold tracking-tight text-slate-950 dark:text-white">平台仪表盘</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 dark:text-slate-300">
-              首页现在只回答四件事：有多少项目、已经拿到多少真实资产、沉淀了多少漏洞、还有多少审批动作在挡路。控制逻辑下沉到设置与项目工作区，首屏只保留真正可执行的信息。
+            <p className="mt-2 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
+              项目总览、资产、漏洞与审批压力一目了然
             </p>
           </div>
 

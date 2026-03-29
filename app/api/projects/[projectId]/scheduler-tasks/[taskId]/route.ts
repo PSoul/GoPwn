@@ -1,11 +1,8 @@
 import { runProjectSchedulerTaskActionPayload } from "@/lib/prototype-api"
 import { projectSchedulerTaskActionSchema } from "@/lib/scheduler-write-schema"
+import { withApiHandler } from "@/lib/api-handler"
 
-type ProjectSchedulerTaskRouteContext = {
-  params: Promise<{ projectId: string; taskId: string }>
-}
-
-export async function PATCH(request: Request, { params }: ProjectSchedulerTaskRouteContext) {
+export const PATCH = withApiHandler(async (request, { params }) => {
   const { projectId, taskId } = await params
   const body = await request.json()
   const parsed = projectSchedulerTaskActionSchema.safeParse(body)
@@ -21,4 +18,4 @@ export async function PATCH(request: Request, { params }: ProjectSchedulerTaskRo
   }
 
   return Response.json(payload)
-}
+})

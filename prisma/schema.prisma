@@ -1,0 +1,506 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ──────────────────────────────────────────────
+// Auth & Users
+// ──────────────────────────────────────────────
+
+model User {
+  id          String   @id @default(cuid())
+  account     String   @unique
+  password    String   // bcrypt hash
+  displayName String
+  role        String   @default("研究员")
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("users")
+}
+
+// ──────────────────────────────────────────────
+// Projects
+// ──────────────────────────────────────────────
+
+model Project {
+  id                String   @id
+  code              String
+  name              String
+  targetInput       String
+  targets           String[] // array of target strings
+  description       String   @default("")
+  stage             String   @default("授权与范围定义")
+  status            String   @default("待处理")
+  pendingApprovals  Int      @default(0)
+  openTasks         Int      @default(0)
+  assetCount        Int      @default(0)
+  evidenceCount     Int      @default(0)
+  riskSummary       String   @default("")
+  summary           String   @default("")
+  lastActor         String   @default("")
+  createdAt         DateTime @default(now())
+  lastUpdated       DateTime @updatedAt
+
+  detail            ProjectDetail?
+  conclusion        ProjectConclusion?
+  schedulerControl  ProjectSchedulerControl?
+  formPreset        ProjectFormPreset?
+  approvals         Approval[]
+  assets            Asset[]
+  evidence          Evidence[]
+  findings          Finding[]
+  mcpRuns           McpRun[]
+  schedulerTasks    SchedulerTask[]
+  llmCallLogs       LlmCallLog[]
+
+  @@map("projects")
+}
+
+model ProjectDetail {
+  id               String   @id @default(cuid())
+  projectId        String   @unique
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  target           String   @default("")
+  blockingReason   String   @default("")
+  nextStep         String   @default("")
+  reflowNotice     String   @default("")
+  currentFocus     String   @default("")
+
+  // Complex nested data stored as JSON
+  timeline         Json     @default("[]")
+  tasks            Json     @default("[]")
+  discoveredInfo   Json     @default("[]")
+  serviceSurface   Json     @default("[]")
+  fingerprints     Json     @default("[]")
+  entries          Json     @default("[]")
+  scheduler        Json     @default("[]")
+  activity         Json     @default("[]")
+  resultMetrics    Json     @default("[]")
+  assetGroups      Json     @default("[]")
+  currentStage     Json     @default("{}")
+  approvalControl  Json     @default("{}")
+  closureStatus    Json     @default("{}")
+  finalConclusion  Json?
+
+  @@map("project_details")
+}
+
+model ProjectConclusion {
+  id              String   @id @default(cuid())
+  projectId       String   @unique
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  generatedAt     DateTime @default(now())
+  source          String   // "reviewer" | "fallback"
+  summary         String
+  keyPoints       String[]
+  nextActions     String[]
+  assetCount      Int      @default(0)
+  evidenceCount   Int      @default(0)
+  findingCount    Int      @default(0)
+
+  @@map("project_conclusions")
+}
+
+model ProjectSchedulerControl {
+  id          String  @id @default(cuid())
+  projectId   String  @unique
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  lifecycle   String  @default("idle") // idle | running | paused | stopped
+  paused      Boolean @default(false)
+  autoReplan  Boolean @default(true)
+  maxRounds   Int     @default(3)
+  currentRound Int    @default(0)
+  note        String  @default("")
+  updatedAt   DateTime @updatedAt
+
+  @@map("project_scheduler_controls")
+}
+
+model ProjectFormPreset {
+  id          String  @id @default(cuid())
+  projectId   String  @unique
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  targetInput String
+  description String  @default("")
+
+  @@map("project_form_presets")
+}
+
+// ──────────────────────────────────────────────
+// Approvals
+// ──────────────────────────────────────────────
+
+model Approval {
+  id                String   @id
+  projectId         String
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectName       String
+  target            String
+  actionType        String
+  riskLevel         String   // 高 | 中 | 低
+  rationale         String   @default("")
+  impact            String   @default("")
+  mcpCapability     String   @default("")
+  tool              String   @default("")
+  status            String   @default("待处理") // 待处理 | 已批准 | 已拒绝 | 已延后
+  parameterSummary  String   @default("")
+  prerequisites     String[] @default([])
+  stopCondition     String   @default("")
+  blockingImpact    String   @default("")
+  queuePosition     Int      @default(0)
+  submittedAt       DateTime @default(now())
+
+  @@index([projectId])
+  @@index([status])
+  @@map("approvals")
+}
+
+// ──────────────────────────────────────────────
+// Assets
+// ──────────────────────────────────────────────
+
+model Asset {
+  id                String   @id
+  projectId         String
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectName       String
+  type              String
+  label             String
+  profile           String   @default("")
+  scopeStatus       String   @default("待确认")
+  lastSeen          String   @default("")
+  host              String   @default("")
+  ownership         String   @default("")
+  confidence        String   @default("")
+  exposure          String   @default("")
+  linkedEvidenceId  String   @default("")
+  linkedTaskTitle   String   @default("")
+  issueLead         String   @default("")
+  relations         Json     @default("[]")
+
+  @@index([projectId])
+  @@index([type])
+  @@map("assets")
+}
+
+// ──────────────────────────────────────────────
+// Evidence
+// ──────────────────────────────────────────────
+
+model Evidence {
+  id                     String   @id
+  projectId              String
+  project                Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectName            String
+  title                  String
+  source                 String   @default("")
+  confidence             String   @default("")
+  conclusion             String   @default("")
+  linkedApprovalId       String   @default("")
+  rawOutput              String[] @default([])
+  screenshotNote         String   @default("")
+  structuredSummary      String[] @default([])
+  linkedTaskTitle        String   @default("")
+  linkedAssetLabel       String   @default("")
+  timeline               String[] @default([])
+  verdict                String   @default("")
+  capturedUrl            String?
+  screenshotArtifactPath String?
+  htmlArtifactPath       String?
+
+  @@index([projectId])
+  @@map("evidence")
+}
+
+// ──────────────────────────────────────────────
+// Findings
+// ──────────────────────────────────────────────
+
+model Finding {
+  id              String   @id
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  severity        String   // 高危 | 中危 | 低危 | 情报
+  status          String   @default("待验证")
+  title           String
+  summary         String   @default("")
+  affectedSurface String   @default("")
+  evidenceId      String   @default("")
+  owner           String   @default("")
+  updatedAt       DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([severity])
+  @@map("findings")
+}
+
+// ──────────────────────────────────────────────
+// MCP Runs & Scheduler
+// ──────────────────────────────────────────────
+
+model McpRun {
+  id               String   @id
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectName      String
+  capability       String
+  toolId           String   @default("")
+  toolName         String
+  requestedAction  String
+  target           String
+  riskLevel        String   // 高 | 中 | 低
+  boundary         String   // 外部目标交互 | 平台内部处理 | 外部第三方API
+  dispatchMode     String   // 自动执行 | 审批后执行 | 阻塞
+  status           String   @default("待审批")
+  requestedBy      String   @default("")
+  connectorMode    String?  // local | real
+  linkedApprovalId String?
+  summaryLines     String[] @default([])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([status])
+  @@map("mcp_runs")
+}
+
+model SchedulerTask {
+  id               String   @id
+  runId            String
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectName      String
+  capability       String
+  target           String
+  toolName         String
+  connectorMode    String   // local | real
+  status           String   @default("ready")
+  attempts         Int      @default(0)
+  maxAttempts      Int      @default(3)
+  summaryLines     String[] @default([])
+  lastError        String?
+  linkedApprovalId String?
+  workerId         String?
+  leaseToken       String?
+  leaseStartedAt   String?
+  leaseExpiresAt   String?
+  heartbeatAt      String?
+  recoveryCount    Int?
+  lastRecoveredAt  String?
+  queuedAt         DateTime @default(now())
+  availableAt      DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([status])
+  @@map("scheduler_tasks")
+}
+
+// ──────────────────────────────────────────────
+// MCP Tools & Servers
+// ──────────────────────────────────────────────
+
+model McpTool {
+  id                 String  @id
+  capability         String
+  toolName           String
+  version            String  @default("")
+  riskLevel          String  @default("中")
+  status             String  @default("启用")
+  category           String  @default("")
+  description        String  @default("")
+  inputMode          String  @default("")
+  outputMode         String  @default("")
+  boundary           String  @default("平台内部处理")
+  requiresApproval   Boolean @default(false)
+  endpoint           String  @default("")
+  owner              String  @default("")
+  defaultConcurrency String  @default("")
+  rateLimit          String  @default("")
+  timeout            String  @default("")
+  retry              String  @default("")
+  lastCheck          String  @default("")
+  notes              String  @default("")
+
+  @@map("mcp_tools")
+}
+
+model McpServerContract {
+  id          String   @id @default(cuid())
+  serverId    String
+  serverName  String
+  version     String   @default("")
+  transport   String   // stdio | streamable_http | sse
+  enabled     Boolean  @default(true)
+  toolNames   String[] @default([])
+  command     String?
+  endpoint    String   @default("")
+  projectId   String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("mcp_server_contracts")
+}
+
+model McpToolContract {
+  id               String   @id @default(cuid())
+  serverId         String
+  serverName       String
+  toolName         String
+  title            String   @default("")
+  capability       String   @default("")
+  boundary         String   @default("平台内部处理")
+  riskLevel        String   @default("中")
+  requiresApproval Boolean  @default(false)
+  resultMappings   String[] @default([])
+  projectId        String?
+  updatedAt        DateTime @updatedAt
+
+  @@map("mcp_tool_contracts")
+}
+
+// ──────────────────────────────────────────────
+// Orchestrator
+// ──────────────────────────────────────────────
+
+model OrchestratorPlan {
+  id          String   @id @default(cuid())
+  projectId   String   @unique
+  generatedAt DateTime @default(now())
+  provider    String
+  summary     String   @default("")
+  items       Json     @default("[]") // OrchestratorPlanItem[]
+
+  @@map("orchestrator_plans")
+}
+
+model OrchestratorRound {
+  id                   String   @id @default(cuid())
+  projectId            String
+  round                Int
+  startedAt            String
+  completedAt          String   @default("")
+  planItemCount        Int      @default(0)
+  executedCount        Int      @default(0)
+  newAssetCount        Int      @default(0)
+  newEvidenceCount     Int      @default(0)
+  newFindingCount      Int      @default(0)
+  failedActions        String[] @default([])
+  blockedByApproval    String[] @default([])
+  summaryForNextRound  String   @default("")
+
+  @@unique([projectId, round])
+  @@index([projectId])
+  @@map("orchestrator_rounds")
+}
+
+// ──────────────────────────────────────────────
+// Settings
+// ──────────────────────────────────────────────
+
+model LlmProfile {
+  id          String  @id // orchestrator | reviewer | extractor
+  provider    String  @default("openai-compatible")
+  label       String  @default("")
+  apiKey      String  @default("")
+  baseUrl     String  @default("")
+  model       String  @default("")
+  timeoutMs   Int     @default(15000)
+  temperature Float   @default(0.2)
+  enabled     Boolean @default(false)
+
+  @@map("llm_profiles")
+}
+
+model GlobalApprovalControl {
+  id                 String  @id @default("global")
+  enabled            Boolean @default(true)
+  mode               String  @default("高风险需审批")
+  autoApproveLowRisk Boolean @default(true)
+  description        String  @default("")
+  note               String  @default("")
+
+  @@map("global_approval_control")
+}
+
+model ApprovalPolicy {
+  id          String @id @default(cuid())
+  title       String
+  description String @default("")
+  owner       String @default("")
+  status      String @default("")
+
+  @@map("approval_policies")
+}
+
+model ScopeRule {
+  id          String @id @default(cuid())
+  title       String
+  description String @default("")
+  owner       String @default("")
+  status      String @default("")
+
+  @@map("scope_rules")
+}
+
+// ──────────────────────────────────────────────
+// LLM Call Logs
+// ──────────────────────────────────────────────
+
+model LlmCallLog {
+  id          String    @id @default(cuid())
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  role        String    // "orchestrator" | "reviewer" | "extractor"
+  phase       String    // "planning" | "reviewing" | "extracting" | "concluding"
+  prompt      String
+  response    String    @default("")
+  status      String    @default("streaming") // "streaming" | "completed" | "failed"
+  model       String    @default("")
+  provider    String    @default("")
+  tokenUsage  Json?     // { promptTokens, completionTokens, totalTokens }
+  durationMs  Int?
+  error       String?
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  @@index([projectId])
+  @@index([projectId, role])
+  @@map("llm_call_logs")
+}
+
+// ──────────────────────────────────────────────
+// Logs
+// ──────────────────────────────────────────────
+
+model AuditLog {
+  id          String   @id
+  category    String
+  summary     String
+  projectName String?
+  actor       String
+  timestamp   DateTime @default(now())
+  status      String
+
+  @@index([category])
+  @@map("audit_logs")
+}
+
+model WorkLog {
+  id          String   @id
+  category    String
+  summary     String
+  projectName String?
+  actor       String
+  timestamp   DateTime @default(now())
+  status      String
+
+  @@index([category])
+  @@map("work_logs")
+}

@@ -1,10 +1,7 @@
 import { getEvidenceDetailPayload } from "@/lib/prototype-api"
+import { withApiHandler } from "@/lib/api-handler"
 
-type EvidenceRouteContext = {
-  params: Promise<{ evidenceId: string }>
-}
-
-export async function GET(_request: Request, { params }: EvidenceRouteContext) {
+export const GET = withApiHandler(async (_request, { params }) => {
   const { evidenceId } = await params
   const payload = getEvidenceDetailPayload(evidenceId)
 
@@ -13,4 +10,4 @@ export async function GET(_request: Request, { params }: EvidenceRouteContext) {
   }
 
   return Response.json(payload)
-}
+})

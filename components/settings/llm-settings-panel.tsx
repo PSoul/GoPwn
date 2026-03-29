@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
+import { apiFetch } from "@/lib/api-client"
 import type { LlmProfileRecord } from "@/lib/prototype-types"
 
 const roleMeta = {
@@ -49,7 +50,7 @@ export function LlmSettingsPanel({ initialProfiles }: { initialProfiles: LlmProf
     setErrorMessage(null)
 
     try {
-      const response = await fetch("/api/settings/llm", {
+      const response = await apiFetch("/api/settings/llm", {
         method: "PATCH",
         headers: {
           "content-type": "application/json",

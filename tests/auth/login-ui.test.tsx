@@ -26,21 +26,32 @@ describe("login ui", () => {
   })
 
   it("submits credentials to the auth api and redirects to the requested route", async () => {
-    vi.mocked(global.fetch).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        redirectTo: "/projects",
-        user: {
-          displayName: "研究员席位 A",
-        },
-      }),
-    } as Response)
+    // First call is captcha fetch, second is login
+    vi.mocked(global.fetch)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ captchaId: "cap-test-123", code: "AB12" }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          redirectTo: "/projects",
+          user: {
+            displayName: "研究员席位 A",
+          },
+        }),
+      } as Response)
 
     render(<LoginForm />)
 
+    // Wait for captcha to load
+    await waitFor(() => {
+      expect(screen.getByText("AB12")).toBeInTheDocument()
+    })
+
     fireEvent.change(screen.getByLabelText("账号"), { target: { value: "researcher@company.local" } })
     fireEvent.change(screen.getByLabelText("密码"), { target: { value: "Prototype@2026" } })
-    fireEvent.change(screen.getByLabelText("验证码"), { target: { value: "7K2Q" } })
+    fireEvent.change(screen.getByLabelText("验证码"), { target: { value: "AB12" } })
     fireEvent.submit(screen.getByRole("button", { name: "登录平台" }).closest("form")!)
 
     await waitFor(() => {
