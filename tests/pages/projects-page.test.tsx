@@ -21,7 +21,7 @@ describe("Project pages", () => {
 
     expect(screen.getByText(fixture.project.name)).toBeInTheDocument()
     expect(screen.getAllByText("新建项目").length).toBeGreaterThan(0)
-    expect(screen.getByText("管理动作")).toBeInTheDocument()
+    expect(screen.getByText("筛选结果")).toBeInTheDocument()
   })
 
   it("renders the project creation form sections", () => {

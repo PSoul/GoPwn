@@ -28,6 +28,7 @@ import type {
   ProjectRecord,
   ProjectSchedulerControl,
   LlmCallLogRecord,
+  UserRecord,
 } from "@/lib/prototype-types"
 
 export type PrototypeStore = {
@@ -53,6 +54,7 @@ export type PrototypeStore = {
   projectSchedulerControls: Record<string, ProjectSchedulerControl>
   projects: ProjectRecord[]
   scopeRules: PolicyRecord[]
+  users: UserRecord[]
   workLogs: LogRecord[]
   llmCallLogs: LlmCallLogRecord[]
 }
@@ -174,6 +176,7 @@ function buildInitialStore(): PrototypeStore {
     projectSchedulerControls: {},
     projects: [],
     scopeRules: [],
+    users: [],
     workLogs: [],
     llmCallLogs: [],
   }
@@ -340,6 +343,7 @@ function normalizeStore(store: Partial<PrototypeStore>): PrototypeStore {
     projectSchedulerControls: store.projectSchedulerControls ?? initial.projectSchedulerControls,
     projects: Array.isArray(store.projects) ? store.projects : initial.projects,
     scopeRules: Array.isArray(store.scopeRules) ? store.scopeRules : initial.scopeRules,
+    users: Array.isArray(store.users) ? store.users : initial.users,
     workLogs: Array.isArray(store.workLogs) ? store.workLogs : initial.workLogs,
     llmCallLogs: Array.isArray(store.llmCallLogs) ? store.llmCallLogs : initial.llmCallLogs,
   }

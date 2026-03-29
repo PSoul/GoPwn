@@ -34,7 +34,7 @@ describe("prototype navigation", () => {
       "/projects",
       "/approvals",
       "/assets",
-      "/evidence",
+      "/vuln-center",
       "/settings",
     ])
   })

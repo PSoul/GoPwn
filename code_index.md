@@ -15,7 +15,9 @@
 
 | 文件 | 用途 |
 |------|------|
+| `.env.example` | 环境变量配置模板（数据库、认证、LLM、初始管理员等） |
 | `middleware.ts` | Next.js 中间件，处理身份验证、CSRF 双重提交 Cookie 防护、滑动窗口速率限制；E2E_TEST_MODE 下跳过 CSRF |
+| `app/global-error.tsx` | 全局错误边界，捕获应用级 React 渲染错误 |
 | `tailwind.config.ts` | Tailwind CSS 主题和样式配置 |
 | `vitest.config.mts` | Vitest 单元测试配置 |
 | `playwright.config.ts` | Playwright E2E 测试配置 |
@@ -47,6 +49,7 @@
 | `/settings` | `app/(console)/settings/page.tsx` | 系统设置主页 |
 | `/settings/llm` | `app/(console)/settings/llm/page.tsx` | LLM 提供商配置 |
 | `/settings/mcp-tools` | `app/(console)/settings/mcp-tools/page.tsx` | MCP 工具管理 |
+| `/settings/users` | `app/(console)/settings/users/page.tsx` | 用户管理（多角色 RBAC） |
 
 ### API 路由
 
@@ -66,6 +69,8 @@
 | `GET /api/llm-logs/stream` | `app/api/llm-logs/stream/route.ts` | SSE 实时日志流端点 |
 | `GET /api/vuln-center/summary` | `app/api/vuln-center/summary/route.ts` | 漏洞中心统计汇总 |
 | `GET /api/auth/captcha` | `app/api/auth/captcha/route.ts` | 验证码生成 |
+| `GET/POST /api/users` | `app/api/users/route.ts` | 用户列表与创建（管理员） |
+| `GET/PATCH /api/users/[id]` | `app/api/users/[userId]/route.ts` | 用户详情与更新（角色/状态/密码） |
 | `GET /api/health` | `app/api/health/route.ts` | 健康检查端点 |
 
 ## 3. Components 目录 (UI 组件)
@@ -112,7 +117,7 @@
 | 文件 | 用途 |
 |------|------|
 | `lib/prototype-store.ts` | 文件系统数据存储（JSON 持久化） |
-| `lib/prototype-types.ts` | 全部 TypeScript 类型定义 |
+| `lib/prototype-types.ts` | 全部 TypeScript 类型定义（含 UserRecord/UserRole/UserStatus） |
 | `lib/prototype-api.ts` | 页面级数据聚合 API |
 | `lib/prototype-data.ts` | 初始化种子数据 |
 
@@ -121,7 +126,7 @@
 | 文件 | 用途 |
 |------|------|
 | `lib/auth-session.ts` | HMAC 签名会话 Cookie 管理和验证 |
-| `lib/auth-repository.ts` | 用户认证仓库（bcrypt 密码验证 + 验证码生成/校验 + 审计日志） |
+| `lib/auth-repository.ts` | 多用户认证仓库（用户 CRUD + bcrypt 密码验证 + 角色管理 + 验证码 + 审计日志 + 环境变量管理员自动种子） |
 | `lib/csrf.ts` | CSRF 双重提交 Cookie 防护（ensureCsrfCookie / verifyCsrfToken） |
 | `lib/rate-limit.ts` | 滑动窗口速率限制（登录5次/分钟 + API 60次/分钟） |
 | `lib/api-client.ts` | 前端 fetch 封装（自动附带 CSRF header） |
@@ -177,6 +182,7 @@
 - `tests/api/llm-logs-api.test.ts` — LLM 日志 API 测试（7 个用例）
 - `tests/api/orchestrator-api.test.ts` — 编排器 API 测试
 - `tests/api/scheduler-controls-api.test.ts` — 调度器控制 API 测试
+- `tests/api/users-api.test.ts` — 用户管理 API 测试（6 个用例：CRUD + 角色权限 + 禁用登录）
 
 ### 单元测试
 - `tests/lib/llm-call-logger.test.ts` — LLM 调用日志服务测试（7 个用例）

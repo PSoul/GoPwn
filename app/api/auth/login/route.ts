@@ -49,7 +49,7 @@ export const POST = withApiHandler(async (request) => {
   })
 
   // Set CSRF cookie immediately so subsequent mutations work without an extra round-trip
-  if (!nextReq.cookies.get(CSRF_COOKIE_NAME)?.value) {
+  if (!nextReq.cookies?.get(CSRF_COOKIE_NAME)?.value) {
     const bytes = new Uint8Array(32)
     crypto.getRandomValues(bytes)
     const csrfToken = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("")

@@ -272,6 +272,13 @@ export const settingsSections: SettingsSectionRecord[] = [
     metric: "按实时数据刷新",
     tone: "info",
   },
+  {
+    title: "用户管理",
+    href: "/settings/users",
+    description: "管理平台用户账号，分配管理员、研究员和审批员角色，启用或禁用账号。",
+    metric: "多角色支持",
+    tone: "info",
+  },
 ]
 
 export const defaultGlobalApprovalControl: ApprovalControl = {

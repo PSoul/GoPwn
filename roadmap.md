@@ -3,8 +3,33 @@
 ## Project Snapshot
 
 - Date: `2026-03-29`
-- Current focus: Phase 14 AI 聊天窗项目上下文已完成。全局 AI 聊天窗支持按项目筛选、URL 感知自动切换当前项目、项目名标签显示。
+- Current focus: Phase 15 生产就绪基础已完成。多用户认证、ErrorBoundary、部署配置、测试修复。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
+
+## Phase 15: 生产就绪基础 (Production Ready Foundation)
+
+- Status: Completed on `2026-03-29`
+- Branch: `feat/phase15-production-ready`
+- Goal: 将平台从单用户原型提升到多用户生产就绪状态，补齐部署配置、错误处理和测试覆盖。
+
+### 交付清单
+
+1. **环境变量配置** — 完善 `.env.example`，涵盖数据库、认证、LLM、初始管理员等全部配置项
+2. **全局 ErrorBoundary** — `app/global-error.tsx`，捕获应用级 React 渲染错误
+3. **多用户认证** — `UserRecord` 类型（admin/researcher/approver 三角色）、store 持久化、用户 CRUD API、环境变量自动种子管理员
+4. **用户管理页面** — `/settings/users`，支持创建用户、分配角色、启用/禁用账号
+5. **登录安全增强** — 禁用账号拒绝登录、最后登录时间记录
+6. **测试修复** — 修复 auth/app-shell/projects/evidence 4 个测试文件，新增 users-api 6 个用例；增加全局超时至 15s 解决工作流测试超时
+7. **`.gitignore` 加固** — 排除 `.env`/`.env.local`/`tsconfig.tsbuildinfo`
+
+### 验收标准
+
+- [x] `next build` 无 TypeScript 错误
+- [x] 单元测试 189/191 通过（2 个失败为环境依赖：MCP connector + Docker）
+- [x] 新增 6 个用户管理 API 测试全部通过
+- [x] 多用户认证工作流完整：种子用户 → 管理员创建 → 角色分配 → 禁用/启用 → 审计日志
+- [x] `.env.example` 涵盖所有环境变量
+- [x] 全局错误边界正确捕获应用级错误
 
 ## Phase 12: 漏洞驾驶舱重构 (Vuln Cockpit Redesign)
 

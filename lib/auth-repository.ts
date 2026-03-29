@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs"
 
 import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
-import type { LogRecord } from "@/lib/prototype-types"
+import type { LogRecord, UserRecord, UserRole } from "@/lib/prototype-types"
 
 const CAPTCHA_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 const CAPTCHA_LENGTH = 4
@@ -42,20 +42,22 @@ function verifyCaptcha(captchaId: string, userInput: string): boolean {
   return entry.code === userInput.trim().toUpperCase()
 }
 
-// Pre-hashed passwords for seeded users (bcrypt cost 10)
-// Original: "Prototype@2026"
-const SEEDED_PASSWORD_HASH = bcrypt.hashSync("Prototype@2026", 10)
+// --------------- 用户管理 ---------------
 
-const seededUsers = [
+/** Default seed users — created when user store is empty */
+const DEFAULT_SEED_USERS: Array<Omit<UserRecord, "id" | "createdAt">> = [
   {
-    id: "user-researcher-a",
-    account: "researcher@company.local",
-    passwordHash: SEEDED_PASSWORD_HASH,
+    email: "researcher@company.local",
+    passwordHash: bcrypt.hashSync("Prototype@2026", 10),
     displayName: "研究员席位 A",
-    role: "研究员",
-    status: "active" as const,
+    role: "researcher",
+    status: "active",
   },
 ]
+
+function generateUserId(): string {
+  return `user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
 
 function formatTimestamp(date = new Date()) {
   const year = String(date.getFullYear())
@@ -66,6 +68,119 @@ function formatTimestamp(date = new Date()) {
 
   return `${year}-${month}-${day} ${hours}:${minutes}`
 }
+
+/**
+ * Ensure at least the seed users exist. Also creates an admin user
+ * from env vars if ADMIN_EMAIL is set and no admin exists yet.
+ */
+export function ensureSeedUsers(): void {
+  const store = readPrototypeStore()
+  let changed = false
+
+  // Seed default users if store is empty
+  if (store.users.length === 0) {
+    for (const seed of DEFAULT_SEED_USERS) {
+      store.users.push({
+        id: generateUserId(),
+        ...seed,
+        createdAt: formatTimestamp(),
+      })
+    }
+    changed = true
+  }
+
+  // Create admin from env vars if configured and no admin exists yet
+  const adminEmail = process.env.ADMIN_EMAIL
+  const adminPassword = process.env.ADMIN_PASSWORD
+  if (adminEmail && adminPassword) {
+    const existingAdmin = store.users.find((u) => u.email === adminEmail)
+    if (!existingAdmin) {
+      store.users.push({
+        id: generateUserId(),
+        email: adminEmail,
+        passwordHash: bcrypt.hashSync(adminPassword, 10),
+        displayName: process.env.ADMIN_DISPLAY_NAME || "管理员",
+        role: "admin",
+        status: "active",
+        createdAt: formatTimestamp(),
+      })
+      changed = true
+    }
+  }
+
+  if (changed) {
+    writePrototypeStore(store)
+  }
+}
+
+function stripPasswordHash(user: UserRecord): Omit<UserRecord, "passwordHash"> {
+  const { passwordHash, ...rest } = user
+  void passwordHash
+  return rest
+}
+
+export function listUsers(): Omit<UserRecord, "passwordHash">[] {
+  const store = readPrototypeStore()
+  return store.users.map(stripPasswordHash)
+}
+
+export function getUserById(id: string): Omit<UserRecord, "passwordHash"> | null {
+  const store = readPrototypeStore()
+  const user = store.users.find((u) => u.id === id)
+  if (!user) return null
+  return stripPasswordHash(user)
+}
+
+export function createUser(input: {
+  email: string
+  password: string
+  displayName: string
+  role: UserRole
+}): { error: string | null; user: Omit<UserRecord, "passwordHash"> | null } {
+  const store = readPrototypeStore()
+
+  // Check duplicate email
+  if (store.users.some((u) => u.email === input.email)) {
+    return { error: "该邮箱已被注册", user: null }
+  }
+
+  const newUser: UserRecord = {
+    id: generateUserId(),
+    email: input.email,
+    passwordHash: bcrypt.hashSync(input.password, 10),
+    displayName: input.displayName,
+    role: input.role,
+    status: "active",
+    createdAt: formatTimestamp(),
+  }
+
+  store.users.push(newUser)
+  writePrototypeStore(store)
+
+  return { error: null, user: stripPasswordHash(newUser) }
+}
+
+export function updateUser(
+  id: string,
+  patch: { displayName?: string; role?: UserRole; status?: "active" | "disabled"; password?: string },
+): { error: string | null; user: Omit<UserRecord, "passwordHash"> | null } {
+  const store = readPrototypeStore()
+  const idx = store.users.findIndex((u) => u.id === id)
+  if (idx === -1) return { error: "用户不存在", user: null }
+
+  const user = store.users[idx]
+  if (patch.displayName !== undefined) user.displayName = patch.displayName
+  if (patch.role !== undefined) user.role = patch.role
+  if (patch.status !== undefined) user.status = patch.status
+  if (patch.password) user.passwordHash = bcrypt.hashSync(patch.password, 10)
+
+  store.users[idx] = user
+  writePrototypeStore(store)
+
+  return { error: null, user: stripPasswordHash(user) }
+}
+
+// --------------- 审计日志 ---------------
 
 function appendAuditLog(summary: string, actor: string, status: string) {
   const store = readPrototypeStore()
@@ -82,6 +197,8 @@ function appendAuditLog(summary: string, actor: string, status: string) {
   writePrototypeStore(store)
 }
 
+// --------------- 认证 ---------------
+
 export function authenticateResearcher(input: {
   account: string
   password: string
@@ -95,7 +212,11 @@ export function authenticateResearcher(input: {
     }
   }
 
-  const user = seededUsers.find((item) => item.account === input.account.trim())
+  // Ensure seed users exist on first login attempt
+  ensureSeedUsers()
+
+  const store = readPrototypeStore()
+  const user = store.users.find((u) => u.email === input.account.trim())
 
   if (!user || !bcrypt.compareSync(input.password, user.passwordHash)) {
     return {
@@ -104,13 +225,24 @@ export function authenticateResearcher(input: {
     }
   }
 
+  if (user.status === "disabled") {
+    return {
+      error: "该账号已被禁用，请联系管理员。",
+      user: null,
+    }
+  }
+
+  // Update last login time
+  user.lastLoginAt = formatTimestamp()
+  writePrototypeStore(store)
+
   appendAuditLog(`${user.displayName} 登录平台`, user.displayName, "已完成")
 
   return {
     error: null,
     user: {
       id: user.id,
-      account: user.account,
+      account: user.email,
       displayName: user.displayName,
       role: user.role,
       status: user.status,

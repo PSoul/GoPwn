@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest"
 
 import ApprovalPolicySettingsPage from "@/app/(console)/settings/approval-policy/page"
 import AuditLogsSettingsPage from "@/app/(console)/settings/audit-logs/page"
-import EvidencePage from "@/app/(console)/evidence/page"
 import EvidenceDetailPage from "@/app/(console)/evidence/[evidenceId]/page"
+import VulnCenterPage from "@/app/(console)/vuln-center/page"
 import LlmSettingsPage from "@/app/(console)/settings/llm/page"
 import McpToolsSettingsPage from "@/app/(console)/settings/mcp-tools/page"
 import SettingsPage from "@/app/(console)/settings/page"
@@ -14,10 +14,10 @@ import { upsertStoredEvidence } from "@/lib/evidence-repository"
 import { createWorkflowFixture } from "@/tests/helpers/project-fixtures"
 
 describe("Evidence and settings pages", () => {
-  it("renders the evidence list and detail flow", async () => {
+  it("renders the vuln center and evidence detail flow", async () => {
     const fixture = await createWorkflowFixture()
-    render(<EvidencePage />)
-    expect(screen.getByText("证据与结果")).toBeInTheDocument()
+    render(<VulnCenterPage />)
+    expect(screen.getByRole("heading", { name: "漏洞中心" })).toBeInTheDocument()
     cleanup()
 
     upsertStoredEvidence([
