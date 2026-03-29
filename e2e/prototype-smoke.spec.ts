@@ -128,6 +128,7 @@ test("settings hub leads into dedicated settings subpages", async ({ page }) => 
 })
 
 test("project operations page can generate a local orchestrator plan", async ({ page }) => {
+  test.setTimeout(180_000)
   await loginAsResearcher(page)
   const { projectId } = await createProject(page)
   await page.goto(`/projects/${projectId}/operations`)
@@ -139,7 +140,7 @@ test("project operations page can generate a local orchestrator plan", async ({ 
     (response) =>
       response.url().includes(`/api/projects/${projectId}/orchestrator/plan`) &&
       response.request().method() === "POST",
-    { timeout: 15_000 },
+    { timeout: 150_000 },
   )
 
   await page.getByRole("button", { name: /为 .* 生成计划/ }).first().click()
@@ -147,7 +148,7 @@ test("project operations page can generate a local orchestrator plan", async ({ 
   const planResponse = await planResponsePromise
   expect(planResponse.ok()).toBe(true)
 
-  await expect(page.getByText(/已为 .* 刷新本地编排计划。/)).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText(/已为 .* 刷新本地编排计划。/)).toBeVisible({ timeout: 30_000 })
   await expect(page.getByText("最近一次编排计划")).toBeVisible()
 
   const exportResponsePromise = page.waitForResponse(
@@ -165,6 +166,7 @@ test("project operations page can generate a local orchestrator plan", async ({ 
 })
 
 test("manual start can auto-settle a project into final conclusion and lock terminal controls", async ({ page }) => {
+  test.setTimeout(180_000)
   await loginAsResearcher(page)
   const { projectId, projectName } = await createProject(page)
 
@@ -175,7 +177,7 @@ test("manual start can auto-settle a project into final conclusion and lock term
     (response) =>
       response.url().includes(`/api/projects/${projectId}/scheduler-control`) &&
       response.request().method() === "PATCH",
-    { timeout: 15_000 },
+    { timeout: 150_000 },
   )
 
   await page.getByRole("button", { name: "开始项目" }).click()
@@ -183,7 +185,7 @@ test("manual start can auto-settle a project into final conclusion and lock term
   const startResponse = await startResponsePromise
   expect(startResponse.ok()).toBe(true)
 
-  await expect(page.getByText("已完成当前轮次").first()).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText("已完成当前轮次").first()).toBeVisible({ timeout: 60_000 })
   await expect(page.getByText("项目收束诊断")).toBeVisible()
   await expect(page.getByText("当前轮次已经自动收束，报告与最终结论都已稳定落库。").first()).toBeVisible()
   await expect(page.getByRole("button", { name: "开始项目" })).toBeDisabled()

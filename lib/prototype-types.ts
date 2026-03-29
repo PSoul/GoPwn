@@ -677,6 +677,7 @@ export interface ProjectOperationsPayload {
   schedulerTasks: McpSchedulerTaskRecord[]
   orchestrator: ProjectOrchestratorPanelPayload
   reportExport: ProjectReportExportPayload
+  orchestratorRounds: OrchestratorRoundRecord[]
 }
 
 export interface ProjectContextPayload {

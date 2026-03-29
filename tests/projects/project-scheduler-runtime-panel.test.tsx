@@ -20,6 +20,9 @@ vi.mock("next/navigation", () => ({
 const initialControl: ProjectSchedulerControl = {
   lifecycle: "running",
   paused: false,
+  autoReplan: true,
+  maxRounds: 6,
+  currentRound: 1,
   note: "默认允许调度器继续处理待执行任务。",
   updatedAt: "2026-03-27 15:00",
 }
@@ -126,8 +129,9 @@ describe("ProjectSchedulerRuntimePanel", () => {
         projectId="proj-runtime"
         projectStatus={"待处理" satisfies ProjectStatus}
         closureStatus={runningClosureStatus}
-        initialControl={{ ...initialControl, lifecycle: "idle", paused: false }}
+        initialControl={{ ...initialControl, lifecycle: "idle", paused: false, autoReplan: true, maxRounds: 6, currentRound: 0 }}
         initialTasks={schedulerTasks}
+        initialRounds={[]}
       />,
     )
 
@@ -191,6 +195,7 @@ describe("ProjectSchedulerRuntimePanel", () => {
         closureStatus={runningClosureStatus}
         initialControl={initialControl}
         initialTasks={schedulerTasks}
+        initialRounds={[]}
       />,
     )
 
@@ -238,6 +243,7 @@ describe("ProjectSchedulerRuntimePanel", () => {
         closureStatus={runningClosureStatus}
         initialControl={initialControl}
         initialTasks={schedulerTasks}
+        initialRounds={[]}
       />,
     )
 
@@ -278,6 +284,7 @@ describe("ProjectSchedulerRuntimePanel", () => {
         closureStatus={runningClosureStatus}
         initialControl={initialControl}
         initialTasks={schedulerTasks}
+        initialRounds={[]}
       />,
     )
 
@@ -322,6 +329,7 @@ describe("ProjectSchedulerRuntimePanel", () => {
         closureStatus={runningClosureStatus}
         initialControl={initialControl}
         initialTasks={schedulerTasks}
+        initialRounds={[]}
       />,
     )
 
@@ -350,6 +358,7 @@ describe("ProjectSchedulerRuntimePanel", () => {
         closureStatus={runningClosureStatus}
         initialControl={initialControl}
         initialTasks={schedulerTasks}
+        initialRounds={[]}
       />,
     )
 
@@ -372,6 +381,7 @@ describe("ProjectSchedulerRuntimePanel", () => {
             recoveryCount: 1,
           },
         ]}
+        initialRounds={[]}
       />,
     )
 
@@ -399,6 +409,7 @@ describe("ProjectSchedulerRuntimePanel", () => {
         closureStatus={completedClosureStatus}
         initialControl={initialControl}
         initialTasks={[]}
+        initialRounds={[]}
       />,
     )
 

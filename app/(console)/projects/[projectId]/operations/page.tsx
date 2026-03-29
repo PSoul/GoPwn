@@ -26,7 +26,7 @@ export default async function ProjectOperationsPage({
   if (!payload) {
     notFound()
   }
-  const { approvals, detail, mcpRuns, orchestrator, project, reportExport, schedulerControl, schedulerTasks } = payload
+  const { approvals, detail, mcpRuns, orchestrator, orchestratorRounds, project, reportExport, schedulerControl, schedulerTasks } = payload
   const projectReadOnlyReason =
     project.status === "已完成"
       ? "当前项目已完成当前轮次，如需继续扩展测试，请新建下一轮项目。"
@@ -59,6 +59,7 @@ export default async function ProjectOperationsPage({
         closureStatus={detail.closureStatus}
         initialControl={schedulerControl}
         initialTasks={schedulerTasks}
+        initialRounds={orchestratorRounds}
       />
 
       <ProjectOrchestratorPanel

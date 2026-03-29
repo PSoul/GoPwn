@@ -358,6 +358,8 @@ export async function getProjectOperationsPayload(projectId: string): Promise<Pr
     return null
   }
 
+  const store = readPrototypeStore()
+
   return {
     ...base,
     approvals: listStoredProjectApprovals(projectId),
@@ -366,6 +368,7 @@ export async function getProjectOperationsPayload(projectId: string): Promise<Pr
     schedulerTasks: listStoredSchedulerTasks(projectId),
     orchestrator: await getProjectOrchestratorPanelPayload(projectId),
     reportExport: getStoredProjectReportExportPayload(projectId),
+    orchestratorRounds: store.orchestratorRounds[projectId] ?? [],
   }
 }
 

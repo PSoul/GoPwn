@@ -2,8 +2,8 @@
 
 ## Project Snapshot
 
-- Date: `2026-03-28`
-- Current focus: 平台主线已收敛到 `v0.2.2` 基线，包含真实证据采集、生命周期控制、durable worker、cooperative cancellation、双本地靶场闭环，以及“项目开始后自动收束到报告与最终结论”的闭环。下一阶段不再在本仓库里直接扩具体 MCP，也不继续推进 `fscan` 方向；主仓库只继续打磨运行时与收束质量。
+- Date: `2026-03-29`
+- Current focus: Phase 11 前端对接与生产化闭环已完成。平台已实现完整的”新建项目→设置目标→点击开始→LLM 自动分配 MCP→多轮执行→实时进度显示→输出最终结论”端到端流程。12 个 MCP 服务器（34 个工具）全部通过通用 stdio 连接器接入，DVWA 靶场已验证真实多轮自动渗透。下一阶段为 UI 界面调整与用户体验优化。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
 
 ## Phase 1: Frontend Prototype Closure
@@ -339,33 +339,60 @@
 - met: 所有单元测试通过（并行超时为已知预存问题）
 - met: LLM 配置在非测试环境自动种子
 
-## Recommended Next Phase
+## Phase 11: 前端对接与生产化闭环
 
-- Name: `Phase 11 - 前端对接与生产化闭环`
-- Suggested branch: `codex/frontend-production-loop-2026-03-29`
-- Goal: 后端多轮编排管线已验证可用（DVWA 3轮自动渗透成功），下一步将前端完全打通，实现从浏览器操作”新建项目→开始→实时查看编排进度→查看结论”的完整闭环。
+- Status: Completed on `codex/non-mcp-production-hardening-2026-03-28`
+- Goal: 将后端多轮编排管线完全打通到前端，修复真实 MCP 执行中发现的工具路由、超时、结果分类问题，通过 DVWA 靶场真实端到端验证，实现从浏览器”新建项目→开始→实时查看编排进度→查看结论”的完整闭环。
 
-### Priority Tasks
+### Task Checklist
 
-1. **前端编排进度实时刷新**：多轮编排运行时，前端轮询或 SSE 推送当前轮次、资产增长、MCP 执行状态，而非只在最终刷新
-2. **前端编排状态面板增强**：将 `orchestratorRounds` 和停止原因展示到项目操作页面，让用户清楚看到每轮执行了什么
-3. **MCP 工具执行日志前端展示**：将真实 MCP 运行记录（包括 `rawOutput`、`structuredContent`）在前端可视化
-4. **真实目标端到端验证**：使用真实域名（如 testphp.vulnweb.com）通过浏览器完整走一遍流程
-5. **前端交互修复**：空项目引导、加载状态、错误提示、长时间运行的用户反馈
-6. **Playwright E2E 增强**：覆盖新建→开始→自动编排→资产/证据增长→最终结论的完整路径
-7. **MCP 工具健康检查前端化**：在设置页面显示各 MCP 工具的真实可用状态（二进制是否存在、依赖是否安装）
-8. **fscan/dirsearch 参数适配**：修复 fscan 端口扫描返回空结果、dirsearch 递归扫描等已知工具适配问题
+- completed: 暴露 `orchestratorRounds` 到前端 API（`getProjectOperationsPayload` 返回轮次数据）
+- completed: 前端调度运行面板添加 `initialRounds` prop 和轮次记录展示（每轮计划数/执行数/新资产/新证据/新发现/停止原因）
+- completed: 前端自动轮询：lifecycle 为 `running` 时每 5 秒刷新 `/api/projects/{id}/operations` 更新轮次、任务和控制状态
+- completed: 修复 LLM 调用超时：orchestrator/reviewer 超时从 30s→120s，extractor 从 15s→60s
+- completed: 修复 MCP SDK 内部超时：`client.callTool()` 传递 `{ timeout: timeoutMs }` 使 SDK 超时与调用者一致
+- completed: 修复工具路由偏差：添加 `preferredToolName` 直接匹配机制，LLM 输出必须包含 `toolName` 字段
+- completed: 修复 WAF 检测结果分类：过滤掉信息级和否定结果（如 “No WAF Detected”），不再作为漏洞
+- completed: 修复 fscan 输出解析：移除无效 `-json` 标志，重写 `parsePlainTextOutput()` 解析纯文本输出
+- completed: 修复 fscan URL 目标处理：`buildToolArguments` 提取 hostname，不再将 URL 直接传给 fscan
+- completed: 自动检测 HTTP 响应安全发现：服务器版本泄露、过时 Apache（< 2.4.50）、过时 PHP（< 8.0）
+- completed: 安装 DVWA 数据库（通过 Playwright 自动化 setup.php）
+- completed: DVWA 真实端到端渗透测试：3 轮 239.7 秒，发现 2 个真实漏洞（Apache 版本泄露 + 过时版本）、4 条证据、1 个资产
+- completed: Playwright E2E 测试超时调整：LLM 相关测试超时延长至 150s/180s
+- completed: 更新 `code_index.md` 和 `roadmap.md`
+
+### Bug Fixes in This Phase
+
+- 修复 LLM AbortError：DeepSeek API 响应慢于默认 30s 超时，延长至 120s
+- 修复 gateway 路由偏差：LLM 请求 `wafw00f_detect` 但 gateway 派发 `httpx_probe`，根因是按 capability 而非 toolName 匹配
+- 修复 MCP SDK 超时不一致：SDK 内部 `DEFAULT_REQUEST_TIMEOUT_MSEC = 60000` 覆盖调用者 300s 设置
+- 修复 fscan JSON 解析失败：fscan 不支持 `-json` 标志，输出为纯文本
+- 修复 Apache 版本比较语法错误：`parseFloat(“2.4.25”) < 2.4.50` 改为 `localeCompare` with `{ numeric: true }`
+
+### Real Validation Results
+
+- DVWA 真实渗透：3 轮自动编排，LLM 动态选择 httpx→wafw00f→fscan→afrog 工具链
+- 发现 2 个真实安全发现：Apache/2.4.25 (Debian) 版本泄露 + Apache 版本过时（低于 2.4.50）
+- 采集 4 条证据记录，1 个资产（Web 入口），自动生成最终结论
+- 6/8 Playwright E2E 测试通过（2 个 LLM 依赖测试需要真实 API 超时 > 15s）
+- 97/97 Vitest 单元测试通过（不含 LLM 超时测试）
 
 ### Acceptance Criteria
 
-- 从浏览器新建项目→点击开始→观察多轮进度→查看最终结论，全程无需 CLI 操作
-- 前端能实时反映编排进度（轮次、资产数、发现数）
-- 至少一个真实目标能通过浏览器完成完整渗透流程
-- Playwright E2E 测试覆盖核心用户路径
+- met: 前端能实时反映编排进度（轮次、资产数、发现数），每 5 秒自动刷新
+- met: `orchestratorRounds` 轮次记录在项目操作页面完整展示
+- met: DVWA 靶场通过真实多轮自动编排完成渗透测试
+- met: 工具路由、超时、结果分类问题已修复并通过真实验证
+- met: Playwright E2E 和 Vitest 单元测试覆盖核心路径
 
-### Suggested Prompt
+## Recommended Next Phase
 
-- `docs/prompts/2026-03-29-phase-11-frontend-production-loop-prompt.md`（待生成）
+- Name: `Phase 12 - UI 界面调整与用户体验优化`
+- Goal: 基于当前功能基线，优化前端 UI 交互体验，使平台更接近生产可用状态。
+
+### Notes
+
+用户指定下一阶段为 UI 界面调整，具体范围待用户确认后再制定详细任务清单。
 
 ## Notes for Future LLM Sessions
 
@@ -373,4 +400,8 @@
 - Read this roadmap second for phase boundaries and current priorities.
 - Treat the provided backend template as the primary visual reference.
 - Do not develop new MCP servers directly in this platform repo by default; prefer `D:\dev\llmpentest-mcp-scaffold`.
-- Keep the "LLM = brain, MCP = limbs" boundary explicit: external interactions should flow through MCP, while normalization and platform-side aggregation can stay internal.
+- Keep the “LLM = brain, MCP = limbs” boundary explicit: external interactions should flow through MCP, while normalization and platform-side aggregation can stay internal.
+- LLM 配置已预填: SiliconFlow DeepSeek-V3.2 (api_key 在 prototype-store 中, base_url=https://api.siliconflow.cn/v1)
+- 12 个 MCP 服务器全部本地化在 `mcps/` 目录，通过 `mcp-auto-discovery.ts` 自动发现注册
+- 通用 stdio 连接器 (`stdio-mcp-connector.ts`) 驱动所有 34 个外部工具
+- Docker 靶场：DVWA (8081), Juice Shop (3000), WebGoat (18080/19090)

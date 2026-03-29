@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useCallback, useEffect, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Activity, PauseCircle, PlayCircle, RotateCcw, Square, TimerReset } from "lucide-react"
+import { Activity, CheckCircle2, Loader2, PauseCircle, PlayCircle, RotateCcw, Square, TimerReset } from "lucide-react"
 
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import type {
   ProjectClosureStatusRecord,
   McpSchedulerTaskRecord,
+  OrchestratorRoundRecord,
   ProjectSchedulerControl,
   ProjectSchedulerLifecycle,
   ProjectStatus,
@@ -82,12 +83,14 @@ export function ProjectSchedulerRuntimePanel({
   closureStatus,
   initialControl,
   initialTasks,
+  initialRounds,
 }: {
   projectId: string
   projectStatus: ProjectStatus
   closureStatus: ProjectClosureStatusRecord
   initialControl: ProjectSchedulerControl
   initialTasks: McpSchedulerTaskRecord[]
+  initialRounds: OrchestratorRoundRecord[]
 }) {
   const router = useRouter()
   const [isRouting, startTransition] = useTransition()
@@ -97,6 +100,31 @@ export function ProjectSchedulerRuntimePanel({
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [rounds, setRounds] = useState<OrchestratorRoundRecord[]>(initialRounds)
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const pollOperations = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/operations`)
+      if (!res.ok) return
+      const payload = await res.json()
+      if (payload.schedulerControl) setControl(payload.schedulerControl)
+      if (payload.schedulerTasks) setTasks(payload.schedulerTasks)
+      if (payload.orchestratorRounds) setRounds(payload.orchestratorRounds)
+    } catch { /* best-effort polling */ }
+  }, [projectId])
+
+  useEffect(() => {
+    if (control.lifecycle === "running") {
+      pollingRef.current = setInterval(pollOperations, 5000)
+    }
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+    }
+  }, [control.lifecycle, pollOperations])
 
   const queuedCount = tasks.filter((task) => ["ready", "retry_scheduled", "delayed"].includes(task.status)).length
   const failedCount = tasks.filter((task) => task.status === "failed").length
@@ -199,7 +227,7 @@ export function ProjectSchedulerRuntimePanel({
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+    <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]" data-testid="scheduler-runtime-panel">
       <SectionCard
         title="调度运行控制"
         description="这里的开始、暂停、继续、停止不是单纯的界面状态，而是会同步驱动后端 LLM 编排与调度状态。"
@@ -375,6 +403,65 @@ export function ProjectSchedulerRuntimePanel({
           </div>
         </div>
       </SectionCard>
+
+      {rounds.length > 0 && (
+        <SectionCard
+          title="编排轮次记录"
+          description="每一轮 LLM 编排的执行概况，包括动作数、发现数和停止原因。"
+          className="xl:col-span-2"
+        >
+          <div className="space-y-3">
+            {rounds.map((round) => (
+              <div
+                key={round.round}
+                className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    <p className="text-sm font-semibold text-slate-950 dark:text-white">
+                      第 {round.round} 轮
+                    </p>
+                  </div>
+                  <div className="text-right text-xs text-slate-500 dark:text-slate-400">
+                    <p>{round.startedAt}</p>
+                    {round.completedAt && <p>完成于 {round.completedAt}</p>}
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <StatusBadge tone="info">计划 {round.planItemCount}</StatusBadge>
+                  <StatusBadge tone={round.executedCount > 0 ? "success" : "neutral"}>
+                    已执行 {round.executedCount}
+                  </StatusBadge>
+                  <StatusBadge tone={round.newAssetCount > 0 ? "info" : "neutral"}>
+                    新资产 {round.newAssetCount}
+                  </StatusBadge>
+                  <StatusBadge tone={round.newEvidenceCount > 0 ? "info" : "neutral"}>
+                    新证据 {round.newEvidenceCount}
+                  </StatusBadge>
+                  <StatusBadge tone={round.newFindingCount > 0 ? "warning" : "neutral"}>
+                    新发现 {round.newFindingCount}
+                  </StatusBadge>
+                  {round.failedActions.length > 0 && (
+                    <StatusBadge tone="danger">失败 {round.failedActions.length}</StatusBadge>
+                  )}
+                </div>
+                {round.summaryForNextRound && (
+                  <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                    {round.summaryForNextRound}
+                  </p>
+                )}
+              </div>
+            ))}
+            {control.lifecycle === "running" && (
+              <div className="flex items-center gap-2 rounded-[24px] border border-dashed border-sky-300 bg-sky-50/80 px-5 py-4 text-sm text-sky-700 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-200">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                LLM 正在规划第 {(rounds.length > 0 ? rounds[rounds.length - 1].round : 0) + 1} 轮编排...
+              </div>
+            )}
+          </div>
+        </SectionCard>
+      )}
 
       <SectionCard
         title="真实运行队列"
