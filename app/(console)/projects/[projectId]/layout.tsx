@@ -32,64 +32,37 @@ export default async function ProjectWorkspaceLayout({
             : "info"
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-3xl border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-2">
-            <p className="text-xs uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">项目工作台</p>
-            <h1 className="text-2xl font-semibold text-slate-950 dark:text-white">{project.name}</h1>
-            <p className="max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">{project.description}</p>
-            <div className="pt-1">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">目标</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {project.targets.length > 0 ? (
-                  project.targets.map((target) => (
-                    <span
-                      key={target}
-                      className="rounded-full border border-slate-200/80 bg-slate-50/85 px-3 py-1.5 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-300"
-                    >
-                      {target}
-                    </span>
-                  ))
-                ) : (
-                  <span className="rounded-full border border-dashed border-slate-300 px-3 py-1.5 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                    等待目标输入
-                  </span>
-                )}
-              </div>
-            </div>
+    <div className="space-y-4">
+      <section className="rounded-2xl border border-slate-200/80 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-950">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-semibold text-slate-950 dark:text-white">{project.name}</h1>
+            <StatusBadge tone={statusTone}>{project.status}</StatusBadge>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge tone={statusTone}>
-              {project.status}
-            </StatusBadge>
-            <Button asChild variant="outline" className="rounded-full px-5">
-              <Link href={`/projects/${project.id}/edit`}>编辑项目</Link>
-            </Button>
-            <Button asChild className="rounded-full bg-slate-950 px-5 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-200">
-              <Link href="/approvals">查看审批</Link>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+              <span>资产 <strong className="text-slate-950 dark:text-white">{project.assetCount}</strong></span>
+              <span>证据 <strong className="text-slate-950 dark:text-white">{project.evidenceCount}</strong></span>
+              <span>审批 <strong className="text-slate-950 dark:text-white">{project.pendingApprovals}</strong></span>
+            </div>
+            <Button asChild variant="outline" size="sm" className="rounded-full">
+              <Link href={`/projects/${project.id}/edit`}>编辑</Link>
             </Button>
           </div>
         </div>
-
-        <div className="mt-4 grid gap-3 md:grid-cols-4">
-          <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
-            <p className="text-xs text-slate-500 dark:text-slate-400">当前阶段</p>
-            <p className="mt-2 text-sm font-medium text-slate-950 dark:text-white">{project.stage}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
-            <p className="text-xs text-slate-500 dark:text-slate-400">待审批动作</p>
-            <p className="mt-2 text-sm font-medium text-slate-950 dark:text-white">{project.pendingApprovals}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
-            <p className="text-xs text-slate-500 dark:text-slate-400">已发现资产</p>
-            <p className="mt-2 text-sm font-medium text-slate-950 dark:text-white">{project.assetCount}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
-            <p className="text-xs text-slate-500 dark:text-slate-400">最近更新</p>
-            <p className="mt-2 text-sm font-medium text-slate-950 dark:text-white">{project.lastUpdated}</p>
-          </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {project.targets.length > 0 ? (
+            project.targets.map((target) => (
+              <span
+                key={target}
+                className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600 dark:bg-slate-900 dark:text-slate-300"
+              >
+                {target}
+              </span>
+            ))
+          ) : (
+            <span className="text-xs text-slate-400">等待目标输入</span>
+          )}
         </div>
       </section>
 

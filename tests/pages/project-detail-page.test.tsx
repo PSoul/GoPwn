@@ -18,23 +18,22 @@ vi.mock("next/navigation", async () => {
     useRouter: () => ({
       refresh: vi.fn(),
     }),
+    usePathname: () => "/projects/proj-test",
   }
 })
 
 describe("ProjectDetailPage", () => {
-  it("shows the project overview with links to dedicated result tables", async () => {
+  it("shows the project overview with result entry links", async () => {
     const fixture = await createApprovedWorkflowFixture()
 
     render(await ProjectDetailPage({ params: Promise.resolve({ projectId: fixture.project.id }) }))
 
-    expect(screen.getByText("项目概览")).toBeInTheDocument()
-    expect(screen.getByText(fixture.project.description)).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "查看域名 / Web 入口表格" })).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "查看 IP / 端口 / 服务表格" })).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "查看漏洞与发现表格" })).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "查看阶段流转详情" })).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "查看任务与调度详情" })).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "查看完整证据与日志" })).toBeInTheDocument()
+    // New summary shows state-aware content and result links
+    expect(screen.getByText("最近动态")).toBeInTheDocument()
+    // Results hub has link entries for the 3 result sections
+    expect(screen.getByText("域名 / Web")).toBeInTheDocument()
+    expect(screen.getByText("IP / 端口 / 服务")).toBeInTheDocument()
+    expect(screen.getByText("漏洞与发现")).toBeInTheDocument()
   })
 
   it("renders dedicated result pages plus flow, operations, and context", async () => {
@@ -66,9 +65,8 @@ describe("ProjectDetailPage", () => {
 
     render(await ProjectOperationsPage({ params: Promise.resolve({ projectId: fixture.project.id }) }))
 
-    expect(screen.getByText("任务与调度详情")).toBeInTheDocument()
-    expect(screen.getByText("审批模式开关")).toBeInTheDocument()
-    expect(screen.getByText("调度运行控制")).toBeInTheDocument()
+    // Operations page now has compact panels
+    expect(screen.getByText("审批与项目状态")).toBeInTheDocument()
     expect(screen.getByText("报告导出")).toBeInTheDocument()
     cleanup()
 

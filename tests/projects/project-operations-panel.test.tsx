@@ -42,23 +42,19 @@ describe("ProjectOperationsPanel", () => {
 
     render(<ProjectOperationsPanel project={project} detail={detail} approvals={getProjectApprovals("proj-huayao")} />)
 
-    fireEvent.click(screen.getByRole("switch", { name: "项目低风险自动放行" }))
-    fireEvent.change(screen.getByRole("textbox", { name: "项目策略备注" }), {
-      target: { value: "项目测试备注" },
-    })
-    fireEvent.click(screen.getByRole("button", { name: "保存项目策略" }))
+    // New compact panel has simpler switches
+    fireEvent.click(screen.getByRole("switch", { name: "低风险自动放行" }))
+    fireEvent.click(screen.getByRole("button", { name: /保存/ }))
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
         `/api/projects/${project.id}/approval-control`,
-        expect.objectContaining({
-          method: "PATCH",
-        }),
+        expect.objectContaining({ method: "PATCH" }),
       )
     })
 
     await waitFor(() => {
-      expect(screen.getByText("项目审批策略已更新：中高风险动作审批")).toBeInTheDocument()
+      expect(screen.getByText("审批策略已更新")).toBeInTheDocument()
     })
   })
 })

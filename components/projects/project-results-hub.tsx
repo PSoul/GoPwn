@@ -1,31 +1,13 @@
 import Link from "next/link"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, Globe, Network, ShieldAlert } from "lucide-react"
 
-import { SectionCard } from "@/components/shared/section-card"
-import { StatusBadge } from "@/components/shared/status-badge"
-import { Button } from "@/components/ui/button"
 import type { ProjectDetailRecord, ProjectRecord } from "@/lib/prototype-types"
 
-const resultCards = [
-  {
-    key: "domains",
-    title: "域名 / Web 入口",
-    description: "把域名、路径入口、后台登录页和 Web 暴露面集中成一个整页表格，不跟端口和漏洞混在一起。",
-    linkLabel: "查看域名 / Web 入口表格",
-  },
-  {
-    key: "network",
-    title: "IP / 端口 / 服务",
-    description: "把 IP、端口、协议、服务画像和版本线索放成网络面总表，适合承载大量结果。",
-    linkLabel: "查看 IP / 端口 / 服务表格",
-  },
-  {
-    key: "findings",
-    title: "漏洞与发现",
-    description: "把已确认问题、待验证候选和待复核 finding 拉成单独结果表，不在总览页直接铺开。",
-    linkLabel: "查看漏洞与发现表格",
-  },
-] as const
+const resultSections = [
+  { key: "domains" as const, title: "域名 / Web", icon: Globe, groupTitle: "域名 / Web 入口" },
+  { key: "network" as const, title: "IP / 端口 / 服务", icon: Network, groupTitle: "IP / 端口 / 服务" },
+  { key: "findings" as const, title: "漏洞与发现", icon: ShieldAlert, groupTitle: null },
+]
 
 export function ProjectResultsHub({
   project,
@@ -34,42 +16,41 @@ export function ProjectResultsHub({
   project: ProjectRecord
   detail: ProjectDetailRecord
 }) {
-  const domainsGroup = detail.assetGroups.find((group) => group.title === "域名 / Web 入口")
-  const networkGroup = detail.assetGroups.find((group) => group.title === "IP / 端口 / 服务")
+  const domainsGroup = detail.assetGroups.find((g) => g.title === "域名 / Web 入口")
+  const networkGroup = detail.assetGroups.find((g) => g.title === "IP / 端口 / 服务")
 
-  const counts = {
-    domains: domainsGroup?.count ?? "0 条",
-    network: networkGroup?.count ?? "0 条",
-    findings: `${detail.findings.length} 条`,
+  const counts: Record<string, number> = {
+    domains: domainsGroup ? parseInt(domainsGroup.count) || 0 : 0,
+    network: networkGroup ? parseInt(networkGroup.count) || 0 : 0,
+    findings: detail.findings.length,
   }
 
   return (
-    <SectionCard
-      title="结果模块"
-      description="项目总览页只保留结果模块入口。真正的资产和漏洞内容进入独立整页表格，避免结果一多就把页面打乱。"
-    >
-      <div className="grid gap-4 xl:grid-cols-3">
-        {resultCards.map((card) => (
-          <div
-            key={card.key}
-            className="rounded-[28px] border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70"
+    <div className="grid gap-3 md:grid-cols-3">
+      {resultSections.map((section) => {
+        const count = counts[section.key]
+        const Icon = section.icon
+        return (
+          <Link
+            key={section.key}
+            href={`/projects/${project.id}/results/${section.key}`}
+            className="group flex items-center justify-between rounded-xl border border-slate-200/80 bg-white p-4 transition-colors hover:border-slate-300 hover:bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700 dark:hover:bg-slate-900/60"
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-semibold text-slate-950 dark:text-white">{card.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{card.description}</p>
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
+                <Icon className="h-4 w-4 text-slate-600 dark:text-slate-300" />
               </div>
-              <StatusBadge tone={card.key === "findings" ? "warning" : "info"}>{counts[card.key]}</StatusBadge>
+              <div>
+                <p className="text-sm font-medium text-slate-950 dark:text-white">{section.title}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {count > 0 ? `${count} 条记录` : "暂无数据"}
+                </p>
+              </div>
             </div>
-            <Button asChild variant="outline" className="mt-5 w-full rounded-full">
-              <Link href={`/projects/${project.id}/results/${card.key}`}>
-                {card.linkLabel}
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-        ))}
-      </div>
-    </SectionCard>
+            <ArrowRight className="h-4 w-4 text-slate-400 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        )
+      })}
+    </div>
   )
 }

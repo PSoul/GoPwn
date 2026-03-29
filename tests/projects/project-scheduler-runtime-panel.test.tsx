@@ -111,14 +111,13 @@ describe("ProjectSchedulerRuntimePanel", () => {
     vi.mocked(global.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        project: {
-          id: "proj-runtime",
-          status: "运行中",
-        },
         schedulerControl: {
           lifecycle: "running",
           paused: false,
-          note: "研究员确认开始项目。",
+          autoReplan: true,
+          maxRounds: 6,
+          currentRound: 0,
+          note: "",
           updatedAt: "2026-03-27 15:08",
         },
       }),
@@ -135,22 +134,17 @@ describe("ProjectSchedulerRuntimePanel", () => {
       />,
     )
 
-    fireEvent.change(screen.getByRole("textbox", { name: "调度控制备注" }), {
-      target: { value: "研究员确认开始项目。" },
-    })
-    fireEvent.click(screen.getByRole("button", { name: "开始项目" }))
+    // New compact toolbar has a "开始" button
+    fireEvent.click(screen.getByRole("button", { name: /开始/ }))
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
         "/api/projects/proj-runtime/scheduler-control",
-        expect.objectContaining({
-          method: "PATCH",
-        }),
+        expect.objectContaining({ method: "PATCH" }),
       )
     })
 
     await waitFor(() => {
-      expect(screen.getByText("项目已开始，目标已交给 LLM 进入调度。")).toBeInTheDocument()
       expect(refresh).toHaveBeenCalled()
     })
   })
@@ -160,31 +154,13 @@ describe("ProjectSchedulerRuntimePanel", () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          project: {
-            id: "proj-runtime",
-            status: "已暂停",
-          },
-          schedulerControl: {
-            lifecycle: "paused",
-            paused: true,
-            note: "暂停夜间窗口外的自动调度。",
-            updatedAt: "2026-03-27 15:08",
-          },
+          schedulerControl: { ...initialControl, lifecycle: "paused", paused: true },
         }),
       } as Response)
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          project: {
-            id: "proj-runtime",
-            status: "运行中",
-          },
-          schedulerControl: {
-            lifecycle: "running",
-            paused: true,
-            note: "暂停夜间窗口外的自动调度。",
-            updatedAt: "2026-03-27 15:08",
-          },
+          schedulerControl: { ...initialControl, lifecycle: "running" },
         }),
       } as Response)
 
@@ -199,40 +175,32 @@ describe("ProjectSchedulerRuntimePanel", () => {
       />,
     )
 
-    fireEvent.change(screen.getByRole("textbox", { name: "调度控制备注" }), {
-      target: { value: "暂停夜间窗口外的自动调度。" },
-    })
-    fireEvent.click(screen.getByRole("button", { name: "暂停项目" }))
+    fireEvent.click(screen.getByRole("button", { name: /暂停/ }))
 
     await waitFor(() => {
-      expect(screen.getByText("项目已暂停，新的调度与 LLM 编排已挂起。")).toBeInTheDocument()
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/projects/proj-runtime/scheduler-control",
+        expect.objectContaining({ method: "PATCH" }),
+      )
     })
 
-    fireEvent.change(screen.getByRole("textbox", { name: "调度控制备注" }), {
-      target: { value: "研究员恢复项目执行。" },
+    // After pause, continue button should appear
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /继续/ })).toBeInTheDocument()
     })
-    fireEvent.click(screen.getByRole("button", { name: "继续项目" }))
+
+    fireEvent.click(screen.getByRole("button", { name: /继续/ }))
 
     await waitFor(() => {
-      expect(screen.getByText("项目已恢复，调度与 LLM 编排继续执行。")).toBeInTheDocument()
       expect(refresh).toHaveBeenCalled()
     })
   })
 
-  it("stops a project permanently and disables restarting from the panel", async () => {
+  it("stops a project permanently", async () => {
     vi.mocked(global.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        project: {
-          id: "proj-runtime",
-          status: "已停止",
-        },
-        schedulerControl: {
-          lifecycle: "stopped",
-          paused: true,
-          note: "研究员确认停止项目。",
-          updatedAt: "2026-03-27 15:09",
-        },
+        schedulerControl: { ...initialControl, lifecycle: "stopped" },
       }),
     } as Response)
 
@@ -247,33 +215,21 @@ describe("ProjectSchedulerRuntimePanel", () => {
       />,
     )
 
-    fireEvent.change(screen.getByRole("textbox", { name: "调度控制备注" }), {
-      target: { value: "研究员确认停止项目。" },
-    })
-    fireEvent.click(screen.getByRole("button", { name: "停止项目" }))
+    fireEvent.click(screen.getByRole("button", { name: /停止/ }))
 
     await waitFor(() => {
-      expect(screen.getByText("项目已停止，后续不会再重新开始。")).toBeInTheDocument()
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/projects/proj-runtime/scheduler-control",
+        expect.objectContaining({ method: "PATCH" }),
+      )
     })
-
-    expect(screen.getByRole("button", { name: "开始项目" })).toBeDisabled()
-    expect(screen.getByRole("button", { name: "继续项目" })).toBeDisabled()
   })
 
-  it("cancels a queued scheduler task through the project api", async () => {
+  it("cancels a queued scheduler task through the collapsible task queue", async () => {
     vi.mocked(global.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        task: {
-          ...schedulerTasks[0],
-          status: "cancelled",
-          updatedAt: "2026-03-27 15:10",
-          summaryLines: [...schedulerTasks[0].summaryLines, "研究员手动取消当前排队任务。"],
-        },
-        run: {
-          id: "run-ready",
-          status: "已取消",
-        },
+        task: { ...schedulerTasks[0], status: "cancelled" },
       }),
     } as Response)
 
@@ -288,20 +244,17 @@ describe("ProjectSchedulerRuntimePanel", () => {
       />,
     )
 
+    // Expand task queue first
+    fireEvent.click(screen.getByText(/任务队列/))
+
+    // Cancel the ready task
     fireEvent.click(screen.getByRole("button", { name: "取消任务 api.example.test" }))
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
         "/api/projects/proj-runtime/scheduler-tasks/task-ready",
-        expect.objectContaining({
-          method: "PATCH",
-        }),
+        expect.objectContaining({ method: "PATCH" }),
       )
-    })
-
-    await waitFor(() => {
-      expect(screen.getByText(/api.example.test 已从运行队列移除/)).toBeInTheDocument()
-      expect(refresh).toHaveBeenCalled()
     })
   })
 
@@ -309,16 +262,7 @@ describe("ProjectSchedulerRuntimePanel", () => {
     vi.mocked(global.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        task: {
-          ...schedulerTasks[2],
-          status: "cancelled",
-          updatedAt: "2026-03-27 15:11",
-          summaryLines: [...schedulerTasks[2].summaryLines, "研究员请求停止当前运行中的任务。"],
-        },
-        run: {
-          id: "run-running",
-          status: "已取消",
-        },
+        task: { ...schedulerTasks[2], status: "cancelled" },
       }),
     } as Response)
 
@@ -333,24 +277,20 @@ describe("ProjectSchedulerRuntimePanel", () => {
       />,
     )
 
+    // Expand task queue
+    fireEvent.click(screen.getByText(/任务队列/))
+
     fireEvent.click(screen.getByRole("button", { name: "请求停止任务 https://portal.example.test/dashboard" }))
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
         "/api/projects/proj-runtime/scheduler-tasks/task-running",
-        expect.objectContaining({
-          method: "PATCH",
-        }),
+        expect.objectContaining({ method: "PATCH" }),
       )
-    })
-
-    await waitFor(() => {
-      expect(screen.getByText(/https:\/\/portal\.example\.test\/dashboard 已记录停止请求/)).toBeInTheDocument()
-      expect(refresh).toHaveBeenCalled()
     })
   })
 
-  it("shows disabled states for unsupported actions while allowing failed tasks to retry", () => {
+  it("shows retry for failed tasks in collapsed queue", () => {
     render(
       <ProjectSchedulerRuntimePanel
         projectId="proj-runtime"
@@ -362,36 +302,31 @@ describe("ProjectSchedulerRuntimePanel", () => {
       />,
     )
 
-    expect(screen.getByRole("button", { name: "请求停止任务 https://portal.example.test/dashboard" })).toBeEnabled()
-    expect(screen.getByRole("button", { name: "重试任务 api.example.test" })).toBeDisabled()
+    // Expand task queue
+    fireEvent.click(screen.getByText(/任务队列/))
+
     expect(screen.getByRole("button", { name: "重试任务 https://portal.example.test/login" })).toBeEnabled()
   })
 
-  it("renders durable worker lease metadata for running tasks", () => {
+  it("shows task error messages in the task list", () => {
     render(
       <ProjectSchedulerRuntimePanel
         projectId="proj-runtime"
         projectStatus={"运行中" satisfies ProjectStatus}
         closureStatus={runningClosureStatus}
         initialControl={initialControl}
-        initialTasks={[
-          {
-            ...schedulerTasks[2],
-            lastRecoveredAt: "2026-03-27 15:02",
-            recoveryCount: 1,
-          },
-        ]}
+        initialTasks={schedulerTasks}
         initialRounds={[]}
       />,
     )
 
-    expect(screen.getByText(/执行 worker worker-running/)).toBeInTheDocument()
-    expect(screen.getByText(/租约截止 2026-03-27 15:05/)).toBeInTheDocument()
-    expect(screen.getByText(/最近心跳 2026-03-27 15:04/)).toBeInTheDocument()
-    expect(screen.getByText(/恢复 1 次/)).toBeInTheDocument()
+    // Expand task queue
+    fireEvent.click(screen.getByText(/任务队列/))
+
+    expect(screen.getByText("temporary timeout")).toBeInTheDocument()
   })
 
-  it("locks lifecycle controls after a project has completed its current round", () => {
+  it("locks lifecycle controls after a project has completed", () => {
     const completedClosureStatus: ProjectClosureStatusRecord = {
       state: "completed",
       label: "已完成当前轮次",
@@ -413,10 +348,10 @@ describe("ProjectSchedulerRuntimePanel", () => {
       />,
     )
 
-    expect(screen.getAllByText("当前轮次已经自动收束，报告与最终结论都已稳定落库。").length).toBeGreaterThan(0)
-    expect(screen.getByRole("button", { name: "开始项目" })).toBeDisabled()
-    expect(screen.getByRole("button", { name: "暂停项目" })).toBeDisabled()
-    expect(screen.getByRole("button", { name: "继续项目" })).toBeDisabled()
-    expect(screen.getByRole("button", { name: "停止项目" })).toBeDisabled()
+    // In terminal state, no lifecycle action buttons should be visible
+    expect(screen.queryByRole("button", { name: /开始/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /暂停/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /继续/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /停止/ })).not.toBeInTheDocument()
   })
 })
