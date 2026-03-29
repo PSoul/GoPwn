@@ -21,6 +21,19 @@ function buildToolArguments(toolName: string, target: string): Record<string, un
 
   // Port scanning tools -- fscan expects IP or CIDR, not a URL
   if (toolName === "fscan_host_discovery" || toolName === "fscan_port_scan") {
+    // Handle tcp://host:port format
+    const tcpFscanMatch = target.match(/^tcp:\/\/([^:]+):(\d+)$/i)
+
+    if (tcpFscanMatch) {
+      args.target = tcpFscanMatch[1]
+
+      if (toolName === "fscan_port_scan") {
+        args.ports = tcpFscanMatch[2]
+      }
+
+      return args
+    }
+
     try {
       const url = new URL(target)
       args.target = url.hostname
@@ -29,7 +42,16 @@ function buildToolArguments(toolName: string, target: string): Record<string, un
         args.ports = url.port
       }
     } catch {
-      args.target = target.replace(/^https?:\/\//i, "").replace(/\/.*$/, "").replace(/:\d+$/, "")
+      // Handle bare host:port
+      const colonIdx = target.lastIndexOf(":")
+      if (colonIdx > 0 && /^\d+$/.test(target.slice(colonIdx + 1))) {
+        args.target = target.slice(0, colonIdx)
+        if (toolName === "fscan_port_scan") {
+          args.ports = target.slice(colonIdx + 1)
+        }
+      } else {
+        args.target = target.replace(/^https?:\/\//i, "").replace(/\/.*$/, "").replace(/:\d+$/, "")
+      }
     }
     return args
   }
@@ -107,8 +129,26 @@ function buildToolArguments(toolName: string, target: string): Record<string, un
     return args
   }
 
-  // TCP/UDP tools
+  // TCP/UDP tools — handle tcp://host:port, host:port, and URL formats
   if (toolName === "tcp_connect" || toolName === "tcp_banner_grab") {
+    const tcpMatch = target.match(/^tcp:\/\/([^:]+):(\d+)$/i)
+
+    if (tcpMatch) {
+      args.host = tcpMatch[1]
+      args.port = Number(tcpMatch[2])
+      return args
+    }
+
+    // Try URL format (http://host:port)
+    try {
+      const url = new URL(target)
+      args.host = url.hostname
+      args.port = Number(url.port) || (url.protocol === "https:" ? 443 : 80)
+      return args
+    } catch {
+      // Fall through to bare host:port
+    }
+
     const parts = target.split(":")
     args.host = parts[0]
     args.port = Number(parts[1]) || 80

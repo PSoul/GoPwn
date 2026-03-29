@@ -97,6 +97,8 @@ export function buildProjectBrainPrompt(input: ProjectBrainPromptInput) {
     "- 对同一个 target，先安排整理/发现，再安排验证；不要直接跳到高风险动作。",
     "- 范围约束：只能围绕项目输入目标本身、域名目标的子域、以及原始 IP/CIDR 展开；不要因为结果里出现了新域名或新网段就自动越界。",
     "- 如果目标是 URL 且 host 为 IP 或 localhost，不要安排 DNS / 子域类动作。",
+    "- 如果目标是 TCP 服务（如 tcp://host:port 或 Redis/SSH/MySQL/MongoDB 端口），优先安排 tcp_banner_grab 而非 Web 探测；确认服务类型后再决定是否需要弱口令检测。",
+    "- 对非 HTTP 服务（Redis 6379、SSH 22/2222、MySQL 3306/13307、MongoDB 27017），不要安排 HTTP 入口识别或页面截图。",
   ].join("\n")
 }
 

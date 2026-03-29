@@ -3,8 +3,35 @@
 ## Project Snapshot
 
 - Date: `2026-03-29`
-- Current focus: Phase 15 生产就绪基础已完成。多用户认证、ErrorBoundary、部署配置、测试修复。
+- Current focus: Phase 16 Docker 靶场全面测试已完成。12 个靶场 + TCP 探测 + 集成测试。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
+
+## Phase 16: Docker 靶场全面测试 + MCP 工具实战验证
+
+- Status: Completed on `2026-03-29`
+- Branch: `feat/phase16-docker-lab-testing`
+- Goal: 扩展 Docker 靶场（HTTP + TCP 双协议），让纯 JS MCP Server 直接对靶场进行真实测试，验证编排 → 执行 → 发现 → 报告闭环。
+
+### 交付清单
+
+1. **Docker 靶场扩展** — 新增 Redis/SSH/Tomcat/Elasticsearch/MongoDB 5 个服务到 compose.yaml，总计 12 个靶场
+2. **TCP 探测支持** — `local-lab-catalog.ts` 新增 `probeTcpPort()` 函数和 `protocol` 字段，支持 TCP 服务探测
+3. **编排器 TCP 分支** — `orchestrator-service.ts` 新增 `buildTcpLabFallbackPlanItems()`，TCP 目标自动安排 banner 抓取和端口扫描
+4. **LLM 提示 TCP 指导** — `llm-brain-prompt.ts` 补充 TCP 服务类目标规划指导
+5. **stdio 连接器增强** — `stdio-mcp-connector.ts` 支持 `tcp://host:port` 格式解析
+6. **Docker 集成测试** — `tests/integration/docker-lab-mcp.test.ts`（需 ENABLE_DOCKER_LAB_TESTS=1）
+7. **端到端验证脚本** — `scripts/e2e-docker-validation.ts`（自动创建项目 → 编排 → 验证 → 报告）
+8. **Tomcat 自定义镜像** — `docker/local-labs/tomcat/` (Dockerfile + tomcat-users.xml 弱口令)
+
+### 验收标准
+
+- [x] `next build` 无 TypeScript 错误
+- [x] 单元测试无新增回归
+- [x] Docker compose 可正常启动 12 个靶场服务
+- [x] 本地靶场目录包含 11 个条目（HTTP + TCP）
+- [x] TCP 目标编排正确生成 banner 抓取和端口扫描计划
+- [x] 集成测试 13/13 通过（curl/netcat/encode MCP Server 真实调用验证）
+- [x] 端到端验证脚本：11 靶场全部在线探测成功，6 靶场完整编排闭环（37 runs, 6 assets, 10 evidence, 4 findings）
 
 ## Phase 15: 生产就绪基础 (Production Ready Foundation)
 

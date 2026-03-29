@@ -86,3 +86,54 @@ services:
       PMA_USER: root
       PMA_PASSWORD: root123
     restart: unless-stopped
+
+  # Redis 无认证 (未授权访问)
+  redis-noauth:
+    image: redis:7-alpine
+    container_name: llm-pentest-redis-noauth
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--protected-mode", "no"]
+    restart: unless-stopped
+
+  # SSH 弱口令 (root/root)
+  ssh-weak:
+    image: panubo/sshd:latest
+    container_name: llm-pentest-ssh-weak
+    ports:
+      - "2222:22"
+    environment:
+      SSH_USERS: "root:0:0"
+      ROOT_PASSWORD: "root"
+    restart: unless-stopped
+
+  # Tomcat 弱管理员 (tomcat/tomcat)
+  tomcat-weak:
+    build:
+      context: ./tomcat
+      dockerfile: Dockerfile
+    container_name: llm-pentest-tomcat-weak
+    ports:
+      - "8888:8080"
+    restart: unless-stopped
+
+  # Elasticsearch 无认证 (集群信息泄露)
+  elasticsearch-noauth:
+    image: elasticsearch:7.17.18
+    container_name: llm-pentest-elasticsearch-noauth
+    ports:
+      - "9200:9200"
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms256m -Xmx256m"
+    restart: unless-stopped
+
+  # MongoDB 无认证 (未授权访问)
+  mongodb-noauth:
+    image: mongo:6
+    container_name: llm-pentest-mongodb-noauth
+    ports:
+      - "27017:27017"
+    command: ["mongod", "--bind_ip_all"]
+    restart: unless-stopped

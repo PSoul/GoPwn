@@ -189,9 +189,15 @@
 - `tests/lib/rate-limit.test.ts` — 速率限制测试
 - `tests/lib/prototype-store.test.ts` — 数据存储测试
 
+### 集成测试
+- `tests/integration/docker-lab-mcp.test.ts` — Docker 靶场 MCP 集成测试（需 ENABLE_DOCKER_LAB_TESTS=1 + Docker 靶场运行）
+
 ### E2E 测试
 - `e2e/prototype-smoke.spec.ts` — 基础功能烟雾测试
 - `e2e/vuln-cockpit.spec.ts` — 漏洞驾驶舱 E2E 测试
+
+### 验证脚本
+- `scripts/e2e-docker-validation.ts` — Docker 靶场端到端编排验证（创建项目 → 编排 → 执行 → 报告）
 
 ## 6. Prisma 数据库
 
@@ -216,3 +222,23 @@
 - `mcps/fofa-mcp-server/` — FOFA 资产搜索
 - `mcps/fscan-mcp-server/` — 内网扫描
 - 等等...
+
+## 8. Docker 靶场 (docker/local-labs/)
+
+`docker/local-labs/compose.yaml` — 12 个靶场服务：
+
+| 靶场 | 端口 | 协议 | 漏洞类型 |
+|------|------|------|----------|
+| Juice Shop | 3000 | HTTP | Web/API 漏洞 |
+| WebGoat | 18080 | HTTP | 教学型漏洞 |
+| DVWA | 8081 | HTTP | SQL注入/XSS/命令注入 |
+| WordPress | 8082 | HTTP | CMS 默认配置 |
+| phpMyAdmin | 8083 | HTTP | 管理面板暴露 |
+| Tomcat (弱口令) | 8888 | HTTP | tomcat/tomcat 默认密码 |
+| Elasticsearch (无认证) | 9200 | HTTP | 集群信息泄露 |
+| MySQL (弱口令) | 13307 | TCP | root/123456 |
+| Redis (无认证) | 6379 | TCP | 未授权访问 |
+| SSH (弱口令) | 2222 | TCP | root/root |
+| MongoDB (无认证) | 27017 | TCP | 未授权访问 |
+
+`lib/local-lab-catalog.ts` — 靶场目录与探测（HTTP + TCP 双协议支持）

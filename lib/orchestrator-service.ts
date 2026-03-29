@@ -370,6 +370,8 @@ function buildProjectFallbackPlanItems(
         : null,
     )
 
+    const tcpParsed = parseTcpTarget(target)
+
     appendUniquePlanItem(
       items,
       networkCapability && (targetType === "ip" || targetType === "cidr")
@@ -382,9 +384,106 @@ function buildProjectFallbackPlanItems(
           }
         : null,
     )
+
+    // TCP targets (tcp://host:port or host:port) get banner grab
+    const tcpNetCapability = findNetworkCapability(availableTools)
+
+    appendUniquePlanItem(
+      items,
+      tcpNetCapability && tcpParsed
+        ? {
+            capability: tcpNetCapability,
+            requestedAction: "TCP Banner 抓取，识别服务类型与版本",
+            target: `${tcpParsed.host}:${tcpParsed.port}`,
+            riskLevel: "低",
+            rationale: "TCP 服务类目标优先做 banner 抓取，快速确认服务类型和版本信息。",
+          }
+        : null,
+    )
   }
 
   return items.slice(0, 6)
+}
+
+function isTcpTarget(target: string) {
+  return /^tcp:\/\//i.test(target)
+}
+
+function parseTcpTarget(target: string): { host: string; port: number } | null {
+  const match = target.match(/^tcp:\/\/([^:]+):(\d+)$/i)
+
+  if (match) {
+    return { host: match[1], port: Number(match[2]) }
+  }
+
+  // Also handle bare host:port
+  const bareMatch = target.match(/^([^/:]+):(\d+)$/)
+
+  if (bareMatch && !/^https?$/i.test(bareMatch[1])) {
+    return { host: bareMatch[1], port: Number(bareMatch[2]) }
+  }
+
+  return null
+}
+
+function findNetworkCapability(availableTools: McpToolRecord[]) {
+  return findCapabilityByKeywords(availableTools, ["tcp", "banner", "netcat", "端口", "网络"])
+}
+
+function buildTcpLabFallbackPlanItems(
+  baseUrl: string,
+  availableTools: McpToolRecord[],
+  approvalScenario: "none" | "include-high-risk",
+) {
+  const parsed = parseTcpTarget(baseUrl)
+
+  if (!parsed) {
+    return []
+  }
+
+  const tcpTarget = `${parsed.host}:${parsed.port}`
+  const networkCapability = findNetworkCapability(availableTools)
+  const scanCapability = findCapabilityByKeywords(availableTools, ["端口", "扫描", "fscan", "port"])
+  const bruteCapability = findCapabilityByKeywords(availableTools, ["爆破", "brute", "弱口令"])
+  const items: OrchestratorPlanItem[] = []
+
+  appendUniquePlanItem(
+    items,
+    networkCapability
+      ? {
+          capability: networkCapability,
+          requestedAction: "TCP Banner 抓取，识别服务类型与版本",
+          target: tcpTarget,
+          riskLevel: "低",
+          rationale: "TCP 服务类目标优先做 banner 抓取，快速确认服务类型和版本信息。",
+        }
+      : null,
+  )
+
+  appendUniquePlanItem(
+    items,
+    scanCapability
+      ? {
+          capability: scanCapability,
+          requestedAction: "端口扫描确认服务状态",
+          target: parsed.host,
+          riskLevel: "中",
+          rationale: "在 banner 抓取基础上扫描端口，确认服务开放状态和可能的附加服务。",
+        }
+      : null,
+  )
+
+  if (approvalScenario === "include-high-risk" && bruteCapability) {
+    appendUniquePlanItem(items, {
+      capability: bruteCapability,
+      requestedAction: "弱口令爆破验证",
+      target: tcpTarget,
+      riskLevel: "高",
+      rationale: "对已确认的 TCP 服务执行审批后受控弱口令检测，验证发现闭环。",
+    })
+  }
+
+  return items
 }
 
 function buildLocalLabFallbackPlanItems(
@@ -392,6 +491,11 @@ function buildLocalLabFallbackPlanItems(
   availableTools: McpToolRecord[],
   approvalScenario: "none" | "include-high-risk" = "include-high-risk",
 ) {
+  // TCP targets get a different plan shape
+  if (isTcpTarget(baseUrl)) {
+    return buildTcpLabFallbackPlanItems(baseUrl, availableTools, approvalScenario)
+  }
+
   const normalizedTarget = normalizeUrlTarget(baseUrl)
   const webProbeTarget = isWebGoatBaseUrl(normalizedTarget) ? `${normalizedTarget}/login` : normalizedTarget
   const actuatorTarget = `${normalizedTarget}/actuator`
