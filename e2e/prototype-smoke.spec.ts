@@ -4,7 +4,15 @@ async function loginAsResearcher(page: import("@playwright/test").Page) {
   await page.goto("/login")
   await page.getByLabel("账号").fill("researcher@company.local")
   await page.getByLabel("密码").fill("Prototype@2026")
-  await page.getByLabel("验证码").fill("7K2Q")
+
+  // Wait for the dynamically generated captcha to load (must be 4 alphanumeric chars)
+  const captchaButton = page.locator("button[title='点击刷新验证码']")
+  await expect(captchaButton).toBeVisible({ timeout: 10_000 })
+  await expect(captchaButton).toHaveText(/[A-Z0-9]{4}/, { timeout: 15_000 })
+  const captchaText = await captchaButton.textContent()
+  const captchaCode = (captchaText ?? "").replace(/[^A-Z0-9]/g, "").slice(0, 4)
+  await page.getByLabel("验证码").fill(captchaCode)
+
   const loginResponsePromise = page.waitForResponse(
     (response) =>
       response.url().includes("/api/auth/login") &&

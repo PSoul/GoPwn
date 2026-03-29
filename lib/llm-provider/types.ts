@@ -3,6 +3,7 @@ import type { LlmProviderStatus, OrchestratorPlanRecord } from "@/lib/prototype-
 export interface LlmPlanGenerationInput {
   prompt: string
   purpose: "orchestrator" | "reviewer"
+  projectId?: string
 }
 
 export interface LlmPlanGenerationResult {

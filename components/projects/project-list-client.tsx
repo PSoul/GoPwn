@@ -1,11 +1,11 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useCallback } from "react"
 import Link from "next/link"
-import { ArchiveX, ExternalLink, Pencil, Search } from "lucide-react"
+import { Search } from "lucide-react"
 
 import { SectionCard } from "@/components/shared/section-card"
-import { StatusBadge } from "@/components/shared/status-badge"
+import { ProjectCard } from "@/components/projects/project-card"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,25 +25,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { getProjectPrimaryTarget } from "@/lib/project-targets"
+import { Pagination } from "@/components/shared/pagination"
 import type { ProjectRecord } from "@/lib/prototype-types"
+import { apiFetch } from "@/lib/api-client"
 
-const statusToneMap = {
-  运行中: "info",
-  待处理: "warning",
-  已暂停: "warning",
-  已停止: "neutral",
-  已阻塞: "danger",
-  已完成: "success",
-} as const
+const PAGE_SIZE = 12
 
 type ProjectListClientProps = {
   projects: ProjectRecord[]
@@ -54,10 +40,13 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
   const [keyword, setKeyword] = useState("")
   const [stageFilter, setStageFilter] = useState("全部阶段")
   const [statusFilter, setStatusFilter] = useState("全部状态")
+  const [page, setPage] = useState(1)
   const [pendingArchive, setPendingArchive] = useState<ProjectRecord | null>(null)
   const [lastArchivedProject, setLastArchivedProject] = useState<string | null>(null)
   const [archiveError, setArchiveError] = useState<string | null>(null)
   const [isArchiving, setIsArchiving] = useState(false)
+
+  const resetPage = useCallback(() => setPage(1), [])
 
   const stageOptions = useMemo(
     () => ["全部阶段", ...Array.from(new Set(projectItems.map((project) => project.stage)))],
@@ -67,7 +56,7 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
   const filteredProjects = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase()
 
-    return projectItems.filter((project) => {
+    const filtered = projectItems.filter((project) => {
       const matchesKeyword =
         normalizedKeyword.length === 0 ||
         [project.name, project.targetInput, project.code, project.description, project.riskSummary]
@@ -79,6 +68,15 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
       const matchesStatus = statusFilter === "全部状态" || project.status === statusFilter
 
       return matchesKeyword && matchesStage && matchesStatus
+    })
+
+    // Sort: running/blocked first, then by update time
+    return filtered.sort((a, b) => {
+      const priorityOrder: Record<string, number> = { 运行中: 0, 已阻塞: 1, 待处理: 2, 已暂停: 3, 已完成: 4, 已停止: 5 }
+      const pa = priorityOrder[a.status] ?? 9
+      const pb = priorityOrder[b.status] ?? 9
+      if (pa !== pb) return pa - pb
+      return b.lastUpdated.localeCompare(a.lastUpdated)
     })
   }, [keyword, projectItems, stageFilter, statusFilter])
 
@@ -110,7 +108,7 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
     setIsArchiving(true)
 
     try {
-      const response = await fetch(`/api/projects/${pendingArchive.id}/archive`, {
+      const response = await apiFetch(`/api/projects/${pendingArchive.id}/archive`, {
         method: "POST",
       })
       const payload = (await response.json()) as { error?: string; project?: ProjectRecord }
@@ -133,20 +131,20 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
   }
 
   return (
-    <SectionCard title="项目列表" description="项目列表现在支持真实搜索、筛选、详情跳转、编辑和关闭动作，作为项目模块的管理入口。">
+    <SectionCard title="项目列表" description="支持搜索、筛选、详情跳转、编辑和归档操作。">
       <div className="space-y-4">
         <div className="grid gap-3 xl:grid-cols-[1.3fr_0.8fr_0.8fr]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               value={keyword}
-              onChange={(event) => setKeyword(event.target.value)}
+              onChange={(event) => { setKeyword(event.target.value); resetPage() }}
               placeholder="搜索项目名称、目标、项目编号或项目说明..."
               className="h-11 rounded-2xl border-slate-200 bg-slate-50 pl-10 dark:border-slate-800 dark:bg-slate-900"
             />
           </div>
 
-          <Select value={stageFilter} onValueChange={setStageFilter}>
+          <Select value={stageFilter} onValueChange={(v) => { setStageFilter(v); resetPage() }}>
             <SelectTrigger className="h-11 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
               <SelectValue placeholder="筛选阶段" />
             </SelectTrigger>
@@ -159,7 +157,7 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
             </SelectContent>
           </Select>
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); resetPage() }}>
             <SelectTrigger className="h-11 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
               <SelectValue placeholder="筛选状态" />
             </SelectTrigger>
@@ -200,90 +198,27 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
           </div>
         ) : null}
 
-        <div className="overflow-hidden rounded-[24px] border border-slate-200/80 dark:border-slate-800">
-          <Table>
-            <TableHeader className="bg-slate-50/80 dark:bg-slate-900/70">
-              <TableRow>
-                <TableHead>项目 / 编号</TableHead>
-                <TableHead>目标与说明</TableHead>
-                <TableHead>当前主阶段</TableHead>
-                <TableHead>状态</TableHead>
-                <TableHead>审批 / 任务</TableHead>
-                <TableHead>更新时间</TableHead>
-                <TableHead className="text-right">管理动作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredProjects.map((project) => (
-                <TableRow key={project.id} className="bg-white/90 align-top dark:bg-slate-950/70">
-                  <TableCell className="min-w-[240px]">
-                    <div className="space-y-1">
-                      <Link href={`/projects/${project.id}`} className="font-medium text-slate-950 hover:text-slate-700 dark:text-white dark:hover:text-slate-200">
-                        {project.name}
-                      </Link>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{project.code}</p>
-                      <p className="text-sm text-slate-600 dark:text-slate-300">{project.summary}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell className="min-w-[220px]">
-                    <div className="space-y-1.5">
-                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{getProjectPrimaryTarget(project)}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {project.targets.length} 个目标 · 单用户模式
-                      </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{project.description}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1.5">
-                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{project.stage}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{project.riskSummary}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-2">
-                      <StatusBadge tone={statusToneMap[project.status]}>{project.status}</StatusBadge>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">当前主阶段：{project.stage}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
-                      <p>{project.pendingApprovals} 个待审批</p>
-                      <p>{project.openTasks} 个开放任务</p>
-                      <p>{project.assetCount} 个资产 / {project.evidenceCount} 条证据</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
-                      <p>{project.lastUpdated}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{project.lastActor}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex flex-wrap justify-end gap-2">
-                      <Button asChild size="sm" variant="outline" className="rounded-xl">
-                        <Link href={`/projects/${project.id}`}>
-                          <ExternalLink className="mr-1 h-3.5 w-3.5" />
-                          详情
-                        </Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline" className="rounded-xl">
-                        <Link href={`/projects/${project.id}/edit`}>
-                          <Pencil className="mr-1 h-3.5 w-3.5" />
-                          编辑
-                        </Link>
-                      </Button>
-                      <Button size="sm" variant="ghost" className="rounded-xl text-rose-600 hover:bg-rose-50 hover:text-rose-700" onClick={() => setPendingArchive(project)}>
-                        <ArchiveX className="mr-1 h-3.5 w-3.5" />
-                        归档
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        {/* Card Grid */}
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {filteredProjects.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((project) => (
+            <ProjectCard
+              key={project.id}
+              project={project}
+              onArchive={(p) => setPendingArchive(p)}
+            />
+          ))}
         </div>
+
+        {filteredProjects.length === 0 && (
+          <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50/80 px-6 py-16 text-center dark:border-slate-700 dark:bg-slate-900/50">
+            <p className="text-sm text-slate-500 dark:text-slate-400">没有匹配的项目</p>
+            <Button asChild className="mt-4 rounded-full" variant="outline">
+              <Link href="/projects/new">新建项目</Link>
+            </Button>
+          </div>
+        )}
+
+        <Pagination page={page} pageSize={PAGE_SIZE} total={filteredProjects.length} onPageChange={setPage} />
       </div>
 
       <AlertDialog open={Boolean(pendingArchive)} onOpenChange={(open) => !open && setPendingArchive(null)}>

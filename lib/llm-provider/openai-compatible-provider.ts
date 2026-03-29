@@ -2,8 +2,14 @@ import {
   ORCHESTRATOR_BRAIN_SYSTEM_PROMPT,
   REVIEWER_BRAIN_SYSTEM_PROMPT,
 } from "@/lib/llm-brain-prompt"
+import {
+  createLlmCallLog,
+  appendLlmCallResponse,
+  completeLlmCallLog,
+  failLlmCallLog,
+} from "@/lib/llm-call-logger"
 import type { LlmProvider } from "@/lib/llm-provider/types"
-import type { LlmProviderStatus, OrchestratorPlanItem } from "@/lib/prototype-types"
+import type { LlmCallPhase, LlmCallRole, LlmProviderStatus, OrchestratorPlanItem } from "@/lib/prototype-types"
 
 export type OpenAiCompatibleProfileConfig = {
   apiKey: string
@@ -79,6 +85,14 @@ export function buildOpenAiCompatibleStatus(config?: Partial<OpenAiCompatibleCon
   }
 }
 
+function mapPurposeToRole(purpose: "orchestrator" | "reviewer"): LlmCallRole {
+  return purpose
+}
+
+function mapPurposeToPhase(purpose: "orchestrator" | "reviewer"): LlmCallPhase {
+  return purpose === "reviewer" ? "reviewing" : "planning"
+}
+
 export function createOpenAiCompatibleProvider(config: OpenAiCompatibleConfig): LlmProvider {
   return {
     getStatus: () => buildOpenAiCompatibleStatus(config),
@@ -86,8 +100,23 @@ export function createOpenAiCompatibleProvider(config: OpenAiCompatibleConfig): 
       const profile = input.purpose === "reviewer" ? config.reviewer ?? config.orchestrator : config.orchestrator
       const controller = new AbortController()
       const timeoutHandle = setTimeout(() => controller.abort(), profile.timeoutMs)
+      const startTime = Date.now()
+
+      // Create LLM call log for tracking
+      const callLog = input.projectId
+        ? createLlmCallLog({
+            projectId: input.projectId,
+            role: mapPurposeToRole(input.purpose),
+            phase: mapPurposeToPhase(input.purpose),
+            prompt: input.prompt,
+            model: profile.model,
+            provider: "openai-compatible",
+          })
+        : null
 
       try {
+        const useStreaming = Boolean(input.projectId)
+
         const response = await fetch(`${normalizeBaseUrl(profile.baseUrl)}/chat/completions`, {
           method: "POST",
           headers: {
@@ -110,6 +139,7 @@ export function createOpenAiCompatibleProvider(config: OpenAiCompatibleConfig): 
               type: "json_object",
             },
             temperature: profile.temperature,
+            ...(useStreaming ? { stream: true } : {}),
           }),
           signal: controller.signal,
         })
@@ -118,17 +148,65 @@ export function createOpenAiCompatibleProvider(config: OpenAiCompatibleConfig): 
           throw new Error(`LLM provider request failed with status ${response.status}.`)
         }
 
-        const payload = (await response.json()) as {
-          choices?: Array<{
-            message?: {
-              content?: string
+        let content: string
+
+        if (useStreaming && response.body) {
+          // Streaming mode: read chunks and log incrementally
+          content = ""
+          const reader = response.body.getReader()
+          const decoder = new TextDecoder()
+          let lastFlush = Date.now()
+
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            const text = decoder.decode(value, { stream: true })
+            const lines = text.split("\n")
+
+            for (const line of lines) {
+              if (!line.startsWith("data: ")) continue
+              const data = line.slice(6).trim()
+              if (data === "[DONE]") continue
+
+              try {
+                const chunk = JSON.parse(data) as {
+                  choices?: Array<{ delta?: { content?: string } }>
+                }
+                const delta = chunk.choices?.[0]?.delta?.content
+                if (delta) {
+                  content += delta
+                  // Flush to DB every ~500ms
+                  if (callLog && Date.now() - lastFlush > 500) {
+                    appendLlmCallResponse(callLog.id, content.slice(callLog.response.length))
+                    lastFlush = Date.now()
+                  }
+                }
+              } catch {
+                // Skip malformed SSE chunks
+              }
             }
-          }>
+          }
+        } else {
+          // Non-streaming mode
+          const payload = (await response.json()) as {
+            choices?: Array<{ message?: { content?: string } }>
+          }
+          content = payload.choices?.[0]?.message?.content ?? ""
         }
-        const content = payload.choices?.[0]?.message?.content
 
         if (!content) {
           throw new Error("LLM provider returned an empty assistant message.")
+        }
+
+        const durationMs = Date.now() - startTime
+
+        // Complete the log
+        if (callLog) {
+          completeLlmCallLog(callLog.id, {
+            response: content,
+            durationMs,
+          })
         }
 
         return {
@@ -136,6 +214,11 @@ export function createOpenAiCompatibleProvider(config: OpenAiCompatibleConfig): 
           model: profile.model,
           content: safeParsePlanContent(content),
         }
+      } catch (error) {
+        if (callLog) {
+          failLlmCallLog(callLog.id, error instanceof Error ? error.message : "Unknown error")
+        }
+        throw error
       } finally {
         clearTimeout(timeoutHandle)
       }

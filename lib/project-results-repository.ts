@@ -302,7 +302,7 @@ function resolveCurrentStage(
 }
 
 function buildTimeline(currentStage: ProjectStageSnapshot, blocked: boolean): TimelineStage[] {
-  const currentIndex = stageOrder.indexOf(currentStage.title)
+  const currentIndex = stageOrder.indexOf(currentStage.title as ProjectStage)
 
   return stageOrder.map((stage, index) => {
     let state: TimelineStage["state"] = "watching"
@@ -454,6 +454,7 @@ export async function generateStoredProjectFinalConclusion(projectId: string) {
           targets: project.targets,
         }),
         purpose: "reviewer",
+        projectId,
       })
       const reviewerKeyPoints = providerResult.content.items
         .slice(0, 3)
@@ -677,7 +678,7 @@ export function refreshStoredProjectResults(projectId: string) {
 
   store.projects[projectIndex] = {
     ...project,
-    stage: currentStage.title,
+    stage: currentStage.title as ProjectStage,
     status: nextProjectStatus,
     pendingApprovals,
     openTasks,

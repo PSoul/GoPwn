@@ -16,6 +16,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { apiFetch } from "@/lib/api-client"
 import { prototypeNavigation } from "@/lib/navigation"
 
 export function AppSidebar({ pathname }: { pathname: string }) {
@@ -26,7 +27,7 @@ export function AppSidebar({ pathname }: { pathname: string }) {
 
     async function loadBadges() {
       try {
-        const response = await fetch("/api/dashboard", {
+        const response = await apiFetch("/api/dashboard", {
           signal: controller.signal,
         })
 
@@ -57,7 +58,7 @@ export function AppSidebar({ pathname }: { pathname: string }) {
 
   const groups = [
     { label: "总览", items: prototypeNavigation.filter((item) => item.section === "总览") },
-    { label: "执行", items: prototypeNavigation.filter((item) => item.section === "执行") },
+    { label: "发现", items: prototypeNavigation.filter((item) => item.section === "发现") },
     { label: "系统", items: prototypeNavigation.filter((item) => item.section === "系统") },
   ]
 

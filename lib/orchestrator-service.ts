@@ -825,6 +825,7 @@ export async function generateProjectLifecyclePlan(
       targets: project.targets,
     }),
     purpose: "orchestrator",
+    projectId,
   })
   const normalizedItems = filterPlanItemsToProjectScope(
     project,
@@ -996,6 +997,7 @@ async function generateMultiRoundPlan(
   const providerResult = await provider.generatePlan({
     prompt,
     purpose: "orchestrator",
+    projectId,
   })
 
   const normalizedItems = filterPlanItemsToProjectScope(
@@ -1220,6 +1222,7 @@ export async function generateProjectOrchestratorPlan(
       projectStage: project.stage,
     }),
     purpose: "orchestrator",
+    projectId,
   })
   const plan = persistProjectOrchestratorPlan(
     projectId,

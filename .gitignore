@@ -11,3 +11,5 @@ output/
 playwright-report/
 test-results/
 *.txt
+
+/lib/generated/prisma

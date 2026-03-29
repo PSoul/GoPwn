@@ -3,8 +3,36 @@
 ## Project Snapshot
 
 - Date: `2026-03-29`
-- Current focus: Phase 11 前端对接与生产化闭环已完成。平台已实现完整的”新建项目→设置目标→点击开始→LLM 自动分配 MCP→多轮执行→实时进度显示→输出最终结论”端到端流程。12 个 MCP 服务器（34 个工具）全部通过通用 stdio 连接器接入，DVWA 靶场已验证真实多轮自动渗透。下一阶段为 UI 界面调整与用户体验优化。
+- Current focus: Phase 12 漏洞驾驶舱重构已完成。导航术语更新（证据与结果→漏洞中心），项目列表改为卡片网格布局，新增漏洞中心跨项目聚合页面，LLM 实时思考日志（项目 AI 日志标签页 + 全局悬浮聊天窗），LLM 提供商支持流式输出并自动记录调用日志。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
+
+## Phase 12: 漏洞驾驶舱重构 (Vuln Cockpit Redesign)
+
+- Status: Completed on `2026-03-29`
+- Branch: `feat/vuln-cockpit-redesign`
+- Goal: 将平台从”证据中心”视角转向”漏洞驾驶舱”视角，增强项目区分度，为研究员提供 LLM 实时思考可见性。
+
+### 交付清单
+
+1. **导航术语更新** — 侧边栏”执行”→”发现”，”证据与结果”→”漏洞中心”，路由 `/evidence` → `/vuln-center`，项目标签”证据”→”上下文”
+2. **漏洞中心页面** (`/vuln-center`) — 跨项目漏洞聚合，严重程度统计卡片，搜索/筛选，可展开行查看摘要，执行证据归档折叠面板
+3. **项目卡片布局** — 表格 → 2/3 列卡片网格，状态色带（运行中=蓝/已阻塞=红/已完成=绿），指标标签，运行中项目优先排序
+4. **LLM 调用日志系统** — Prisma `LlmCallLog` 模型，`llm-call-logger.ts` 服务（创建/追加/完成/失败），LLM provider 流式输出 + 自动日志
+5. **AI 日志标签页** — 项目工作区第 8 个标签”AI 日志”，按角色筛选，自动刷新，prompt/response 展开，元数据 footer
+6. **AI 悬浮聊天窗** — 右下角全局悬浮组件，聊天气泡风格，角色筛选，3 秒轮询，localStorage 记忆展开状态
+7. **新 API** — `GET /api/vuln-center/summary`, `GET /api/projects/[id]/llm-logs`, `GET /api/projects/[id]/llm-logs/[logId]`, `GET /api/llm-logs/recent`
+
+### 验收标准
+
+- [x] 侧边栏显示”发现”和”漏洞中心”
+- [x] `/evidence` 重定向到 `/vuln-center`
+- [x] 漏洞中心页面显示跨项目漏洞统计
+- [x] 项目列表为卡片网格，有状态色带区分
+- [x] 项目详情有”AI 日志”标签和”上下文”标签
+- [x] 全局 AI 悬浮窗可展开/最小化
+- [x] LLM 调用自动记录日志并支持流式追加
+- [x] 16 个新单元测试全部通过
+- [x] E2E 测试覆盖所有新功能
 
 ## Phase 1: Frontend Prototype Closure
 

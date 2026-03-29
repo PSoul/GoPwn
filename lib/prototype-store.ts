@@ -27,6 +27,7 @@ import type {
   ProjectFormPreset,
   ProjectRecord,
   ProjectSchedulerControl,
+  LlmCallLogRecord,
 } from "@/lib/prototype-types"
 
 export type PrototypeStore = {
@@ -53,6 +54,7 @@ export type PrototypeStore = {
   projects: ProjectRecord[]
   scopeRules: PolicyRecord[]
   workLogs: LogRecord[]
+  llmCallLogs: LlmCallLogRecord[]
 }
 
 const STORE_DIRECTORY = ".prototype-store"
@@ -173,6 +175,7 @@ function buildInitialStore(): PrototypeStore {
     projects: [],
     scopeRules: [],
     workLogs: [],
+    llmCallLogs: [],
   }
 }
 
@@ -338,6 +341,7 @@ function normalizeStore(store: Partial<PrototypeStore>): PrototypeStore {
     projects: Array.isArray(store.projects) ? store.projects : initial.projects,
     scopeRules: Array.isArray(store.scopeRules) ? store.scopeRules : initial.scopeRules,
     workLogs: Array.isArray(store.workLogs) ? store.workLogs : initial.workLogs,
+    llmCallLogs: Array.isArray(store.llmCallLogs) ? store.llmCallLogs : initial.llmCallLogs,
   }
 }
 
