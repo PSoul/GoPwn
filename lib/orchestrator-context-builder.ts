@@ -1,9 +1,20 @@
 import { listStoredAssets } from "@/lib/asset-repository"
+import { listStoredEvidence } from "@/lib/evidence-repository"
 import { listStoredProjectFindings } from "@/lib/project-results-repository"
 import { listStoredMcpTools } from "@/lib/mcp-repository"
 import { listBuiltInMcpTools } from "@/lib/built-in-mcp-tools"
 import { readPrototypeStore } from "@/lib/prototype-store"
+import { getAgentConfig } from "@/lib/agent-config"
+import { summarizeToolOutput } from "@/lib/tool-output-summarizer"
+import { analyzeFailure, formatFailureForPrompt } from "@/lib/failure-analyzer"
 import type { OrchestratorRoundRecord, McpToolRecord } from "@/lib/prototype-types"
+
+/** 粗略估算文本 token 数（中文约 1.5 char/token，英文约 4 char/token） */
+function estimateTokenCount(text: string): number {
+  const cjkChars = (text.match(/[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]/g) || []).length
+  const otherChars = text.length - cjkChars
+  return Math.ceil(cjkChars / 1.5 + otherChars / 4)
+}
 
 function formatSnapshotSection(label: string, items: string[], maxItems: number): string {
   if (items.length === 0) {
@@ -17,6 +28,8 @@ function formatSnapshotSection(label: string, items: string[], maxItems: number)
 }
 
 export function buildAssetSnapshot(projectId: string): string {
+  const config = getAgentConfig()
+  const maxPerType = config.context.assetSnapshotMaxPerType
   const assets = listStoredAssets(projectId)
   const findings = listStoredProjectFindings(projectId)
 
@@ -41,13 +54,13 @@ export function buildAssetSnapshot(projectId: string): string {
   const vulns = findings.map((f) => `${f.title} [${f.severity}/${f.status}]`)
 
   return [
-    formatSnapshotSection("域名", domains, 20),
-    formatSnapshotSection("主机", hosts, 20),
-    formatSnapshotSection("端口", ports, 20),
-    formatSnapshotSection("服务", services, 20),
-    formatSnapshotSection("Web入口", entries, 20),
-    formatSnapshotSection("指纹", fingerprints, 10),
-    formatSnapshotSection("漏洞/发现", vulns, 20),
+    formatSnapshotSection("域名", domains, maxPerType),
+    formatSnapshotSection("主机", hosts, maxPerType),
+    formatSnapshotSection("端口", ports, maxPerType),
+    formatSnapshotSection("服务", services, maxPerType),
+    formatSnapshotSection("Web入口", entries, maxPerType),
+    formatSnapshotSection("指纹", fingerprints, Math.ceil(maxPerType / 2)),
+    formatSnapshotSection("漏洞/发现", vulns, maxPerType),
   ].join("\n")
 }
 
@@ -65,10 +78,21 @@ export function buildRoundSummary(projectId: string, round: OrchestratorRoundRec
     parts.push(`${round.blockedByApproval.length}个待审批`)
   }
 
+  // 附加反思信息（如果有）
+  if (round.reflection) {
+    parts.push(`\n  反思: ${round.reflection.keyFindings}`)
+    if (round.reflection.lessonsLearned !== "无失败") {
+      parts.push(`\n  教训: ${round.reflection.lessonsLearned}`)
+    }
+    parts.push(`\n  方向: ${round.reflection.nextDirection}`)
+  }
+
   return parts.join(", ")
 }
 
 export function buildCompressedRoundHistory(projectId: string): string {
+  const config = getAgentConfig()
+  const detailCount = config.context.roundHistoryDetailCount
   const store = readPrototypeStore()
   const rounds = store.orchestratorRounds[projectId] ?? []
 
@@ -78,15 +102,15 @@ export function buildCompressedRoundHistory(projectId: string): string {
 
   const lines: string[] = []
 
-  if (rounds.length <= 3) {
+  if (rounds.length <= detailCount) {
     // All rounds get full summaries
     for (const round of rounds) {
       lines.push(buildRoundSummary(projectId, round))
     }
   } else {
-    // Older rounds get compressed, recent 3 get full detail
-    const olderRounds = rounds.slice(0, -3)
-    const recentRounds = rounds.slice(-3)
+    // Older rounds get compressed, recent N get full detail
+    const olderRounds = rounds.slice(0, -detailCount)
+    const recentRounds = rounds.slice(-detailCount)
 
     // Compress older rounds into groups of 3
     for (let i = 0; i < olderRounds.length; i += 3) {
@@ -121,12 +145,34 @@ export function buildLastRoundDetail(projectId: string): string {
   // Get the most recent runs (last 10)
   const recentRuns = runs.slice(-10)
 
-  return recentRuns
-    .map((run) => {
-      const statusLabel = run.status === "已执行" ? "成功" : run.status === "已阻塞" ? "失败" : run.status
-      return `- ${run.toolName}(${run.target}) → ${statusLabel}`
-    })
-    .join("\n")
+  // 查找每个 run 对应的证据（包含原始输出）
+  const evidence = listStoredEvidence(projectId)
+
+  const lines: string[] = []
+
+  for (const run of recentRuns) {
+    if (run.status === "已阻塞" || run.status === "已取消") {
+      // 失败的 run: 使用失败分析器提供智能建议
+      const errorMsg = run.summaryLines?.join(" ") || `工具 ${run.toolName} 执行失败`
+      const analysis = analyzeFailure(run.toolName, run.target, errorMsg)
+      lines.push(formatFailureForPrompt(analysis))
+    } else {
+      // 成功/其他状态的 run: 使用输出摘要
+      const relatedEvidence = evidence.find(
+        (e) => e.linkedTaskTitle?.includes(run.toolName) || e.source?.includes(run.toolName),
+      )
+      const rawOutput = relatedEvidence?.rawOutput?.join("\n") ?? ""
+      const summary = summarizeToolOutput(run.toolName, run.target, run.status, rawOutput)
+
+      const statusIcon = summary.status === "成功" ? "✓" : "⏳"
+      const findingsText = summary.keyFindings.length > 0
+        ? summary.keyFindings.map(f => `  · ${f}`).join("\n")
+        : "  · (无输出)"
+      lines.push(`${statusIcon} ${run.toolName}(${run.target})\n${findingsText}`)
+    }
+  }
+
+  return lines.join("\n")
 }
 
 export function buildUnusedCapabilities(projectId: string): string {
@@ -149,6 +195,37 @@ export function buildUnusedCapabilities(projectId: string): string {
     const tools = allTools.filter((t) => t.capability === cap)
     return `- ${cap} (${tools.map((t) => t.toolName).join(", ")})`
   }).join("\n")
+}
+
+/**
+ * 基于 token 预算的上下文压缩。
+ * 当上下文接近 LLM token 限制时，自动压缩各个部分。
+ */
+function compressContextByBudget(sections: { label: string; content: string }[]): string {
+  const config = getAgentConfig()
+  const budget = Math.floor(config.context.maxContextTokens * (config.context.compressionThresholdPercent / 100))
+
+  const totalTokens = sections.reduce((sum, s) => sum + estimateTokenCount(s.content), 0)
+
+  if (totalTokens <= budget) {
+    // 未超过预算，直接拼接
+    return sections.map((s) => `[${s.label}]\n${s.content}`).join("\n\n")
+  }
+
+  // 超过预算: 按优先级压缩（历史轮次 > 资产快照 > 上一轮详情 > 未使用能力）
+  // 优先保留最近信息，压缩历史
+  const compressed = sections.map((s) => {
+    const sectionTokens = estimateTokenCount(s.content)
+    if (sectionTokens > budget / sections.length) {
+      // 此部分占比过大，截断
+      const targetChars = Math.floor((budget / sections.length) * 2) // 粗略 token:char = 1:2
+      const truncated = s.content.slice(0, targetChars)
+      return { label: s.label, content: truncated + "\n...[已压缩]" }
+    }
+    return s
+  })
+
+  return compressed.map((s) => `[${s.label}]\n${s.content}`).join("\n\n")
 }
 
 export function buildMultiRoundBrainPrompt(input: {
@@ -189,17 +266,12 @@ export function buildMultiRoundBrainPrompt(input: {
     "",
     `当前结果摘要：资产=${input.assetCount}; 证据=${input.evidenceCount}; 漏洞/发现=${input.findingCount}; 待审批=${input.pendingApprovals}`,
     "",
-    "[历史轮次摘要]",
-    input.roundHistory,
-    "",
-    "[当前资产画像]",
-    input.assetSnapshot,
-    "",
-    "[上一轮执行详情]",
-    input.lastRoundDetail,
-    "",
-    "[尚未使用的能力]",
-    input.unusedCapabilities,
+    compressContextByBudget([
+      { label: "历史轮次摘要", content: input.roundHistory },
+      { label: "当前资产画像", content: input.assetSnapshot },
+      { label: "上一轮执行详情", content: input.lastRoundDetail },
+      { label: "尚未使用的能力", content: input.unusedCapabilities },
+    ]),
     "",
     input.note ? `研究员备注：${input.note}` : "",
     "",

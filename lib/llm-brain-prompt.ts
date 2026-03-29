@@ -1,4 +1,5 @@
 import type { McpToolRecord, ProjectRecord } from "@/lib/prototype-types"
+import { buildEnvironmentPromptSection } from "@/lib/env-detector"
 
 type ProjectBrainPromptInput = {
   assetCount: number
@@ -108,6 +109,8 @@ export function buildProjectBrainPrompt(input: ProjectBrainPromptInput) {
     "- 使用 execute_code 时，code 字段必须包含完整可执行的 Node.js 代码，description 字段说明目的。",
     "- 脚本执行结果会被自动沉淀为证据和发现。",
     "- 这是你作为 LLM 大脑最核心的能力：不依赖写死规则，自主决策、自主编写攻击代码。",
+    "",
+    buildEnvironmentPromptSection(),
   ].join("\n")
 }
 
@@ -124,6 +127,8 @@ export function buildLocalLabBrainPrompt(input: LocalLabBrainPromptInput) {
     "输出要求：",
     "- target 必须直接填写可访问 URL。",
     "- 优先目标解析、Web 入口识别、结构发现；高风险验证仅在 approvalScenario=include-high-risk 时出现。",
+    "",
+    buildEnvironmentPromptSection(),
   ].join("\n")
 }
 

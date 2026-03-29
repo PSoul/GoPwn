@@ -204,6 +204,15 @@ export interface OrchestratorRoundRecord {
   failedActions: string[]
   blockedByApproval: string[]
   summaryForNextRound: string
+  /** 轮间自我反思（由 LLM 或规则引擎生成） */
+  reflection?: {
+    /** 本轮最重要的发现 */
+    keyFindings: string
+    /** 失败分析和教训 */
+    lessonsLearned: string
+    /** 下一轮建议方向 */
+    nextDirection: string
+  }
 }
 
 export interface ProjectDetailRecord {

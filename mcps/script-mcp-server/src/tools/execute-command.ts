@@ -5,6 +5,7 @@
  * 类似 Claude Code 的 Bash 工具。
  */
 import { exec } from 'node:child_process';
+import os from 'node:os';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
@@ -61,9 +62,11 @@ function runCommand(command: string, timeoutMs: number, cwd?: string, env?: Reco
 }
 
 export function registerExecuteCommand(server: McpServer) {
+  const shellInfo = process.platform === 'win32' ? 'cmd.exe (Windows)' : '/bin/bash (Unix)';
+  const platformHint = `[Shell: ${shellInfo}, OS: ${process.platform}/${process.arch}]`;
   server.tool(
     'execute_command',
-    'Execute a shell command. Use this to run system tools like curl, nmap, python, dig, etc. Similar to a Bash tool in AI agent frameworks.',
+    `Execute a shell command. Use this to run system tools like curl, nmap, python, dig, etc. Similar to a Bash tool in AI agent frameworks. ${platformHint}. On Windows, use Windows-compatible commands or call tools via their .exe path.`,
     {
       command: z.string().describe('Shell command to execute'),
       description: z.string().describe('Brief description of what this command does and why'),

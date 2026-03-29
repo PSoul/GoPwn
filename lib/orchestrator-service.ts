@@ -838,9 +838,51 @@ async function executePlanItems(
     ignoreProjectLifecycle?: boolean
   },
 ): Promise<DispatchPlanResult> {
+  const agentConfig = (await import("@/lib/agent-config")).getAgentConfig()
+  const maxParallel = agentConfig.execution.maxParallelTools
+
   const runs: McpRunRecord[] = []
 
-  for (const item of items) {
+  // 分离需要审批的高风险项（必须串行）和低风险项（可并行）
+  const approvalItems = items.filter((i) => i.riskLevel === "高")
+  const parallelItems = items.filter((i) => i.riskLevel !== "高")
+
+  // 1. 并行执行低/中风险项（按 maxParallel 分批）
+  for (let batchStart = 0; batchStart < parallelItems.length; batchStart += maxParallel) {
+    const batch = parallelItems.slice(batchStart, batchStart + maxParallel)
+
+    const results = await Promise.allSettled(
+      batch.map((item) =>
+        dispatchProjectMcpRunAndDrain(projectId, {
+          capability: item.capability,
+          requestedAction: item.requestedAction,
+          target: item.target,
+          riskLevel: item.riskLevel,
+          preferredToolName: item.toolName,
+        }, {
+          ignoreProjectLifecycle: options?.ignoreProjectLifecycle,
+        }),
+      ),
+    )
+
+    for (const result of results) {
+      if (result.status === "fulfilled" && result.value) {
+        runs.push(result.value.run)
+        // Parallel items shouldn't trigger approval, but handle edge cases
+        if (result.value.approval) {
+          return {
+            approval: result.value.approval,
+            runs,
+            status: "waiting_approval",
+          }
+        }
+      }
+      // rejected promises are silently tolerated (tool failure)
+    }
+  }
+
+  // 2. 串行执行高风险项（每个都可能触发审批阻塞）
+  for (const item of approvalItems) {
     const payload = await dispatchProjectMcpRunAndDrain(projectId, {
       capability: item.capability,
       requestedAction: item.requestedAction,
@@ -857,7 +899,7 @@ async function executePlanItems(
 
     runs.push(payload.run)
 
-    // Only approval blocking stops the round — individual tool failures are tolerated
+    // Approval blocking stops the round
     if (payload.approval) {
       return {
         approval: payload.approval,
@@ -981,6 +1023,7 @@ function recordOrchestratorRound(
       .map((r) => `${r.toolName}(${r.target})`),
     blockedByApproval: execution.approval ? [`${execution.approval.actionType}(${execution.approval.target})`] : [],
     summaryForNextRound: `第${round}轮执行${execution.runs.length}个动作`,
+    reflection: generateRoundReflection(execution, round),
   }
 
   if (!store.orchestratorRounds[projectId]) {
@@ -990,6 +1033,59 @@ function recordOrchestratorRound(
   writePrototypeStore(store)
 
   return record
+}
+
+/**
+ * 轮间自我反思（确定性规则引擎，不消耗 LLM 调用）
+ * 基于执行结果自动生成反思，供下一轮 LLM 参考。
+ */
+function generateRoundReflection(
+  execution: DispatchPlanResult,
+  round: number,
+): OrchestratorRoundRecord["reflection"] {
+  const succeeded = execution.runs.filter((r) => r.status === "已执行")
+  const failed = execution.runs.filter((r) => r.status === "已阻塞" || r.status === "已取消")
+  const toolsUsed = new Set(execution.runs.map((r) => r.toolName))
+
+  // 关键发现
+  const keyParts: string[] = []
+  if (succeeded.length > 0) {
+    keyParts.push(`${succeeded.length}个工具成功执行(${[...new Set(succeeded.map(r => r.toolName))].join(",")})`)
+  }
+  if (execution.approval) {
+    keyParts.push(`发现需要审批的高风险操作: ${execution.approval.actionType}`)
+  }
+  const keyFindings = keyParts.length > 0 ? keyParts.join("; ") : "本轮无显著发现"
+
+  // 失败教训
+  let lessonsLearned = "无失败"
+  if (failed.length > 0) {
+    const failedTools = [...new Set(failed.map(r => r.toolName))].join(", ")
+    const failRatio = failed.length / execution.runs.length
+    if (failRatio > 0.5) {
+      lessonsLearned = `超过半数工具失败(${failedTools})。建议下一轮缩小范围或使用 execute_code 自主实现。`
+    } else {
+      lessonsLearned = `部分工具失败(${failedTools})。可考虑调整参数重试或换用替代工具。`
+    }
+  }
+
+  // 下一轮方向
+  const directionParts: string[] = []
+  if (succeeded.length > 0 && failed.length === 0) {
+    directionParts.push("所有工具执行成功，可以进入更深层的探测或验证阶段")
+  }
+  if (execution.approval) {
+    directionParts.push("等待人工审批后继续高风险验证")
+  }
+  if (round === 1) {
+    directionParts.push("第一轮为信息收集阶段，下一轮应聚焦发现的关键资产进行深度探测")
+  }
+  if (toolsUsed.size <= 2 && round > 1) {
+    directionParts.push("工具使用单一，建议扩展到其他能力维度")
+  }
+  const nextDirection = directionParts.length > 0 ? directionParts.join("; ") : "继续当前策略"
+
+  return { keyFindings, lessonsLearned, nextDirection }
 }
 
 function shouldContinueAutoReplan(
