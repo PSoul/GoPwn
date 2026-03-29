@@ -3,8 +3,49 @@
 ## Project Snapshot
 
 - Date: `2026-03-29`
-- Current focus: Phase 16 Docker 靶场全面测试 + LLM 自主脚本能力已完成。12 个靶场 + TCP 探测 + Script MCP Server + 集成测试 20/20。
+- Current focus: Phase 17b Agent 大脑进化已完成。AI Agent 配置系统 + 环境感知 + 输出压缩 + 失败分析 + 并行执行 + 自我反思 + 上下文压缩。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
+
+## Phase 17b: Agent 大脑进化 (Agent Brain Evolution)
+
+- Status: Completed on `2026-03-29`
+- Branch: `feat/phase17-platform-evolution`
+- Goal: 将平台的 AI Agent 大脑从"简单规划"进化为"自适应智能体"，参考 Claude Code CLI / Codex CLI / Aider 的 Agent 设计模式，补齐配置系统、环境感知、输出压缩、失败分析、并行执行、自我反思等核心能力。
+
+### 交付清单
+
+1. **Agent 配置系统** — `lib/agent-config.ts`（264 行），30+ 可调参数分 5 大类（model/context/execution/safety/behavior），独立 JSON 持久化 + API 端点
+2. **平台环境检测** — `lib/env-detector.ts`（139 行），检测 OS/Shell/Node.js/可用工具（curl/nmap/python 等 20 种），注入 LLM 大脑提示词
+3. **工具输出结构化压缩** — `lib/tool-output-summarizer.ts`（403 行），15+ 工具专用提取器，按 token 预算自动压缩
+4. **失败智能分析** — `lib/failure-analyzer.ts`（226 行），9 类错误分类 + 重试建议 + 替代工具推荐
+5. **并行工具执行** — `orchestrator-service.ts` 重写 `executePlanItems()`，低/中风险工具按 `maxParallelTools` 批量并行，高风险保持串行审批
+6. **轮间自我反思** — `orchestrator-service.ts` 新增 `generateRoundReflection()`，确定性反思引擎（无额外 LLM 调用），产出 keyFindings/lessonsLearned/nextDirection
+7. **Token 预算上下文压缩** — `orchestrator-context-builder.ts` 新增 `compressContextByBudget()`，按 `maxContextTokens × compressionThresholdPercent` 自动截断各区段
+8. **Agent Config API** — `app/api/settings/agent-config/route.ts`，GET/PATCH 端点
+9. **Script MCP Server 环境增强** — execute_code/execute_command 工具描述注入平台环境信息
+
+### 关键配置参数（参考 Claude Code/Codex/Aider）
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `maxContextTokens` | 65536 | LLM 上下文窗口大小 |
+| `compressionThresholdPercent` | 70 | 超过此比例触发上下文压缩 |
+| `toolOutputSummarizeThreshold` | 2000 | 输出超过此字符数触发摘要 |
+| `toolOutputMaxChars` | 30000 | 输出截断上限 |
+| `maxParallelTools` | 3 | 并行执行工具数 |
+| `maxRetries` | 2 | 工具重试次数 |
+| `maxRounds` | 10 | 最大编排轮数 |
+| `approvalPolicy` | "cautious" | 审批策略（cautious/balanced/aggressive） |
+
+### 验收标准
+
+- [x] `next build` 无 TypeScript 错误
+- [x] 单元测试 139/142 通过（3 个预存失败）
+- [x] 集成测试 18/20 通过（2 个 SSH 容器启动时序）
+- [x] Agent 配置可通过 API 读写
+- [x] 工具输出压缩正确运行
+- [x] 失败分析覆盖 9 类错误
+- [x] 并行执行和反思注入编排循环
 
 ## Phase 16: Docker 靶场全面测试 + MCP 工具实战验证
 

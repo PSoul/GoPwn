@@ -63,6 +63,7 @@
 | `PATCH /api/projects/[id]/scheduler-control` | `app/api/projects/[projectId]/scheduler-control/route.ts` | 调度器生命周期控制 |
 | `POST /api/projects/[id]/orchestrator/plan` | `app/api/projects/[projectId]/orchestrator/plan/route.ts` | LLM 编排计划生成 |
 | `POST /api/projects/[id]/orchestrator/local-validation` | `app/api/projects/[projectId]/orchestrator/local-validation/route.ts` | 本地靶场闭环验证 |
+| `GET/PATCH /api/settings/agent-config` | `app/api/settings/agent-config/route.ts` | AI Agent 配置读取与部分更新 |
 | `GET /api/projects/[id]/llm-logs` | `app/api/projects/[projectId]/llm-logs/route.ts` | 项目 LLM 调用日志列表 |
 | `GET /api/projects/[id]/llm-logs/[logId]` | `app/api/projects/[projectId]/llm-logs/[logId]/route.ts` | 单条 LLM 调用详情 |
 | `GET /api/llm-logs/recent` | `app/api/llm-logs/recent/route.ts` | 全局最近 LLM 日志 |
@@ -141,12 +142,21 @@
 | `lib/llm-call-logger.ts` | LLM 调用日志服务（创建/追加/完成/失败 + EventEmitter SSE 广播） |
 | `lib/llm-brain-prompt.ts` | LLM 系统提示和编排提示模板 |
 
+### AI Agent 核心
+
+| 文件 | 用途 |
+|------|------|
+| `lib/agent-config.ts` | AI Agent 配置系统（30+ 参数，5 大分类：model/context/execution/safety/behavior），参考 Claude Code/Codex/Aider 设计 |
+| `lib/env-detector.ts` | 平台环境检测（OS/Shell/Node/可用系统工具），为 LLM 大脑提供运行时感知 |
+| `lib/tool-output-summarizer.ts` | 工具输出结构化压缩（15+ 工具专用提取器），按 token 预算压缩 |
+| `lib/failure-analyzer.ts` | 工具失败智能分析（9 类错误分类 + 重试建议 + 替代工具推荐） |
+
 ### MCP 编排
 
 | 文件 | 用途 |
 |------|------|
-| `lib/orchestrator-service.ts` | 编排器主服务（规划 → 执行 → 回顾循环） |
-| `lib/orchestrator-context-builder.ts` | 编排器上下文构建（资产/发现快照） |
+| `lib/orchestrator-service.ts` | 编排器主服务（规划 → 并行执行 → 反思 → 回顾循环） |
+| `lib/orchestrator-context-builder.ts` | 编排器上下文构建（资产快照 + token 预算压缩 + 失败分析 + 输出摘要） |
 | `lib/mcp-execution-service.ts` | MCP 工具执行引擎 |
 | `lib/mcp-scheduler-service.ts` | MCP 任务调度 |
 | `lib/mcp-workflow-service.ts` | MCP 工作流编排 |
