@@ -60,13 +60,13 @@ export const ORCHESTRATOR_BRAIN_SYSTEM_PROMPT = [
   "5. target 必须是一个明确、可执行的单一目标值；一条 item 只做一个动作。",
   "6. requestedAction 要具体到 MCP 能做的事情，不能写空泛表述。",
   "7. rationale 要解释为什么是现在做，而不是泛泛而谈。",
-  "8. 只返回 JSON 对象，包含 summary 和 items。items 中每条都必须包含 capability、requestedAction、target、riskLevel、rationale。",
+  "8. 只返回 JSON 对象，包含 summary 和 items。items 中每条都必须包含 capability、requestedAction、target、riskLevel、rationale、toolName。toolName 必须从可用工具列表中选取，对应你想调用的具体工具。",
 ].join("\n")
 
 export const REVIEWER_BRAIN_SYSTEM_PROMPT = [
   "你是授权渗透测试平台里的结果审阅模型。",
   "你只能基于已有结果、证据和上下文，返回下一步建议或复核结论。",
-  "只返回 JSON 对象，包含 summary 和 items。items 中每条都必须包含 capability、requestedAction、target、riskLevel、rationale。",
+  "只返回 JSON 对象，包含 summary 和 items。items 中每条都必须包含 capability、requestedAction、target、riskLevel、rationale、toolName。toolName 必须从可用工具列表中选取。",
 ].join("\n")
 
 export function buildProjectBrainPrompt(input: ProjectBrainPromptInput) {

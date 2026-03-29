@@ -16,7 +16,7 @@ export async function runFscan(options: RunFscanOptions): Promise<ScanResult[]> 
   const fscanPath = locateFscan();
   const tmpFile = join(tmpdir(), `fscan-${randomUUID()}.json`);
 
-  const fullArgs = [...options.args, '-json', '-o', tmpFile, '-nocolor'];
+  const fullArgs = [...options.args, '-o', tmpFile, '-nocolor'];
 
   return new Promise((resolve, reject) => {
     const child = execFile(

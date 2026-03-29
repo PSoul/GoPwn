@@ -21,7 +21,7 @@ export function registerRecursive(server: McpServer) {
       if (extensions) args.push('-e', extensions);
       if (timeout) args.push('--timeout', String(timeout));
 
-      const results = await runDirsearch({ args, timeoutMs: timeout * 60_000 });
+      const results = await runDirsearch({ args, timeoutMs: 10 * 60_000 });
       const entries = mapToWebEntries(results);
 
       return {

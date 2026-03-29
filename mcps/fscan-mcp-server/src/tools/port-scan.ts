@@ -18,7 +18,7 @@ export function registerPortScan(server: McpServer) {
       const args = ['-h', target, '-m', 'portscan', '-t', String(threads), '-time', String(timeout), '-nobr', '-nopoc'];
       if (ports) args.push('-p', ports);
 
-      const results = await runFscan({ args, timeoutMs: timeout * 10_000 });
+      const results = await runFscan({ args, timeoutMs: 3 * 60_000 });
       const network = mapToNetwork(results);
       const assets = mapToAssets(results);
 

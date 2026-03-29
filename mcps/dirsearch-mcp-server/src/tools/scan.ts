@@ -24,7 +24,7 @@ export function registerScan(server: McpServer) {
       if (excludeStatus) args.push('--exclude-status', excludeStatus);
       if (timeout) args.push('--timeout', String(timeout));
 
-      const results = await runDirsearch({ args, timeoutMs: timeout * 60_000 });
+      const results = await runDirsearch({ args, timeoutMs: 5 * 60_000 });
       const entries = mapToWebEntries(results);
 
       return {

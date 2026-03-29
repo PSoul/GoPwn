@@ -120,10 +120,14 @@ export async function callMcpServerTool<TStructuredContent extends Record<string
     const result = await withAbortSignal(
       () =>
         withTimeout(
-          client.callTool({
-            name: input.toolName,
-            arguments: input.arguments,
-          }),
+          client.callTool(
+            {
+              name: input.toolName,
+              arguments: input.arguments,
+            },
+            undefined,
+            { timeout: timeoutMs },
+          ),
           timeoutMs,
         ),
       {

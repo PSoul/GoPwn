@@ -19,25 +19,49 @@ function buildToolArguments(toolName: string, target: string): Record<string, un
     return args
   }
 
-  // Port scanning tools
+  // Port scanning tools -- fscan expects IP or CIDR, not a URL
   if (toolName === "fscan_host_discovery" || toolName === "fscan_port_scan") {
-    args.target = target
+    try {
+      const url = new URL(target)
+      args.target = url.hostname
+      // If the URL has a non-standard port, pass it so fscan scans that specific port
+      if (url.port && toolName === "fscan_port_scan") {
+        args.ports = url.port
+      }
+    } catch {
+      args.target = target.replace(/^https?:\/\//i, "").replace(/\/.*$/, "").replace(/:\d+$/, "")
+    }
     return args
   }
 
   if (toolName === "fscan_service_bruteforce") {
-    args.target = target
+    try {
+      const url = new URL(target)
+      args.target = url.hostname
+    } catch {
+      args.target = target.replace(/^https?:\/\//i, "").replace(/\/.*$/, "").replace(/:\d+$/, "")
+    }
     args.service = "ssh"
     return args
   }
 
   if (toolName === "fscan_vuln_scan") {
-    args.target = target
+    try {
+      const url = new URL(target)
+      args.target = url.hostname
+    } catch {
+      args.target = target.replace(/^https?:\/\//i, "").replace(/\/.*$/, "").replace(/:\d+$/, "")
+    }
     return args
   }
 
   if (toolName === "fscan_web_scan" || toolName === "fscan_full_scan") {
-    args.target = target
+    try {
+      const url = new URL(target)
+      args.target = url.hostname
+    } catch {
+      args.target = target.replace(/^https?:\/\//i, "").replace(/\/.*$/, "").replace(/:\d+$/, "")
+    }
     return args
   }
 

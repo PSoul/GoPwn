@@ -144,6 +144,16 @@ function scoreToolForRequestedAction(tool: McpToolRecord, requestedAction: strin
 }
 
 function selectToolForCapability(tools: McpToolRecord[], input: McpDispatchInput) {
+  // If LLM specified a preferred tool name, try direct match first (across all capabilities)
+  if (input.preferredToolName) {
+    const directMatch = tools.find(
+      (tool) => tool.toolName === input.preferredToolName && tool.status === "启用",
+    )
+    if (directMatch) {
+      return { enabledTool: directMatch, matchedTool: directMatch }
+    }
+  }
+
   const matchedTools = tools.filter((tool) => tool.capability === input.capability)
   const enabledTools = matchedTools.filter((tool) => tool.status === "启用")
   const enabledTool =

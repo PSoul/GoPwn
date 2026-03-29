@@ -876,13 +876,91 @@ function normalizeStdioMcpArtifacts(
     }
   }
 
-  // Extract vulnerability findings
+  // Auto-detect security issues from webEntries (missing security headers, version disclosure, etc.)
+  if (Array.isArray(sc.webEntries)) {
+    for (const entry of sc.webEntries as Array<{ url?: string; statusCode?: number; server?: string; headers?: Record<string, string>; technologies?: string[] }>) {
+      const entryUrl = entry.url ?? context.run.target
+
+      // Detect server version disclosure
+      if (entry.server && /\d+\.\d+/.test(entry.server)) {
+        const findingId = buildStableRecordId("finding", context.project.id, entryUrl, "server-version-disclosure")
+        if (!findings.some((f) => f.id === findingId)) {
+          findings.push({
+            id: findingId,
+            projectId: context.project.id,
+            severity: "低危",
+            status: "待复核",
+            title: `服务器版本泄露：${entry.server}`,
+            summary: `目标 ${entryUrl} 的 HTTP 响应 Server 头暴露了完整版本信息 (${entry.server})，攻击者可据此搜索已知漏洞。建议移除或模糊化 Server 头。`,
+            affectedSurface: entryUrl,
+            evidenceId,
+            owner: context.run.toolName,
+            updatedAt: timestamp,
+          })
+        }
+      }
+
+      // Detect outdated software versions
+      const serverStr = entry.server ?? ""
+      const apacheMatch = serverStr.match(/Apache\/(\d+\.\d+\.\d+)/)
+      const phpMatch = entry.technologies?.find((t: string) => /PHP\/\d/.test(t))
+      if (apacheMatch && apacheMatch[1].localeCompare("2.4.50", undefined, { numeric: true }) < 0) {
+        const findingId = buildStableRecordId("finding", context.project.id, entryUrl, "outdated-apache")
+        if (!findings.some((f) => f.id === findingId)) {
+          findings.push({
+            id: findingId,
+            projectId: context.project.id,
+            severity: "中危",
+            status: "待复核",
+            title: `Apache 版本过旧：${apacheMatch[0]}`,
+            summary: `目标使用 ${apacheMatch[0]}，该版本可能存在已知安全漏洞（CVE）。建议升级到最新的 Apache 版本。`,
+            affectedSurface: entryUrl,
+            evidenceId,
+            owner: context.run.toolName,
+            updatedAt: timestamp,
+          })
+        }
+      }
+      if (phpMatch) {
+        const phpVersion = phpMatch.match(/PHP\/(\d+\.\d+)/)?.[1]
+        if (phpVersion && parseFloat(phpVersion) < 8.0) {
+          const findingId = buildStableRecordId("finding", context.project.id, entryUrl, "outdated-php")
+          if (!findings.some((f) => f.id === findingId)) {
+            findings.push({
+              id: findingId,
+              projectId: context.project.id,
+              severity: "中危",
+              status: "待复核",
+              title: `PHP 版本过旧：${phpMatch}`,
+              summary: `目标使用 ${phpMatch}，该版本已停止安全更新。建议升级到 PHP 8.x 以获得安全补丁。`,
+              affectedSurface: entryUrl,
+              evidenceId,
+              owner: context.run.toolName,
+              updatedAt: timestamp,
+            })
+          }
+        }
+      }
+    }
+  }
+
+  // Extract vulnerability findings (skip informational / negative results like "No WAF Detected")
   if (Array.isArray(sc.findings)) {
-    for (const finding of sc.findings as Array<{ title?: string; severity?: string; url?: string; target?: string; description?: string }>) {
+    for (const finding of sc.findings as Array<{ title?: string; severity?: string; url?: string; target?: string; description?: string; evidence?: Record<string, unknown> }>) {
+      const sev = finding.severity?.toLowerCase() ?? ""
       const title = finding.title ?? `${context.run.toolName} 发现`
-      const severity = (finding.severity?.includes("高") || finding.severity?.toLowerCase().includes("high") || finding.severity?.toLowerCase().includes("critical"))
+
+      // Skip informational-only entries (e.g. wafw00f "No WAF Detected")
+      const isInfoOnly = sev === "info" || sev === "informational" || sev.includes("信息")
+      const isNegativeResult = /no\s+waf|not\s+detected|未检测|未发现/i.test(title)
+        || (finding.evidence && finding.evidence.detected === false)
+      if (isInfoOnly || isNegativeResult) {
+        continue
+      }
+
+      const severity = (sev.includes("高") || sev.includes("high") || sev.includes("critical"))
         ? "高危" as const
-        : (finding.severity?.includes("中") || finding.severity?.toLowerCase().includes("medium"))
+        : (sev.includes("中") || sev.includes("medium"))
           ? "中危" as const
           : "低危" as const
       findings.push({

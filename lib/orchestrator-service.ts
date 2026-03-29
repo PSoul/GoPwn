@@ -560,12 +560,18 @@ function buildNormalizedPlanItem(
       ? normalizeRiskLevel(rawItem.riskLevel, fallback.riskLevel)
       : fallback.riskLevel
 
+  // Preserve LLM-specified toolName if it matches a known tool
+  const toolName = rawItem.toolName && availableTools.some((t) => t.toolName === rawItem.toolName)
+    ? rawItem.toolName
+    : undefined
+
   return {
     capability,
     requestedAction,
     target,
     riskLevel,
     rationale,
+    toolName,
   }
 }
 
@@ -736,6 +742,7 @@ async function executePlanItems(
       requestedAction: item.requestedAction,
       target: item.target,
       riskLevel: item.riskLevel,
+      preferredToolName: item.toolName,
     }, {
       ignoreProjectLifecycle: options?.ignoreProjectLifecycle,
     })

@@ -591,6 +591,7 @@ export interface OrchestratorPlanItem {
   target: string
   riskLevel: "高" | "中" | "低"
   rationale: string
+  toolName?: string
 }
 
 export interface OrchestratorPlanRecord {
@@ -796,6 +797,7 @@ export interface McpDispatchInput {
   requestedAction: string
   target: string
   riskLevel: "高" | "中" | "低"
+  preferredToolName?: string
 }
 
 export interface McpDispatchPayload {
