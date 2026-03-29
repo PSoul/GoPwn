@@ -239,6 +239,45 @@ function buildToolArguments(toolName: string, target: string): Record<string, un
     return args
   }
 
+  // Script execution tools — these get special parameter handling
+  if (toolName === "execute_code") {
+    // LLM generates code dynamically; the orchestrator passes it via special context
+    // For fallback, generate a basic probe script
+    args.code = `
+const http = require('http');
+const url = new URL('${target.startsWith('http') ? target : `http://${target}`}');
+const req = http.request({ hostname: url.hostname, port: url.port || 80, path: url.pathname || '/', method: 'GET', timeout: 10000 }, (res) => {
+  let body = '';
+  res.on('data', (chunk) => body += chunk);
+  res.on('end', () => console.log(JSON.stringify({ status: res.statusCode, headers: res.headers, body: body.slice(0, 2000) })));
+});
+req.on('error', (e) => console.error(JSON.stringify({ error: e.message })));
+req.end();
+`.trim();
+    args.description = `自动探测 ${target}`;
+    args.timeout_seconds = 15;
+    return args;
+  }
+
+  if (toolName === "execute_command") {
+    args.command = `curl -s -o /dev/null -w "%{http_code}" "${target}"`;
+    args.description = `Shell 探测 ${target}`;
+    args.timeout_seconds = 15;
+    return args;
+  }
+
+  if (toolName === "read_file") {
+    args.path = target;
+    return args;
+  }
+
+  if (toolName === "write_file") {
+    args.path = target;
+    args.content = "";
+    args.description = "LLM 生成文件";
+    return args;
+  }
+
   // Fallback: pass target as generic param
   args.target = target
   return args

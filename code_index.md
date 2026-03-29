@@ -190,7 +190,8 @@
 - `tests/lib/prototype-store.test.ts` — 数据存储测试
 
 ### 集成测试
-- `tests/integration/docker-lab-mcp.test.ts` — Docker 靶场 MCP 集成测试（需 ENABLE_DOCKER_LAB_TESTS=1 + Docker 靶场运行）
+- `tests/integration/docker-lab-mcp.test.ts` — Docker 靶场 MCP 集成测试（需 ENABLE_DOCKER_LAB_TESTS=1 + Docker 靶场运行），13 个用例
+- `tests/integration/script-mcp-server.test.ts` — Script MCP Server 集成测试（LLM 自主脚本能力验证），7 个用例：基础执行、Redis/SSH/MySQL/Elasticsearch TCP 探测、Shell 命令、文件 I/O
 
 ### E2E 测试
 - `e2e/prototype-smoke.spec.ts` — 基础功能烟雾测试
@@ -221,7 +222,12 @@
 - `mcps/subfinder-mcp-server/` — 子域名发现
 - `mcps/fofa-mcp-server/` — FOFA 资产搜索
 - `mcps/fscan-mcp-server/` — 内网扫描
-- 等等...
+- `mcps/netcat-mcp-server/` — TCP/UDP 连接工具
+- `mcps/whois-mcp-server/` — WHOIS/ICP 查询
+- `mcps/wafw00f-mcp-server/` — WAF 检测
+- `mcps/encode-mcp-server/` — 编解码与哈希计算
+- `mcps/github-recon-mcp-server/` — GitHub 代码/仓库搜索
+- `mcps/script-mcp-server/` — **LLM 自主脚本执行**（核心能力）：execute_code（Node.js 代码执行）、execute_command（Shell 命令）、read_file / write_file（文件 I/O）
 
 ## 8. Docker 靶场 (docker/local-labs/)
 

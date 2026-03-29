@@ -393,6 +393,48 @@ const TOOL_REGISTRY: Record<string, ToolMapping[]> = {
       resultMappings: ["evidence"],
     },
   ],
+  script: [
+    {
+      toolName: "execute_code",
+      title: "Node.js 代码执行",
+      description: "执行 LLM 自主生成的 Node.js 代码，用于自定义网络探测、漏洞验证、数据分析等场景",
+      capability: "脚本执行与自动化类",
+      boundary: "外部目标交互",
+      riskLevel: "高",
+      requiresApproval: true,
+      resultMappings: ["evidence", "findings"],
+    },
+    {
+      toolName: "execute_command",
+      title: "Shell 命令执行",
+      description: "执行 Shell 命令，调用系统工具（curl/nmap/python/dig 等）进行自定义攻击和探测",
+      capability: "脚本执行与自动化类",
+      boundary: "外部目标交互",
+      riskLevel: "高",
+      requiresApproval: true,
+      resultMappings: ["evidence", "findings"],
+    },
+    {
+      toolName: "read_file",
+      title: "文件读取",
+      description: "读取文件内容，用于获取脚本输出、配置文件、分析结果等",
+      capability: "脚本执行与自动化类",
+      boundary: "平台内部处理",
+      riskLevel: "低",
+      requiresApproval: false,
+      resultMappings: ["evidence"],
+    },
+    {
+      toolName: "write_file",
+      title: "文件写入",
+      description: "写入文件内容，用于保存脚本、攻击载荷、分析结果、证据等",
+      capability: "脚本执行与自动化类",
+      boundary: "平台内部处理",
+      riskLevel: "低",
+      requiresApproval: false,
+      resultMappings: ["evidence"],
+    },
+  ],
 }
 
 function getMcpsDirectory() {

@@ -99,6 +99,15 @@ export function buildProjectBrainPrompt(input: ProjectBrainPromptInput) {
     "- 如果目标是 URL 且 host 为 IP 或 localhost，不要安排 DNS / 子域类动作。",
     "- 如果目标是 TCP 服务（如 tcp://host:port 或 Redis/SSH/MySQL/MongoDB 端口），优先安排 tcp_banner_grab 而非 Web 探测；确认服务类型后再决定是否需要弱口令检测。",
     "- 对非 HTTP 服务（Redis 6379、SSH 22/2222、MySQL 3306/13307、MongoDB 27017），不要安排 HTTP 入口识别或页面截图。",
+    "",
+    "## 自主脚本能力（重要）",
+    "当现有 MCP 工具无法覆盖某个验证场景时，你可以使用 execute_code 工具自主编写 Node.js 脚本进行攻击和验证：",
+    "- **execute_code**: 编写并执行 Node.js 代码。Node.js 原生支持 HTTP/TCP/UDP/DNS/Crypto/FS，你可以用它完成任何网络探测、协议交互、漏洞验证。",
+    "- **execute_command**: 执行 Shell 命令，调用系统工具（curl/python/dig 等）。",
+    "- 典型场景：Redis 未授权访问检测（发送 INFO 命令）、SSH 弱口令尝试、MySQL 协议握手、MongoDB 未授权查询、自定义 HTTP payload 发送、SQL 注入验证等。",
+    "- 使用 execute_code 时，code 字段必须包含完整可执行的 Node.js 代码，description 字段说明目的。",
+    "- 脚本执行结果会被自动沉淀为证据和发现。",
+    "- 这是你作为 LLM 大脑最核心的能力：不依赖写死规则，自主决策、自主编写攻击代码。",
   ].join("\n")
 }
 

@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-29`
-- Current focus: Phase 16 Docker 靶场全面测试已完成。12 个靶场 + TCP 探测 + 集成测试。
+- Current focus: Phase 16 Docker 靶场全面测试 + LLM 自主脚本能力已完成。12 个靶场 + TCP 探测 + Script MCP Server + 集成测试 20/20。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
 
 ## Phase 16: Docker 靶场全面测试 + MCP 工具实战验证
@@ -32,6 +32,18 @@
 - [x] TCP 目标编排正确生成 banner 抓取和端口扫描计划
 - [x] 集成测试 13/13 通过（curl/netcat/encode MCP Server 真实调用验证）
 - [x] 端到端验证脚本：11 靶场全部在线探测成功，6 靶场完整编排闭环（37 runs, 6 assets, 10 evidence, 4 findings）
+
+### LLM 自主脚本能力（Phase 16 追加）
+
+9. **Script MCP Server** — `mcps/script-mcp-server/`，4 个工具（execute_code / execute_command / read_file / write_file），赋予 LLM 大脑自主编写攻击代码的能力
+10. **工具注册** — `mcp-auto-discovery.ts` 新增 script 服务器 4 个工具映射，`mcp-servers.json` 添加 script 入口
+11. **编排器集成** — `llm-brain-prompt.ts` 添加"自主脚本能力"指导段落，`stdio-mcp-connector.ts` 添加 execute_code/execute_command/read_file/write_file 参数构建
+12. **集成测试** — `tests/integration/script-mcp-server.test.ts`（7 个用例全部通过：Redis 未授权、SSH Banner、MySQL 握手、Elasticsearch 泄露、Shell 执行、文件 I/O）
+
+### Bug Fixes — Script MCP Server
+
+- 修复 `.mjs` 扩展名导致 CommonJS `require()` 不可用：临时文件从 `.mjs` 改为 `.js`
+- 修复 Redis 探测脚本双 `data` 事件处理器导致非零退出：合并为单一处理器 + 显式 `process.exit(0)`
 
 ## Phase 15: 生产就绪基础 (Production Ready Foundation)
 

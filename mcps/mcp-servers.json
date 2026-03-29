@@ -84,6 +84,11 @@
       "env": {
         "GITHUB_TOKEN": ""
       }
+    },
+    "script": {
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"],
+      "cwd": "mcps/script-mcp-server"
     }
   }
 }
