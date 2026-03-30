@@ -1,5 +1,5 @@
 import { findStoredEnabledMcpServerByToolBinding } from "@/lib/mcp-server-repository"
-import { isWebGoatBaseUrl, parseTcpTarget } from "@/lib/orchestrator-target-scope"
+import { isWebGoatBaseUrl, normalizeUrlTarget, parseTcpTarget } from "@/lib/orchestrator-target-scope"
 import {
   appendUniquePlanItem,
   buildTcpLabFallbackPlanItems,
@@ -7,10 +7,6 @@ import {
   findCapabilityByName,
 } from "@/lib/orchestrator-plan-builder"
 import type { McpToolRecord, OrchestratorPlanItem } from "@/lib/prototype-types"
-
-function normalizeUrlTarget(target: string) {
-  return target.trim().replace(/\/+$/, "")
-}
 
 async function canUseHttpStructureDiscovery(baseUrl: string) {
   return isWebGoatBaseUrl(baseUrl) && Boolean(await findStoredEnabledMcpServerByToolBinding("graphql-surface-check"))

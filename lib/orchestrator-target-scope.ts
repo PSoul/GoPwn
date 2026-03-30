@@ -8,7 +8,7 @@ export function isWebGoatBaseUrl(baseUrl: string) {
   return /\/webgoat\/?$/i.test(baseUrl)
 }
 
-function normalizeUrlTarget(target: string) {
+export function normalizeUrlTarget(target: string) {
   return target.trim().replace(/\/+$/, "")
 }
 
@@ -155,11 +155,11 @@ function isTargetWithinProjectScope(project: ProjectRecord, candidateTarget: str
     }
 
     if (projectType === "ip") {
-      return candidateType === "ip" ? candidateHost === projectHost : candidateHost === projectHost
+      return candidateHost === projectHost
     }
 
     if (projectType === "cidr") {
-      return candidateType === "ip" ? isIpv4InCidr(candidateHost, projectHost) : isIpv4InCidr(candidateHost, projectHost)
+      return isIpv4InCidr(candidateHost, projectHost)
     }
 
     return false
@@ -173,10 +173,6 @@ export function filterPlanItemsToProjectScope(project: ProjectRecord, items: Orc
 // ---------------------------------------------------------------------------
 // TCP target helpers
 // ---------------------------------------------------------------------------
-
-function isTcpTarget(target: string) {
-  return /^tcp:\/\//i.test(target)
-}
 
 export function parseTcpTarget(target: string): { host: string; port: number } | null {
   const match = target.match(/^tcp:\/\/([^:]+):(\d+)$/i)
