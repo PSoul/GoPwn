@@ -2,7 +2,8 @@ import { notFound } from "next/navigation"
 
 import { ProjectForm } from "@/components/projects/project-form"
 import { PageHeader } from "@/components/shared/page-header"
-import { getProjectFormPresetValue, getProjectRecord } from "@/lib/prototype-api"
+import { getStoredProjectById, getStoredProjectFormPreset } from "@/lib/project-repository"
+import { getDefaultProjectFormPreset } from "@/lib/prototype-store"
 
 export default async function EditProjectPage({
   params,
@@ -10,11 +11,13 @@ export default async function EditProjectPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const project = await getProjectRecord(projectId)
+  const project = await getStoredProjectById(projectId)
 
   if (!project) {
     notFound()
   }
+
+  const preset = projectId ? (await getStoredProjectFormPreset(projectId) ?? getDefaultProjectFormPreset()) : getDefaultProjectFormPreset()
 
   return (
     <div className="space-y-5">
@@ -23,7 +26,7 @@ export default async function EditProjectPage({
         description="项目编辑页与新建页共享同一套最小表单结构，会直接预填当前项目的项目名称、目标和项目说明。"
       />
 
-      <ProjectForm mode="edit" project={project} preset={await getProjectFormPresetValue(project.id)} />
+      <ProjectForm mode="edit" project={project} preset={preset} />
     </div>
   )
 }

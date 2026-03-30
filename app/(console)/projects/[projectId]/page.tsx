@@ -2,7 +2,7 @@ import { notFound } from "next/navigation"
 
 import { ProjectResultsHub } from "@/components/projects/project-results-hub"
 import { ProjectSummary } from "@/components/projects/project-summary"
-import { getProjectOverviewPayload } from "@/lib/prototype-api"
+import { getStoredProjectById, getStoredProjectDetailById } from "@/lib/project-repository"
 
 export default async function ProjectDetailPage({
   params,
@@ -10,13 +10,14 @@ export default async function ProjectDetailPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const payload = await getProjectOverviewPayload(projectId)
+  const project = await getStoredProjectById(projectId)
+  const detail = await getStoredProjectDetailById(projectId)
 
-  if (!payload) {
+  if (!project || !detail) {
     notFound()
   }
 
-  const { project, detail } = payload
+  const data = { project, detail }
 
   return (
     <div className="space-y-4">

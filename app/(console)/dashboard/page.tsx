@@ -11,7 +11,7 @@ import {
 import { DashboardAssetPreview } from "@/components/dashboard/dashboard-asset-preview"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { getDashboardPayload } from "@/lib/prototype-api"
+import { getDashboardPayload } from "@/lib/api-compositions"
 import type { Tone } from "@/lib/prototype-types"
 import { cn } from "@/lib/utils"
 

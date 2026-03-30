@@ -1,5 +1,6 @@
 import { approvalControlPatchSchema } from "@/lib/approval-write-schema"
-import { getApprovalPolicyPayload, updateGlobalApprovalControlPayload } from "@/lib/prototype-api"
+import { getApprovalPolicyPayload } from "@/lib/api-compositions"
+import { updateStoredGlobalApprovalControl } from "@/lib/approval-repository"
 import { withApiHandler } from "@/lib/api-handler"
 
 export const GET = withApiHandler(async () => {
@@ -15,6 +16,6 @@ export const PATCH = withApiHandler(async (request) => {
   }
 
   return Response.json({
-    approvalControl: await updateGlobalApprovalControlPayload(parsed.data),
+    approvalControl: await updateStoredGlobalApprovalControl(parsed.data),
   })
 })

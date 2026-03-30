@@ -2,10 +2,12 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { SettingsLogTable } from "@/components/settings/settings-log-table"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
-import { listAuditLogsPayload } from "@/lib/prototype-api"
+import { listStoredAuditLogs } from "@/lib/project-repository"
 
 export default async function AuditLogsSettingsPage() {
-  const { items: auditLogs } = await listAuditLogsPayload()
+  const items = await listStoredAuditLogs()
+  const data = { items, total: items.length }
+  const { items: auditLogs } = data
 
   return (
     <div className="space-y-6">

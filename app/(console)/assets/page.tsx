@@ -4,7 +4,8 @@ import { AssetCenterClient } from "@/components/assets/asset-center-client"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { listAssetsPayload } from "@/lib/prototype-api"
+import { listStoredAssets } from "@/lib/asset-repository"
+import { buildAssetViews } from "@/lib/api-compositions"
 
 export default async function AssetsPage({
   searchParams,
@@ -12,7 +13,9 @@ export default async function AssetsPage({
   searchParams: Promise<{ view?: string }>
 }) {
   const params = await searchParams
-  const { items, views } = await listAssetsPayload()
+  const items = await listStoredAssets()
+  const data = { items, total: items.length, views: buildAssetViews(items) }
+  const { views } = data
   const pendingCount = items.filter((asset) => asset.scopeStatus !== "已纳入").length
 
   return (

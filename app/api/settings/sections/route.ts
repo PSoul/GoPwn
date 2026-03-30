@@ -1,4 +1,4 @@
-import { getSettingsSectionsPayload } from "@/lib/prototype-api"
+import { getSettingsSectionsPayload } from "@/lib/api-compositions"
 import { withApiHandler } from "@/lib/api-handler"
 
 export const GET = withApiHandler(async () => {

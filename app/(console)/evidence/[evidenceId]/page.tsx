@@ -5,7 +5,8 @@ import { EvidenceDetail } from "@/components/evidence/evidence-detail"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { getEvidenceDetailPayload } from "@/lib/prototype-api"
+import { getStoredEvidenceById } from "@/lib/evidence-repository"
+import { buildRuntimeArtifactUrl } from "@/lib/runtime-artifacts"
 
 export default async function EvidenceDetailPage({
   params,
@@ -13,13 +14,16 @@ export default async function EvidenceDetailPage({
   params: Promise<{ evidenceId: string }>
 }) {
   const { evidenceId } = await params
-  const payload = await getEvidenceDetailPayload(evidenceId)
+  const record = await getStoredEvidenceById(evidenceId)
 
-  if (!payload) {
+  if (!record) {
     notFound()
   }
 
-  const { artifacts, record } = payload
+  const artifacts = {
+    screenshotUrl: buildRuntimeArtifactUrl(record.screenshotArtifactPath) ?? undefined,
+    htmlUrl: buildRuntimeArtifactUrl(record.htmlArtifactPath) ?? undefined,
+  }
 
   return (
     <div className="space-y-6">

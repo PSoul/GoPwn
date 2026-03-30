@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
 import { SystemControlPanel } from "@/components/settings/system-control-panel"
-import { getApprovalPolicyPayload } from "@/lib/prototype-api"
+import { getApprovalPolicyPayload } from "@/lib/api-compositions"
 
 export default async function ApprovalPolicySettingsPage() {
   const payload = await getApprovalPolicyPayload()

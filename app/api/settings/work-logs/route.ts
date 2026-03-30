@@ -1,6 +1,7 @@
-import { listWorkLogsPayload } from "@/lib/prototype-api"
+import { listStoredWorkLogs } from "@/lib/work-log-repository"
 import { withApiHandler } from "@/lib/api-handler"
 
 export const GET = withApiHandler(async () => {
-  return Response.json(await listWorkLogsPayload())
+  const items = await listStoredWorkLogs()
+  return Response.json({ items, total: items.length })
 })

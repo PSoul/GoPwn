@@ -1,5 +1,5 @@
 import { approvalControlPatchSchema } from "@/lib/approval-write-schema"
-import { updateProjectApprovalControlPayload } from "@/lib/prototype-api"
+import { updateStoredProjectApprovalControl } from "@/lib/approval-repository"
 import { withApiHandler } from "@/lib/api-handler"
 
 export const PATCH = withApiHandler(async (request, { params }) => {
@@ -11,7 +11,7 @@ export const PATCH = withApiHandler(async (request, { params }) => {
     return Response.json({ error: "Invalid project approval-control payload" }, { status: 400 })
   }
 
-  const payload = await updateProjectApprovalControlPayload(projectId, parsed.data)
+  const payload = await updateStoredProjectApprovalControl(projectId, parsed.data)
 
   if (!payload) {
     return Response.json({ error: `Project '${projectId}' not found` }, { status: 404 })

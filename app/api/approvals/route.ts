@@ -1,6 +1,7 @@
-import { listApprovalsPayload } from "@/lib/prototype-api"
+import { listStoredApprovals } from "@/lib/approval-repository"
 import { withApiHandler } from "@/lib/api-handler"
 
 export const GET = withApiHandler(async () => {
-  return Response.json(await listApprovalsPayload())
+  const items = await listStoredApprovals()
+  return Response.json({ items, total: items.length })
 })

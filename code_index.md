@@ -126,9 +126,26 @@
 | `lib/prisma.ts` | PrismaClient 单例（使用 `@prisma/adapter-pg` PrismaPg 适配器，globalThis 缓存防热重载泄漏） |
 | `lib/prisma-transforms.ts` | Prisma DB 模型 ↔ TypeScript 接口双向转换（20+ 模型类型：Project/Finding/Evidence/McpRun/Approval 等） |
 | `lib/prototype-store.ts` | 遗留文件系统数据存储（仅保留类型定义和 `getDefaultProjectFormPreset`，运行时不再使用文件 I/O） |
-| `lib/prototype-types.ts` | 全部 TypeScript 类型定义（含 UserRecord/UserRole/UserStatus） |
-| `lib/prototype-api.ts` | 页面级数据聚合 API（~20 函数已改为 async，await 所有仓库调用） |
+| `lib/prototype-types.ts` | 类型再导出桶文件（~10 行），从 `lib/types/` 目录重新导出所有类型 |
+| `lib/api-compositions.ts` | 页面级数据组合层（~580 行）— 8 个组合函数 + buildAssetViews + getSystemStatusPayload；替代已删除的 `prototype-api.ts` |
 | `lib/prototype-data.ts` | 初始化种子数据 |
+
+### 类型定义 (lib/types/)
+
+> Phase 19 从 `prototype-types.ts` 拆分为 10 个领域文件，原文件保留为再导出桶。
+
+| 文件 | 用途 |
+|------|------|
+| `lib/types/project.ts` | ProjectRecord, ProjectDetailRecord, ProjectFormPreset, stages, statuses 等 |
+| `lib/types/approval.ts` | ApprovalRecord, ApprovalControl, ApprovalDecisionInput 等 |
+| `lib/types/mcp.ts` | McpToolRecord, McpServerRecord, McpRunRecord 等 |
+| `lib/types/scheduler.ts` | ProjectSchedulerControl, McpSchedulerTaskRecord, OrchestratorRoundRecord |
+| `lib/types/asset.ts` | AssetRecord, AssetRelation, AssetCollectionView |
+| `lib/types/evidence.ts` | EvidenceRecord |
+| `lib/types/settings.ts` | LlmProfileRecord, LocalLabRecord, SettingsSectionRecord 等 |
+| `lib/types/llm-log.ts` | LlmCallLogRecord, LlmCallRole 等 |
+| `lib/types/user.ts` | UserRecord, UserRole, UserStatus |
+| `lib/types/payloads.ts` | 所有 *Payload, *Input 类型（~30 个类型） |
 
 ### 身份认证与安全
 
@@ -163,7 +180,11 @@
 
 | 文件 | 用途 |
 |------|------|
-| `lib/orchestrator-service.ts` | 编排器主服务（规划 → 并行执行 → 反思 → 回顾循环） |
+| `lib/orchestrator-service.ts` | 编排器主服务入口（~350 行，5 个公共函数）— Phase 19 拆分后仅保留顶层协调 |
+| `lib/orchestrator-target-scope.ts` | 编排器目标分类与范围验证（TCP 解析、目标分类） |
+| `lib/orchestrator-plan-builder.ts` | 编排器计划生成（规范化、回退模板） |
+| `lib/orchestrator-execution.ts` | 编排器计划执行（轮次记录、多轮循环） |
+| `lib/orchestrator-local-lab.ts` | 本地靶场验证计划构建 |
 | `lib/orchestrator-context-builder.ts` | 编排器上下文构建（资产快照 + token 预算压缩 + 失败分析 + 输出摘要） |
 | `lib/mcp-execution-service.ts` | MCP 工具执行引擎 |
 | `lib/mcp-scheduler-service.ts` | MCP 任务调度 |
@@ -183,7 +204,7 @@
 | `lib/auth-repository.ts` | 多用户认证仓库（Prisma） |
 | `lib/llm-call-logger.ts` | LLM 调用日志（Prisma） |
 | `lib/mcp-scheduler-service.ts` | MCP 任务调度（async 传播） |
-| `lib/orchestrator-service.ts` | 编排器主服务（async 传播） |
+| `lib/orchestrator-service.ts` | 编排器主服务入口（async 传播，Phase 19 拆分后 ~350 行） |
 | `lib/navigation.ts` | 侧边栏导航定义（总览/发现/系统） |
 
 ### MCP 连接器
@@ -306,3 +327,27 @@
 | MongoDB (无认证) | 27017 | TCP | 未授权访问 |
 
 `lib/local-lab-catalog.ts` — 靶场目录与探测（HTTP + TCP 双协议支持）
+
+## 9. 架构演进记录
+
+### Phase 19: Architecture Refactoring (2026-03-30)
+
+> 设计文档: `docs/superpowers/specs/2026-03-30-architecture-refactoring-design.md`
+
+三步架构重构，消除单体文件、门面层和上帝模块：
+
+**Step 1 — 类型拆分**
+- `lib/prototype-types.ts` 从单体类型文件（400+ 行）缩减为再导出桶文件（~10 行）
+- 新增 `lib/types/` 目录，包含 10 个领域文件：`project.ts`, `approval.ts`, `mcp.ts`, `scheduler.ts`, `asset.ts`, `evidence.ts`, `settings.ts`, `llm-log.ts`, `user.ts`, `payloads.ts`
+
+**Step 2 — API 门面消除**
+- 删除 `lib/prototype-api.ts`（~20 个透传函数）
+- 新增 `lib/api-compositions.ts`（~580 行）— 8 个组合函数 + buildAssetViews + getSystemStatusPayload
+- 所有 API 路由和页面改为直接从 repositories/services 导入，不再经过门面层
+
+**Step 3 — 编排器拆分**
+- `lib/orchestrator-service.ts` 从 1,536 行缩减至 ~350 行（5 个公共函数）
+- 新增 `lib/orchestrator-target-scope.ts` — 目标分类、范围验证、TCP 解析
+- 新增 `lib/orchestrator-plan-builder.ts` — 计划生成、规范化、回退模板
+- 新增 `lib/orchestrator-execution.ts` — 计划执行、轮次记录、多轮循环
+- 新增 `lib/orchestrator-local-lab.ts` — 本地靶场验证计划构建

@@ -1,4 +1,4 @@
-import { runProjectSchedulerTaskActionPayload } from "@/lib/prototype-api"
+import { cancelStoredSchedulerTask, retryStoredSchedulerTask } from "@/lib/project-scheduler-control-repository"
 import { projectSchedulerTaskActionSchema } from "@/lib/scheduler-write-schema"
 import { withApiHandler } from "@/lib/api-handler"
 
@@ -11,7 +11,9 @@ export const PATCH = withApiHandler(async (request, { params }) => {
     return Response.json({ error: "Invalid project scheduler-task payload" }, { status: 400 })
   }
 
-  const payload = await runProjectSchedulerTaskActionPayload(projectId, taskId, parsed.data.action, parsed.data.note)
+  const payload = parsed.data.action === "cancel"
+    ? await cancelStoredSchedulerTask(projectId, taskId, parsed.data.note)
+    : await retryStoredSchedulerTask(projectId, taskId, parsed.data.note)
 
   if (!payload) {
     return Response.json({ error: `Project '${projectId}' or task '${taskId}' not found` }, { status: 404 })

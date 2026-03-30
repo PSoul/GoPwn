@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { getProjectFindingsPayload } from "@/lib/prototype-api"
+import { getStoredProjectById } from "@/lib/project-repository"
 import { listStoredProjectFindings, upsertStoredProjectFindings } from "@/lib/project-results-repository"
 import { withApiHandler } from "@/lib/api-handler"
 
@@ -11,13 +11,13 @@ const findingStatusSchema = z.object({
 
 export const GET = withApiHandler(async (_request, { params }) => {
   const { projectId } = await params
-  const payload = await getProjectFindingsPayload(projectId)
-
-  if (!payload) {
+  const project = await getStoredProjectById(projectId)
+  if (!project) {
     return Response.json({ error: `Project '${projectId}' not found` }, { status: 404 })
   }
+  const findings = await listStoredProjectFindings(projectId)
 
-  return Response.json(payload)
+  return Response.json({ project, findings })
 })
 
 export const PATCH = withApiHandler(async (request, { params }) => {

@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { McpGatewayClient } from "@/components/settings/mcp-gateway-client"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
-import { getMcpSettingsPayload } from "@/lib/prototype-api"
+import { getMcpSettingsPayload } from "@/lib/api-compositions"
 
 export default async function McpToolsSettingsPage() {
   const payload = await getMcpSettingsPayload()

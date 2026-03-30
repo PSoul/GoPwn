@@ -6,7 +6,7 @@ import { ProjectWorkspaceIntro } from "@/components/projects/project-workspace-i
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { getProjectContextPayload } from "@/lib/prototype-api"
+import { getProjectContextPayload } from "@/lib/api-compositions"
 
 export default async function ProjectContextPage({
   params,

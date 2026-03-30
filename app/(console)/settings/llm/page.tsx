@@ -2,10 +2,11 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { LlmSettingsPanel } from "@/components/settings/llm-settings-panel"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
-import { getLlmSettingsPayload } from "@/lib/prototype-api"
+import { listStoredLlmProfiles } from "@/lib/llm-settings-repository"
 
 export default async function LlmSettingsPage() {
-  const payload = await getLlmSettingsPayload()
+  const profiles = await listStoredLlmProfiles()
+  const payload = { profiles }
 
   return (
     <div className="space-y-6">

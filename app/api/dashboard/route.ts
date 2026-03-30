@@ -1,4 +1,4 @@
-import { getDashboardPayload } from "@/lib/prototype-api"
+import { getDashboardPayload } from "@/lib/api-compositions"
 import { withApiHandler } from "@/lib/api-handler"
 
 export const GET = withApiHandler(async () => {

@@ -1,4 +1,4 @@
-import { getMcpSettingsPayload } from "@/lib/prototype-api"
+import { getMcpSettingsPayload } from "@/lib/api-compositions"
 import { withApiHandler } from "@/lib/api-handler"
 
 export const GET = withApiHandler(async () => {
