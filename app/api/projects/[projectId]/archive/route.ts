@@ -1,9 +1,9 @@
-import { archiveProjectOverviewPayload } from "@/lib/prototype-api"
+import { archiveStoredProject } from "@/lib/project-repository"
 import { withApiHandler } from "@/lib/api-handler"
 
 export const POST = withApiHandler(async (_request, { params }) => {
   const { projectId } = await params
-  const payload = await archiveProjectOverviewPayload(projectId)
+  const payload = await archiveStoredProject(projectId)
 
   if (!payload) {
     return Response.json({ error: `Project '${projectId}' not found` }, { status: 404 })

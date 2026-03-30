@@ -6,7 +6,7 @@ import { ProjectOperationsPanel } from "@/components/projects/project-operations
 import { ProjectReportExportPanel } from "@/components/projects/project-report-export-panel"
 import { ProjectSchedulerRuntimePanel } from "@/components/projects/project-scheduler-runtime-panel"
 import { mcpCapabilityRecords } from "@/lib/platform-config"
-import { getProjectOperationsPayload } from "@/lib/prototype-api"
+import { getProjectOperationsPayload } from "@/lib/api-compositions"
 import { getProjectPrimaryTarget } from "@/lib/project-targets"
 
 export default async function ProjectOperationsPage({

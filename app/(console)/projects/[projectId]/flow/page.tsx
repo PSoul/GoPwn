@@ -6,7 +6,7 @@ import { ProjectWorkspaceIntro } from "@/components/projects/project-workspace-i
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { getProjectFlowPayload } from "@/lib/prototype-api"
+import { getStoredProjectById, getStoredProjectDetailById } from "@/lib/project-repository"
 
 export default async function ProjectFlowPage({
   params,
@@ -14,13 +14,12 @@ export default async function ProjectFlowPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const payload = await getProjectFlowPayload(projectId)
+  const project = await getStoredProjectById(projectId)
+  const detail = await getStoredProjectDetailById(projectId)
 
-  if (!payload) {
+  if (!project || !detail) {
     notFound()
   }
-
-  const { project, detail } = payload
   const statusTone =
     project.status === "已阻塞"
       ? "danger"

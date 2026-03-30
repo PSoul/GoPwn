@@ -649,9 +649,25 @@
 - [x] 进入项目页自动切换到当前项目
 - [x] SSE 端点使用 withApiHandler
 
+## Phase 19: Architecture Refactoring (做减法)
+
+- Status: Planned
+- Goal: Reduce complexity by splitting 3 monolithic files, deleting ~850 lines of dead code, capping max file size at ~410 lines
+
+### Steps
+
+1. **Split `prototype-types.ts`** (918 lines) into 10 domain files under `lib/types/` + barrel re-export
+2. **Delete `prototype-api.ts`** (1,104 lines, 43 functions) → create `api-compositions.ts` (8 composition functions), update 58 import sites to use direct repository imports
+3. **Split `orchestrator-service.ts`** (1,536 lines) into 5 focused modules
+
+### Expected Results
+
+- All 178 unit tests + 14 E2E tests pass, zero functionality changes
+- Design spec: `docs/superpowers/specs/2026-03-30-architecture-refactoring-design.md`
+
 ## Recommended Next Phase
 
-- Name: `Phase 18 - 真实渗透测试闭环验证 + 多目标并行`
+- Name: `Phase 18 - 真实渗透测试闭环验证 (Real Pentest Closure)`
 - Goal: 使用当前 Prisma 数据层对 Docker 靶场进行完整端到端渗透测试闭环验证；优化多目标项目的并行编排；加强 MCP 连接器错误恢复与结果标准化。
 - Priorities:
   1. 对 DVWA/WebGoat/Juice Shop 各执行一次完整的 LLM 编排 → MCP 执行 → 发现 → 报告闭环

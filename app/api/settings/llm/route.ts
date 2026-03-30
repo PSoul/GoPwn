@@ -1,9 +1,9 @@
 import { llmProfileWriteSchema } from "@/lib/llm-settings-write-schema"
-import { getLlmSettingsPayload, updateLlmSettingsPayload } from "@/lib/prototype-api"
+import { listStoredLlmProfiles, updateStoredLlmProfile } from "@/lib/llm-settings-repository"
 import { withApiHandler } from "@/lib/api-handler"
 
 export const GET = withApiHandler(async () => {
-  return Response.json(await getLlmSettingsPayload())
+  return Response.json({ profiles: await listStoredLlmProfiles() })
 })
 
 export const PATCH = withApiHandler(async (request) => {
@@ -14,7 +14,7 @@ export const PATCH = withApiHandler(async (request) => {
     return Response.json({ error: parsed.error.issues[0]?.message ?? "Invalid LLM settings payload" }, { status: 400 })
   }
 
-  const profile = await updateLlmSettingsPayload(parsed.data)
+  const profile = await updateStoredLlmProfile(parsed.data)
 
   if (!profile) {
     return Response.json({ error: `LLM profile '${parsed.data.id}' not found` }, { status: 404 })
@@ -22,6 +22,6 @@ export const PATCH = withApiHandler(async (request) => {
 
   return Response.json({
     profile,
-    profiles: (await getLlmSettingsPayload()).profiles,
+    profiles: await listStoredLlmProfiles(),
   })
 })

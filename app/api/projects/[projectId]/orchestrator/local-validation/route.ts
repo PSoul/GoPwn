@@ -1,5 +1,6 @@
 import { localValidationRunSchema } from "@/lib/mcp-write-schema"
-import { executeProjectLocalValidationPayload } from "@/lib/prototype-api"
+import { getStoredProjectById } from "@/lib/project-repository"
+import { executeProjectLocalValidation } from "@/lib/orchestrator-service"
 import { withApiHandler } from "@/lib/api-handler"
 
 export const POST = withApiHandler(async (request, { params }) => {
@@ -11,7 +12,12 @@ export const POST = withApiHandler(async (request, { params }) => {
     return Response.json({ error: "Invalid local validation payload" }, { status: 400 })
   }
 
-  const payload = await executeProjectLocalValidationPayload(projectId, parsed.data)
+  const project = await getStoredProjectById(projectId)
+  if (!project) {
+    return Response.json({ error: `Project '${projectId}' or local lab not found` }, { status: 404 })
+  }
+
+  const payload = await executeProjectLocalValidation(projectId, parsed.data)
 
   if (!payload) {
     return Response.json({ error: `Project '${projectId}' or local lab not found` }, { status: 404 })

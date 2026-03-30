@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation"
 
 import { ProjectLlmLogPanel } from "@/components/projects/project-llm-log-panel"
-import { getProjectOverviewPayload } from "@/lib/prototype-api"
+import { getStoredProjectById, getStoredProjectDetailById } from "@/lib/project-repository"
 
 export default async function ProjectAiLogsPage({
   params,
@@ -9,13 +9,14 @@ export default async function ProjectAiLogsPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const payload = await getProjectOverviewPayload(projectId)
+  const project = await getStoredProjectById(projectId)
+  const detail = await getStoredProjectDetailById(projectId)
 
-  if (!payload) {
+  if (!project || !detail) {
     notFound()
   }
 
-  const isRunning = payload.project.status === "运行中"
+  const isRunning = project.status === "运行中"
 
   return <ProjectLlmLogPanel projectId={projectId} isRunning={isRunning} />
 }

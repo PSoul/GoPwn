@@ -5,7 +5,8 @@ import { ProjectFindingsTable } from "@/components/projects/project-findings-tab
 import { ProjectWorkspaceIntro } from "@/components/projects/project-workspace-intro"
 import { SectionCard } from "@/components/shared/section-card"
 import { Button } from "@/components/ui/button"
-import { getProjectFindingsPayload } from "@/lib/prototype-api"
+import { getStoredProjectById } from "@/lib/project-repository"
+import { listStoredProjectFindings } from "@/lib/project-results-repository"
 
 export default async function ProjectFindingsResultsPage({
   params,
@@ -13,13 +14,13 @@ export default async function ProjectFindingsResultsPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const payload = await getProjectFindingsPayload(projectId)
+  const project = await getStoredProjectById(projectId)
 
-  if (!payload) {
+  if (!project) {
     notFound()
   }
 
-  const { findings, project } = payload
+  const findings = await listStoredProjectFindings(projectId)
 
   return (
     <div className="space-y-5">

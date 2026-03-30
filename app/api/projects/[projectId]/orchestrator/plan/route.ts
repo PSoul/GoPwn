@@ -1,18 +1,20 @@
 import { localValidationRunSchema } from "@/lib/mcp-write-schema"
+import { getStoredProjectById } from "@/lib/project-repository"
 import {
-  generateProjectOrchestratorPlanPayload,
-  getProjectOrchestratorPayload,
-} from "@/lib/prototype-api"
+  generateProjectOrchestratorPlan,
+  getProjectOrchestratorPanelPayload,
+} from "@/lib/orchestrator-service"
 import { withApiHandler } from "@/lib/api-handler"
 
 export const GET = withApiHandler(async (_request, { params }) => {
   const { projectId } = await params
-  const payload = await getProjectOrchestratorPayload(projectId)
+  const project = await getStoredProjectById(projectId)
 
-  if (!payload) {
+  if (!project) {
     return Response.json({ error: `Project '${projectId}' not found` }, { status: 404 })
   }
 
+  const payload = await getProjectOrchestratorPanelPayload(projectId)
   return Response.json(payload)
 })
 
@@ -25,7 +27,13 @@ export const POST = withApiHandler(async (request, { params }) => {
     return Response.json({ error: "Invalid orchestrator plan payload" }, { status: 400 })
   }
 
-  const payload = await generateProjectOrchestratorPlanPayload(projectId, parsed.data)
+  const project = await getStoredProjectById(projectId)
+
+  if (!project) {
+    return Response.json({ error: `Project '${projectId}' or local lab not found` }, { status: 404 })
+  }
+
+  const payload = await generateProjectOrchestratorPlan(projectId, parsed.data)
 
   if (!payload) {
     return Response.json({ error: `Project '${projectId}' or local lab not found` }, { status: 404 })

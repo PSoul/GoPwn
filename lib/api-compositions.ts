@@ -9,7 +9,7 @@ import {
   systemControlOverview,
   systemStatusCards,
 } from "@/lib/platform-config"
-import { listStoredLlmProfiles, updateStoredLlmProfile } from "@/lib/llm-settings-repository"
+import { listStoredLlmProfiles } from "@/lib/llm-settings-repository"
 import {
   getStoredGlobalApprovalControl,
   listStoredApprovalPolicies,
@@ -17,49 +17,35 @@ import {
   listStoredProjectApprovals,
   listStoredScopeRules,
   updateStoredApprovalDecision,
-  updateStoredGlobalApprovalControl,
-  updateStoredProjectApprovalControl,
 } from "@/lib/approval-repository"
 import {
-  getStoredAssetById,
   listStoredAssets,
 } from "@/lib/asset-repository"
 import {
-  getStoredEvidenceById,
   listStoredEvidence,
 } from "@/lib/evidence-repository"
 import {
   listStoredMcpRuns,
 } from "@/lib/mcp-gateway-repository"
 import {
-  registerStoredMcpServer,
   listStoredMcpServerInvocations,
   listStoredMcpServers,
 } from "@/lib/mcp-server-repository"
 import {
-  executeProjectLocalValidation,
-  generateProjectOrchestratorPlan,
   getProjectOrchestratorPanelPayload,
   runProjectLifecycleKickoff,
 } from "@/lib/orchestrator-service"
 import { buildDefaultProjectSchedulerControl } from "@/lib/project-scheduler-lifecycle"
-import { dispatchProjectMcpRunAndDrain } from "@/lib/project-mcp-dispatch-service"
 import {
   drainStoredSchedulerTasks,
   syncStoredSchedulerTaskAfterApprovalDecision,
 } from "@/lib/mcp-scheduler-service"
 import { listStoredSchedulerTasks } from "@/lib/mcp-scheduler-repository"
-import { runProjectSmokeWorkflow } from "@/lib/mcp-workflow-service"
 import {
-  getStoredMcpToolById,
   listStoredMcpTools,
-  runStoredMcpHealthCheck,
-  updateStoredMcpTool,
 } from "@/lib/mcp-repository"
 import {
-  cancelStoredSchedulerTask,
   getStoredProjectSchedulerControl,
-  retryStoredSchedulerTask,
   stopStoredProjectSchedulerTasks,
   updateStoredProjectSchedulerControl,
 } from "@/lib/project-scheduler-control-repository"
@@ -68,65 +54,43 @@ import {
   listStoredProjectFindings,
 } from "@/lib/project-results-repository"
 import {
-  archiveStoredProject,
-  createStoredProject,
   getStoredProjectById,
   getStoredProjectDetailById,
-  getStoredProjectFormPreset,
   listStoredAuditLogs,
   listStoredProjects,
-  updateStoredProject,
 } from "@/lib/project-repository"
-import { getDefaultProjectFormPreset } from "@/lib/prototype-store"
 import { prisma } from "@/lib/prisma"
 import { toOrchestratorRoundRecord } from "@/lib/prisma-transforms"
-import { buildRuntimeArtifactUrl } from "@/lib/runtime-artifacts"
 import { listStoredWorkLogs } from "@/lib/work-log-repository"
 import type {
-  ApprovalControlPatch,
   ApprovalCollectionPayload,
+  ApprovalControlPatch,
   ApprovalDecisionInput,
   ApprovalPolicyPayload,
-  AssetCollectionPayload,
   AssetCollectionView,
-  AssetDetailPayload,
   DashboardPayload,
   DashboardRecentResultRecord,
   DashboardSystemRecord,
-  EvidenceCollectionPayload,
-  EvidenceDetailPayload,
   LlmProfileRecord,
-  LlmSettingsPayload,
-  LogCollectionPayload,
-  LocalValidationRunInput,
-  McpDispatchInput,
-  McpDispatchPayload,
-  McpRunCollectionPayload,
+  McpResultMapping,
   McpSettingsPayload,
-  McpToolPatchInput,
   McpToolRecord,
-  McpWorkflowSmokeInput,
-  McpWorkflowSmokePayload,
   ProjectCollectionPayload,
   ProjectContextPayload,
-  ProjectFindingsPayload,
   ProjectFlowPayload,
-  ProjectFormPreset,
-  ProjectInventoryPayload,
-  ProjectOrchestratorPanelPayload,
-  ProjectMutationInput,
   ProjectOperationsPayload,
   ProjectOverviewPayload,
-  ProjectPatchInput,
   ProjectRecord,
-  ProjectReportExportActionPayload,
-  ProjectReportExportPayload,
   SettingsSectionsPayload,
   SystemStatusPayload,
   SystemStatusRecord,
   TaskRecord,
   Tone,
 } from "@/lib/prototype-types"
+
+// ──────────────────────────────────────────────
+// Private helpers
+// ──────────────────────────────────────────────
 
 async function buildDashboardMetrics(projects: ProjectRecord[], approvalTotal: number) {
   const findings = await listStoredProjectFindings()
@@ -341,48 +305,7 @@ async function getProjectBase(projectId: string) {
   return { project, detail }
 }
 
-export async function listProjectsPayload(): Promise<ProjectCollectionPayload> {
-  const projects = await listStoredProjects()
-
-  return {
-    items: projects,
-    total: projects.length,
-  }
-}
-
-export async function getProjectOverviewPayload(projectId: string): Promise<ProjectOverviewPayload | null> {
-  return getProjectBase(projectId)
-}
-
-export async function getProjectFlowPayload(projectId: string): Promise<ProjectFlowPayload | null> {
-  return getProjectBase(projectId)
-}
-
-export async function getProjectOperationsPayload(projectId: string): Promise<ProjectOperationsPayload | null> {
-  const base = await getProjectBase(projectId)
-
-  if (!base) {
-    return null
-  }
-
-  const dbRounds = await prisma.orchestratorRound.findMany({
-    where: { projectId },
-    orderBy: { round: "asc" },
-  })
-
-  return {
-    ...base,
-    approvals: await listStoredProjectApprovals(projectId),
-    mcpRuns: await listStoredMcpRuns(projectId),
-    schedulerControl: await getStoredProjectSchedulerControl(projectId) ?? buildDefaultProjectSchedulerControl(base.project.lastUpdated, "idle"),
-    schedulerTasks: await listStoredSchedulerTasks(projectId),
-    orchestrator: await getProjectOrchestratorPanelPayload(projectId),
-    reportExport: await getStoredProjectReportExportPayload(projectId),
-    orchestratorRounds: dbRounds.map(toOrchestratorRoundRecord),
-  }
-}
-
-function buildAssetViews(
+export function buildAssetViews(
   assets: Awaited<ReturnType<typeof listStoredAssets>>,
   options?: {
     includePendingReview?: boolean
@@ -583,6 +506,61 @@ async function buildDashboardSystemOverview({
   ]
 }
 
+// ──────────────────────────────────────────────
+// Exported composition functions (8)
+// ──────────────────────────────────────────────
+
+export async function getDashboardPayload(): Promise<DashboardPayload> {
+  const projects = await listStoredProjects()
+  const approvals = await listStoredApprovals()
+  const mcpTools = await listStoredMcpTools()
+  const assets = await listStoredAssets()
+  const evidence = await listStoredEvidence()
+  const findings = await listStoredProjectFindings()
+  const pendingApprovalCount = approvals.filter((approval) => approval.status === "待处理").length
+  const priorities = buildDashboardPriorities({ projects, approvals, assets, mcpTools })
+  const leadProject = projects[0] ?? null
+
+  return {
+    metrics: await buildDashboardMetrics(projects, pendingApprovalCount),
+    priorities,
+    leadProject,
+    approvals,
+    assets,
+    evidence,
+    mcpTools,
+    projectTasks: await deriveDashboardTasks(projects),
+    projects,
+    assetViews: buildAssetViews(assets, { includePendingReview: false }),
+    recentResults: buildDashboardRecentResults({ approvals, assets, evidence, findings, projects }),
+    systemOverview: await buildDashboardSystemOverview({ mcpTools, projects }),
+  }
+}
+
+export async function getProjectOperationsPayload(projectId: string): Promise<ProjectOperationsPayload | null> {
+  const base = await getProjectBase(projectId)
+
+  if (!base) {
+    return null
+  }
+
+  const dbRounds = await prisma.orchestratorRound.findMany({
+    where: { projectId },
+    orderBy: { round: "asc" },
+  })
+
+  return {
+    ...base,
+    approvals: await listStoredProjectApprovals(projectId),
+    mcpRuns: await listStoredMcpRuns(projectId),
+    schedulerControl: await getStoredProjectSchedulerControl(projectId) ?? buildDefaultProjectSchedulerControl(base.project.lastUpdated, "idle"),
+    schedulerTasks: await listStoredSchedulerTasks(projectId),
+    orchestrator: await getProjectOrchestratorPanelPayload(projectId),
+    reportExport: await getStoredProjectReportExportPayload(projectId),
+    orchestratorRounds: dbRounds.map(toOrchestratorRoundRecord),
+  }
+}
+
 export async function getProjectContextPayload(projectId: string): Promise<ProjectContextPayload | null> {
   const base = await getProjectBase(projectId)
 
@@ -601,37 +579,6 @@ export async function getProjectContextPayload(projectId: string): Promise<Proje
     approvals: await listStoredProjectApprovals(projectId),
     assets: await listStoredAssets(projectId),
     evidence: await listStoredEvidence(projectId),
-  }
-}
-
-export async function getProjectInventoryPayload(
-  projectId: string,
-  groupTitle: string,
-): Promise<ProjectInventoryPayload | null> {
-  const project = await getStoredProjectById(projectId)
-  const detail = await getStoredProjectDetailById(projectId)
-  const group = detail?.assetGroups.find((item) => item.title === groupTitle)
-
-  if (!project || !group || !detail) {
-    return null
-  }
-
-  return {
-    project,
-    group,
-  }
-}
-
-export async function getProjectFindingsPayload(projectId: string): Promise<ProjectFindingsPayload | null> {
-  const base = await getProjectBase(projectId)
-
-  if (!base) {
-    return null
-  }
-
-  return {
-    project: base.project,
-    findings: await listStoredProjectFindings(projectId),
   }
 }
 
@@ -685,148 +632,43 @@ export async function getSettingsSectionsPayload(): Promise<SettingsSectionsPayl
   }
 }
 
-export async function getSystemStatusPayload(): Promise<SystemStatusPayload> {
-  const items = await buildSystemStatusPayloadFromTools(await listStoredMcpTools())
+export async function getMcpSettingsPayload(): Promise<McpSettingsPayload> {
+  const tools = await listStoredMcpTools()
+  const dbServerContracts = await prisma.mcpServerContract.findMany()
+  const dbToolContracts = await prisma.mcpToolContract.findMany()
 
   return {
-    items,
-    total: items.length,
-  }
-}
-
-export async function getDashboardPayload(): Promise<DashboardPayload> {
-  const projects = await listStoredProjects()
-  const approvals = await listStoredApprovals()
-  const mcpTools = await listStoredMcpTools()
-  const assets = await listStoredAssets()
-  const evidence = await listStoredEvidence()
-  const findings = await listStoredProjectFindings()
-  const pendingApprovalCount = approvals.filter((approval) => approval.status === "待处理").length
-  const priorities = buildDashboardPriorities({ projects, approvals, assets, mcpTools })
-  const leadProject = projects[0] ?? null
-
-  return {
-    metrics: await buildDashboardMetrics(projects, pendingApprovalCount),
-    priorities,
-    leadProject,
-    approvals,
-    assets,
-    evidence,
-    mcpTools,
-    projectTasks: await deriveDashboardTasks(projects),
-    projects,
-    assetViews: buildAssetViews(assets, { includePendingReview: false }),
-    recentResults: buildDashboardRecentResults({ approvals, assets, evidence, findings, projects }),
-    systemOverview: await buildDashboardSystemOverview({ mcpTools, projects }),
-  }
-}
-
-export async function listApprovalsPayload(): Promise<ApprovalCollectionPayload> {
-  const approvals = await listStoredApprovals()
-
-  return {
-    items: approvals,
-    total: approvals.length,
-  }
-}
-
-export async function listAssetsPayload(): Promise<AssetCollectionPayload> {
-  const items = await listStoredAssets()
-
-  return {
-    items,
-    total: items.length,
-    views: buildAssetViews(items),
-  }
-}
-
-export async function getAssetDetailPayload(assetId: string): Promise<AssetDetailPayload | null> {
-  const asset = await getStoredAssetById(assetId)
-
-  if (!asset) {
-    return null
-  }
-
-  return { asset }
-}
-
-export async function listEvidencePayload(): Promise<EvidenceCollectionPayload> {
-  const items = await listStoredEvidence()
-
-  return {
-    items,
-    total: items.length,
-  }
-}
-
-export async function getEvidenceDetailPayload(evidenceId: string): Promise<EvidenceDetailPayload | null> {
-  const record = await getStoredEvidenceById(evidenceId)
-
-  if (!record) {
-    return null
-  }
-
-  return {
-    record,
-    artifacts: {
-      screenshotUrl: buildRuntimeArtifactUrl(record.screenshotArtifactPath) ?? undefined,
-      htmlUrl: buildRuntimeArtifactUrl(record.htmlArtifactPath) ?? undefined,
-    },
-  }
-}
-
-export async function getProjectRecord(projectId: string): Promise<ProjectRecord | null> {
-  return getStoredProjectById(projectId)
-}
-
-export async function getProjectFormPresetValue(projectId?: string): Promise<ProjectFormPreset> {
-  if (!projectId) {
-    return getDefaultProjectFormPreset()
-  }
-
-  return await getStoredProjectFormPreset(projectId) ?? getDefaultProjectFormPreset()
-}
-
-export async function createProjectOverviewPayload(input: ProjectMutationInput): Promise<ProjectOverviewPayload> {
-  return createStoredProject(input)
-}
-
-export async function updateProjectOverviewPayload(
-  projectId: string,
-  patch: ProjectPatchInput,
-): Promise<ProjectOverviewPayload | null> {
-  return updateStoredProject(projectId, patch)
-}
-
-export async function archiveProjectOverviewPayload(projectId: string): Promise<ProjectOverviewPayload | null> {
-  return archiveStoredProject(projectId)
-}
-
-export async function listAuditLogsPayload(): Promise<LogCollectionPayload> {
-  const items = await listStoredAuditLogs()
-
-  return {
-    items,
-    total: items.length,
-  }
-}
-
-export async function getApprovalPolicyPayload(): Promise<ApprovalPolicyPayload> {
-  const approvalControl = await getStoredGlobalApprovalControl()
-
-  return {
-    overview: systemControlOverview.map((item, index) =>
-      index === 3
-        ? {
-            ...item,
-            value: approvalControl.enabled ? "审批链路已开启" : "审批链路已关闭",
-            description: approvalControl.note,
-          }
-        : item,
-    ),
-    approvalControl,
-    approvalPolicies: await listStoredApprovalPolicies(),
-    scopeRules: await listStoredScopeRules(),
+    tools,
+    servers: await listStoredMcpServers(),
+    recentInvocations: await listStoredMcpServerInvocations(undefined, 6),
+    capabilities: buildCapabilityPayloadFromTools(tools),
+    boundaryRules: mcpBoundaryRules,
+    registrationFields: mcpRegistrationFields,
+    serverContracts: dbServerContracts.map((row) => ({
+      serverId: row.serverId,
+      serverName: row.serverName,
+      version: row.version,
+      transport: row.transport as "stdio" | "streamable_http" | "sse",
+      enabled: row.enabled,
+      toolNames: row.toolNames,
+      command: row.command ?? undefined,
+      endpoint: row.endpoint,
+      projectId: row.projectId ?? undefined,
+      updatedAt: row.updatedAt.toISOString(),
+    })),
+    toolContracts: dbToolContracts.map((row) => ({
+      serverId: row.serverId,
+      serverName: row.serverName,
+      toolName: row.toolName,
+      title: row.title,
+      capability: row.capability,
+      boundary: row.boundary as "外部目标交互" | "平台内部处理" | "外部第三方API",
+      riskLevel: row.riskLevel as "高" | "中" | "低",
+      requiresApproval: row.requiresApproval,
+      resultMappings: row.resultMappings as McpResultMapping[],
+      projectId: row.projectId ?? undefined,
+      updatedAt: row.updatedAt.toISOString(),
+    })),
   }
 }
 
@@ -860,14 +702,6 @@ export async function updateApprovalDecisionPayload(approvalId: string, input: A
   }
 
   return approval
-}
-
-export async function updateGlobalApprovalControlPayload(patch: ApprovalControlPatch) {
-  return updateStoredGlobalApprovalControl(patch)
-}
-
-export async function updateProjectApprovalControlPayload(projectId: string, patch: ApprovalControlPatch) {
-  return updateStoredProjectApprovalControl(projectId, patch)
 }
 
 export async function updateProjectSchedulerControlPayload(
@@ -917,188 +751,30 @@ export async function updateProjectSchedulerControlPayload(
   }
 }
 
-export async function runProjectSchedulerTaskActionPayload(
-  projectId: string,
-  taskId: string,
-  action: "cancel" | "retry",
-  note?: string,
-) {
-  return action === "cancel"
-    ? await cancelStoredSchedulerTask(projectId, taskId, note)
-    : await retryStoredSchedulerTask(projectId, taskId, note)
-}
-
-export async function getMcpSettingsPayload(): Promise<McpSettingsPayload> {
-  const tools = await listStoredMcpTools()
-  const dbServerContracts = await prisma.mcpServerContract.findMany()
-  const dbToolContracts = await prisma.mcpToolContract.findMany()
+export async function getApprovalPolicyPayload(): Promise<ApprovalPolicyPayload> {
+  const approvalControl = await getStoredGlobalApprovalControl()
 
   return {
-    tools,
-    servers: await listStoredMcpServers(),
-    recentInvocations: await listStoredMcpServerInvocations(undefined, 6),
-    capabilities: buildCapabilityPayloadFromTools(tools),
-    boundaryRules: mcpBoundaryRules,
-    registrationFields: mcpRegistrationFields,
-    serverContracts: dbServerContracts.map((row) => ({
-      serverId: row.serverId,
-      serverName: row.serverName,
-      version: row.version,
-      transport: row.transport as "stdio" | "streamable_http" | "sse",
-      enabled: row.enabled,
-      toolNames: row.toolNames,
-      command: row.command ?? undefined,
-      endpoint: row.endpoint,
-      projectId: row.projectId ?? undefined,
-      updatedAt: row.updatedAt.toISOString(),
-    })),
-    toolContracts: dbToolContracts.map((row) => ({
-      serverId: row.serverId,
-      serverName: row.serverName,
-      toolName: row.toolName,
-      title: row.title,
-      capability: row.capability,
-      boundary: row.boundary as "外部目标交互" | "平台内部处理" | "外部第三方API",
-      riskLevel: row.riskLevel as "高" | "中" | "低",
-      requiresApproval: row.requiresApproval,
-      resultMappings: row.resultMappings as import("@/lib/prototype-types").McpResultMapping[],
-      projectId: row.projectId ?? undefined,
-      updatedAt: row.updatedAt.toISOString(),
-    })),
+    overview: systemControlOverview.map((item, index) =>
+      index === 3
+        ? {
+            ...item,
+            value: approvalControl.enabled ? "审批链路已开启" : "审批链路已关闭",
+            description: approvalControl.note,
+          }
+        : item,
+    ),
+    approvalControl,
+    approvalPolicies: await listStoredApprovalPolicies(),
+    scopeRules: await listStoredScopeRules(),
   }
 }
 
-export async function getLlmSettingsPayload(): Promise<LlmSettingsPayload> {
-  return {
-    profiles: await listStoredLlmProfiles(),
-  }
-}
-
-export async function updateLlmSettingsPayload(profile: LlmProfileRecord) {
-  return updateStoredLlmProfile(profile)
-}
-
-export async function registerMcpServerPayload(input: Parameters<typeof registerStoredMcpServer>[0]) {
-  return registerStoredMcpServer(input)
-}
-
-export async function getMcpToolPayload(toolId: string) {
-  return getStoredMcpToolById(toolId)
-}
-
-export async function updateMcpToolPayload(toolId: string, patch: McpToolPatchInput) {
-  return updateStoredMcpTool(toolId, patch)
-}
-
-export async function runMcpHealthCheckPayload(toolId: string) {
-  return runStoredMcpHealthCheck(toolId)
-}
-
-export async function listProjectMcpRunsPayload(projectId: string): Promise<McpRunCollectionPayload | null> {
-  const project = await getStoredProjectById(projectId)
-
-  if (!project) {
-    return null
-  }
-
-  const items = await listStoredMcpRuns(projectId)
+export async function getSystemStatusPayload(): Promise<SystemStatusPayload> {
+  const items = await buildSystemStatusPayloadFromTools(await listStoredMcpTools())
 
   return {
     items,
     total: items.length,
-  }
-}
-
-export async function dispatchProjectMcpRunPayload(
-  projectId: string,
-  input: McpDispatchInput,
-): Promise<McpDispatchPayload | null> {
-  return dispatchProjectMcpRunAndDrain(projectId, input)
-}
-
-export async function runProjectMcpWorkflowSmokePayload(
-  projectId: string,
-  input: McpWorkflowSmokeInput,
-): Promise<McpWorkflowSmokePayload | null> {
-  return runProjectSmokeWorkflow(projectId, input.scenario)
-}
-
-export async function listWorkLogsPayload(): Promise<LogCollectionPayload> {
-  const items = await listStoredWorkLogs()
-
-  return {
-    items,
-    total: items.length,
-  }
-}
-
-export async function getProjectOrchestratorPayload(
-  projectId: string,
-): Promise<ProjectOrchestratorPanelPayload | null> {
-  const project = await getStoredProjectById(projectId)
-
-  if (!project) {
-    return null
-  }
-
-  return getProjectOrchestratorPanelPayload(projectId)
-}
-
-export async function generateProjectOrchestratorPlanPayload(
-  projectId: string,
-  input: LocalValidationRunInput,
-) {
-  const project = await getStoredProjectById(projectId)
-
-  if (!project) {
-    return null
-  }
-
-  return generateProjectOrchestratorPlan(projectId, input)
-}
-
-export async function executeProjectLocalValidationPayload(projectId: string, input: LocalValidationRunInput) {
-  const project = await getStoredProjectById(projectId)
-
-  if (!project) {
-    return null
-  }
-
-  return executeProjectLocalValidation(projectId, input)
-}
-
-export async function getProjectReportExportPayload(projectId: string): Promise<ProjectReportExportPayload | null> {
-  const project = await getStoredProjectById(projectId)
-
-  if (!project) {
-    return null
-  }
-
-  return getStoredProjectReportExportPayload(projectId)
-}
-
-export async function triggerProjectReportExportPayload(
-  projectId: string,
-): Promise<ProjectReportExportActionPayload | null> {
-  const project = await getStoredProjectById(projectId)
-
-  if (!project) {
-    return null
-  }
-
-  const dispatch = await dispatchProjectMcpRunAndDrain(projectId, {
-    capability: "报告导出类",
-    requestedAction: "导出项目报告",
-    target: project.code,
-    riskLevel: "低",
-  })
-
-  if (!dispatch) {
-    return null
-  }
-
-  return {
-    dispatch,
-    reportExport: await getStoredProjectReportExportPayload(projectId),
   }
 }

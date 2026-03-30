@@ -1,4 +1,4 @@
-import { getSystemStatusPayload } from "@/lib/prototype-api"
+import { getSystemStatusPayload } from "@/lib/api-compositions"
 import { withApiHandler } from "@/lib/api-handler"
 
 export const GET = withApiHandler(async () => {

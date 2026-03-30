@@ -1,6 +1,6 @@
 import { approvalDecisionSchema } from "@/lib/approval-write-schema"
 import { getStoredApprovalById } from "@/lib/approval-repository"
-import { updateApprovalDecisionPayload } from "@/lib/prototype-api"
+import { updateApprovalDecisionPayload } from "@/lib/api-compositions"
 import { withApiHandler } from "@/lib/api-handler"
 
 export const GET = withApiHandler(async (_request, { params }) => {

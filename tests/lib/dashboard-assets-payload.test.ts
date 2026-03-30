@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import { listAssetsPayload, getDashboardPayload } from "@/lib/prototype-api"
+import { getDashboardPayload, buildAssetViews } from "@/lib/api-compositions"
+import { listStoredAssets, upsertStoredAssets } from "@/lib/asset-repository"
 import { createStoredProject } from "@/lib/project-repository"
-import { upsertStoredAssets } from "@/lib/asset-repository"
 import { upsertStoredEvidence } from "@/lib/evidence-repository"
 import { upsertStoredProjectFindings } from "@/lib/project-results-repository"
 import { prisma } from "@/lib/prisma"
@@ -222,7 +222,8 @@ describe("dashboard and asset payload regrouping", () => {
       },
     ])
 
-    const payload = await listAssetsPayload() as unknown as Record<string, unknown>
+    const items = await listStoredAssets()
+    const payload = { items, total: items.length, views: buildAssetViews(items) } as unknown as Record<string, unknown>
 
     expect(payload).toHaveProperty("views")
     expect((payload.views as Array<{ key: string }>).map((view) => view.key)).toEqual([

@@ -1,5 +1,5 @@
 import { projectSchedulerControlPatchSchema } from "@/lib/scheduler-write-schema"
-import { updateProjectSchedulerControlPayload } from "@/lib/prototype-api"
+import { updateProjectSchedulerControlPayload } from "@/lib/api-compositions"
 import { withApiHandler } from "@/lib/api-handler"
 
 export const PATCH = withApiHandler(async (request, { params }) => {

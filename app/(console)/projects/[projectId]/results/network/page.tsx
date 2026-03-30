@@ -5,7 +5,7 @@ import { ProjectInventoryTable } from "@/components/projects/project-inventory-t
 import { ProjectWorkspaceIntro } from "@/components/projects/project-workspace-intro"
 import { SectionCard } from "@/components/shared/section-card"
 import { Button } from "@/components/ui/button"
-import { getProjectInventoryPayload } from "@/lib/prototype-api"
+import { getStoredProjectById, getStoredProjectDetailById } from "@/lib/project-repository"
 
 export default async function ProjectNetworkResultsPage({
   params,
@@ -13,13 +13,13 @@ export default async function ProjectNetworkResultsPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const payload = await getProjectInventoryPayload(projectId, "IP / 端口 / 服务")
+  const project = await getStoredProjectById(projectId)
+  const detail = await getStoredProjectDetailById(projectId)
+  const group = detail?.assetGroups.find((item) => item.title === "IP / 端口 / 服务")
 
-  if (!payload) {
+  if (!project || !group || !detail) {
     notFound()
   }
-
-  const { group, project } = payload
 
   return (
     <div className="space-y-5">

@@ -1,8 +1,10 @@
 import { ApprovalCenterClient } from "@/components/approvals/approval-center-client"
-import { listApprovalsPayload } from "@/lib/prototype-api"
+import { listStoredApprovals } from "@/lib/approval-repository"
 
 export default async function ApprovalsPage() {
-  const { items: approvals } = await listApprovalsPayload()
+  const items = await listStoredApprovals()
+  const data = { items, total: items.length }
+  const { items: approvals } = data
 
   return <ApprovalCenterClient initialApprovals={approvals} />
 }

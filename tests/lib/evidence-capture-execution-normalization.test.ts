@@ -12,7 +12,7 @@ import { getStoredEvidenceById, listStoredEvidence } from "@/lib/evidence-reposi
 import { executeStoredMcpRun } from "@/lib/mcp-execution-service"
 import { dispatchStoredMcpRun, getStoredMcpRunById } from "@/lib/mcp-gateway-repository"
 import { registerStoredMcpServer } from "@/lib/mcp-server-repository"
-import { getEvidenceDetailPayload } from "@/lib/prototype-api"
+import { buildRuntimeArtifactUrl } from "@/lib/runtime-artifacts"
 import { createStoredProjectFixture } from "@/tests/helpers/project-fixtures"
 
 describe.skipIf(process.env.SKIP_MCP_INTEGRATION === "1")("evidence capture execution normalization", () => {
@@ -143,7 +143,8 @@ describe.skipIf(process.env.SKIP_MCP_INTEGRATION === "1")("evidence capture exec
     expect(existsSync(htmlAbsolutePath)).toBe(true)
     expect((await listStoredAssets(fixture.project.id)).some((asset) => asset.label === targetUrl)).toBe(true)
 
-    const detailPayload = await getEvidenceDetailPayload(record.id)
+    const detailRecord = await getStoredEvidenceById(record.id)
+    const detailPayload = detailRecord ? { record: detailRecord, artifacts: { screenshotUrl: buildRuntimeArtifactUrl(detailRecord.screenshotArtifactPath) ?? undefined, htmlUrl: buildRuntimeArtifactUrl(detailRecord.htmlArtifactPath) ?? undefined } } : null
 
     expect(detailPayload?.artifacts?.screenshotUrl).toContain("/api/artifacts/")
     expect(detailPayload?.artifacts?.htmlUrl).toContain("/api/artifacts/")

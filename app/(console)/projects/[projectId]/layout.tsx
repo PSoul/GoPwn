@@ -4,7 +4,7 @@ import { notFound } from "next/navigation"
 import { ProjectWorkspaceNav } from "@/components/projects/project-workspace-nav"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { getProjectRecord } from "@/lib/prototype-api"
+import { getStoredProjectById } from "@/lib/project-repository"
 
 export default async function ProjectWorkspaceLayout({
   children,
@@ -14,7 +14,7 @@ export default async function ProjectWorkspaceLayout({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const project = await getProjectRecord(projectId)
+  const project = await getStoredProjectById(projectId)
 
   if (!project) {
     notFound()

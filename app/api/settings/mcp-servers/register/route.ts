@@ -1,5 +1,5 @@
 import { mcpServerRegistrationSchema } from "@/lib/mcp-registration-schema"
-import { registerMcpServerPayload } from "@/lib/prototype-api"
+import { registerStoredMcpServer } from "@/lib/mcp-server-repository"
 import { withApiHandler } from "@/lib/api-handler"
 
 export const POST = withApiHandler(async (request) => {
@@ -12,7 +12,7 @@ export const POST = withApiHandler(async (request) => {
     return Response.json({ error: errorMessage }, { status: 400 })
   }
 
-  const payload = await registerMcpServerPayload(parsed.data)
+  const payload = await registerStoredMcpServer(parsed.data)
 
   return Response.json(payload, { status: 201 })
 })

@@ -1,16 +1,19 @@
 import { mcpDispatchSchema } from "@/lib/mcp-write-schema"
-import { dispatchProjectMcpRunPayload, listProjectMcpRunsPayload } from "@/lib/prototype-api"
+import { dispatchProjectMcpRunAndDrain } from "@/lib/project-mcp-dispatch-service"
+import { listStoredMcpRuns } from "@/lib/mcp-gateway-repository"
+import { getStoredProjectById } from "@/lib/project-repository"
 import { withApiHandler } from "@/lib/api-handler"
 
 export const GET = withApiHandler(async (_request, { params }) => {
   const { projectId } = await params
-  const payload = await listProjectMcpRunsPayload(projectId)
+  const project = await getStoredProjectById(projectId)
 
-  if (!payload) {
+  if (!project) {
     return Response.json({ error: `Project '${projectId}' not found` }, { status: 404 })
   }
 
-  return Response.json(payload)
+  const items = await listStoredMcpRuns(projectId)
+  return Response.json({ items, total: items.length })
 })
 
 export const POST = withApiHandler(async (request, { params }) => {
@@ -22,7 +25,7 @@ export const POST = withApiHandler(async (request, { params }) => {
     return Response.json({ error: "Invalid MCP dispatch payload" }, { status: 400 })
   }
 
-  const payload = await dispatchProjectMcpRunPayload(projectId, parsed.data)
+  const payload = await dispatchProjectMcpRunAndDrain(projectId, parsed.data)
 
   if (!payload) {
     return Response.json({ error: `Project '${projectId}' not found` }, { status: 404 })

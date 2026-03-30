@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { getAssetDetailPayload } from "@/lib/prototype-api"
+import { getStoredAssetById } from "@/lib/asset-repository"
 
 export default async function AssetDetailPage({
   params,
@@ -15,13 +15,11 @@ export default async function AssetDetailPage({
   params: Promise<{ assetId: string }>
 }) {
   const { assetId } = await params
-  const payload = await getAssetDetailPayload(assetId)
+  const asset = await getStoredAssetById(assetId)
 
-  if (!payload) {
+  if (!asset) {
     notFound()
   }
-
-  const { asset } = payload
 
   return (
     <div className="space-y-6">

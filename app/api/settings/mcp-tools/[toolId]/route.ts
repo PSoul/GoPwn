@@ -1,10 +1,10 @@
 import { mcpToolPatchSchema } from "@/lib/mcp-write-schema"
-import { getMcpToolPayload, updateMcpToolPayload } from "@/lib/prototype-api"
+import { getStoredMcpToolById, updateStoredMcpTool } from "@/lib/mcp-repository"
 import { withApiHandler } from "@/lib/api-handler"
 
 export const GET = withApiHandler(async (_request, { params }) => {
   const { toolId } = await params
-  const payload = await getMcpToolPayload(toolId)
+  const payload = await getStoredMcpToolById(toolId)
 
   if (!payload) {
     return Response.json({ error: `MCP tool '${toolId}' not found` }, { status: 404 })
@@ -22,7 +22,7 @@ export const PATCH = withApiHandler(async (request, { params }) => {
     return Response.json({ error: "Invalid MCP tool patch payload" }, { status: 400 })
   }
 
-  const payload = await updateMcpToolPayload(toolId, parsed.data)
+  const payload = await updateStoredMcpTool(toolId, parsed.data)
 
   if (!payload) {
     return Response.json({ error: `MCP tool '${toolId}' not found` }, { status: 404 })
