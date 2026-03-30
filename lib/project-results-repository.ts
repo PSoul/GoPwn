@@ -1,5 +1,20 @@
 import { buildProjectReviewerPrompt } from "@/lib/llm-brain-prompt"
 import { resolveLlmProvider } from "@/lib/llm-provider/registry"
+import { Prisma } from "@/lib/generated/prisma/client"
+import { prisma } from "@/lib/prisma"
+import {
+  toProjectRecord,
+  toProjectDetailRecord,
+  toProjectConclusionRecord,
+  fromProjectConclusionRecord,
+  toFindingRecord,
+  fromFindingRecord,
+  toAssetRecord,
+  toEvidenceRecord,
+  toApprovalRecord,
+  toMcpRunRecord,
+  toLogRecord,
+} from "@/lib/prisma-transforms"
 import { buildProjectClosureStatus } from "@/lib/project-closure-status"
 import { formatTimestamp, toDisplayCount } from "@/lib/prototype-record-utils"
 import { SINGLE_USER_LABEL } from "@/lib/project-targets"
@@ -20,9 +35,12 @@ import type {
   ProjectStage,
   ProjectStageSnapshot,
   TimelineStage,
+  ProjectSchedulerLifecycle,
   Tone,
 } from "@/lib/prototype-types"
 import { upsertStoredWorkLogs } from "@/lib/work-log-repository"
+
+const USE_PRISMA = process.env.DATA_LAYER === "prisma"
 
 const stageOrder: ProjectStage[] = [
   "授权与范围定义",
@@ -394,7 +412,15 @@ function buildConclusionWorkLog(record: ProjectConclusionRecord, projectName: st
   }
 }
 
-export function listStoredProjectConclusions(projectId?: string) {
+export async function listStoredProjectConclusions(projectId?: string) {
+  if (USE_PRISMA) {
+    const rows = await prisma.projectConclusion.findMany({
+      where: projectId ? { projectId } : undefined,
+      orderBy: { generatedAt: "desc" },
+    })
+    return rows.map(toProjectConclusionRecord)
+  }
+
   const conclusions = readPrototypeStore().projectConclusions
 
   if (!projectId) {
@@ -404,11 +430,96 @@ export function listStoredProjectConclusions(projectId?: string) {
   return conclusions.filter((item) => item.projectId === projectId)
 }
 
-export function getStoredProjectLatestConclusion(projectId: string) {
-  return listStoredProjectConclusions(projectId)[0] ?? null
+export async function getStoredProjectLatestConclusion(projectId: string) {
+  if (USE_PRISMA) {
+    const row = await prisma.projectConclusion.findFirst({
+      where: { projectId },
+      orderBy: { generatedAt: "desc" },
+    })
+    return row ? toProjectConclusionRecord(row) : null
+  }
+
+  return (await listStoredProjectConclusions(projectId))[0] ?? null
 }
 
 export async function generateStoredProjectFinalConclusion(projectId: string) {
+  if (USE_PRISMA) {
+    const projectRow = await prisma.project.findUnique({ where: { id: projectId } })
+    if (!projectRow) return null
+    const project = toProjectRecord(projectRow)
+
+    const [assetCount, evidenceCount, findingCount] = await Promise.all([
+      prisma.asset.count({ where: { projectId } }),
+      prisma.evidence.count({ where: { projectId } }),
+      prisma.finding.count({ where: { projectId } }),
+    ])
+    const reportExport = (await listStoredProjectReportExports(projectId))[0] ?? null
+    const existingConclusion = await getStoredProjectLatestConclusion(projectId)
+    const timestamp = formatTimestamp()
+    const fallback = buildFallbackConclusionRecord({ assetCount, evidenceCount, findingCount, projectId })
+    const provider = await resolveLlmProvider()
+    let nextRecord: ProjectConclusionRecord = {
+      ...fallback,
+      generatedAt: timestamp,
+      id: existingConclusion?.id ?? `conclusion-${projectId}`,
+      source: "fallback",
+    }
+
+    if (provider) {
+      const workLogs = (await prisma.workLog.findMany({
+        where: { projectName: project.name },
+        orderBy: { timestamp: "desc" },
+        take: 6,
+      })).map(toLogRecord)
+
+      try {
+        const providerResult = await provider.generatePlan({
+          prompt: buildProjectReviewerPrompt({
+            assetCount,
+            description: project.description,
+            evidenceCount,
+            findingCount,
+            latestReportSummary: reportExport?.summary ?? "",
+            projectName: project.name,
+            recentContext: workLogs.map((log) => `${log.category} / ${log.summary}`),
+            stage: project.stage,
+            targets: project.targets,
+          }),
+          purpose: "reviewer",
+          projectId,
+        })
+        const reviewerKeyPoints = providerResult.content.items
+          .slice(0, 3)
+          .map((item) => `${item.requestedAction} @ ${item.target}`)
+          .filter(Boolean)
+        const reviewerNextActions = providerResult.content.items
+          .slice(0, 3)
+          .map((item) => item.rationale || item.requestedAction)
+          .filter(Boolean)
+        nextRecord = {
+          ...nextRecord,
+          keyPoints: reviewerKeyPoints.length > 0 ? reviewerKeyPoints : nextRecord.keyPoints,
+          nextActions: reviewerNextActions.length > 0 ? reviewerNextActions : nextRecord.nextActions,
+          source: "reviewer",
+          summary: normalizeConclusionSummary(providerResult.content.summary, fallback.summary),
+        }
+      } catch {
+        nextRecord = { ...nextRecord, summary: fallback.summary, source: "fallback" }
+      }
+    }
+
+    // Upsert conclusion (one per project via unique projectId)
+    await prisma.projectConclusion.upsert({
+      where: { projectId },
+      create: fromProjectConclusionRecord(nextRecord),
+      update: fromProjectConclusionRecord(nextRecord),
+    })
+
+    await upsertStoredWorkLogs([buildConclusionWorkLog(nextRecord, project.name)])
+    await refreshStoredProjectResults(projectId)
+    return nextRecord
+  }
+
   const store = readPrototypeStore()
   const project = store.projects.find((item) => item.id === projectId)
 
@@ -419,8 +530,8 @@ export async function generateStoredProjectFinalConclusion(projectId: string) {
   const assetCount = store.assets.filter((asset) => asset.projectId === projectId).length
   const evidenceCount = store.evidenceRecords.filter((record) => record.projectId === projectId).length
   const findingCount = store.projectFindings.filter((finding) => finding.projectId === projectId).length
-  const reportExport = listStoredProjectReportExports(projectId)[0] ?? null
-  const existingConclusion = getStoredProjectLatestConclusion(projectId)
+  const reportExport = (await listStoredProjectReportExports(projectId))[0] ?? null
+  const existingConclusion = await getStoredProjectLatestConclusion(projectId)
   const timestamp = formatTimestamp()
   const fallback = buildFallbackConclusionRecord({
     assetCount,
@@ -428,7 +539,7 @@ export async function generateStoredProjectFinalConclusion(projectId: string) {
     findingCount,
     projectId,
   })
-  const provider = resolveLlmProvider()
+  const provider = await resolveLlmProvider()
   let nextRecord: ProjectConclusionRecord = {
     ...fallback,
     generatedAt: timestamp,
@@ -485,8 +596,8 @@ export async function generateStoredProjectFinalConclusion(projectId: string) {
     ...store.projectConclusions.filter((record) => record.projectId !== projectId),
   ].sort((left, right) => right.generatedAt.localeCompare(left.generatedAt))
   writePrototypeStore(store)
-  upsertStoredWorkLogs([buildConclusionWorkLog(nextRecord, project.name)])
-  refreshStoredProjectResults(projectId)
+  await upsertStoredWorkLogs([buildConclusionWorkLog(nextRecord, project.name)])
+  await refreshStoredProjectResults(projectId)
 
   return nextRecord
 }
@@ -520,7 +631,41 @@ function toStoredProjectReportExportRecord(
   }
 }
 
-export function listStoredProjectReportExports(projectId: string): ProjectReportExportRecord[] {
+export async function listStoredProjectReportExports(projectId: string): Promise<ProjectReportExportRecord[]> {
+  if (USE_PRISMA) {
+    const projectRow = await prisma.project.findUnique({ where: { id: projectId } })
+    if (!projectRow) return []
+    const project = toProjectRecord(projectRow)
+
+    const [projectRunRows, projectLogRows, assetCount, evidenceCount, findingCount, conclusionRow] =
+      await Promise.all([
+        prisma.mcpRun.findMany({
+          where: { projectId, toolName: "report-exporter", status: "已执行" },
+          orderBy: { updatedAt: "desc" },
+        }),
+        prisma.workLog.findMany({
+          where: { projectName: project.name, category: "报告导出" },
+        }),
+        prisma.asset.count({ where: { projectId } }),
+        prisma.evidence.count({ where: { projectId } }),
+        prisma.finding.count({ where: { projectId } }),
+        prisma.projectConclusion.findUnique({ where: { projectId } }),
+      ])
+
+    const projectRuns = projectRunRows.map(toMcpRunRecord)
+    const projectLogs = projectLogRows.map(toLogRecord)
+    const logByRunId = new Map(
+      projectLogs
+        .filter((log) => log.id.startsWith("work-run-"))
+        .map((log) => [log.id.replace(/^work-/, ""), log.summary]),
+    )
+    const conclusion = conclusionRow ? toProjectConclusionRecord(conclusionRow) : null
+
+    return projectRuns.map((run) =>
+      toStoredProjectReportExportRecord(run, logByRunId.get(run.id), assetCount, evidenceCount, findingCount, conclusion),
+    )
+  }
+
   const store = readPrototypeStore()
   const project = store.projects.find((item) => item.id === projectId)
 
@@ -558,9 +703,9 @@ export function listStoredProjectReportExports(projectId: string): ProjectReport
     )
 }
 
-export function getStoredProjectReportExportPayload(projectId: string): ProjectReportExportPayload {
-  const records = listStoredProjectReportExports(projectId)
-  const finalConclusion = getStoredProjectLatestConclusion(projectId)
+export async function getStoredProjectReportExportPayload(projectId: string): Promise<ProjectReportExportPayload> {
+  const records = await listStoredProjectReportExports(projectId)
+  const finalConclusion = await getStoredProjectLatestConclusion(projectId)
 
   return {
     finalConclusion,
@@ -569,7 +714,15 @@ export function getStoredProjectReportExportPayload(projectId: string): ProjectR
   }
 }
 
-export function listStoredProjectFindings(projectId?: string) {
+export async function listStoredProjectFindings(projectId?: string) {
+  if (USE_PRISMA) {
+    const rows = await prisma.finding.findMany({
+      where: projectId ? { projectId } : undefined,
+      orderBy: { updatedAt: "desc" },
+    })
+    return rows.map(toFindingRecord)
+  }
+
   const findings = readPrototypeStore().projectFindings
 
   if (!projectId) {
@@ -579,9 +732,23 @@ export function listStoredProjectFindings(projectId?: string) {
   return findings.filter((finding) => finding.projectId === projectId)
 }
 
-export function upsertStoredProjectFindings(records: ProjectFindingRecord[]) {
+export async function upsertStoredProjectFindings(records: ProjectFindingRecord[]) {
   if (!records.length) {
     return []
+  }
+
+  if (USE_PRISMA) {
+    await prisma.$transaction(
+      records.map((record) => {
+        const data = fromFindingRecord(record)
+        return prisma.finding.upsert({
+          where: { id: record.id },
+          create: data,
+          update: data,
+        })
+      }),
+    )
+    return records
   }
 
   const store = readPrototypeStore()
@@ -599,7 +766,194 @@ export function upsertStoredProjectFindings(records: ProjectFindingRecord[]) {
   return records
 }
 
-export function refreshStoredProjectResults(projectId: string) {
+export async function refreshStoredProjectResults(projectId: string) {
+  if (USE_PRISMA) {
+    const [projectRow, detailRow] = await Promise.all([
+      prisma.project.findUnique({ where: { id: projectId } }),
+      prisma.projectDetail.findUnique({ where: { projectId } }),
+    ])
+    if (!projectRow || !detailRow) return null
+
+    const project = toProjectRecord(projectRow)
+    const detail = toProjectDetailRecord(detailRow)
+
+    // Parallel reads
+    const [
+      assetRows,
+      evidenceRows,
+      findingRows,
+      approvalRows,
+      runRows,
+      taskRows,
+      conclusionRow,
+      schedulerControlRow,
+      workLogRows,
+    ] = await Promise.all([
+      prisma.asset.findMany({ where: { projectId } }),
+      prisma.evidence.findMany({ where: { projectId } }),
+      prisma.finding.findMany({ where: { projectId } }),
+      prisma.approval.findMany({ where: { projectId } }),
+      prisma.mcpRun.findMany({ where: { projectId } }),
+      prisma.schedulerTask.findMany({ where: { projectId } }),
+      prisma.projectConclusion.findUnique({ where: { projectId } }),
+      prisma.projectSchedulerControl.findUnique({ where: { projectId } }),
+      prisma.workLog.findMany({ where: { projectName: project.name }, orderBy: { timestamp: "desc" }, take: 10 }),
+    ])
+
+    const projectAssets = assetRows.map(toAssetRecord)
+    const projectEvidence = evidenceRows.map(toEvidenceRecord)
+    const projectFindings = findingRows.map(toFindingRecord)
+    const projectApprovals = approvalRows.map(toApprovalRecord)
+    const projectRuns = runRows.map(toMcpRunRecord)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const projectSchedulerTasks = taskRows.map((r: any) => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
+      const { toSchedulerTaskRecord: toST } = require("@/lib/prisma-transforms")
+      return toST(r)
+    })
+    const latestConclusion = conclusionRow ? toProjectConclusionRecord(conclusionRow) : null
+    const projectWorkLogs = workLogRows.map(toLogRecord)
+
+    const schedulerLifecycle = (schedulerControlRow?.lifecycle ?? (project.status === "待处理" ? "idle" : "running")) as ProjectSchedulerLifecycle
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const waitingApprovalTaskCount = projectSchedulerTasks.filter((t: any) => t.status === "waiting_approval").length
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const runningTaskCount = projectSchedulerTasks.filter((t: any) => t.status === "running").length
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const queuedTaskCount = projectSchedulerTasks.filter((t: any) => ["ready", "retry_scheduled", "delayed"].includes(t.status)).length
+    const reportExported = projectRuns.some((run) => run.toolName === "report-exporter" && run.status === "已执行")
+    const domainAssets = projectAssets.filter(isDomainAsset)
+    const networkAssets = projectAssets.filter(isNetworkAsset)
+    const pendingApprovals = projectApprovals.filter((approval) => approval.status === "待处理").length
+
+    const currentStage = resolveCurrentStage(
+      project, projectApprovals, projectRuns, projectFindings, projectEvidence.length, latestConclusion,
+    )
+    const closureStatus = buildProjectClosureStatus({
+      finalConclusionGenerated: latestConclusion !== null,
+      lifecycle: schedulerLifecycle,
+      pendingApprovals,
+      projectStatus: project.status,
+      queuedTaskCount,
+      reportExported,
+      runningTaskCount,
+      waitingApprovalTaskCount,
+    })
+    const derivedKnowledge = buildDerivedKnowledge(
+      detail, projectAssets,
+      projectFindings.map((f) => f.evidenceId),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      projectEvidence as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      projectApprovals, projectRuns, projectWorkLogs as any,
+    )
+
+    const openTasks = latestConclusion
+      ? 0
+      : Math.max(
+          detail.tasks.filter((task) => !["succeeded", "cancelled"].includes(task.status)).length +
+            projectRuns.filter((run) => ["待审批", "已阻塞", "已延后"].includes(run.status)).length,
+          pendingApprovals + projectFindings.filter((finding) => finding.status !== "已缓解").length,
+        )
+
+    const nextProjectStatus =
+      latestConclusion ? "已完成"
+        : project.status === "已完成" ? "已完成"
+        : project.status === "已停止" ? "已停止"
+        : project.status === "已暂停" ? "已暂停"
+        : pendingApprovals > 0 ? "已阻塞"
+        : projectAssets.length > 0 || projectEvidence.length > 0 ? "运行中"
+        : project.status
+
+    const nextSummary = latestConclusion
+      ? latestConclusion.summary
+      : projectFindings.length > 0
+        ? `结果面已沉淀 ${projectAssets.length} 条资产、${projectEvidence.length} 条证据和 ${projectFindings.length} 条漏洞/发现，项目可以继续围绕现有结果推进。`
+        : projectAssets.length > 0 || projectEvidence.length > 0
+          ? `结果面已沉淀 ${projectAssets.length} 条资产和 ${projectEvidence.length} 条证据，当前重点是继续把结果做厚，而不是回到流程细节。`
+          : project.summary
+
+    const nextRiskSummary = latestConclusion
+      ? latestConclusion.keyPoints.join("；")
+      : projectFindings.length > 0
+        ? `${projectFindings.filter((f) => f.severity === "高危").length} 条高危或待复核发现已形成列表。`
+        : pendingApprovals > 0
+          ? `${pendingApprovals} 个高风险动作仍在等待审批。`
+          : projectEvidence.length > 0
+            ? "已有证据与入口线索，可继续补厚结果面。"
+            : project.riskSummary
+
+    // Update project
+    await prisma.project.update({
+      where: { id: projectId },
+      data: {
+        stage: currentStage.title as ProjectStage,
+        status: nextProjectStatus,
+        pendingApprovals,
+        openTasks,
+        assetCount: projectAssets.length,
+        evidenceCount: projectEvidence.length,
+        summary: nextSummary,
+        riskSummary: nextRiskSummary,
+      },
+    })
+
+    // Build updated detail
+    const nextBlockingReason = latestConclusion
+      ? "项目已完成当前轮次并形成最终结论，当前没有新的审批或调度阻塞。"
+      : pendingApprovals > 0
+        ? `当前仍有 ${pendingApprovals} 个待审批动作，后续高风险验证会继续受控推进。`
+        : projectFindings.length > 0
+          ? "当前没有硬阻塞，重点转为复核现有问题、补齐证据和继续扩展结果面。"
+          : "当前没有硬阻塞，可继续补采域名、服务和 Web 入口结果。"
+
+    const nextStep = latestConclusion
+      ? "查看最终结论与报告摘要，如需继续扩展测试，请新建下一轮项目。"
+      : projectFindings.length > 0
+        ? "优先在漏洞与发现页复核当前问题，同时补齐关联证据与受影响资产。"
+        : domainAssets.length > 0
+          ? "继续围绕 Web 入口、网络面和证据锚点补厚当前项目结果。"
+          : "继续推进被动情报补采和入口识别。"
+
+    const currentFocus = latestConclusion
+      ? "当前项目已收束，重点转为复核最终结论、报告摘要和导出结果。"
+      : projectFindings.length > 0
+        ? "先围绕已出现的漏洞与发现补厚证据，再决定是否扩展验证。"
+        : pendingApprovals > 0
+          ? "优先处理审批阻塞，并确保已到手的资产和证据先沉淀到结果页。"
+          : "优先扩大当前可见资产、入口和证据的覆盖面。"
+
+    const updatedDetailData = {
+      blockingReason: nextBlockingReason,
+      nextStep,
+      currentFocus,
+      timeline: buildTimeline(currentStage, latestConclusion ? false : pendingApprovals > 0) as unknown as Prisma.InputJsonArray,
+      resultMetrics: buildResultMetrics(domainAssets, networkAssets, projectFindings, projectEvidence.length) as unknown as Prisma.InputJsonArray,
+      assetGroups: buildAssetGroups(projectAssets) as unknown as Prisma.InputJsonArray,
+      closureStatus: closureStatus as unknown as Prisma.InputJsonObject,
+      finalConclusion: latestConclusion as unknown as Prisma.InputJsonObject ?? undefined,
+      currentStage: currentStage as unknown as Prisma.InputJsonObject,
+      discoveredInfo: derivedKnowledge.discoveredInfo as unknown as Prisma.InputJsonArray,
+      serviceSurface: derivedKnowledge.serviceSurface as unknown as Prisma.InputJsonArray,
+      fingerprints: derivedKnowledge.fingerprints as unknown as Prisma.InputJsonArray,
+      entries: derivedKnowledge.entries as unknown as Prisma.InputJsonArray,
+      scheduler: derivedKnowledge.scheduler as unknown as Prisma.InputJsonArray,
+      activity: derivedKnowledge.activity as unknown as Prisma.InputJsonArray,
+    }
+
+    const updatedDetailRow = await prisma.projectDetail.update({
+      where: { projectId },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      data: updatedDetailData as any,
+    })
+    const updatedProjectRow = await prisma.project.findUnique({ where: { id: projectId } })
+
+    return {
+      project: toProjectRecord(updatedProjectRow!),
+      detail: toProjectDetailRecord(updatedDetailRow),
+    }
+  }
+
   const store = readPrototypeStore()
   const projectIndex = store.projects.findIndex((project) => project.id === projectId)
   const detailIndex = store.projectDetails.findIndex((detail) => detail.projectId === projectId)

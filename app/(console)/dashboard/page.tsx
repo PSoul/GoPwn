@@ -30,8 +30,8 @@ const toneStyles: Record<Tone, string> = {
   danger: "bg-rose-100 text-rose-700 dark:bg-rose-950/70 dark:text-rose-200",
 }
 
-export default function DashboardPage() {
-  const { metrics, projects, recentResults, systemOverview, assetViews } = getDashboardPayload()
+export default async function DashboardPage() {
+  const { metrics, projects, recentResults, systemOverview, assetViews } = await getDashboardPayload()
   const leadProject = projects[0] ?? null
 
   return (

@@ -27,16 +27,16 @@ function summarizeEntry(entry: NonNullable<WebSurfaceStructuredContent["webEntri
 export const realWebSurfaceMcpConnector: McpConnector = {
   key: "real-web-surface-mcp",
   mode: "real",
-  supports: ({ project, run }) => {
+  supports: async ({ project, run }) => {
     const target = run.target || getProjectPrimaryTarget(project)
 
-    return run.toolName === "web-surface-map" && isHttpTarget(target) && Boolean(findStoredEnabledMcpServerByToolBinding(run.toolName))
+    return run.toolName === "web-surface-map" && isHttpTarget(target) && Boolean(await findStoredEnabledMcpServerByToolBinding(run.toolName))
   },
   async execute(context: McpConnectorExecutionContext): Promise<McpConnectorResult> {
     throwIfExecutionAborted(context.signal)
 
     const target = context.run.target || getProjectPrimaryTarget(context.project)
-    const server = findStoredEnabledMcpServerByToolBinding(context.run.toolName)
+    const server = await findStoredEnabledMcpServerByToolBinding(context.run.toolName)
 
     if (!server) {
       return {

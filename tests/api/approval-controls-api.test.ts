@@ -93,7 +93,7 @@ describe("approval and control api routes", () => {
   })
 
   it("persists project-level approval control updates", async () => {
-    const fixture = createStoredProjectFixture()
+    const fixture = await createStoredProjectFixture()
     const response = await patchProjectApprovalControl(
       new Request(`http://localhost/api/projects/${fixture.project.id}/approval-control`, {
         method: "PATCH",

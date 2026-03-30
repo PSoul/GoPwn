@@ -12,7 +12,7 @@ export default async function AssetsPage({
   searchParams: Promise<{ view?: string }>
 }) {
   const params = await searchParams
-  const { items, views } = listAssetsPayload()
+  const { items, views } = await listAssetsPayload()
   const pendingCount = items.filter((asset) => asset.scopeStatus !== "已纳入").length
 
   return (

@@ -15,7 +15,7 @@ export default async function AssetDetailPage({
   params: Promise<{ assetId: string }>
 }) {
   const { assetId } = await params
-  const payload = getAssetDetailPayload(assetId)
+  const payload = await getAssetDetailPayload(assetId)
 
   if (!payload) {
     notFound()

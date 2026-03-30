@@ -9,7 +9,7 @@ export const GET = withApiHandler(async (request) => {
   const session = await readSessionFromCookieHeader(request.headers.get("cookie"))
   if (!session) throw new ApiError(401, "未登录")
 
-  const users = listUsers()
+  const users = await listUsers()
   return NextResponse.json({ items: users, total: users.length })
 })
 
@@ -38,7 +38,7 @@ export const POST = withApiHandler(async (request) => {
     throw new ApiError(400, "密码长度不能少于 8 位")
   }
 
-  const result = createUser({ email, password, displayName, role })
+  const result = await createUser({ email, password, displayName, role })
   if (result.error) throw new ApiError(409, result.error)
 
   return NextResponse.json({ user: result.user }, { status: 201 })

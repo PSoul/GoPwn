@@ -34,7 +34,7 @@ describe("scheduler control api routes", () => {
   })
 
   it("persists project-level scheduler control updates and exposes them on the operations payload", async () => {
-    const fixture = createStoredProjectFixture()
+    const fixture = await createStoredProjectFixture()
     const response = await patchProjectSchedulerControl(
       new Request(`http://localhost/api/projects/${fixture.project.id}/scheduler-control`, {
         method: "PATCH",
@@ -64,7 +64,7 @@ describe("scheduler control api routes", () => {
 
   it("starts an idle project only after manual start and still refuses restart after stop", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture({
+    const fixture = await createStoredProjectFixture({
       targetInput: "http://127.0.0.1:18080/WebGoat",
       description: "手动开始生命周期测试项目。",
     })
@@ -97,7 +97,7 @@ describe("scheduler control api routes", () => {
     expect(startedOperationsPayload.reportExport.latest).not.toBeNull()
     expect(startedOperationsPayload.detail.finalConclusion).not.toBeNull()
 
-    const stoppedFixture = createStoredProjectFixture({
+    const stoppedFixture = await createStoredProjectFixture({
       targetInput: "https://staging.example.com/login",
       description: "停止后不可重启测试项目。",
     })
@@ -138,7 +138,7 @@ describe("scheduler control api routes", () => {
 
   it("skips DNS expansion for direct URL/IP targets and auto-settles into report export plus final conclusion", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture({
+    const fixture = await createStoredProjectFixture({
       targetInput: "http://127.0.0.1:18080/WebGoat",
       description: "直接 URL/IP 目标不应该被误判成需要 DNS 扩展。",
     })
@@ -189,14 +189,14 @@ describe("scheduler control api routes", () => {
 
   it("cancels a queued scheduler task through the project api", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture()
-    const dispatchPayload = dispatchStoredMcpRun(fixture.project.id, {
+    const fixture = await createStoredProjectFixture()
+    const dispatchPayload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
       target: fixture.project.seed,
       riskLevel: "低",
     })
-    const task = getStoredSchedulerTaskByRunId(dispatchPayload!.run.id)
+    const task = await getStoredSchedulerTaskByRunId(dispatchPayload!.run.id)
 
     const response = await patchProjectSchedulerTask(
       new Request(`http://localhost/api/projects/${fixture.project.id}/scheduler-tasks/${task!.id}`, {
@@ -218,16 +218,16 @@ describe("scheduler control api routes", () => {
 
   it("records a stop request for a running scheduler task through the project api", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture()
-    const dispatchPayload = dispatchStoredMcpRun(fixture.project.id, {
+    const fixture = await createStoredProjectFixture()
+    const dispatchPayload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
       target: fixture.project.seed,
       riskLevel: "低",
     })
-    const task = getStoredSchedulerTaskByRunId(dispatchPayload!.run.id)
+    const task = await getStoredSchedulerTaskByRunId(dispatchPayload!.run.id)
 
-    updateStoredSchedulerTask(task!.id, {
+    await updateStoredSchedulerTask(task!.id, {
       status: "running",
       summaryLines: [...task!.summaryLines, "当前任务正在执行中。"],
     })
@@ -252,21 +252,21 @@ describe("scheduler control api routes", () => {
 
   it("retries a failed scheduler task through the project api", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture()
-    const dispatchPayload = dispatchStoredMcpRun(fixture.project.id, {
+    const fixture = await createStoredProjectFixture()
+    const dispatchPayload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
       target: fixture.project.seed,
       riskLevel: "低",
     })
-    const task = getStoredSchedulerTaskByRunId(dispatchPayload!.run.id)
+    const task = await getStoredSchedulerTaskByRunId(dispatchPayload!.run.id)
 
-    updateStoredSchedulerTask(task!.id, {
+    await updateStoredSchedulerTask(task!.id, {
       lastError: "temporary dns timeout",
       status: "failed",
       summaryLines: [...task!.summaryLines, "最近一次执行失败。"],
     })
-    updateStoredMcpRun(dispatchPayload!.run.id, {
+    await updateStoredMcpRun(dispatchPayload!.run.id, {
       status: "已阻塞",
       summaryLines: [...dispatchPayload!.run.summaryLines, "最近一次执行失败。"],
     })

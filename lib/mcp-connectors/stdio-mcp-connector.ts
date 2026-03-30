@@ -283,9 +283,9 @@ req.end();
   return args
 }
 
-function resolveServerRecord(toolName: string): McpServerRecord | null {
+async function resolveServerRecord(toolName: string): Promise<McpServerRecord | null> {
   // First try platform-registered server
-  const registered = findStoredEnabledMcpServerByToolBinding(toolName)
+  const registered = await findStoredEnabledMcpServerByToolBinding(toolName)
 
   if (registered) {
     return registered
@@ -409,7 +409,7 @@ export const stdioMcpConnector: McpConnector = {
     throwIfExecutionAborted(context.signal)
 
     const { run } = context
-    const server = resolveServerRecord(run.toolName)
+    const server = await resolveServerRecord(run.toolName)
 
     if (!server) {
       return {

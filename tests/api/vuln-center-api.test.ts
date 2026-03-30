@@ -33,7 +33,7 @@ describe("vuln center summary api", () => {
   })
 
   it("returns findings with project names when projects have findings", async () => {
-    const fixture = createStoredProjectFixture()
+    const fixture = await createStoredProjectFixture()
 
     const request = new Request("http://localhost/api/vuln-center/summary")
     const response = await getVulnCenterSummary(request, { params: Promise.resolve({}) })

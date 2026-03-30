@@ -12,7 +12,7 @@ export const POST = withApiHandler(async (request) => {
     return Response.json({ error: errorMessage }, { status: 400 })
   }
 
-  const payload = registerMcpServerPayload(parsed.data)
+  const payload = await registerMcpServerPayload(parsed.data)
 
   return Response.json(payload, { status: 201 })
 })

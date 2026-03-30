@@ -10,7 +10,7 @@ export const GET = withApiHandler(async (request, context) => {
   if (!session) throw new ApiError(401, "未登录")
 
   const { userId } = await context.params
-  const user = getUserById(userId)
+  const user = await getUserById(userId)
   if (!user) throw new ApiError(404, "用户不存在")
 
   return NextResponse.json({ user })
@@ -44,7 +44,7 @@ export const PATCH = withApiHandler(async (request, context) => {
     if (body.status !== undefined) patch.status = body.status
   }
 
-  const result = updateUser(userId, patch)
+  const result = await updateUser(userId, patch)
   if (result.error) throw new ApiError(400, result.error)
 
   return NextResponse.json({ user: result.user })

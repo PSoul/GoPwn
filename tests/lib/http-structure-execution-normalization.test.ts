@@ -75,7 +75,7 @@ describe("HTTP structure execution normalization", () => {
   })
 
   it("persists real HTTP/API structure candidates into assets, evidence, and project knowledge", async () => {
-    registerStoredMcpServer({
+    await registerStoredMcpServer({
       serverName: "http-structure-stdio",
       version: "1.0.0",
       transport: "stdio",
@@ -125,12 +125,12 @@ describe("HTTP structure execution normalization", () => {
       ],
     })
 
-    const fixture = createStoredProjectFixture({
+    const fixture = await createStoredProjectFixture({
       seed: targetUrl,
       targetType: "url",
       targetSummary: targetUrl,
     })
-    const payload = dispatchStoredMcpRun(fixture.project.id, {
+    const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "HTTP / API 结构发现类",
       requestedAction: "识别 API / 文档候选入口",
       target: targetUrl,
@@ -143,11 +143,11 @@ describe("HTTP structure execution normalization", () => {
 
     expect(result?.status).toBe("succeeded")
     expect(result?.outputs?.webEntries).toContain(targetUrl)
-    expect(getStoredMcpRunById(payload!.run.id)?.status).toBe("已执行")
+    expect((await getStoredMcpRunById(payload!.run.id))?.status).toBe("已执行")
 
-    const assets = listStoredAssets(fixture.project.id)
-    const evidence = listStoredEvidence(fixture.project.id)
-    const detail = getStoredProjectDetailById(fixture.project.id)
+    const assets = await listStoredAssets(fixture.project.id)
+    const evidence = await listStoredEvidence(fixture.project.id)
+    const detail = await getStoredProjectDetailById(fixture.project.id)
 
     expect(assets.some((asset) => asset.label.endsWith("/graphql") && asset.type === "api")).toBe(true)
     expect(assets.some((asset) => asset.label.endsWith("/swagger-ui/index.html"))).toBe(true)

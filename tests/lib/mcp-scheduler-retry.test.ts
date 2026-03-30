@@ -41,15 +41,15 @@ describe("MCP scheduler retry transitions", () => {
 
   it("moves retryable failures into retry_scheduled and updates the visible run state", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture()
-    const payload = dispatchStoredMcpRun(fixture.project.id, {
+    const fixture = await createStoredProjectFixture()
+    const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
       target: fixture.project.seed,
       riskLevel: "低",
     })
 
-    const queuedRun = getStoredMcpRunById(payload!.run.id)
+    const queuedRun = await getStoredMcpRunById(payload!.run.id)
     mockedExecutionResult = {
       status: "retryable_failure",
       connectorKey: "real-dns-intelligence",
@@ -61,10 +61,10 @@ describe("MCP scheduler retry transitions", () => {
     }
 
     const { processStoredSchedulerTask } = await import("@/lib/mcp-scheduler-service")
-    const task = getStoredSchedulerTaskByRunId(payload!.run.id)
+    const task = await getStoredSchedulerTaskByRunId(payload!.run.id)
     const result = await processStoredSchedulerTask(task!.id)
-    const updatedTask = getStoredSchedulerTaskByRunId(payload!.run.id)
-    const updatedRun = getStoredMcpRunById(payload!.run.id)
+    const updatedTask = await getStoredSchedulerTaskByRunId(payload!.run.id)
+    const updatedRun = await getStoredMcpRunById(payload!.run.id)
 
     expect(result?.status).toBe("retry_scheduled")
     expect(updatedTask?.status).toBe("retry_scheduled")

@@ -10,7 +10,7 @@ const buildProjectContext = (projectId: string) => ({
 
 describe("projects api routes", () => {
   it("returns the project collection payload", async () => {
-    const fixture = createStoredProjectFixture()
+    const fixture = await createStoredProjectFixture()
     const response = await getProjects()
     const payload = await response.json()
 
@@ -20,7 +20,7 @@ describe("projects api routes", () => {
   })
 
   it("returns a typed overview payload for a project", async () => {
-    const fixture = createStoredProjectFixture()
+    const fixture = await createStoredProjectFixture()
     const response = await getProjectDetail(
       new Request(`http://localhost/api/projects/${fixture.project.id}`),
       buildProjectContext(fixture.project.id),

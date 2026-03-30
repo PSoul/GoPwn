@@ -4,8 +4,8 @@ import { LlmSettingsPanel } from "@/components/settings/llm-settings-panel"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
 import { getLlmSettingsPayload } from "@/lib/prototype-api"
 
-export default function LlmSettingsPage() {
-  const payload = getLlmSettingsPayload()
+export default async function LlmSettingsPage() {
+  const payload = await getLlmSettingsPayload()
 
   return (
     <div className="space-y-6">

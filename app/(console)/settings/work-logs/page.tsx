@@ -4,8 +4,8 @@ import { SettingsLogTable } from "@/components/settings/settings-log-table"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
 import { listWorkLogsPayload } from "@/lib/prototype-api"
 
-export default function WorkLogsSettingsPage() {
-  const { items: workLogs } = listWorkLogsPayload()
+export default async function WorkLogsSettingsPage() {
+  const { items: workLogs } = await listWorkLogsPayload()
 
   return (
     <div className="space-y-6">

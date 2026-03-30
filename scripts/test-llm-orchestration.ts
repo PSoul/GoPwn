@@ -14,14 +14,14 @@ async function main() {
   console.log("=== Step 1: Setup ===")
 
   // Auto-discover MCP servers
-  const discovery = discoverAndRegisterMcpServers()
+  const discovery = await discoverAndRegisterMcpServers()
   console.log(`MCP servers: ${discovery.registered} registered`)
 
   // Check LLM provider
-  const providerStatus = getConfiguredLlmProviderStatus()
+  const providerStatus = await getConfiguredLlmProviderStatus()
   console.log(`LLM provider: ${providerStatus.provider} / enabled=${providerStatus.enabled} / model=${providerStatus.orchestratorModel}`)
 
-  const provider = resolveLlmProvider()
+  const provider = await resolveLlmProvider()
   if (!provider) {
     console.log("WARNING: No LLM provider configured, will use fallback plan")
   } else {
@@ -29,7 +29,7 @@ async function main() {
   }
 
   console.log("\n=== Step 2: Create test project ===")
-  const { project } = createStoredProject({
+  const { project } = await createStoredProject({
     name: "DVWA 靶场渗透测试",
     targetInput: "http://localhost:8081",
     description: "对本地 DVWA 漏洞靶场进行自动化渗透测试",
@@ -78,9 +78,9 @@ async function main() {
   }
 
   console.log("\n=== Step 4: Check results ===")
-  const assets = listStoredAssets(project.id)
-  const evidence = listStoredEvidence(project.id)
-  const findings = listStoredProjectFindings(project.id)
+  const assets = await listStoredAssets(project.id)
+  const evidence = await listStoredEvidence(project.id)
+  const findings = await listStoredProjectFindings(project.id)
 
   console.log(`Assets: ${assets.length}`)
   for (const a of assets.slice(0, 10)) {

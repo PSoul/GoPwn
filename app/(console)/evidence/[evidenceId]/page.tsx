@@ -13,7 +13,7 @@ export default async function EvidenceDetailPage({
   params: Promise<{ evidenceId: string }>
 }) {
   const { evidenceId } = await params
-  const payload = getEvidenceDetailPayload(evidenceId)
+  const payload = await getEvidenceDetailPayload(evidenceId)
 
   if (!payload) {
     notFound()

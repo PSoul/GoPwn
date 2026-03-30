@@ -514,7 +514,7 @@ function buildToolRegistrationInput(
   }
 }
 
-export function discoverAndRegisterMcpServers() {
+export async function discoverAndRegisterMcpServers() {
   const config = loadMcpServersJson()
   const dirs = discoverMcpServerDirs()
 
@@ -547,7 +547,7 @@ export function discoverAndRegisterMcpServers() {
 
     try {
       const input = buildToolRegistrationInput(serverKey, toolMappings, serverConfig)
-      registerStoredMcpServer(input)
+      await registerStoredMcpServer(input)
       registered.push(serverKey)
     } catch (error) {
       errors.push(`${serverKey}: ${error instanceof Error ? error.message : "注册失败"}`)

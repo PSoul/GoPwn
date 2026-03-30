@@ -62,7 +62,7 @@ describe("project orchestrator api routes", () => {
 
   it("generates a fallback orchestrator plan and exposes it on the operations payload", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture()
+    const fixture = await createStoredProjectFixture()
     const planResponse = await postOrchestratorPlan(
       new Request(`http://localhost/api/projects/${fixture.project.id}/orchestrator/plan`, {
         method: "POST",
@@ -96,7 +96,7 @@ describe("project orchestrator api routes", () => {
 
   it("runs local validation, pauses on approval, and resumes after approval", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture()
+    const fixture = await createStoredProjectFixture()
     const validationResponse = await postLocalValidation(
       new Request(`http://localhost/api/projects/${fixture.project.id}/orchestrator/local-validation`, {
         method: "POST",
@@ -156,7 +156,7 @@ describe("project orchestrator api routes", () => {
 
   it("continues project closure after approval resumes and lands on report export plus final conclusion", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture({
+    const fixture = await createStoredProjectFixture({
       targetInput: "http://127.0.0.1:3000",
       description: "审批恢复后需要继续把项目收束到最终结论。",
     })
@@ -207,7 +207,7 @@ describe("project orchestrator api routes", () => {
 
   it("normalizes real-provider plans with markdown-wrapped JSON and near-match capability labels", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture()
+    const fixture = await createStoredProjectFixture()
     process.env.LLM_PROVIDER = "openai-compatible"
     process.env.LLM_BASE_URL = "https://api.siliconflow.cn/v1"
     process.env.LLM_API_KEY = "sk-test"
@@ -358,7 +358,7 @@ describe("project orchestrator api routes", () => {
       }) as never,
     })
 
-    const fixture = createStoredProjectFixture()
+    const fixture = await createStoredProjectFixture()
     const validationResponse = await postLocalValidation(
       new Request(`http://localhost/api/projects/${fixture.project.id}/orchestrator/local-validation`, {
         method: "POST",
@@ -442,7 +442,7 @@ describe("project orchestrator api routes", () => {
       throw new Error(`Unexpected fetch in orchestrator api test: ${url}`)
     }) as unknown as typeof fetch
 
-    registerStoredMcpServer({
+    await registerStoredMcpServer({
       serverName: "http-validation-stdio",
       version: "1.0.0",
       transport: "stdio",
@@ -493,7 +493,7 @@ describe("project orchestrator api routes", () => {
     })
 
     try {
-      const fixture = createStoredProjectFixture({
+      const fixture = await createStoredProjectFixture({
         targetInput: `http://127.0.0.1:${port}/WebGoat`,
       })
       const validationResponse = await postLocalValidation(
@@ -643,7 +643,7 @@ describe("project orchestrator api routes", () => {
       throw new Error(`Unexpected fetch in orchestrator api test: ${url}`)
     }) as unknown as typeof fetch
 
-    const fixture = createStoredProjectFixture({
+    const fixture = await createStoredProjectFixture({
       targetInput: "http://127.0.0.1:18080/WebGoat",
     })
     const planResponse = await postOrchestratorPlan(

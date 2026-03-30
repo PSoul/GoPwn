@@ -102,14 +102,14 @@ function isControlledValidationArtifactShape(rawResult: Extract<McpConnectorResu
   )
 }
 
-function normalizeExecutionArtifacts(
+async function normalizeExecutionArtifacts(
   context: McpConnectorExecutionContext,
   rawResult: Extract<McpConnectorResult, { status: "succeeded" }>,
-): NormalizedExecutionArtifacts {
+): Promise<NormalizedExecutionArtifacts> {
   const timestamp = formatTimestamp()
   const linkedApprovalId = context.run.linkedApprovalId ?? ""
   const evidenceId = makeEvidenceId(context.run)
-  const existingAssets = new Map(listStoredAssets(context.project.id).map((asset) => [asset.id, asset]))
+  const existingAssets = new Map((await listStoredAssets(context.project.id)).map((asset) => [asset.id, asset]))
   const actor = context.run.toolName
 
   if (context.run.toolName === "seed-normalizer") {
@@ -520,7 +520,7 @@ function normalizeExecutionArtifacts(
     const responseSignals = (rawResult.structuredContent.responseSignals as string[]) ?? []
     const targetHost = getHostFromTarget(context.run.target)
     const entryAssetId = buildStableRecordId("asset", context.project.id, "entry", context.run.target)
-    const existingAsset = existingAssets.get(entryAssetId) ?? getStoredAssetById(entryAssetId)
+    const existingAsset = existingAssets.get(entryAssetId) ?? await getStoredAssetById(entryAssetId)
 
     return {
       actor,
@@ -618,7 +618,7 @@ function normalizeExecutionArtifacts(
     const htmlArtifactPath = rawResult.structuredContent.htmlArtifactPath as string | undefined
     const targetHost = getHostFromTarget(capturedUrl)
     const entryAssetId = buildStableRecordId("asset", context.project.id, "entry", capturedUrl)
-    const existingAsset = existingAssets.get(entryAssetId) ?? getStoredAssetById(entryAssetId)
+    const existingAsset = existingAssets.get(entryAssetId) ?? await getStoredAssetById(entryAssetId)
 
     return {
       actor,
@@ -1076,12 +1076,12 @@ function updateProjectExecutionMeta(project: ProjectRecord, run: McpRunRecord) {
   writePrototypeStore(store)
 }
 
-function taskOwnershipLost(runId: string, ownership?: SchedulerTaskOwnership) {
+async function taskOwnershipLost(runId: string, ownership?: SchedulerTaskOwnership) {
   if (!ownership) {
     return false
   }
 
-  const task = getStoredSchedulerTaskByRunId(runId)
+  const task = await getStoredSchedulerTaskByRunId(runId)
 
   return Boolean(task && (task.workerId !== ownership.workerId || task.leaseToken !== ownership.leaseToken))
 }
@@ -1092,28 +1092,28 @@ export async function executeStoredMcpRun(
   ownership?: SchedulerTaskOwnership,
   signal?: AbortSignal,
 ) {
-  const run = getStoredMcpRunById(runId)
+  const run = await getStoredMcpRunById(runId)
 
   if (!run) {
     return null
   }
 
-  const project = getStoredProjectById(run.projectId)
+  const project = await getStoredProjectById(run.projectId)
 
   if (!project) {
     return null
   }
 
-  const approval = run.linkedApprovalId ? getStoredApprovalById(run.linkedApprovalId) : null
+  const approval = run.linkedApprovalId ? await getStoredApprovalById(run.linkedApprovalId) : null
   const executionContext: McpConnectorExecutionContext = {
     approval,
     priorOutputs,
     project,
     run,
     signal,
-    tool: run.toolId ? getStoredMcpToolById(run.toolId) : null,
+    tool: run.toolId ? await getStoredMcpToolById(run.toolId) : null,
   }
-  const connector = resolveMcpConnector(executionContext)
+  const connector = await resolveMcpConnector(executionContext)
 
   if (!connector) {
     return {
@@ -1138,7 +1138,7 @@ export async function executeStoredMcpRun(
         connectorKey: connector.key,
         mode: connector.mode,
         summaryLines: [error instanceof Error ? error.message : "当前执行已取消。"],
-        run: getStoredMcpRunById(run.id) ?? run,
+        run: await getStoredMcpRunById(run.id) ?? run,
         outputs: priorOutputs,
       }
     }
@@ -1146,10 +1146,10 @@ export async function executeStoredMcpRun(
     throw error
   }
 
-  const cancelledTask = getStoredSchedulerTaskByRunId(run.id)
+  const cancelledTask = await getStoredSchedulerTaskByRunId(run.id)
 
   if (cancelledTask?.status === "cancelled") {
-    const cancelledRun = updateStoredMcpRun(run.id, {
+    const cancelledRun = await updateStoredMcpRun(run.id, {
       status: "已取消",
       summaryLines: Array.from(
         new Set([
@@ -1170,13 +1170,13 @@ export async function executeStoredMcpRun(
     }
   }
 
-  if (taskOwnershipLost(run.id, ownership)) {
+  if (await taskOwnershipLost(run.id, ownership)) {
     return {
       status: "ownership_lost" as const,
       connectorKey: rawResult.connectorKey,
       mode: rawResult.mode,
       summaryLines: rawResult.summaryLines,
-      run: getStoredMcpRunById(run.id) ?? run,
+      run: await getStoredMcpRunById(run.id) ?? run,
       outputs: priorOutputs,
     }
   }
@@ -1190,15 +1190,15 @@ export async function executeStoredMcpRun(
     }
   }
 
-  const artifacts = normalizeExecutionArtifacts(executionContext, rawResult)
+  const artifacts = await normalizeExecutionArtifacts(executionContext, rawResult)
 
-  upsertStoredAssets(artifacts.assets)
-  upsertStoredEvidence(artifacts.evidence)
-  upsertStoredProjectFindings(artifacts.findings)
-  upsertStoredWorkLogs(artifacts.workLogs)
+  await upsertStoredAssets(artifacts.assets)
+  await upsertStoredEvidence(artifacts.evidence)
+  await upsertStoredProjectFindings(artifacts.findings)
+  await upsertStoredWorkLogs(artifacts.workLogs)
   updateProjectExecutionMeta(project, run)
 
-  const persistedRun = updateStoredMcpRun(run.id, {
+  const persistedRun = await updateStoredMcpRun(run.id, {
     connectorMode: rawResult.mode,
     status: "已执行",
     summaryLines: Array.from(
@@ -1214,7 +1214,7 @@ export async function executeStoredMcpRun(
     ),
   })
 
-  refreshStoredProjectResults(project.id)
+  await refreshStoredProjectResults(project.id)
 
   return {
     status: "succeeded" as const,
@@ -1229,13 +1229,13 @@ export async function executeStoredMcpRun(
 }
 
 export async function resumeStoredApprovedMcpRun(approvalId: string) {
-  const approval = getStoredApprovalById(approvalId)
+  const approval = await getStoredApprovalById(approvalId)
 
   if (!approval || approval.status !== "已批准") {
     return null
   }
 
-  const run = getStoredMcpRunById(
+  const run = await getStoredMcpRunById(
     readPrototypeStore().mcpRuns.find((item) => item.linkedApprovalId === approvalId)?.id ?? "",
   )
 
@@ -1246,10 +1246,10 @@ export async function resumeStoredApprovedMcpRun(approvalId: string) {
   return executeStoredMcpRun(run.id)
 }
 
-export function getStoredAssetRecord(assetId: string) {
+export async function getStoredAssetRecord(assetId: string) {
   return getStoredAssetById(assetId)
 }
 
-export function getStoredEvidenceRecord(evidenceId: string) {
+export async function getStoredEvidenceRecord(evidenceId: string) {
   return getStoredEvidenceById(evidenceId)
 }

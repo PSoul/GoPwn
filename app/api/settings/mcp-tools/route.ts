@@ -2,5 +2,5 @@ import { getMcpSettingsPayload } from "@/lib/prototype-api"
 import { withApiHandler } from "@/lib/api-handler"
 
 export const GET = withApiHandler(async () => {
-  return Response.json(getMcpSettingsPayload())
+  return Response.json(await getMcpSettingsPayload())
 })

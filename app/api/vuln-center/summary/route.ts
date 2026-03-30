@@ -5,7 +5,7 @@ import type { VulnCenterSummaryPayload } from "@/lib/prototype-types"
 
 export const GET = withApiHandler(async () => {
   const store = readPrototypeStore()
-  const allFindings = listStoredProjectFindings()
+  const allFindings = await listStoredProjectFindings()
 
   const projectNameMap = new Map(store.projects.map((p) => [p.id, p.name]))
 

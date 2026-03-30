@@ -23,7 +23,7 @@ describe("auth api routes", () => {
   })
 
   it("logs in with the seeded researcher account and sets a session cookie", async () => {
-    const { captchaId, code } = generateCaptcha()
+    const { captchaId, code } = await generateCaptcha()
 
     const response = await login(
       new Request("http://localhost/api/auth/login", {
@@ -46,7 +46,7 @@ describe("auth api routes", () => {
   })
 
   it("rejects invalid login credentials", async () => {
-    const { captchaId, code } = generateCaptcha()
+    const { captchaId, code } = await generateCaptcha()
 
     const response = await login(
       new Request("http://localhost/api/auth/login", {
@@ -68,7 +68,7 @@ describe("auth api routes", () => {
   })
 
   it("rejects invalid captcha", async () => {
-    const { captchaId } = generateCaptcha()
+    const { captchaId } = await generateCaptcha()
 
     const response = await login(
       new Request("http://localhost/api/auth/login", {
@@ -90,7 +90,7 @@ describe("auth api routes", () => {
   })
 
   it("writes login and logout actions into the audit log", async () => {
-    const { captchaId, code } = generateCaptcha()
+    const { captchaId, code } = await generateCaptcha()
 
     const loginResponse = await login(
       new Request("http://localhost/api/auth/login", {

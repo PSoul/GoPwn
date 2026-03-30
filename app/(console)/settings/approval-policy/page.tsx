@@ -4,8 +4,8 @@ import { SettingsSubnav } from "@/components/settings/settings-subnav"
 import { SystemControlPanel } from "@/components/settings/system-control-panel"
 import { getApprovalPolicyPayload } from "@/lib/prototype-api"
 
-export default function ApprovalPolicySettingsPage() {
-  const payload = getApprovalPolicyPayload()
+export default async function ApprovalPolicySettingsPage() {
+  const payload = await getApprovalPolicyPayload()
 
   return (
     <div className="space-y-6">

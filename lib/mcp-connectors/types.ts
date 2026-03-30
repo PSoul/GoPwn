@@ -39,6 +39,6 @@ export type McpConnectorResult =
 export interface McpConnector {
   key: string
   mode: ConnectorMode
-  supports: (context: McpConnectorExecutionContext) => boolean
+  supports: (context: McpConnectorExecutionContext) => boolean | Promise<boolean>
   execute: (context: McpConnectorExecutionContext) => Promise<McpConnectorResult> | McpConnectorResult
 }

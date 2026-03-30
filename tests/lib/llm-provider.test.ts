@@ -18,16 +18,16 @@ describe("LLM provider registry", () => {
     vi.restoreAllMocks()
   })
 
-  it("returns a disabled status when no provider configuration is present", () => {
-    const status = getConfiguredLlmProviderStatus()
-    const provider = resolveLlmProvider()
+  it("returns a disabled status when no provider configuration is present", async () => {
+    const status = await getConfiguredLlmProviderStatus()
+    const provider = await resolveLlmProvider()
 
     expect(status.enabled).toBe(false)
     expect(provider).toBeNull()
     expect(status.note).toContain("未配置")
   })
 
-  it("prefers persisted prototype-store profiles before env vars", () => {
+  it("prefers persisted prototype-store profiles before env vars", async () => {
     const store = readPrototypeStore()
     store.llmProfiles = store.llmProfiles.map((profile) =>
       profile.id === "orchestrator"
@@ -54,8 +54,8 @@ describe("LLM provider registry", () => {
     )
     writePrototypeStore(store)
 
-    const status = getConfiguredLlmProviderStatus()
-    const provider = resolveLlmProvider()
+    const status = await getConfiguredLlmProviderStatus()
+    const provider = await resolveLlmProvider()
 
     expect(status.enabled).toBe(true)
     expect(status.baseUrl).toBe("https://api.siliconflow.cn/v1")
@@ -63,14 +63,14 @@ describe("LLM provider registry", () => {
     expect(provider).not.toBeNull()
   })
 
-  it("builds an enabled provider status from env configuration", () => {
+  it("builds an enabled provider status from env configuration", async () => {
     process.env.LLM_PROVIDER = "openai-compatible"
     process.env.LLM_BASE_URL = "https://api.siliconflow.cn/v1"
     process.env.LLM_API_KEY = "sk-test"
     process.env.LLM_ORCHESTRATOR_MODEL = "Pro/deepseek-ai/DeepSeek-V3.2"
     process.env.LLM_REVIEWER_MODEL = "Qwen/Qwen2.5-7B-Instruct"
 
-    const status = getConfiguredLlmProviderStatus()
+    const status = await getConfiguredLlmProviderStatus()
 
     expect(status.enabled).toBe(true)
     expect(status.provider).toBe("openai-compatible")
@@ -110,7 +110,7 @@ describe("LLM provider registry", () => {
       }),
     }) as unknown as typeof fetch
 
-    const provider = resolveLlmProvider()
+    const provider = await resolveLlmProvider()
 
     if (!provider) {
       throw new Error("Expected provider to be configured.")

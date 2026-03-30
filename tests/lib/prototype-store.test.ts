@@ -22,9 +22,9 @@ describe("prototype store project id migration", () => {
     rmSync(tempDir, { force: true, recursive: true })
   })
 
-  it("rewrites legacy non-ascii ids across related records", () => {
+  it("rewrites legacy non-ascii ids across related records", async () => {
     const legacyId = "proj-北栖"
-    const created = createStoredProjectFixture()
+    const created = await createStoredProjectFixture()
     const store = readPrototypeStore()
     const baseProject = created.project
     const baseDetail = created.detail

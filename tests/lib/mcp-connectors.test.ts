@@ -62,24 +62,24 @@ describe("MCP connector registry", () => {
     process.env[REAL_DNS_TEST_FLAG] = initialRealDnsTestFlag
   })
 
-  it("defaults to the local DNS connector for hostname targets during automated tests", () => {
-    const connector = resolveMcpConnector(buildDnsContext("admin.huayao.com"))
+  it("defaults to the local DNS connector for hostname targets during automated tests", async () => {
+    const connector = await resolveMcpConnector(buildDnsContext("admin.huayao.com"))
 
     expect(connector?.key).toBe("local-dns-census")
     expect(connector?.mode).toBe("local")
   })
 
-  it("can re-enable the real DNS connector during automated tests when explicitly requested", () => {
+  it("can re-enable the real DNS connector during automated tests when explicitly requested", async () => {
     process.env[REAL_DNS_TEST_FLAG] = "1"
 
-    const connector = resolveMcpConnector(buildDnsContext("admin.huayao.com"))
+    const connector = await resolveMcpConnector(buildDnsContext("admin.huayao.com"))
 
     expect(connector?.key).toBe("real-dns-intelligence")
     expect(connector?.mode).toBe("real")
   })
 
-  it("falls back to the local DNS connector for CIDR targets", () => {
-    const connector = resolveMcpConnector(buildDnsContext("203.107.18.0/24"))
+  it("falls back to the local DNS connector for CIDR targets", async () => {
+    const connector = await resolveMcpConnector(buildDnsContext("203.107.18.0/24"))
 
     expect(connector?.key).toBe("local-dns-census")
     expect(connector?.mode).toBe("local")
@@ -119,7 +119,7 @@ describe("MCP connector registry", () => {
   })
 
   it("stops local foundational connectors immediately when the execution signal is already aborted", async () => {
-    const connector = resolveMcpConnector(buildDnsContext("admin.huayao.com"))
+    const connector = await resolveMcpConnector(buildDnsContext("admin.huayao.com"))
     const controller = new AbortController()
 
     controller.abort("研究员请求停止当前运行中的任务。")

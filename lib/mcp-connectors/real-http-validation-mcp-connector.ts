@@ -63,20 +63,20 @@ function buildSummaryLines(
 export const realHttpValidationMcpConnector: McpConnector = {
   key: "real-http-validation-mcp",
   mode: "real",
-  supports: ({ project, run }) => {
+  supports: async ({ project, run }) => {
     const target = run.target || getProjectPrimaryTarget(project)
 
     return (
       run.capability === "受控验证类" &&
       isHttpTarget(target) &&
-      Boolean(findStoredEnabledMcpServerByToolBinding(run.toolName))
+      Boolean(await findStoredEnabledMcpServerByToolBinding(run.toolName))
     )
   },
   async execute(context: McpConnectorExecutionContext): Promise<McpConnectorResult> {
     throwIfExecutionAborted(context.signal)
 
     const target = context.run.target || getProjectPrimaryTarget(context.project)
-    const server = findStoredEnabledMcpServerByToolBinding(context.run.toolName)
+    const server = await findStoredEnabledMcpServerByToolBinding(context.run.toolName)
 
     if (!server) {
       return {

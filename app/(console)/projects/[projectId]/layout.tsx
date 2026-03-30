@@ -14,7 +14,7 @@ export default async function ProjectWorkspaceLayout({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const project = getProjectRecord(projectId)
+  const project = await getProjectRecord(projectId)
 
   if (!project) {
     notFound()

@@ -4,7 +4,7 @@ import { withApiHandler } from "@/lib/api-handler"
 
 export const GET = withApiHandler(async (_request, { params }) => {
   const { projectId } = await params
-  const payload = getProjectOverviewPayload(projectId)
+  const payload = await getProjectOverviewPayload(projectId)
 
   if (!payload) {
     return Response.json({ error: `Project '${projectId}' not found` }, { status: 404 })
@@ -22,7 +22,7 @@ export const PATCH = withApiHandler(async (request, { params }) => {
     return Response.json({ error: "Invalid project patch payload" }, { status: 400 })
   }
 
-  const payload = updateProjectOverviewPayload(projectId, parsed.data)
+  const payload = await updateProjectOverviewPayload(projectId, parsed.data)
 
   if (!payload) {
     return Response.json({ error: `Project '${projectId}' not found` }, { status: 404 })

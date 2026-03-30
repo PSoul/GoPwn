@@ -9,7 +9,7 @@ export default async function ProjectAiLogsPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const payload = getProjectOverviewPayload(projectId)
+  const payload = await getProjectOverviewPayload(projectId)
 
   if (!payload) {
     notFound()

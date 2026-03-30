@@ -1,4 +1,14 @@
 import { syncStoredMcpRunsAfterApprovalDecision } from "@/lib/mcp-gateway-repository"
+import { Prisma } from "@/lib/generated/prisma/client"
+import { prisma } from "@/lib/prisma"
+import {
+  toApprovalRecord,
+  toApprovalControlRecord,
+  fromApprovalControlRecord,
+  toPolicyRecord,
+  toDbTimestamp,
+  fromLogRecord,
+} from "@/lib/prisma-transforms"
 import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
 import type {
   ApprovalControl,
@@ -6,7 +16,10 @@ import type {
   ApprovalDecisionInput,
   ApprovalRecord,
   ProjectDetailRecord,
+  ProjectKnowledgeItem,
 } from "@/lib/prototype-types"
+
+const USE_PRISMA = process.env.DATA_LAYER === "prisma"
 
 const approvalStatusPriority: Record<ApprovalRecord["status"], number> = {
   待处理: 0,
@@ -113,31 +126,160 @@ function pushProjectActivity(detail: ProjectDetailRecord, title: string, detailT
   }
 }
 
-export function listStoredApprovals() {
+export async function listStoredApprovals() {
+  if (USE_PRISMA) {
+    const rows = await prisma.approval.findMany({ orderBy: { submittedAt: "desc" } })
+    return rows.map(toApprovalRecord)
+  }
+
   return readPrototypeStore().approvals
 }
 
-export function getStoredApprovalById(approvalId: string) {
+export async function getStoredApprovalById(approvalId: string) {
+  if (USE_PRISMA) {
+    const row = await prisma.approval.findUnique({ where: { id: approvalId } })
+    return row ? toApprovalRecord(row) : null
+  }
+
   return readPrototypeStore().approvals.find((approval) => approval.id === approvalId) ?? null
 }
 
-export function listStoredProjectApprovals(projectId: string) {
+export async function listStoredProjectApprovals(projectId: string) {
+  if (USE_PRISMA) {
+    const rows = await prisma.approval.findMany({
+      where: { projectId },
+      orderBy: { submittedAt: "desc" },
+    })
+    return rows.map(toApprovalRecord)
+  }
+
   return readPrototypeStore().approvals.filter((approval) => approval.projectId === projectId)
 }
 
-export function getStoredGlobalApprovalControl() {
+export async function getStoredGlobalApprovalControl() {
+  if (USE_PRISMA) {
+    const row = await prisma.globalApprovalControl.findUnique({ where: { id: "global" } })
+    if (row) return toApprovalControlRecord(row)
+    // Return sensible default if no row yet
+    return {
+      enabled: true,
+      mode: "高风险需审批",
+      autoApproveLowRisk: true,
+      description: "大部分 MCP 调用直接执行并写入审计，只有高风险验证和敏感探测动作进入人工审批。",
+      note: "",
+    } satisfies ApprovalControl
+  }
+
   return readPrototypeStore().globalApprovalControl
 }
 
-export function listStoredApprovalPolicies() {
+export async function listStoredApprovalPolicies() {
+  if (USE_PRISMA) {
+    const rows = await prisma.approvalPolicy.findMany()
+    return rows.map(toPolicyRecord)
+  }
+
   return readPrototypeStore().approvalPolicies
 }
 
-export function listStoredScopeRules() {
+export async function listStoredScopeRules() {
+  if (USE_PRISMA) {
+    const rows = await prisma.scopeRule.findMany()
+    return rows.map(toPolicyRecord)
+  }
+
   return readPrototypeStore().scopeRules
 }
 
-export function updateStoredApprovalDecision(approvalId: string, input: ApprovalDecisionInput) {
+export async function updateStoredApprovalDecision(approvalId: string, input: ApprovalDecisionInput) {
+  if (USE_PRISMA) {
+    const existing = await prisma.approval.findUnique({ where: { id: approvalId } })
+    if (!existing) return null
+
+    const currentApproval = toApprovalRecord(existing)
+    const now = formatTimestamp()
+    const nextSubmittedAt = `${currentApproval.submittedAt} · 已处理 ${now.slice(11)}`
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Update the approval status
+      const updatedRow = await tx.approval.update({
+        where: { id: approvalId },
+        data: {
+          status: input.decision,
+          submittedAt: toDbTimestamp(nextSubmittedAt),
+        },
+      })
+      const nextApproval = toApprovalRecord(updatedRow)
+
+      // 2. Reorder remaining approvals (recalculate queuePosition)
+      const allApprovals = (await tx.approval.findMany()).map(toApprovalRecord)
+      const reordered = reorderApprovals(allApprovals)
+      for (const item of reordered) {
+        await tx.approval.update({
+          where: { id: item.id },
+          data: { queuePosition: item.queuePosition },
+        })
+      }
+
+      // 3. Update project.pendingApprovals count
+      const pendingCount = reordered.filter(
+        (a) => a.projectId === nextApproval.projectId && a.status === "待处理",
+      ).length
+      await tx.project.update({
+        where: { id: nextApproval.projectId },
+        data: {
+          pendingApprovals: pendingCount,
+          lastActor: `审批中心 · ${input.decision}`,
+        },
+      })
+
+      // 4. Push activity to projectDetail
+      const detail = await tx.projectDetail.findUnique({
+        where: { projectId: nextApproval.projectId },
+      })
+      if (detail) {
+        const tone: "success" | "warning" | "danger" =
+          input.decision === "已批准" ? "success" : input.decision === "已延后" ? "warning" : "danger"
+        const detailText =
+          input.decision === "已批准"
+            ? `${nextApproval.actionType} 已批准，可按当前项目策略恢复受控调度。`
+            : input.decision === "已延后"
+              ? `${nextApproval.actionType} 已延后，等待更合适的时间窗口或前置条件满足。`
+              : `${nextApproval.actionType} 已拒绝，当前主路径需要重新规划验证方式。`
+        const currentActivity = (detail.activity ?? []) as unknown as ProjectKnowledgeItem[]
+        const newActivity = [
+          { title: `${nextApproval.id} ${input.decision}`, detail: detailText, meta: "审批中心", tone },
+          ...currentActivity,
+        ].slice(0, 8)
+        const currentStage = (detail.currentStage ?? {}) as Record<string, unknown>
+        await tx.projectDetail.update({
+          where: { projectId: nextApproval.projectId },
+          data: {
+            activity: newActivity as unknown as Prisma.InputJsonArray,
+            currentStage: { ...currentStage, updatedAt: now } as unknown as Prisma.InputJsonObject,
+          },
+        })
+      }
+
+      // 5. Create audit log
+      const auditLog = createAuditLog(
+        `审批单 ${nextApproval.id} ${input.decision}`,
+        "审批中心",
+        input.decision,
+        nextApproval.projectName,
+      )
+      await tx.auditLog.create({ data: fromLogRecord(auditLog) })
+
+      return nextApproval
+    })
+
+    // 6. Sync MCP runs (outside transaction — it manages its own writes)
+    await syncStoredMcpRunsAfterApprovalDecision(result)
+    // Re-read the approval to get the latest queuePosition
+    const final = await prisma.approval.findUnique({ where: { id: approvalId } })
+    return final ? toApprovalRecord(final) : result
+  }
+
   const store = readPrototypeStore()
   const approvalIndex = store.approvals.findIndex((approval) => approval.id === approvalId)
 
@@ -197,12 +339,38 @@ export function updateStoredApprovalDecision(approvalId: string, input: Approval
     ),
   )
   writePrototypeStore(store)
-  syncStoredMcpRunsAfterApprovalDecision(nextApproval)
+  await syncStoredMcpRunsAfterApprovalDecision(nextApproval)
 
   return store.approvals.find((approval) => approval.id === approvalId) ?? nextApproval
 }
 
-export function updateStoredGlobalApprovalControl(patch: ApprovalControlPatch) {
+export async function updateStoredGlobalApprovalControl(patch: ApprovalControlPatch) {
+  if (USE_PRISMA) {
+    const current = await getStoredGlobalApprovalControl()
+    const enabled = patch.enabled ?? current.enabled
+    const autoApproveLowRisk = patch.autoApproveLowRisk ?? current.autoApproveLowRisk
+    const nextControl: ApprovalControl = {
+      ...current,
+      enabled,
+      autoApproveLowRisk,
+      mode: buildApprovalMode(enabled, autoApproveLowRisk),
+      description: buildGlobalApprovalDescription(enabled, autoApproveLowRisk),
+      note: patch.note ?? current.note,
+    }
+    await prisma.globalApprovalControl.upsert({
+      where: { id: "global" },
+      create: { id: "global", ...fromApprovalControlRecord(nextControl) },
+      update: fromApprovalControlRecord(nextControl),
+    })
+    const auditLog = createAuditLog(
+      `更新全局审批策略：${nextControl.mode}`,
+      "系统设置",
+      enabled ? "已生效" : "已关闭",
+    )
+    await prisma.auditLog.create({ data: fromLogRecord(auditLog) })
+    return nextControl
+  }
+
   const store = readPrototypeStore()
   const current = store.globalApprovalControl
   const enabled = patch.enabled ?? current.enabled
@@ -229,7 +397,60 @@ export function updateStoredGlobalApprovalControl(patch: ApprovalControlPatch) {
   return nextControl
 }
 
-export function updateStoredProjectApprovalControl(projectId: string, patch: ApprovalControlPatch) {
+export async function updateStoredProjectApprovalControl(projectId: string, patch: ApprovalControlPatch) {
+  if (USE_PRISMA) {
+    const [project, detail] = await Promise.all([
+      prisma.project.findUnique({ where: { id: projectId } }),
+      prisma.projectDetail.findUnique({ where: { projectId } }),
+    ])
+    if (!project || !detail) return null
+
+    const currentControl = (detail.approvalControl ?? {}) as unknown as ApprovalControl
+    const enabled = patch.enabled ?? currentControl.enabled
+    const autoApproveLowRisk = patch.autoApproveLowRisk ?? currentControl.autoApproveLowRisk
+    const nextMode = buildApprovalMode(enabled, autoApproveLowRisk)
+    const nextNote = patch.note ?? currentControl.note
+    const now = formatTimestamp()
+    const nextApprovalControl = {
+      ...currentControl,
+      enabled,
+      autoApproveLowRisk,
+      mode: nextMode,
+      description: buildProjectApprovalDescription(enabled, autoApproveLowRisk),
+      note: nextNote,
+    }
+    const currentStage = (detail.currentStage ?? {}) as Record<string, unknown>
+
+    const [updatedProject, updatedDetail] = await Promise.all([
+      prisma.project.update({
+        where: { id: projectId },
+        data: { lastActor: "项目审批策略调整" },
+      }),
+      prisma.projectDetail.update({
+        where: { projectId },
+        data: {
+          approvalControl: nextApprovalControl as unknown as Prisma.InputJsonObject,
+          currentStage: { ...currentStage, updatedAt: now } as unknown as Prisma.InputJsonObject,
+        },
+      }),
+    ])
+
+    const auditLog = createAuditLog(
+      `更新项目审批策略：${project.name} -> ${nextMode}`,
+      "项目设置",
+      enabled ? "已生效" : "已关闭",
+      project.name,
+    )
+    await prisma.auditLog.create({ data: fromLogRecord(auditLog) })
+
+    // Import transforms inline to avoid circular dependencies
+    const { toProjectRecord, toProjectDetailRecord } = await import("@/lib/prisma-transforms")
+    return {
+      project: toProjectRecord(updatedProject),
+      detail: toProjectDetailRecord(updatedDetail),
+    }
+  }
+
   const store = readPrototypeStore()
   const projectIndex = store.projects.findIndex((project) => project.id === projectId)
   const detailIndex = store.projectDetails.findIndex((detail) => detail.projectId === projectId)

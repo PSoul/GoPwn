@@ -2,5 +2,5 @@ import { getSettingsSectionsPayload } from "@/lib/prototype-api"
 import { withApiHandler } from "@/lib/api-handler"
 
 export const GET = withApiHandler(async () => {
-  return Response.json(getSettingsSectionsPayload())
+  return Response.json(await getSettingsSectionsPayload())
 })

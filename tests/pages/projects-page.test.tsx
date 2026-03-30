@@ -15,17 +15,17 @@ import NewProjectPage from "@/app/(console)/projects/new/page"
 import { createStoredProjectFixture } from "@/tests/helpers/project-fixtures"
 
 describe("Project pages", () => {
-  it("shows the primary project list dataset", () => {
-    const fixture = createStoredProjectFixture()
-    render(<ProjectsPage />)
+  it("shows the primary project list dataset", async () => {
+    const fixture = await createStoredProjectFixture()
+    render(await ProjectsPage())
 
     expect(screen.getByText(fixture.project.name)).toBeInTheDocument()
     expect(screen.getAllByText("新建项目").length).toBeGreaterThan(0)
     expect(screen.getByText("筛选结果")).toBeInTheDocument()
   })
 
-  it("renders the project creation form sections", () => {
-    render(<NewProjectPage />)
+  it("renders the project creation form sections", async () => {
+    render(await NewProjectPage())
 
     expect(screen.getByText("项目基础信息")).toBeInTheDocument()
     expect(screen.getByText("项目预览")).toBeInTheDocument()
@@ -34,7 +34,7 @@ describe("Project pages", () => {
   })
 
   it("renders the project edit form with save action", async () => {
-    const fixture = createStoredProjectFixture()
+    const fixture = await createStoredProjectFixture()
 
     render(await EditProjectPage({ params: Promise.resolve({ projectId: fixture.project.id }) }))
 

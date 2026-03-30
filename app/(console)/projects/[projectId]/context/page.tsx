@@ -14,7 +14,7 @@ export default async function ProjectContextPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const payload = getProjectContextPayload(projectId)
+  const payload = await getProjectContextPayload(projectId)
 
   if (!payload) {
     notFound()

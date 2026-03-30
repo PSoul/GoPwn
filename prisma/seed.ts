@@ -9,14 +9,13 @@
  * This script is idempotent — it uses upsert for all records.
  */
 
-// @ts-ignore — Prisma client types are generated at build time
-import { PrismaClient } from "../lib/generated/prisma"
+import { PrismaPg } from "@prisma/adapter-pg"
+import { PrismaClient } from "../lib/generated/prisma/client"
 import { readFileSync, existsSync } from "node:fs"
 import { join } from "node:path"
 
-const prisma = new PrismaClient({
-  datasourceUrl: process.env.DATABASE_URL,
-})
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL ?? "" })
+const prisma = new PrismaClient({ adapter })
 
 const STORE_PATH = join(process.cwd(), ".prototype-store", "prototype-store.json")
 

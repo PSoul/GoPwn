@@ -21,6 +21,11 @@ export function listRegisteredMcpConnectors() {
   return orderedConnectors
 }
 
-export function resolveMcpConnector(context: McpConnectorExecutionContext) {
-  return orderedConnectors.find((connector) => connector.supports(context)) ?? null
+export async function resolveMcpConnector(context: McpConnectorExecutionContext) {
+  for (const connector of orderedConnectors) {
+    if (await connector.supports(context)) {
+      return connector
+    }
+  }
+  return null
 }

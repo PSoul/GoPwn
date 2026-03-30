@@ -44,16 +44,16 @@ describe("MCP execution service cancellation guard", () => {
 
   it("does not commit normalized execution results when the scheduler task is already cancelled", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture()
-    const payload = dispatchStoredMcpRun(fixture.project.id, {
+    const fixture = await createStoredProjectFixture()
+    const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
       target: fixture.project.seed,
       riskLevel: "低",
     })
 
-    const task = getStoredSchedulerTaskByRunId(payload!.run.id)
-    updateStoredSchedulerTask(task!.id, {
+    const task = await getStoredSchedulerTaskByRunId(payload!.run.id)
+    await updateStoredSchedulerTask(task!.id, {
       status: "cancelled",
       summaryLines: [...task!.summaryLines, "研究员请求停止当前运行中的任务。"],
     })
@@ -61,22 +61,22 @@ describe("MCP execution service cancellation guard", () => {
     const result = await executeStoredMcpRun(payload!.run.id)
 
     expect(result?.status).toBe("aborted")
-    expect(getStoredMcpRunById(payload!.run.id)?.status).toBe("已取消")
-    expect(listStoredAssets(fixture.project.id)).toHaveLength(0)
+    expect((await getStoredMcpRunById(payload!.run.id))?.status).toBe("已取消")
+    expect(await listStoredAssets(fixture.project.id)).toHaveLength(0)
   })
 
   it("does not commit normalized execution results when the lease ownership has moved to a newer worker", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture()
-    const payload = dispatchStoredMcpRun(fixture.project.id, {
+    const fixture = await createStoredProjectFixture()
+    const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
       target: fixture.project.seed,
       riskLevel: "低",
     })
 
-    const task = getStoredSchedulerTaskByRunId(payload!.run.id)
-    updateStoredSchedulerTask(task!.id, {
+    const task = await getStoredSchedulerTaskByRunId(payload!.run.id)
+    await updateStoredSchedulerTask(task!.id, {
       heartbeatAt: "2026-03-27 16:20",
       leaseExpiresAt: "2026-03-27 16:21",
       leaseStartedAt: "2026-03-27 16:20",
@@ -92,16 +92,16 @@ describe("MCP execution service cancellation guard", () => {
     })
 
     expect(result?.status).toBe("ownership_lost")
-    expect(getStoredMcpRunById(payload!.run.id)?.status).toBe("执行中")
-    expect(listStoredAssets(fixture.project.id)).toHaveLength(0)
+    expect((await getStoredMcpRunById(payload!.run.id))?.status).toBe("执行中")
+    expect(await listStoredAssets(fixture.project.id)).toHaveLength(0)
   })
 
   it("falls back to built-in target normalization when a fresh workspace has not registered any tools yet", async () => {
-    const fixture = createStoredProjectFixture({
+    const fixture = await createStoredProjectFixture({
       seed: "http://127.0.0.1:18080/WebGoat",
       targetType: "url",
     })
-    const payload = dispatchStoredMcpRun(fixture.project.id, {
+    const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "目标解析类",
       requestedAction: "标准化 WebGoat 种子目标",
       target: fixture.project.seed,
@@ -114,16 +114,16 @@ describe("MCP execution service cancellation guard", () => {
     const result = await executeStoredMcpRun(payload!.run.id)
 
     expect(result?.status).toBe("succeeded")
-    expect(getStoredMcpRunById(payload!.run.id)?.status).toBe("已执行")
-    expect(getStoredMcpRunById(payload!.run.id)?.toolName).toBe("seed-normalizer")
+    expect((await getStoredMcpRunById(payload!.run.id))?.status).toBe("已执行")
+    expect((await getStoredMcpRunById(payload!.run.id))?.toolName).toBe("seed-normalizer")
   })
 
   it("falls back to the built-in report exporter when no explicit report tool has been registered", async () => {
-    const fixture = createStoredProjectFixture({
+    const fixture = await createStoredProjectFixture({
       seed: "http://127.0.0.1:18080/WebGoat",
       targetType: "url",
     })
-    const payload = dispatchStoredMcpRun(fixture.project.id, {
+    const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "报告导出类",
       requestedAction: "导出项目报告",
       target: fixture.project.code,
@@ -136,8 +136,8 @@ describe("MCP execution service cancellation guard", () => {
     const result = await executeStoredMcpRun(payload!.run.id)
 
     expect(result?.status).toBe("succeeded")
-    expect(getStoredMcpRunById(payload!.run.id)?.status).toBe("已执行")
-    expect(getStoredMcpRunById(payload!.run.id)?.toolName).toBe("report-exporter")
+    expect((await getStoredMcpRunById(payload!.run.id))?.status).toBe("已执行")
+    expect((await getStoredMcpRunById(payload!.run.id))?.toolName).toBe("report-exporter")
   })
 
   it("normalizes findings and evidence for a generic controlled-validation tool binding that reuses the shared HTTP validation MCP shape", async () => {
@@ -164,7 +164,7 @@ describe("MCP execution service cancellation guard", () => {
     const { port } = fixtureServer.address() as AddressInfo
     fixtureUrl = `http://127.0.0.1:${port}/actuator`
 
-    registerStoredMcpServer({
+    await registerStoredMcpServer({
       serverName: "http-validation-stdio",
       version: "1.0.0",
       transport: "stdio",
@@ -206,11 +206,11 @@ describe("MCP execution service cancellation guard", () => {
       ],
     })
 
-    const fixture = createStoredProjectFixture({
+    const fixture = await createStoredProjectFixture({
       seed: fixtureUrl,
       targetType: "url",
     })
-    const payload = dispatchStoredMcpRun(fixture.project.id, {
+    const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "受控验证类",
       requestedAction: "验证 actuator 工作台示例",
       target: fixtureUrl,
@@ -222,7 +222,7 @@ describe("MCP execution service cancellation guard", () => {
     const result = await executeStoredMcpRun(payload!.run.id)
 
     expect(result?.status).toBe("succeeded")
-    expect(getStoredMcpRunById(payload!.run.id)?.status).toBe("已执行")
+    expect((await getStoredMcpRunById(payload!.run.id))?.status).toBe("已执行")
     expect(readPrototypeStore().projectFindings.some((item) => item.projectId === fixture.project.id)).toBe(true)
     expect(readPrototypeStore().evidenceRecords.some((item) => item.projectId === fixture.project.id)).toBe(true)
   })

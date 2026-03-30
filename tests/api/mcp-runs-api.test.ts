@@ -39,7 +39,7 @@ describe("project MCP run api routes", () => {
 
   it("dispatches low-risk MCP actions immediately when approval is not required", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture()
+    const fixture = await createStoredProjectFixture()
     const response = await postProjectMcpRun(
       new Request(`http://localhost/api/projects/${fixture.project.id}/mcp-runs`, {
         method: "POST",
@@ -87,7 +87,7 @@ describe("project MCP run api routes", () => {
 
   it("queues high-risk MCP actions for approval and resumes them after approval", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture()
+    const fixture = await createStoredProjectFixture()
     const dispatchResponse = await postProjectMcpRun(
       new Request(`http://localhost/api/projects/${fixture.project.id}/mcp-runs`, {
         method: "POST",
@@ -200,7 +200,7 @@ describe("project MCP run api routes", () => {
         notes: "适合目录和路径探测。",
       },
     ])
-    const fixture = createStoredProjectFixture()
+    const fixture = await createStoredProjectFixture()
     const response = await postProjectMcpRun(
       new Request(`http://localhost/api/projects/${fixture.project.id}/mcp-runs`, {
         method: "POST",

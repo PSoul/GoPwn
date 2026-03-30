@@ -55,7 +55,7 @@ describe("real web-surface MCP connector", () => {
   })
 
   it("executes the web-surface capability through a real MCP stdio server", async () => {
-    registerStoredMcpServer({
+    await registerStoredMcpServer({
       serverName: "web-surface-stdio",
       version: "1.0.0",
       transport: "stdio",
@@ -180,7 +180,7 @@ describe("real web-surface MCP connector", () => {
       fetch: async () => new Response("", { status: 200 }),
     })
 
-    registerStoredMcpServer({
+    await registerStoredMcpServer({
       serverName: "web-surface-stdio",
       version: "1.0.0",
       transport: "stdio",
@@ -306,7 +306,7 @@ describe("real web-surface MCP connector", () => {
       })
     })
 
-    registerStoredMcpServer({
+    await registerStoredMcpServer({
       serverName: "web-surface-stdio",
       version: "1.0.0",
       transport: "stdio",
@@ -411,7 +411,7 @@ describe("real web-surface MCP connector", () => {
     await expect(executionPromise).rejects.toMatchObject({
       name: "AbortError",
     })
-    expect(listStoredMcpServerInvocations("mcp-server-web-surface-stdio")[0]?.status).toBe("cancelled")
+    expect((await listStoredMcpServerInvocations("mcp-server-web-surface-stdio"))[0]?.status).toBe("cancelled")
     expect(Date.now() - startedAt).toBeLessThan(2_000)
   })
 })

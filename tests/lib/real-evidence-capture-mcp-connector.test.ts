@@ -56,7 +56,7 @@ describe("real evidence-capture MCP connector", () => {
   })
 
   it("captures screenshot and HTML artifacts through a real MCP stdio server", async () => {
-    registerStoredMcpServer({
+    await registerStoredMcpServer({
       serverName: "evidence-capture-stdio",
       version: "1.0.0",
       transport: "stdio",

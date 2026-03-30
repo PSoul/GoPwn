@@ -6,8 +6,8 @@ import { PageHeader } from "@/components/shared/page-header"
 import { Button } from "@/components/ui/button"
 import { listProjectsPayload } from "@/lib/prototype-api"
 
-export default function ProjectsPage() {
-  const { items } = listProjectsPayload()
+export default async function ProjectsPage() {
+  const { items } = await listProjectsPayload()
 
   return (
     <div className="space-y-5">

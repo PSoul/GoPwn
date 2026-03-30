@@ -8,7 +8,7 @@ export const POST = withApiHandler(async (request) => {
   const session = await readSessionFromCookieHeader(request.headers.get("cookie"))
 
   if (session) {
-    recordLogout(session.account, session.displayName)
+    await recordLogout(session.account, session.displayName)
   }
 
   const acceptsHtml = request.headers.get("accept")?.includes("text/html")

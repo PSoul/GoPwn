@@ -82,7 +82,7 @@ describe("Project mutation ui", () => {
   })
 
   it("archives a project from the list through the archive api", async () => {
-    const fixture = createStoredProjectFixture()
+    const fixture = await createStoredProjectFixture()
 
     vi.mocked(global.fetch).mockResolvedValueOnce({
       ok: true,

@@ -21,8 +21,8 @@ describe("dashboard and asset payload regrouping", () => {
     rmSync(tempDir, { force: true, recursive: true })
   })
 
-  it("exposes four KPI cards, recent result updates, and typed asset previews on the dashboard", () => {
-    const created = createStoredProject({
+  it("exposes four KPI cards, recent result updates, and typed asset previews on the dashboard", async () => {
+    const created = await createStoredProject({
       name: "Dashboard 项目",
       targetInput: "demo.example.com",
       description: "仪表盘聚合测试",
@@ -166,7 +166,7 @@ describe("dashboard and asset payload regrouping", () => {
     ]
     writePrototypeStore(store)
 
-    const payload = getDashboardPayload() as Record<string, unknown>
+    const payload = await getDashboardPayload() as Record<string, unknown>
 
     expect((payload.metrics as Array<{ label: string }>).map((item) => item.label)).toEqual([
       "项目总数",
@@ -185,8 +185,8 @@ describe("dashboard and asset payload regrouping", () => {
     expect((payload.assetViews as Array<{ key: string; count: number }>)[0]?.count).toBe(1)
   })
 
-  it("returns typed asset-center views instead of a single undifferentiated list", () => {
-    const created = createStoredProject({
+  it("returns typed asset-center views instead of a single undifferentiated list", async () => {
+    const created = await createStoredProject({
       name: "资产视图项目",
       targetInput: "demo.example.com",
       description: "资产中心视图测试",
@@ -233,7 +233,7 @@ describe("dashboard and asset payload regrouping", () => {
     ]
     writePrototypeStore(store)
 
-    const payload = listAssetsPayload() as Record<string, unknown>
+    const payload = await listAssetsPayload() as Record<string, unknown>
 
     expect(payload).toHaveProperty("views")
     expect((payload.views as Array<{ key: string }>).map((view) => view.key)).toEqual([
@@ -246,8 +246,8 @@ describe("dashboard and asset payload regrouping", () => {
     expect((payload.views as Array<{ key: string; count: number }>)[0]?.count).toBe(1)
   })
 
-  it("deduplicates visually identical recent result records before rendering the dashboard timeline", () => {
-    const created = createStoredProject({
+  it("deduplicates visually identical recent result records before rendering the dashboard timeline", async () => {
+    const created = await createStoredProject({
       name: "Recent 去重项目",
       targetInput: "demo.example.com",
       description: "最近结果更新去重测试",
@@ -292,7 +292,7 @@ describe("dashboard and asset payload regrouping", () => {
     ]
     writePrototypeStore(store)
 
-    const payload = getDashboardPayload()
+    const payload = await getDashboardPayload()
 
     expect(payload.recentResults.filter((item) => item.title === "Web 入口与响应特征识别")).toHaveLength(1)
   })

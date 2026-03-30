@@ -17,13 +17,13 @@ export async function runProjectSmokeWorkflow(
   projectId: string,
   scenario: "baseline" | "with-approval",
 ): Promise<McpWorkflowSmokePayload | null> {
-  const project = getStoredProjectById(projectId)
+  const project = await getStoredProjectById(projectId)
 
   if (!project) {
     return null
   }
 
-  const schedulerControl = updateStoredProjectSchedulerControl(projectId, {
+  const schedulerControl = await updateStoredProjectSchedulerControl(projectId, {
     lifecycle: "running",
     note: "显式触发基础 smoke workflow，项目已切换到运行态。",
   })
@@ -38,7 +38,7 @@ export async function runProjectSmokeWorkflow(
   const primaryTarget = getProjectPrimaryTarget(project)
 
   async function executeStep(input: McpDispatchInput) {
-    const payload = dispatchStoredMcpRun(projectId, input)
+    const payload = await dispatchStoredMcpRun(projectId, input)
 
     if (!payload) {
       return {

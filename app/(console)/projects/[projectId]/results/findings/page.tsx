@@ -13,7 +13,7 @@ export default async function ProjectFindingsResultsPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const payload = getProjectFindingsPayload(projectId)
+  const payload = await getProjectFindingsPayload(projectId)
 
   if (!payload) {
     notFound()

@@ -100,7 +100,7 @@ async function main() {
 
     try {
       // Create a dedicated project for this lab
-      const { project } = createStoredProject({
+      const { project } = await createStoredProject({
         name: `Docker验证-${lab.name}`,
         description: `Phase 16 自动化验证：${lab.description}`,
         targetInput: lab.baseUrl,
@@ -112,9 +112,9 @@ async function main() {
         approvalScenario: "none",
       })
 
-      const assetCount = listStoredAssets(project.id).length
-      const evidenceCount = listStoredEvidence(project.id).length
-      const findingCount = listStoredProjectFindings(project.id).length
+      const assetCount = (await listStoredAssets(project.id)).length
+      const evidenceCount = (await listStoredEvidence(project.id)).length
+      const findingCount = (await listStoredProjectFindings(project.id)).length
       const runCount = payload?.runs.length ?? 0
 
       results.push({

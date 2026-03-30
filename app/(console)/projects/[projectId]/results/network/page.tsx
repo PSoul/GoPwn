@@ -13,7 +13,7 @@ export default async function ProjectNetworkResultsPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const payload = getProjectInventoryPayload(projectId, "IP / 端口 / 服务")
+  const payload = await getProjectInventoryPayload(projectId, "IP / 端口 / 服务")
 
   if (!payload) {
     notFound()

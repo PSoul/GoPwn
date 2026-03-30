@@ -82,7 +82,7 @@ async function withTaskHeartbeat<T>(
         signal: controller.signal,
       })) {
         void heartbeatTick
-        heartbeatStoredSchedulerTask(taskId, {
+        await heartbeatStoredSchedulerTask(taskId, {
           leaseDurationMs: TASK_LEASE_DURATION_MS,
           leaseToken: ownership.leaseToken,
           workerId: ownership.workerId,
@@ -105,9 +105,9 @@ async function withTaskHeartbeat<T>(
   }
 }
 
-function resolveProjectAndTool(run: McpRunRecord) {
-  const project = getStoredProjectById(run.projectId)
-  const tool = run.toolId ? getStoredMcpToolById(run.toolId) : null
+async function resolveProjectAndTool(run: McpRunRecord) {
+  const project = await getStoredProjectById(run.projectId)
+  const tool = run.toolId ? await getStoredMcpToolById(run.toolId) : null
 
   if (!project) {
     return null
@@ -116,16 +116,16 @@ function resolveProjectAndTool(run: McpRunRecord) {
   return { project, tool }
 }
 
-export function determineRunConnectorMode(run: McpRunRecord, project?: ProjectRecord) {
-  const resolvedProject = project ?? getStoredProjectById(run.projectId)
+export async function determineRunConnectorMode(run: McpRunRecord, project?: ProjectRecord) {
+  const resolvedProject = project ?? await getStoredProjectById(run.projectId)
 
   if (!resolvedProject) {
     return "local"
   }
 
-  const tool = run.toolId ? getStoredMcpToolById(run.toolId) : null
-  const approval = run.linkedApprovalId ? getStoredApprovalById(run.linkedApprovalId) : null
-  const connector = resolveMcpConnector({
+  const tool = run.toolId ? await getStoredMcpToolById(run.toolId) : null
+  const approval = run.linkedApprovalId ? await getStoredApprovalById(run.linkedApprovalId) : null
+  const connector = await resolveMcpConnector({
     approval,
     priorOutputs: {},
     project: resolvedProject,
@@ -136,19 +136,19 @@ export function determineRunConnectorMode(run: McpRunRecord, project?: ProjectRe
   return connector?.mode ?? "local"
 }
 
-export function ensureStoredSchedulerTaskForRun(run: McpRunRecord) {
-  const existingTask = getStoredSchedulerTaskByRunId(run.id)
+export async function ensureStoredSchedulerTaskForRun(run: McpRunRecord) {
+  const existingTask = await getStoredSchedulerTaskByRunId(run.id)
 
   if (existingTask) {
     return existingTask
   }
 
-  const resolved = resolveProjectAndTool(run)
+  const resolved = await resolveProjectAndTool(run)
   const maxAttempts = (() => {
     const matched = resolved?.tool?.retry.match(/(\d+)/)
     return matched ? Number(matched[1]) || 0 : 0
   })()
-  const connectorMode = determineRunConnectorMode(run, resolved?.project)
+  const connectorMode = await determineRunConnectorMode(run, resolved?.project)
   const initialStatus =
     run.status === "待审批"
       ? "waiting_approval"
@@ -162,7 +162,7 @@ export function ensureStoredSchedulerTaskForRun(run: McpRunRecord) {
             ? "completed"
             : "ready"
 
-  return createStoredSchedulerTask(run, {
+  return await createStoredSchedulerTask(run, {
     connectorMode,
     maxAttempts,
     status: initialStatus,
@@ -173,16 +173,16 @@ export async function processStoredSchedulerTask(
   taskId: string,
   priorOutputs: McpWorkflowSmokePayload["outputs"] = {},
 ) {
-  const task = getStoredSchedulerTaskById(taskId)
+  const task = await getStoredSchedulerTaskById(taskId)
 
   if (!task || !["ready", "retry_scheduled", "delayed"].includes(task.status)) {
     return null
   }
 
-  const run = getStoredMcpRunById(task.runId)
+  const run = await getStoredMcpRunById(task.runId)
 
   if (!run) {
-    return updateStoredSchedulerTask(task.id, {
+    return await updateStoredSchedulerTask(task.id, {
       ...buildLeaseClearingPatch(),
       lastError: "关联 MCP run 不存在。",
       status: "failed",
@@ -190,7 +190,7 @@ export async function processStoredSchedulerTask(
     })
   }
 
-  const claimedTask = claimStoredSchedulerTask(task.id, {
+  const claimedTask = await claimStoredSchedulerTask(task.id, {
     leaseDurationMs: TASK_LEASE_DURATION_MS,
     workerId: buildSchedulerWorkerId(),
   })
@@ -206,7 +206,7 @@ export async function processStoredSchedulerTask(
     return null
   }
 
-  updateStoredMcpRun(run.id, {
+  await updateStoredMcpRun(run.id, {
     connectorMode: claimedTask.connectorMode,
     status: "执行中",
     summaryLines: appendRunSummary(run, [
@@ -229,14 +229,14 @@ export async function processStoredSchedulerTask(
   }
 
   if (!result) {
-    const failedTask = updateStoredSchedulerTask(task.id, {
+    const failedTask = await updateStoredSchedulerTask(task.id, {
       ...buildLeaseClearingPatch(),
       lastError: "执行器未返回结果。",
       status: "failed",
       summaryLines: [...claimedTask.summaryLines, "执行器未返回结果，任务已标记失败。"],
     })
 
-    const failedRun = updateStoredMcpRun(run.id, {
+    const failedRun = await updateStoredMcpRun(run.id, {
       status: "已阻塞",
       summaryLines: appendRunSummary(run, ["执行器未返回结果，MCP run 已阻塞。"]),
     })
@@ -250,11 +250,11 @@ export async function processStoredSchedulerTask(
   }
 
   if (result.status === "aborted") {
-    const currentTask = getStoredSchedulerTaskByRunId(run.id)
+    const currentTask = await getStoredSchedulerTaskByRunId(run.id)
     const cancelledTask = taskMatchesOwnership(currentTask, ownership)
-      ? updateStoredSchedulerTask(currentTask!.id, buildLeaseClearingPatch())
+      ? await updateStoredSchedulerTask(currentTask!.id, buildLeaseClearingPatch())
       : currentTask
-    const cancelledRun = getStoredMcpRunById(run.id)
+    const cancelledRun = await getStoredMcpRunById(run.id)
 
     return {
       status: "cancelled" as const,
@@ -265,18 +265,18 @@ export async function processStoredSchedulerTask(
   }
 
   if (result.status === "ownership_lost") {
-    const currentTask = getStoredSchedulerTaskByRunId(run.id)
+    const currentTask = await getStoredSchedulerTaskByRunId(run.id)
 
     return {
       status: "ownership_lost" as const,
-      run: getStoredMcpRunById(run.id) ?? run,
+      run: await getStoredMcpRunById(run.id) ?? run,
       task: currentTask ?? task,
       outputs: priorOutputs,
     }
   }
 
   if (result.status === "succeeded") {
-    const completedTask = updateStoredSchedulerTask(task.id, {
+    const completedTask = await updateStoredSchedulerTask(task.id, {
       ...buildLeaseClearingPatch(),
       connectorMode: result.mode,
       lastError: undefined,
@@ -297,7 +297,7 @@ export async function processStoredSchedulerTask(
 
   if (canRetry) {
     const retryAt = addMinutes(formatTimestamp(), result.retryAfterMinutes ?? 10)
-    const delayedTask = updateStoredSchedulerTask(task.id, {
+    const delayedTask = await updateStoredSchedulerTask(task.id, {
       ...buildLeaseClearingPatch(),
       availableAt: retryAt,
       connectorMode: result.mode,
@@ -305,7 +305,7 @@ export async function processStoredSchedulerTask(
       status: "retry_scheduled",
       summaryLines: [...claimedTask.summaryLines, ...result.summaryLines, `已安排重试时间：${retryAt}。`],
     })
-    const delayedRun = updateStoredMcpRun(run.id, {
+    const delayedRun = await updateStoredMcpRun(run.id, {
       connectorMode: result.mode,
       status: "已延后",
       summaryLines: appendRunSummary(run, [...result.summaryLines, `任务已转入重试调度，预计 ${retryAt} 再次执行。`]),
@@ -319,14 +319,14 @@ export async function processStoredSchedulerTask(
     }
   }
 
-  const failedTask = updateStoredSchedulerTask(task.id, {
+  const failedTask = await updateStoredSchedulerTask(task.id, {
     ...buildLeaseClearingPatch(),
     connectorMode: result.mode,
     lastError: result.errorMessage,
     status: "failed",
     summaryLines: [...claimedTask.summaryLines, ...result.summaryLines, `最终失败：${result.errorMessage}`],
   })
-  const failedRun = updateStoredMcpRun(run.id, {
+  const failedRun = await updateStoredMcpRun(run.id, {
     connectorMode: result.mode,
     status: "已阻塞",
     summaryLines: appendRunSummary(run, [...result.summaryLines, `执行失败：${result.errorMessage}`]),
@@ -350,16 +350,22 @@ export async function drainStoredSchedulerTasks(input: {
   let outputs = input.priorOutputs ?? {}
   const runs: McpRunRecord[] = []
   const tasks: McpSchedulerTaskRecord[] = []
-  recoverExpiredStoredSchedulerTasks({
+  await recoverExpiredStoredSchedulerTasks({
     now,
     projectId: input.projectId,
     runId: input.runId,
   })
-  const readyTasks = listReadyStoredSchedulerTasks({
+  const allReadyTasks = await listReadyStoredSchedulerTasks({
     now,
     projectId: input.projectId,
     runId: input.runId,
-  }).filter((task) => input.ignoreProjectLifecycle || !isStoredProjectSchedulerPaused(task.projectId))
+  })
+  const readyTasks: typeof allReadyTasks = []
+  for (const task of allReadyTasks) {
+    if (input.ignoreProjectLifecycle || !(await isStoredProjectSchedulerPaused(task.projectId))) {
+      readyTasks.push(task)
+    }
+  }
 
   for (const task of readyTasks) {
     const result = await processStoredSchedulerTask(task.id, outputs)
@@ -394,15 +400,15 @@ export async function drainStoredSchedulerTasks(input: {
   }
 }
 
-export function syncStoredSchedulerTaskAfterApprovalDecision(approval: ApprovalRecord) {
-  const schedulerTask = readApprovalLinkedSchedulerTask(approval.id)
+export async function syncStoredSchedulerTaskAfterApprovalDecision(approval: ApprovalRecord) {
+  const schedulerTask = await readApprovalLinkedSchedulerTask(approval.id)
 
   if (!schedulerTask) {
     return null
   }
 
   if (approval.status === "已批准") {
-    return updateStoredSchedulerTask(schedulerTask.id, {
+    return await updateStoredSchedulerTask(schedulerTask.id, {
       availableAt: formatTimestamp(),
       lastError: undefined,
       status: "ready",
@@ -413,19 +419,19 @@ export function syncStoredSchedulerTaskAfterApprovalDecision(approval: ApprovalR
   if (approval.status === "已延后") {
     const delayedAt = addMinutes(formatTimestamp(), 30)
 
-    return updateStoredSchedulerTask(schedulerTask.id, {
+    return await updateStoredSchedulerTask(schedulerTask.id, {
       availableAt: delayedAt,
       status: "delayed",
       summaryLines: [...schedulerTask.summaryLines, `审批已延后，任务将在 ${delayedAt} 后重新进入候选。`],
     })
   }
 
-  return updateStoredSchedulerTask(schedulerTask.id, {
+  return await updateStoredSchedulerTask(schedulerTask.id, {
     status: "cancelled",
     summaryLines: [...schedulerTask.summaryLines, "审批已拒绝，任务已取消。"],
   })
 }
 
-function readApprovalLinkedSchedulerTask(approvalId: string) {
-  return listStoredSchedulerTasks().find((task) => task.linkedApprovalId === approvalId) ?? null
+async function readApprovalLinkedSchedulerTask(approvalId: string) {
+  return (await listStoredSchedulerTasks()).find((task) => task.linkedApprovalId === approvalId) ?? null
 }

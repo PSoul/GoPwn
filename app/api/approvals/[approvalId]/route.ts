@@ -5,7 +5,7 @@ import { withApiHandler } from "@/lib/api-handler"
 
 export const GET = withApiHandler(async (_request, { params }) => {
   const { approvalId } = await params
-  const payload = getStoredApprovalById(approvalId)
+  const payload = await getStoredApprovalById(approvalId)
 
   if (!payload) {
     return Response.json({ error: `Approval '${approvalId}' not found` }, { status: 404 })

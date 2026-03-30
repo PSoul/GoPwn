@@ -178,7 +178,7 @@ describe("users api routes", () => {
     )
 
     // Try to login as disabled user
-    const { captchaId, code } = generateCaptcha()
+    const { captchaId, code } = await generateCaptcha()
     const loginRes = await login(
       new Request("http://localhost/api/auth/login", {
         method: "POST",

@@ -2,7 +2,7 @@ import { ProjectForm } from "@/components/projects/project-form"
 import { PageHeader } from "@/components/shared/page-header"
 import { getProjectFormPresetValue } from "@/lib/prototype-api"
 
-export default function NewProjectPage() {
+export default async function NewProjectPage() {
   return (
     <div className="space-y-5">
       <PageHeader
@@ -10,7 +10,7 @@ export default function NewProjectPage() {
         description="项目创建现在只保留项目名称、目标和项目说明三项最小输入，保存后直接进入项目工作台。"
       />
 
-      <ProjectForm mode="create" preset={getProjectFormPresetValue()} />
+      <ProjectForm mode="create" preset={await getProjectFormPresetValue()} />
     </div>
   )
 }

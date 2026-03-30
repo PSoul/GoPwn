@@ -4,8 +4,8 @@ import { SettingsSubnav } from "@/components/settings/settings-subnav"
 import { SystemStatusGrid } from "@/components/settings/system-status-grid"
 import { getSystemStatusPayload } from "@/lib/prototype-api"
 
-export default function SystemStatusSettingsPage() {
-  const { items } = getSystemStatusPayload()
+export default async function SystemStatusSettingsPage() {
+  const { items } = await getSystemStatusPayload()
 
   return (
     <div className="space-y-6">

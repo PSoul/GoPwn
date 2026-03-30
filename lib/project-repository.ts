@@ -1,4 +1,16 @@
 import { defaultGlobalApprovalControl } from "@/lib/platform-config"
+import { prisma } from "@/lib/prisma"
+import {
+  fromLogRecord,
+  fromProjectDetailRecord,
+  fromProjectFormPresetRecord,
+  fromProjectRecord,
+  fromProjectSchedulerControlRecord,
+  toProjectDetailRecord,
+  toProjectFormPresetRecord,
+  toProjectRecord,
+  toLogRecord,
+} from "@/lib/prisma-transforms"
 import { buildProjectClosureStatus } from "@/lib/project-closure-status"
 import { buildDefaultProjectSchedulerControl } from "@/lib/project-scheduler-lifecycle"
 import { normalizeProjectTargets, SINGLE_USER_LABEL } from "@/lib/project-targets"
@@ -13,6 +25,8 @@ import type {
   ProjectRecord,
   ProjectStatus,
 } from "@/lib/prototype-types"
+
+const USE_PRISMA = process.env.DATA_LAYER === "prisma"
 
 function formatTimestamp(date = new Date()) {
   const year = String(date.getFullYear())
@@ -299,19 +313,44 @@ function updateProjectDetail(detail: ProjectDetailRecord, project: ProjectRecord
   }
 }
 
-export function listStoredProjects() {
+export async function listStoredProjects() {
+  if (USE_PRISMA) {
+    const rows = await prisma.project.findMany({ orderBy: { lastUpdated: "desc" } })
+    return rows.map(toProjectRecord)
+  }
+
   return readPrototypeStore().projects
 }
 
-export function getStoredProjectById(projectId: string) {
+export async function getStoredProjectById(projectId: string) {
+  if (USE_PRISMA) {
+    const row = await prisma.project.findUnique({ where: { id: projectId } })
+    return row ? toProjectRecord(row) : null
+  }
+
   return readPrototypeStore().projects.find((project) => project.id === projectId) ?? null
 }
 
-export function getStoredProjectDetailById(projectId: string) {
+export async function getStoredProjectDetailById(projectId: string) {
+  if (USE_PRISMA) {
+    const row = await prisma.projectDetail.findUnique({ where: { projectId } })
+    return row ? toProjectDetailRecord(row) : null
+  }
+
   return readPrototypeStore().projectDetails.find((detail) => detail.projectId === projectId) ?? null
 }
 
-export function getStoredProjectFormPreset(projectId?: string) {
+export async function getStoredProjectFormPreset(projectId?: string) {
+  if (USE_PRISMA) {
+    if (!projectId) {
+      const firstProject = await prisma.project.findFirst({ orderBy: { lastUpdated: "desc" } })
+      if (!firstProject) return null
+      projectId = firstProject.id
+    }
+    const row = await prisma.projectFormPreset.findUnique({ where: { projectId } })
+    return row ? toProjectFormPresetRecord(row) : null
+  }
+
   const store = readPrototypeStore()
 
   if (!projectId) {
@@ -321,11 +360,36 @@ export function getStoredProjectFormPreset(projectId?: string) {
   return store.projectFormPresets[projectId] ?? null
 }
 
-export function listStoredAuditLogs() {
+export async function listStoredAuditLogs() {
+  if (USE_PRISMA) {
+    const rows = await prisma.auditLog.findMany({ orderBy: { timestamp: "desc" } })
+    return rows.map(toLogRecord)
+  }
+
   return readPrototypeStore().auditLogs
 }
 
-export function createStoredProject(input: ProjectMutationInput) {
+export async function createStoredProject(input: ProjectMutationInput) {
+  if (USE_PRISMA) {
+    const allProjects = await prisma.project.findMany()
+    const existingRecords = allProjects.map(toProjectRecord)
+    const project = buildProjectRecord(input, existingRecords)
+    const preset = buildProjectFormPreset(input)
+    const detail = buildProjectDetail(project)
+    const control = buildDefaultProjectSchedulerControl(project.lastUpdated, "idle")
+    const auditLog = createAuditLog(`创建项目 ${project.name}`, project, "已完成")
+
+    await prisma.$transaction([
+      prisma.project.create({ data: fromProjectRecord(project) }),
+      prisma.projectDetail.create({ data: fromProjectDetailRecord(detail, project.id) }),
+      prisma.projectFormPreset.create({ data: fromProjectFormPresetRecord(preset, project.id) }),
+      prisma.projectSchedulerControl.create({ data: fromProjectSchedulerControlRecord(control, project.id) }),
+      prisma.auditLog.create({ data: fromLogRecord(auditLog) }),
+    ])
+
+    return { detail, project }
+  }
+
   const store = readPrototypeStore()
   const project = buildProjectRecord(input, store.projects)
   const preset = buildProjectFormPreset(input)
@@ -341,7 +405,43 @@ export function createStoredProject(input: ProjectMutationInput) {
   return { detail, project }
 }
 
-export function updateStoredProject(projectId: string, patch: ProjectPatchInput) {
+export async function updateStoredProject(projectId: string, patch: ProjectPatchInput) {
+  if (USE_PRISMA) {
+    const projectRow = await prisma.project.findUnique({ where: { id: projectId } })
+    if (!projectRow) return null
+    const presetRow = await prisma.projectFormPreset.findUnique({ where: { projectId } })
+    if (!presetRow) return null
+
+    const currentProject = toProjectRecord(projectRow)
+    const currentPreset = toProjectFormPresetRecord(presetRow)
+    const nextProject = mergeProjectRecord(currentProject, patch)
+    const nextPreset = mergeProjectFormPreset(currentPreset, patch)
+
+    const detailRow = await prisma.projectDetail.findUnique({ where: { projectId } })
+    const nextDetail = detailRow
+      ? updateProjectDetail(toProjectDetailRecord(detailRow), nextProject)
+      : buildProjectDetail(nextProject)
+
+    const auditLog = createAuditLog(`更新项目 ${nextProject.name}`, nextProject, "已完成")
+
+    await prisma.$transaction([
+      prisma.project.update({ where: { id: projectId }, data: fromProjectRecord(nextProject) }),
+      prisma.projectFormPreset.update({
+        where: { projectId },
+        data: fromProjectFormPresetRecord(nextPreset, projectId),
+      }),
+      detailRow
+        ? prisma.projectDetail.update({
+            where: { projectId },
+            data: fromProjectDetailRecord(nextDetail, projectId),
+          })
+        : prisma.projectDetail.create({ data: fromProjectDetailRecord(nextDetail, projectId) }),
+      prisma.auditLog.create({ data: fromLogRecord(auditLog) }),
+    ])
+
+    return { detail: nextDetail, project: nextProject }
+  }
+
   const store = readPrototypeStore()
   const projectIndex = store.projects.findIndex((project) => project.id === projectId)
 
@@ -379,7 +479,69 @@ export function updateStoredProject(projectId: string, patch: ProjectPatchInput)
   return { detail: nextDetail, project: nextProject }
 }
 
-export function archiveStoredProject(projectId: string) {
+export async function archiveStoredProject(projectId: string) {
+  if (USE_PRISMA) {
+    const projectRow = await prisma.project.findUnique({ where: { id: projectId } })
+    if (!projectRow) return null
+
+    const currentProject = toProjectRecord(projectRow)
+    const archivedStatus: ProjectStatus = "已完成"
+    const archivedProject: ProjectRecord = {
+      ...currentProject,
+      status: archivedStatus,
+      stage: "报告与回归验证",
+      pendingApprovals: 0,
+      openTasks: 0,
+      lastUpdated: formatTimestamp(),
+      lastActor: "项目归档",
+      riskSummary: "项目已归档，后续仅保留结果、证据和审计回溯能力。",
+    }
+
+    const detailRow = await prisma.projectDetail.findUnique({ where: { projectId } })
+    const existingDetail = detailRow ? toProjectDetailRecord(detailRow) : null
+    const archivedDetail: ProjectDetailRecord = existingDetail
+      ? {
+          ...existingDetail,
+          blockingReason: "项目已归档，不再继续派发新任务。",
+          nextStep: '如需恢复，可在后续版本补充"重新激活"能力。',
+          currentFocus: "保留结果、审计与证据回溯。",
+          currentStage: {
+            ...existingDetail.currentStage,
+            title: "报告与回归验证",
+            summary: "项目已完成当前周期并被归档。",
+            blocker: "归档后不再继续调度新动作。",
+            owner: SINGLE_USER_LABEL,
+            updatedAt: archivedProject.lastUpdated,
+          },
+          closureStatus: buildProjectClosureStatus({
+            finalConclusionGenerated: existingDetail.finalConclusion !== null,
+            lifecycle: "idle",
+            pendingApprovals: 0,
+            projectStatus: archivedProject.status,
+            queuedTaskCount: 0,
+            reportExported: existingDetail.closureStatus.reportExported,
+            runningTaskCount: 0,
+            waitingApprovalTaskCount: 0,
+          }),
+        }
+      : buildProjectDetail(archivedProject)
+
+    const auditLog = createAuditLog(`归档项目 ${archivedProject.name}`, archivedProject, "已记录")
+
+    await prisma.$transaction([
+      prisma.project.update({ where: { id: projectId }, data: fromProjectRecord(archivedProject) }),
+      detailRow
+        ? prisma.projectDetail.update({
+            where: { projectId },
+            data: fromProjectDetailRecord(archivedDetail, projectId),
+          })
+        : prisma.projectDetail.create({ data: fromProjectDetailRecord(archivedDetail, projectId) }),
+      prisma.auditLog.create({ data: fromLogRecord(auditLog) }),
+    ])
+
+    return { detail: archivedDetail, project: archivedProject }
+  }
+
   const store = readPrototypeStore()
   const projectIndex = store.projects.findIndex((project) => project.id === projectId)
 
@@ -406,7 +568,7 @@ export function archiveStoredProject(projectId: string) {
       ? {
           ...store.projectDetails[detailIndex],
           blockingReason: "项目已归档，不再继续派发新任务。",
-          nextStep: "如需恢复，可在后续版本补充“重新激活”能力。",
+          nextStep: '如需恢复，可在后续版本补充"重新激活"能力。',
           currentFocus: "保留结果、审计与证据回溯。",
           currentStage: {
             ...store.projectDetails[detailIndex].currentStage,

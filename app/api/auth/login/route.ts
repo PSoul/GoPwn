@@ -8,7 +8,7 @@ import { withApiHandler } from "@/lib/api-handler"
 export const POST = withApiHandler(async (request) => {
   const nextReq = request as NextRequest
   const body = await request.json()
-  const result = authenticateResearcher({
+  const result = await authenticateResearcher({
     account: typeof body.account === "string" ? body.account : "",
     password: typeof body.password === "string" ? body.password : "",
     captcha: typeof body.captcha === "string" ? body.captcha : "",

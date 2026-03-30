@@ -27,11 +27,11 @@ function formatSnapshotSection(label: string, items: string[], maxItems: number)
   return `${label}(${items.length}): ${display.join(", ")}${suffix}`
 }
 
-export function buildAssetSnapshot(projectId: string): string {
+export async function buildAssetSnapshot(projectId: string): Promise<string> {
   const config = getAgentConfig()
   const maxPerType = config.context.assetSnapshotMaxPerType
-  const assets = listStoredAssets(projectId)
-  const findings = listStoredProjectFindings(projectId)
+  const assets = await listStoredAssets(projectId)
+  const findings = await listStoredProjectFindings(projectId)
 
   const domains = assets
     .filter((a) => a.type === "domain")
@@ -134,7 +134,7 @@ export function buildCompressedRoundHistory(projectId: string): string {
   return lines.join("\n")
 }
 
-export function buildLastRoundDetail(projectId: string): string {
+export async function buildLastRoundDetail(projectId: string): Promise<string> {
   const store = readPrototypeStore()
   const runs = store.mcpRuns.filter((r) => r.projectId === projectId)
 
@@ -146,7 +146,7 @@ export function buildLastRoundDetail(projectId: string): string {
   const recentRuns = runs.slice(-10)
 
   // 查找每个 run 对应的证据（包含原始输出）
-  const evidence = listStoredEvidence(projectId)
+  const evidence = await listStoredEvidence(projectId)
 
   const lines: string[] = []
 
@@ -175,12 +175,12 @@ export function buildLastRoundDetail(projectId: string): string {
   return lines.join("\n")
 }
 
-export function buildUnusedCapabilities(projectId: string): string {
+export async function buildUnusedCapabilities(projectId: string): Promise<string> {
   const store = readPrototypeStore()
   const runs = store.mcpRuns.filter((r) => r.projectId === projectId)
   const usedCapabilities = new Set(runs.map((r) => r.capability))
 
-  const allTools = [...listStoredMcpTools(), ...listBuiltInMcpTools()].filter(
+  const allTools = [...(await listStoredMcpTools()), ...listBuiltInMcpTools()].filter(
     (t) => t.status === "启用",
   )
   const allCapabilities = new Set(allTools.map((t) => t.capability))

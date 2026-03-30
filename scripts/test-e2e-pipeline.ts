@@ -9,7 +9,7 @@ import type { McpServerRecord } from "@/lib/prototype-types"
 
 async function main() {
   console.log("=== Step 1: Auto-discover and register MCP servers ===")
-  const discovery = discoverAndRegisterMcpServers()
+  const discovery = await discoverAndRegisterMcpServers()
   console.log(`Discovered: ${discovery.discovered}, Registered: ${discovery.registered}`)
   console.log(`Servers: ${discovery.servers.join(", ")}`)
   if (discovery.errors.length > 0) {
@@ -17,7 +17,7 @@ async function main() {
   }
 
   console.log("\n=== Step 2: Verify registered tools ===")
-  const tools = listStoredMcpTools()
+  const tools = await listStoredMcpTools()
   console.log(`Total registered tools: ${tools.length}`)
   const enabledTools = tools.filter(t => t.status === "启用")
   console.log(`Enabled tools: ${enabledTools.length}`)
@@ -34,7 +34,7 @@ async function main() {
   }
 
   console.log("\n=== Step 4: Test real MCP tool execution (httpx_probe against DVWA) ===")
-  const server = findStoredEnabledMcpServerByToolBinding("httpx_probe")
+  const server = await findStoredEnabledMcpServerByToolBinding("httpx_probe")
   if (!server) {
     // Build a synthetic server record from auto-discovery
     const config = getDiscoveredMcpServerConfig("httpx")

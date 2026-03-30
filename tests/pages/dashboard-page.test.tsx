@@ -5,8 +5,8 @@ import DashboardPage from "@/app/(console)/dashboard/page"
 import { createWorkflowFixture } from "@/tests/helpers/project-fixtures"
 
 describe("DashboardPage", () => {
-  it("shows the empty state when no real project data exists", () => {
-    render(<DashboardPage />)
+  it("shows the empty state when no real project data exists", async () => {
+    render(await DashboardPage())
 
     expect(screen.getByText("平台仪表盘")).toBeInTheDocument()
     expect(screen.getByText("最近结果更新")).toBeInTheDocument()
@@ -17,7 +17,7 @@ describe("DashboardPage", () => {
   it("shows the populated operations surface after a real workflow run", async () => {
     const fixture = await createWorkflowFixture({ workflow: "with-approval" })
 
-    render(<DashboardPage />)
+    render(await DashboardPage())
 
     expect(screen.getByText("平台仪表盘")).toBeInTheDocument()
     expect(screen.getByText("最近结果更新")).toBeInTheDocument()

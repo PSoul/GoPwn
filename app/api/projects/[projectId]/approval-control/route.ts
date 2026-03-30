@@ -11,7 +11,7 @@ export const PATCH = withApiHandler(async (request, { params }) => {
     return Response.json({ error: "Invalid project approval-control payload" }, { status: 400 })
   }
 
-  const payload = updateProjectApprovalControlPayload(projectId, parsed.data)
+  const payload = await updateProjectApprovalControlPayload(projectId, parsed.data)
 
   if (!payload) {
     return Response.json({ error: `Project '${projectId}' not found` }, { status: 404 })

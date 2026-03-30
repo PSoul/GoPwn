@@ -6,8 +6,8 @@ import {
   type OpenAiCompatibleProfileConfig,
 } from "@/lib/llm-provider/openai-compatible-provider"
 
-function buildProfileConfig(profileId: "orchestrator" | "reviewer") {
-  const profile = getStoredLlmProfile(profileId)
+async function buildProfileConfig(profileId: "orchestrator" | "reviewer") {
+  const profile = await getStoredLlmProfile(profileId)
 
   if (
     !profile ||
@@ -31,9 +31,9 @@ function buildProfileConfig(profileId: "orchestrator" | "reviewer") {
   return runtimeProfile
 }
 
-export function resolveLlmProvider() {
-  const orchestratorProfile = buildProfileConfig("orchestrator")
-  const reviewerProfile = buildProfileConfig("reviewer")
+export async function resolveLlmProvider() {
+  const orchestratorProfile = await buildProfileConfig("orchestrator")
+  const reviewerProfile = await buildProfileConfig("reviewer")
 
   if (orchestratorProfile) {
     return createOpenAiCompatibleProvider({
@@ -76,9 +76,9 @@ export function resolveLlmProvider() {
   })
 }
 
-export function getConfiguredLlmProviderStatus() {
-  const orchestratorProfile = buildProfileConfig("orchestrator")
-  const reviewerProfile = buildProfileConfig("reviewer")
+export async function getConfiguredLlmProviderStatus() {
+  const orchestratorProfile = await buildProfileConfig("orchestrator")
+  const reviewerProfile = await buildProfileConfig("reviewer")
 
   if (orchestratorProfile) {
     return buildOpenAiCompatibleStatus({

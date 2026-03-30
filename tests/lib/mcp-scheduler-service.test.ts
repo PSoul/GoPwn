@@ -32,8 +32,8 @@ describe("MCP scheduler service", () => {
 
   it("creates ready tasks for auto-runnable work and completes them through the scheduler", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture()
-    const payload = dispatchStoredMcpRun(fixture.project.id, {
+    const fixture = await createStoredProjectFixture()
+    const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
       target: fixture.project.seed,
@@ -43,12 +43,12 @@ describe("MCP scheduler service", () => {
     expect(payload).not.toBeNull()
     expect(payload?.run.status).toBe("执行中")
 
-    const queuedTask = getStoredSchedulerTaskByRunId(payload!.run.id)
+    const queuedTask = await getStoredSchedulerTaskByRunId(payload!.run.id)
     expect(queuedTask?.status).toBe("ready")
 
     const drained = await drainStoredSchedulerTasks({ runId: payload!.run.id })
-    const completedTask = getStoredSchedulerTaskByRunId(payload!.run.id)
-    const completedRun = getStoredMcpRunById(payload!.run.id)
+    const completedTask = await getStoredSchedulerTaskByRunId(payload!.run.id)
+    const completedRun = await getStoredMcpRunById(payload!.run.id)
 
     expect(drained.status).toBe("completed")
     expect(completedTask?.status).toBe("completed")
@@ -59,10 +59,10 @@ describe("MCP scheduler service", () => {
     expect(completedTask?.leaseExpiresAt).toBeUndefined()
   })
 
-  it("moves approval-gated work into delayed state when the operator postpones it", () => {
+  it("moves approval-gated work into delayed state when the operator postpones it", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture()
-    const payload = dispatchStoredMcpRun(fixture.project.id, {
+    const fixture = await createStoredProjectFixture()
+    const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "受控验证类",
       requestedAction: "匿名鉴权绕过受控验证",
       target: "https://localhost/login",
@@ -70,19 +70,19 @@ describe("MCP scheduler service", () => {
     })
 
     expect(payload?.approval?.status).toBe("待处理")
-    expect(getStoredSchedulerTaskByRunId(payload!.run.id)?.status).toBe("waiting_approval")
+    expect((await getStoredSchedulerTaskByRunId(payload!.run.id))?.status).toBe("waiting_approval")
 
-    const approval = updateStoredApprovalDecision(payload!.approval!.id, { decision: "已延后" })
-    const updatedTask = approval ? syncStoredSchedulerTaskAfterApprovalDecision(approval) : null
+    const approval = await updateStoredApprovalDecision(payload!.approval!.id, { decision: "已延后" })
+    const updatedTask = approval ? await syncStoredSchedulerTaskAfterApprovalDecision(approval) : null
 
     expect(updatedTask?.status).toBe("delayed")
-    expect(getStoredMcpRunById(payload!.run.id)?.status).toBe("已延后")
+    expect((await getStoredMcpRunById(payload!.run.id))?.status).toBe("已延后")
   })
 
   it("resumes approved work back into the scheduler and completes execution", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture()
-    const payload = dispatchStoredMcpRun(fixture.project.id, {
+    const fixture = await createStoredProjectFixture()
+    const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "受控验证类",
       requestedAction: "匿名鉴权绕过受控验证",
       target: "https://localhost/login",
@@ -91,14 +91,14 @@ describe("MCP scheduler service", () => {
 
     expect(payload?.approval?.status).toBe("待处理")
 
-    const approval = updateStoredApprovalDecision(payload!.approval!.id, { decision: "已批准" })
-    const resumedTask = approval ? syncStoredSchedulerTaskAfterApprovalDecision(approval) : null
+    const approval = await updateStoredApprovalDecision(payload!.approval!.id, { decision: "已批准" })
+    const resumedTask = approval ? await syncStoredSchedulerTaskAfterApprovalDecision(approval) : null
 
     expect(resumedTask?.status).toBe("ready")
 
     const drained = await drainStoredSchedulerTasks({ runId: payload!.run.id })
-    const completedTask = getStoredSchedulerTaskByRunId(payload!.run.id)
-    const completedRun = getStoredMcpRunById(payload!.run.id)
+    const completedTask = await getStoredSchedulerTaskByRunId(payload!.run.id)
+    const completedRun = await getStoredMcpRunById(payload!.run.id)
 
     expect(drained.status).toBe("completed")
     expect(completedTask?.status).toBe("completed")
@@ -108,27 +108,27 @@ describe("MCP scheduler service", () => {
 
   it("recovers expired running tasks before draining the queue again", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture()
-    const payload = dispatchStoredMcpRun(fixture.project.id, {
+    const fixture = await createStoredProjectFixture()
+    const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
       target: fixture.project.seed,
       riskLevel: "低",
     })
-    const task = getStoredSchedulerTaskByRunId(payload!.run.id)
-    updateStoredSchedulerTask(task!.id, {
+    const task = await getStoredSchedulerTaskByRunId(payload!.run.id)
+    await updateStoredSchedulerTask(task!.id, {
       availableAt: "2020-01-01 00:00",
     })
 
-    claimStoredSchedulerTask(task!.id, {
+    await claimStoredSchedulerTask(task!.id, {
       workerId: "worker-orphan",
       now: "2026-03-27 00:00",
       leaseDurationMs: 1_000,
     })
 
     const drained = await drainStoredSchedulerTasks({ runId: payload!.run.id })
-    const recoveredTask = getStoredSchedulerTaskByRunId(payload!.run.id)
-    const recoveredRun = getStoredMcpRunById(payload!.run.id)
+    const recoveredTask = await getStoredSchedulerTaskByRunId(payload!.run.id)
+    const recoveredRun = await getStoredMcpRunById(payload!.run.id)
 
     expect(drained.status).toBe("completed")
     expect(recoveredTask?.status).toBe("completed")

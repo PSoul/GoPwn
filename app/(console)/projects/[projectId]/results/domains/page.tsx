@@ -13,7 +13,7 @@ export default async function ProjectDomainsResultsPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const payload = getProjectInventoryPayload(projectId, "域名 / Web 入口")
+  const payload = await getProjectInventoryPayload(projectId, "域名 / Web 入口")
 
   if (!payload) {
     notFound()

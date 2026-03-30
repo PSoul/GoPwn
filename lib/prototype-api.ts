@@ -126,9 +126,9 @@ import type {
   Tone,
 } from "@/lib/prototype-types"
 
-function buildDashboardMetrics(projects: ProjectRecord[], approvalTotal: number) {
-  const findings = listStoredProjectFindings()
-  const assets = listStoredAssets()
+async function buildDashboardMetrics(projects: ProjectRecord[], approvalTotal: number) {
+  const findings = await listStoredProjectFindings()
+  const assets = await listStoredAssets()
 
   return dashboardMetrics.map((metric) => {
     if (metric.label === "项目总数") {
@@ -173,9 +173,9 @@ function buildDashboardPriorities({
   mcpTools,
   projects,
 }: {
-  approvals: ReturnType<typeof listStoredApprovals>
-  assets: ReturnType<typeof listStoredAssets>
-  mcpTools: ReturnType<typeof listStoredMcpTools>
+  approvals: Awaited<ReturnType<typeof listStoredApprovals>>
+  assets: Awaited<ReturnType<typeof listStoredAssets>>
+  mcpTools: Awaited<ReturnType<typeof listStoredMcpTools>>
   projects: ProjectRecord[]
 }) {
   if (projects.length === 0 && approvals.length === 0 && assets.length === 0 && mcpTools.length === 0) {
@@ -223,15 +223,19 @@ function buildDashboardPriorities({
   return priorities
 }
 
-function deriveDashboardTasks(projects: ProjectRecord[]): TaskRecord[] {
+async function deriveDashboardTasks(projects: ProjectRecord[]): Promise<TaskRecord[]> {
   if (projects.length === 0) {
     return []
   }
 
-  return projects.flatMap((project) => {
-    const detail = getStoredProjectDetailById(project.id)
-    return detail?.tasks ?? []
-  })
+  const results: TaskRecord[] = []
+  for (const project of projects) {
+    const detail = await getStoredProjectDetailById(project.id)
+    if (detail?.tasks) {
+      results.push(...detail.tasks)
+    }
+  }
+  return results
 }
 
 function buildMcpSettingsMetric(tools: McpToolRecord[]) {
@@ -324,9 +328,9 @@ function buildSystemStatusPayloadFromTools(tools: McpToolRecord[]): SystemStatus
   })
 }
 
-function getProjectBase(projectId: string) {
-  const project = getStoredProjectById(projectId)
-  const detail = getStoredProjectDetailById(projectId)
+async function getProjectBase(projectId: string) {
+  const project = await getStoredProjectById(projectId)
+  const detail = await getStoredProjectDetailById(projectId)
 
   if (!project || !detail) {
     return null
@@ -335,8 +339,8 @@ function getProjectBase(projectId: string) {
   return { project, detail }
 }
 
-export function listProjectsPayload(): ProjectCollectionPayload {
-  const projects = listStoredProjects()
+export async function listProjectsPayload(): Promise<ProjectCollectionPayload> {
+  const projects = await listStoredProjects()
 
   return {
     items: projects,
@@ -344,16 +348,16 @@ export function listProjectsPayload(): ProjectCollectionPayload {
   }
 }
 
-export function getProjectOverviewPayload(projectId: string): ProjectOverviewPayload | null {
+export async function getProjectOverviewPayload(projectId: string): Promise<ProjectOverviewPayload | null> {
   return getProjectBase(projectId)
 }
 
-export function getProjectFlowPayload(projectId: string): ProjectFlowPayload | null {
+export async function getProjectFlowPayload(projectId: string): Promise<ProjectFlowPayload | null> {
   return getProjectBase(projectId)
 }
 
 export async function getProjectOperationsPayload(projectId: string): Promise<ProjectOperationsPayload | null> {
-  const base = getProjectBase(projectId)
+  const base = await getProjectBase(projectId)
 
   if (!base) {
     return null
@@ -363,18 +367,18 @@ export async function getProjectOperationsPayload(projectId: string): Promise<Pr
 
   return {
     ...base,
-    approvals: listStoredProjectApprovals(projectId),
-    mcpRuns: listStoredMcpRuns(projectId),
-    schedulerControl: getStoredProjectSchedulerControl(projectId) ?? buildDefaultProjectSchedulerControl(base.project.lastUpdated, "idle"),
-    schedulerTasks: listStoredSchedulerTasks(projectId),
+    approvals: await listStoredProjectApprovals(projectId),
+    mcpRuns: await listStoredMcpRuns(projectId),
+    schedulerControl: await getStoredProjectSchedulerControl(projectId) ?? buildDefaultProjectSchedulerControl(base.project.lastUpdated, "idle"),
+    schedulerTasks: await listStoredSchedulerTasks(projectId),
     orchestrator: await getProjectOrchestratorPanelPayload(projectId),
-    reportExport: getStoredProjectReportExportPayload(projectId),
+    reportExport: await getStoredProjectReportExportPayload(projectId),
     orchestratorRounds: store.orchestratorRounds[projectId] ?? [],
   }
 }
 
 function buildAssetViews(
-  assets: ReturnType<typeof listStoredAssets>,
+  assets: Awaited<ReturnType<typeof listStoredAssets>>,
   options?: {
     includePendingReview?: boolean
   },
@@ -444,10 +448,10 @@ function buildDashboardRecentResults({
   findings,
   projects,
 }: {
-  approvals: ReturnType<typeof listStoredApprovals>
-  assets: ReturnType<typeof listStoredAssets>
-  evidence: ReturnType<typeof listStoredEvidence>
-  findings: ReturnType<typeof listStoredProjectFindings>
+  approvals: Awaited<ReturnType<typeof listStoredApprovals>>
+  assets: Awaited<ReturnType<typeof listStoredAssets>>
+  evidence: Awaited<ReturnType<typeof listStoredEvidence>>
+  findings: Awaited<ReturnType<typeof listStoredProjectFindings>>
   projects: ProjectRecord[]
 }): DashboardRecentResultRecord[] {
   const records = [
@@ -522,14 +526,14 @@ function buildDashboardRecentResults({
     })
 }
 
-function buildDashboardSystemOverview({
+async function buildDashboardSystemOverview({
   mcpTools,
   projects,
 }: {
-  mcpTools: ReturnType<typeof listStoredMcpTools>
+  mcpTools: Awaited<ReturnType<typeof listStoredMcpTools>>
   projects: ProjectRecord[]
-}): DashboardSystemRecord[] {
-  const llmProfiles = listStoredLlmProfiles()
+}): Promise<DashboardSystemRecord[]> {
+  const llmProfiles = await listStoredLlmProfiles()
   const enabledModels = llmProfiles.filter((profile) => profile.enabled && profile.model)
   const store = readPrototypeStore()
   const memoryUsage = process.memoryUsage()
@@ -569,8 +573,8 @@ function buildDashboardSystemOverview({
   ]
 }
 
-export function getProjectContextPayload(projectId: string): ProjectContextPayload | null {
-  const base = getProjectBase(projectId)
+export async function getProjectContextPayload(projectId: string): Promise<ProjectContextPayload | null> {
+  const base = await getProjectBase(projectId)
 
   if (!base) {
     return null
@@ -578,18 +582,18 @@ export function getProjectContextPayload(projectId: string): ProjectContextPaylo
 
   return {
     ...base,
-    approvals: listStoredProjectApprovals(projectId),
-    assets: listStoredAssets(projectId),
-    evidence: listStoredEvidence(projectId),
+    approvals: await listStoredProjectApprovals(projectId),
+    assets: await listStoredAssets(projectId),
+    evidence: await listStoredEvidence(projectId),
   }
 }
 
-export function getProjectInventoryPayload(
+export async function getProjectInventoryPayload(
   projectId: string,
   groupTitle: string,
-): ProjectInventoryPayload | null {
-  const project = getStoredProjectById(projectId)
-  const detail = getStoredProjectDetailById(projectId)
+): Promise<ProjectInventoryPayload | null> {
+  const project = await getStoredProjectById(projectId)
+  const detail = await getStoredProjectDetailById(projectId)
   const group = detail?.assetGroups.find((item) => item.title === groupTitle)
 
   if (!project || !group || !detail) {
@@ -602,8 +606,8 @@ export function getProjectInventoryPayload(
   }
 }
 
-export function getProjectFindingsPayload(projectId: string): ProjectFindingsPayload | null {
-  const base = getProjectBase(projectId)
+export async function getProjectFindingsPayload(projectId: string): Promise<ProjectFindingsPayload | null> {
+  const base = await getProjectBase(projectId)
 
   if (!base) {
     return null
@@ -611,16 +615,16 @@ export function getProjectFindingsPayload(projectId: string): ProjectFindingsPay
 
   return {
     project: base.project,
-    findings: listStoredProjectFindings(projectId),
+    findings: await listStoredProjectFindings(projectId),
   }
 }
 
-export function getSettingsSectionsPayload(): SettingsSectionsPayload {
-  const auditTotal = listStoredAuditLogs().length
-  const approvalControl = getStoredGlobalApprovalControl()
-  const llmProfiles = listStoredLlmProfiles()
-  const mcpTools = listStoredMcpTools()
-  const workLogTotal = listStoredWorkLogs().length
+export async function getSettingsSectionsPayload(): Promise<SettingsSectionsPayload> {
+  const auditTotal = (await listStoredAuditLogs()).length
+  const approvalControl = await getStoredGlobalApprovalControl()
+  const llmProfiles = await listStoredLlmProfiles()
+  const mcpTools = await listStoredMcpTools()
+  const workLogTotal = (await listStoredWorkLogs()).length
 
   return {
     items: settingsSections.map((section) => {
@@ -665,8 +669,8 @@ export function getSettingsSectionsPayload(): SettingsSectionsPayload {
   }
 }
 
-export function getSystemStatusPayload(): SystemStatusPayload {
-  const items = buildSystemStatusPayloadFromTools(listStoredMcpTools())
+export async function getSystemStatusPayload(): Promise<SystemStatusPayload> {
+  const items = buildSystemStatusPayloadFromTools(await listStoredMcpTools())
 
   return {
     items,
@@ -674,35 +678,35 @@ export function getSystemStatusPayload(): SystemStatusPayload {
   }
 }
 
-export function getDashboardPayload(): DashboardPayload {
-  const projects = listStoredProjects()
-  const approvals = listStoredApprovals()
-  const mcpTools = listStoredMcpTools()
-  const assets = listStoredAssets()
-  const evidence = listStoredEvidence()
-  const findings = listStoredProjectFindings()
+export async function getDashboardPayload(): Promise<DashboardPayload> {
+  const projects = await listStoredProjects()
+  const approvals = await listStoredApprovals()
+  const mcpTools = await listStoredMcpTools()
+  const assets = await listStoredAssets()
+  const evidence = await listStoredEvidence()
+  const findings = await listStoredProjectFindings()
   const pendingApprovalCount = approvals.filter((approval) => approval.status === "待处理").length
   const priorities = buildDashboardPriorities({ projects, approvals, assets, mcpTools })
   const leadProject = projects[0] ?? null
 
   return {
-    metrics: buildDashboardMetrics(projects, pendingApprovalCount),
+    metrics: await buildDashboardMetrics(projects, pendingApprovalCount),
     priorities,
     leadProject,
     approvals,
     assets,
     evidence,
     mcpTools,
-    projectTasks: deriveDashboardTasks(projects),
+    projectTasks: await deriveDashboardTasks(projects),
     projects,
     assetViews: buildAssetViews(assets, { includePendingReview: false }),
     recentResults: buildDashboardRecentResults({ approvals, assets, evidence, findings, projects }),
-    systemOverview: buildDashboardSystemOverview({ mcpTools, projects }),
+    systemOverview: await buildDashboardSystemOverview({ mcpTools, projects }),
   }
 }
 
-export function listApprovalsPayload(): ApprovalCollectionPayload {
-  const approvals = listStoredApprovals()
+export async function listApprovalsPayload(): Promise<ApprovalCollectionPayload> {
+  const approvals = await listStoredApprovals()
 
   return {
     items: approvals,
@@ -710,8 +714,8 @@ export function listApprovalsPayload(): ApprovalCollectionPayload {
   }
 }
 
-export function listAssetsPayload(): AssetCollectionPayload {
-  const items = listStoredAssets()
+export async function listAssetsPayload(): Promise<AssetCollectionPayload> {
+  const items = await listStoredAssets()
 
   return {
     items,
@@ -720,8 +724,8 @@ export function listAssetsPayload(): AssetCollectionPayload {
   }
 }
 
-export function getAssetDetailPayload(assetId: string): AssetDetailPayload | null {
-  const asset = getStoredAssetById(assetId)
+export async function getAssetDetailPayload(assetId: string): Promise<AssetDetailPayload | null> {
+  const asset = await getStoredAssetById(assetId)
 
   if (!asset) {
     return null
@@ -730,8 +734,8 @@ export function getAssetDetailPayload(assetId: string): AssetDetailPayload | nul
   return { asset }
 }
 
-export function listEvidencePayload(): EvidenceCollectionPayload {
-  const items = listStoredEvidence()
+export async function listEvidencePayload(): Promise<EvidenceCollectionPayload> {
+  const items = await listStoredEvidence()
 
   return {
     items,
@@ -739,8 +743,8 @@ export function listEvidencePayload(): EvidenceCollectionPayload {
   }
 }
 
-export function getEvidenceDetailPayload(evidenceId: string): EvidenceDetailPayload | null {
-  const record = getStoredEvidenceById(evidenceId)
+export async function getEvidenceDetailPayload(evidenceId: string): Promise<EvidenceDetailPayload | null> {
+  const record = await getStoredEvidenceById(evidenceId)
 
   if (!record) {
     return null
@@ -755,35 +759,35 @@ export function getEvidenceDetailPayload(evidenceId: string): EvidenceDetailPayl
   }
 }
 
-export function getProjectRecord(projectId: string): ProjectRecord | null {
+export async function getProjectRecord(projectId: string): Promise<ProjectRecord | null> {
   return getStoredProjectById(projectId)
 }
 
-export function getProjectFormPresetValue(projectId?: string): ProjectFormPreset {
+export async function getProjectFormPresetValue(projectId?: string): Promise<ProjectFormPreset> {
   if (!projectId) {
     return getDefaultProjectFormPreset()
   }
 
-  return getStoredProjectFormPreset(projectId) ?? getDefaultProjectFormPreset()
+  return await getStoredProjectFormPreset(projectId) ?? getDefaultProjectFormPreset()
 }
 
-export function createProjectOverviewPayload(input: ProjectMutationInput): ProjectOverviewPayload {
+export async function createProjectOverviewPayload(input: ProjectMutationInput): Promise<ProjectOverviewPayload> {
   return createStoredProject(input)
 }
 
-export function updateProjectOverviewPayload(
+export async function updateProjectOverviewPayload(
   projectId: string,
   patch: ProjectPatchInput,
-): ProjectOverviewPayload | null {
+): Promise<ProjectOverviewPayload | null> {
   return updateStoredProject(projectId, patch)
 }
 
-export function archiveProjectOverviewPayload(projectId: string): ProjectOverviewPayload | null {
+export async function archiveProjectOverviewPayload(projectId: string): Promise<ProjectOverviewPayload | null> {
   return archiveStoredProject(projectId)
 }
 
-export function listAuditLogsPayload(): LogCollectionPayload {
-  const items = listStoredAuditLogs()
+export async function listAuditLogsPayload(): Promise<LogCollectionPayload> {
+  const items = await listStoredAuditLogs()
 
   return {
     items,
@@ -791,8 +795,8 @@ export function listAuditLogsPayload(): LogCollectionPayload {
   }
 }
 
-export function getApprovalPolicyPayload(): ApprovalPolicyPayload {
-  const approvalControl = getStoredGlobalApprovalControl()
+export async function getApprovalPolicyPayload(): Promise<ApprovalPolicyPayload> {
+  const approvalControl = await getStoredGlobalApprovalControl()
 
   return {
     overview: systemControlOverview.map((item, index) =>
@@ -805,22 +809,22 @@ export function getApprovalPolicyPayload(): ApprovalPolicyPayload {
         : item,
     ),
     approvalControl,
-    approvalPolicies: listStoredApprovalPolicies(),
-    scopeRules: listStoredScopeRules(),
+    approvalPolicies: await listStoredApprovalPolicies(),
+    scopeRules: await listStoredScopeRules(),
   }
 }
 
 export async function updateApprovalDecisionPayload(approvalId: string, input: ApprovalDecisionInput) {
-  const approval = updateStoredApprovalDecision(approvalId, input)
+  const approval = await updateStoredApprovalDecision(approvalId, input)
 
   if (!approval) {
     return approval
   }
 
-  syncStoredSchedulerTaskAfterApprovalDecision(approval)
+  await syncStoredSchedulerTaskAfterApprovalDecision(approval)
 
   if (approval.status === "已批准") {
-    const linkedRunId = listStoredMcpRuns().find((item) => item.linkedApprovalId === approval.id)?.id
+    const linkedRunId = (await listStoredMcpRuns()).find((item) => item.linkedApprovalId === approval.id)?.id
 
     if (linkedRunId) {
       await drainStoredSchedulerTasks({
@@ -828,7 +832,7 @@ export async function updateApprovalDecisionPayload(approvalId: string, input: A
       })
     }
 
-    const schedulerControl = getStoredProjectSchedulerControl(approval.projectId)
+    const schedulerControl = await getStoredProjectSchedulerControl(approval.projectId)
 
     if (schedulerControl?.lifecycle === "running") {
       await runProjectLifecycleKickoff(approval.projectId, {
@@ -841,11 +845,11 @@ export async function updateApprovalDecisionPayload(approvalId: string, input: A
   return approval
 }
 
-export function updateGlobalApprovalControlPayload(patch: ApprovalControlPatch) {
+export async function updateGlobalApprovalControlPayload(patch: ApprovalControlPatch) {
   return updateStoredGlobalApprovalControl(patch)
 }
 
-export function updateProjectApprovalControlPayload(projectId: string, patch: ApprovalControlPatch) {
+export async function updateProjectApprovalControlPayload(projectId: string, patch: ApprovalControlPatch) {
   return updateStoredProjectApprovalControl(projectId, patch)
 }
 
@@ -853,7 +857,7 @@ export async function updateProjectSchedulerControlPayload(
   projectId: string,
   patch: Parameters<typeof updateStoredProjectSchedulerControl>[1],
 ) {
-  const payload = updateStoredProjectSchedulerControl(projectId, patch)
+  const payload = await updateStoredProjectSchedulerControl(projectId, patch)
 
   if (!payload) {
     return null
@@ -876,13 +880,13 @@ export async function updateProjectSchedulerControlPayload(
     }
 
     if (payload.transition.nextLifecycle === "stopped") {
-      stopStoredProjectSchedulerTasks(projectId, payload.schedulerControl.note)
+      await stopStoredProjectSchedulerTasks(projectId, payload.schedulerControl.note)
     }
   }
 
-  const refreshedProject = getStoredProjectById(projectId)
-  const refreshedDetail = getStoredProjectDetailById(projectId)
-  const refreshedControl = getStoredProjectSchedulerControl(projectId)
+  const refreshedProject = await getStoredProjectById(projectId)
+  const refreshedDetail = await getStoredProjectDetailById(projectId)
+  const refreshedControl = await getStoredProjectSchedulerControl(projectId)
 
   if (!refreshedProject || !refreshedDetail || !refreshedControl) {
     return payload
@@ -896,25 +900,25 @@ export async function updateProjectSchedulerControlPayload(
   }
 }
 
-export function runProjectSchedulerTaskActionPayload(
+export async function runProjectSchedulerTaskActionPayload(
   projectId: string,
   taskId: string,
   action: "cancel" | "retry",
   note?: string,
 ) {
   return action === "cancel"
-    ? cancelStoredSchedulerTask(projectId, taskId, note)
-    : retryStoredSchedulerTask(projectId, taskId, note)
+    ? await cancelStoredSchedulerTask(projectId, taskId, note)
+    : await retryStoredSchedulerTask(projectId, taskId, note)
 }
 
-export function getMcpSettingsPayload(): McpSettingsPayload {
+export async function getMcpSettingsPayload(): Promise<McpSettingsPayload> {
   const store = readPrototypeStore()
-  const tools = listStoredMcpTools()
+  const tools = await listStoredMcpTools()
 
   return {
     tools,
-    servers: listStoredMcpServers(),
-    recentInvocations: listStoredMcpServerInvocations(undefined, 6),
+    servers: await listStoredMcpServers(),
+    recentInvocations: await listStoredMcpServerInvocations(undefined, 6),
     capabilities: buildCapabilityPayloadFromTools(tools),
     boundaryRules: mcpBoundaryRules,
     registrationFields: mcpRegistrationFields,
@@ -923,40 +927,40 @@ export function getMcpSettingsPayload(): McpSettingsPayload {
   }
 }
 
-export function getLlmSettingsPayload(): LlmSettingsPayload {
+export async function getLlmSettingsPayload(): Promise<LlmSettingsPayload> {
   return {
-    profiles: listStoredLlmProfiles(),
+    profiles: await listStoredLlmProfiles(),
   }
 }
 
-export function updateLlmSettingsPayload(profile: LlmProfileRecord) {
+export async function updateLlmSettingsPayload(profile: LlmProfileRecord) {
   return updateStoredLlmProfile(profile)
 }
 
-export function registerMcpServerPayload(input: Parameters<typeof registerStoredMcpServer>[0]) {
+export async function registerMcpServerPayload(input: Parameters<typeof registerStoredMcpServer>[0]) {
   return registerStoredMcpServer(input)
 }
 
-export function getMcpToolPayload(toolId: string) {
+export async function getMcpToolPayload(toolId: string) {
   return getStoredMcpToolById(toolId)
 }
 
-export function updateMcpToolPayload(toolId: string, patch: McpToolPatchInput) {
+export async function updateMcpToolPayload(toolId: string, patch: McpToolPatchInput) {
   return updateStoredMcpTool(toolId, patch)
 }
 
-export function runMcpHealthCheckPayload(toolId: string) {
+export async function runMcpHealthCheckPayload(toolId: string) {
   return runStoredMcpHealthCheck(toolId)
 }
 
-export function listProjectMcpRunsPayload(projectId: string): McpRunCollectionPayload | null {
-  const project = getStoredProjectById(projectId)
+export async function listProjectMcpRunsPayload(projectId: string): Promise<McpRunCollectionPayload | null> {
+  const project = await getStoredProjectById(projectId)
 
   if (!project) {
     return null
   }
 
-  const items = listStoredMcpRuns(projectId)
+  const items = await listStoredMcpRuns(projectId)
 
   return {
     items,
@@ -978,8 +982,8 @@ export async function runProjectMcpWorkflowSmokePayload(
   return runProjectSmokeWorkflow(projectId, input.scenario)
 }
 
-export function listWorkLogsPayload(): LogCollectionPayload {
-  const items = listStoredWorkLogs()
+export async function listWorkLogsPayload(): Promise<LogCollectionPayload> {
+  const items = await listStoredWorkLogs()
 
   return {
     items,
@@ -990,7 +994,7 @@ export function listWorkLogsPayload(): LogCollectionPayload {
 export async function getProjectOrchestratorPayload(
   projectId: string,
 ): Promise<ProjectOrchestratorPanelPayload | null> {
-  const project = getStoredProjectById(projectId)
+  const project = await getStoredProjectById(projectId)
 
   if (!project) {
     return null
@@ -1003,7 +1007,7 @@ export async function generateProjectOrchestratorPlanPayload(
   projectId: string,
   input: LocalValidationRunInput,
 ) {
-  const project = getStoredProjectById(projectId)
+  const project = await getStoredProjectById(projectId)
 
   if (!project) {
     return null
@@ -1013,7 +1017,7 @@ export async function generateProjectOrchestratorPlanPayload(
 }
 
 export async function executeProjectLocalValidationPayload(projectId: string, input: LocalValidationRunInput) {
-  const project = getStoredProjectById(projectId)
+  const project = await getStoredProjectById(projectId)
 
   if (!project) {
     return null
@@ -1022,8 +1026,8 @@ export async function executeProjectLocalValidationPayload(projectId: string, in
   return executeProjectLocalValidation(projectId, input)
 }
 
-export function getProjectReportExportPayload(projectId: string): ProjectReportExportPayload | null {
-  const project = getStoredProjectById(projectId)
+export async function getProjectReportExportPayload(projectId: string): Promise<ProjectReportExportPayload | null> {
+  const project = await getStoredProjectById(projectId)
 
   if (!project) {
     return null
@@ -1035,7 +1039,7 @@ export function getProjectReportExportPayload(projectId: string): ProjectReportE
 export async function triggerProjectReportExportPayload(
   projectId: string,
 ): Promise<ProjectReportExportActionPayload | null> {
-  const project = getStoredProjectById(projectId)
+  const project = await getStoredProjectById(projectId)
 
   if (!project) {
     return null
@@ -1054,6 +1058,6 @@ export async function triggerProjectReportExportPayload(
 
   return {
     dispatch,
-    reportExport: getStoredProjectReportExportPayload(projectId),
+    reportExport: await getStoredProjectReportExportPayload(projectId),
   }
 }

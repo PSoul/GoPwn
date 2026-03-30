@@ -14,7 +14,7 @@ export default async function ProjectFlowPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const payload = getProjectFlowPayload(projectId)
+  const payload = await getProjectFlowPayload(projectId)
 
   if (!payload) {
     notFound()

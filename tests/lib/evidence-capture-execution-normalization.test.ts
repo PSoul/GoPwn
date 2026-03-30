@@ -61,7 +61,7 @@ describe("evidence capture execution normalization", () => {
   })
 
   it("persists real screenshot and HTML artifacts into evidence detail payloads", async () => {
-    registerStoredMcpServer({
+    await registerStoredMcpServer({
       serverName: "evidence-capture-stdio",
       version: "1.0.0",
       transport: "stdio",
@@ -109,11 +109,11 @@ describe("evidence capture execution normalization", () => {
       ],
     })
 
-    const fixture = createStoredProjectFixture({
+    const fixture = await createStoredProjectFixture({
       targetInput: targetUrl,
       description: "测试截图与证据采集归档。",
     })
-    const payload = dispatchStoredMcpRun(fixture.project.id, {
+    const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "截图与证据采集类",
       requestedAction: "采集关键页面截图与 HTML 证据",
       target: targetUrl,
@@ -125,9 +125,9 @@ describe("evidence capture execution normalization", () => {
     const result = await executeStoredMcpRun(payload!.run.id)
 
     expect(result?.status).toBe("succeeded")
-    expect(getStoredMcpRunById(payload!.run.id)?.status).toBe("已执行")
+    expect((await getStoredMcpRunById(payload!.run.id))?.status).toBe("已执行")
 
-    const evidence = listStoredEvidence(fixture.project.id)
+    const evidence = await listStoredEvidence(fixture.project.id)
     const record = evidence[0]
 
     expect(record.source).toBe("截图与证据采集类")
@@ -140,12 +140,12 @@ describe("evidence capture execution normalization", () => {
 
     expect(existsSync(screenshotAbsolutePath)).toBe(true)
     expect(existsSync(htmlAbsolutePath)).toBe(true)
-    expect(listStoredAssets(fixture.project.id).some((asset) => asset.label === targetUrl)).toBe(true)
+    expect((await listStoredAssets(fixture.project.id)).some((asset) => asset.label === targetUrl)).toBe(true)
 
-    const detailPayload = getEvidenceDetailPayload(record.id)
+    const detailPayload = await getEvidenceDetailPayload(record.id)
 
     expect(detailPayload?.artifacts?.screenshotUrl).toContain("/api/artifacts/")
     expect(detailPayload?.artifacts?.htmlUrl).toContain("/api/artifacts/")
-    expect(getStoredEvidenceById(record.id)?.capturedUrl).toBe(targetUrl)
+    expect((await getStoredEvidenceById(record.id))?.capturedUrl).toBe(targetUrl)
   }, 30_000)
 })

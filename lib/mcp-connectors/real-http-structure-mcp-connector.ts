@@ -37,16 +37,16 @@ function summarizeStructureEntry(
 export const realHttpStructureMcpConnector: McpConnector = {
   key: "real-http-structure-mcp",
   mode: "real",
-  supports: ({ project, run }) => {
+  supports: async ({ project, run }) => {
     const target = run.target || getProjectPrimaryTarget(project)
 
-    return run.toolName === "graphql-surface-check" && isHttpTarget(target) && Boolean(findStoredEnabledMcpServerByToolBinding(run.toolName))
+    return run.toolName === "graphql-surface-check" && isHttpTarget(target) && Boolean(await findStoredEnabledMcpServerByToolBinding(run.toolName))
   },
   async execute(context: McpConnectorExecutionContext): Promise<McpConnectorResult> {
     throwIfExecutionAborted(context.signal)
 
     const target = context.run.target || getProjectPrimaryTarget(context.project)
-    const server = findStoredEnabledMcpServerByToolBinding(context.run.toolName)
+    const server = await findStoredEnabledMcpServerByToolBinding(context.run.toolName)
 
     if (!server) {
       return {

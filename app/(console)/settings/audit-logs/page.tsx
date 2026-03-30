@@ -4,8 +4,8 @@ import { SettingsLogTable } from "@/components/settings/settings-log-table"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
 import { listAuditLogsPayload } from "@/lib/prototype-api"
 
-export default function AuditLogsSettingsPage() {
-  const { items: auditLogs } = listAuditLogsPayload()
+export default async function AuditLogsSettingsPage() {
+  const { items: auditLogs } = await listAuditLogsPayload()
 
   return (
     <div className="space-y-6">

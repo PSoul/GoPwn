@@ -59,8 +59,8 @@ function isWebGoatBaseUrl(baseUrl: string) {
   return /\/webgoat\/?$/i.test(baseUrl)
 }
 
-function canUseHttpStructureDiscovery(baseUrl: string) {
-  return isWebGoatBaseUrl(baseUrl) && Boolean(findStoredEnabledMcpServerByToolBinding("graphql-surface-check"))
+async function canUseHttpStructureDiscovery(baseUrl: string) {
+  return isWebGoatBaseUrl(baseUrl) && Boolean(await findStoredEnabledMcpServerByToolBinding("graphql-surface-check"))
 }
 
 function uniqueTools(tools: McpToolRecord[]) {
@@ -78,9 +78,9 @@ function uniqueTools(tools: McpToolRecord[]) {
   })
 }
 
-function getAvailableOrchestratorTools() {
+async function getAvailableOrchestratorTools() {
   return uniqueTools(
-    [...listStoredMcpTools(), ...listBuiltInMcpTools()].filter((tool) => tool.status === "启用"),
+    [...await listStoredMcpTools(), ...listBuiltInMcpTools()].filter((tool) => tool.status === "启用"),
   )
 }
 
@@ -486,7 +486,7 @@ function buildTcpLabFallbackPlanItems(
   return items
 }
 
-function buildLocalLabFallbackPlanItems(
+async function buildLocalLabFallbackPlanItems(
   baseUrl: string,
   availableTools: McpToolRecord[],
   approvalScenario: "none" | "include-high-risk" = "include-high-risk",
@@ -499,7 +499,7 @@ function buildLocalLabFallbackPlanItems(
   const normalizedTarget = normalizeUrlTarget(baseUrl)
   const webProbeTarget = isWebGoatBaseUrl(normalizedTarget) ? `${normalizedTarget}/login` : normalizedTarget
   const actuatorTarget = `${normalizedTarget}/actuator`
-  const includeHttpStructure = canUseHttpStructureDiscovery(normalizedTarget)
+  const includeHttpStructure = await canUseHttpStructureDiscovery(normalizedTarget)
   const parseCapability = findCapabilityByName(availableTools, "目标解析类")
   const webCapability = findCapabilityByKeywords(availableTools, ["web", "页面", "入口", "surface"])
   const evidenceCapability = findCapabilityByKeywords(availableTools, ["截图", "证据", "capture", "snapshot"])
@@ -721,7 +721,7 @@ function normalizePlanItems(
   })
 }
 
-function buildProjectRecentContext(projectId: string) {
+async function buildProjectRecentContext(projectId: string) {
   const store = readPrototypeStore()
   const project = store.projects.find((item) => item.id === projectId)
 
@@ -729,11 +729,11 @@ function buildProjectRecentContext(projectId: string) {
     return []
   }
 
-  const assets = listStoredAssets(projectId)
-  const evidence = listStoredEvidence(projectId)
-  const findings = listStoredProjectFindings(projectId)
-  const approvals = listStoredProjectApprovals(projectId)
-  const workLogs = listStoredWorkLogs(project.name)
+  const assets = await listStoredAssets(projectId)
+  const evidence = await listStoredEvidence(projectId)
+  const findings = await listStoredProjectFindings(projectId)
+  const approvals = await listStoredProjectApprovals(projectId)
+  const workLogs = await listStoredWorkLogs(project.name)
   const runs = store.mcpRuns.filter((run) => run.projectId === projectId)
 
   return [
@@ -771,15 +771,15 @@ function persistProjectOrchestratorPlan(projectId: string, plan: OrchestratorPla
   return plan
 }
 
-function hasActiveProjectSchedulerWork(projectId: string) {
-  return listStoredSchedulerTasks(projectId).some((task) =>
+async function hasActiveProjectSchedulerWork(projectId: string) {
+  return (await listStoredSchedulerTasks(projectId)).some((task) =>
     ["ready", "retry_scheduled", "delayed", "running", "waiting_approval"].includes(task.status),
   )
 }
 
 async function settleProjectLifecycleClosure(projectId: string, note?: string) {
-  const project = getStoredProjectById(projectId)
-  const schedulerControl = getStoredProjectSchedulerControl(projectId)
+  const project = await getStoredProjectById(projectId)
+  const schedulerControl = await getStoredProjectSchedulerControl(projectId)
 
   if (!project || !schedulerControl) {
     return null
@@ -789,13 +789,13 @@ async function settleProjectLifecycleClosure(projectId: string, note?: string) {
     return null
   }
 
-  const pendingApprovals = listStoredProjectApprovals(projectId).filter((approval) => approval.status === "待处理")
+  const pendingApprovals = (await listStoredProjectApprovals(projectId)).filter((approval) => approval.status === "待处理")
 
-  if (pendingApprovals.length > 0 || hasActiveProjectSchedulerWork(projectId)) {
+  if (pendingApprovals.length > 0 || await hasActiveProjectSchedulerWork(projectId)) {
     return null
   }
 
-  const reportExport = getStoredProjectReportExportPayload(projectId)
+  const reportExport = await getStoredProjectReportExportPayload(projectId)
 
   if (!reportExport.latest) {
     const dispatch = await dispatchProjectMcpRunAndDrain(projectId, {
@@ -919,21 +919,21 @@ export async function generateProjectLifecyclePlan(
   projectId: string,
   input: ProjectLifecyclePlanInput,
 ): Promise<OrchestratorPlanPayload | null> {
-  const project = getStoredProjectById(projectId)
+  const project = await getStoredProjectById(projectId)
 
   if (!project) {
     return null
   }
 
-  const availableTools = getAvailableOrchestratorTools()
-  const providerStatus = getConfiguredLlmProviderStatus()
-  const provider = resolveLlmProvider()
+  const availableTools = await getAvailableOrchestratorTools()
+  const providerStatus = await getConfiguredLlmProviderStatus()
+  const provider = await resolveLlmProvider()
   const fallbackItems = buildProjectFallbackPlanItems(project, availableTools, input.controlCommand)
-  const assets = listStoredAssets(projectId)
-  const evidence = listStoredEvidence(projectId)
-  const findings = listStoredProjectFindings(projectId)
-  const approvals = listStoredProjectApprovals(projectId)
-  const recentContext = buildProjectRecentContext(projectId)
+  const assets = await listStoredAssets(projectId)
+  const evidence = await listStoredEvidence(projectId)
+  const findings = await listStoredProjectFindings(projectId)
+  const approvals = await listStoredProjectApprovals(projectId)
+  const recentContext = await buildProjectRecentContext(projectId)
 
   if (!provider) {
     const plan = persistProjectOrchestratorPlan(
@@ -997,17 +997,17 @@ export async function generateProjectLifecyclePlan(
   }
 }
 
-function recordOrchestratorRound(
+async function recordOrchestratorRound(
   projectId: string,
   round: number,
   startedAt: string,
   execution: DispatchPlanResult,
   planItemCount: number,
-): OrchestratorRoundRecord {
+): Promise<OrchestratorRoundRecord> {
   const store = readPrototypeStore()
-  const beforeAssets = listStoredAssets(projectId).length
-  const beforeEvidence = listStoredEvidence(projectId).length
-  const beforeFindings = listStoredProjectFindings(projectId).length
+  const beforeAssets = (await listStoredAssets(projectId)).length
+  const beforeEvidence = (await listStoredEvidence(projectId)).length
+  const beforeFindings = (await listStoredProjectFindings(projectId)).length
 
   const record: OrchestratorRoundRecord = {
     round,
@@ -1015,9 +1015,9 @@ function recordOrchestratorRound(
     completedAt: formatTimestamp(),
     planItemCount,
     executedCount: execution.runs.length,
-    newAssetCount: listStoredAssets(projectId).length - Math.max(0, beforeAssets - execution.runs.length),
-    newEvidenceCount: listStoredEvidence(projectId).length - Math.max(0, beforeEvidence - execution.runs.length),
-    newFindingCount: listStoredProjectFindings(projectId).length - Math.max(0, beforeFindings - execution.runs.length),
+    newAssetCount: (await listStoredAssets(projectId)).length - Math.max(0, beforeAssets - execution.runs.length),
+    newEvidenceCount: (await listStoredEvidence(projectId)).length - Math.max(0, beforeEvidence - execution.runs.length),
+    newFindingCount: (await listStoredProjectFindings(projectId)).length - Math.max(0, beforeFindings - execution.runs.length),
     failedActions: execution.runs
       .filter((r) => r.status === "已阻塞")
       .map((r) => `${r.toolName}(${r.target})`),
@@ -1088,13 +1088,13 @@ function generateRoundReflection(
   return { keyFindings, lessonsLearned, nextDirection }
 }
 
-function shouldContinueAutoReplan(
+async function shouldContinueAutoReplan(
   projectId: string,
   currentRound: number,
   maxRounds: number,
   lastPlanPayload: OrchestratorPlanPayload,
   lastExecution: DispatchPlanResult,
-): { shouldContinue: boolean; reason: string } {
+): Promise<{ shouldContinue: boolean; reason: string }> {
   // Stop condition 1: Max rounds reached
   if (currentRound >= maxRounds) {
     return { shouldContinue: false, reason: `已达到最大轮次限制 (${maxRounds})` }
@@ -1131,7 +1131,7 @@ function shouldContinueAutoReplan(
   }
 
   // Stop condition 6: Check scheduler control (user may have paused/stopped)
-  const control = getStoredProjectSchedulerControl(projectId)
+  const control = await getStoredProjectSchedulerControl(projectId)
 
   if (!control || control.lifecycle !== "running" || control.paused) {
     return { shouldContinue: false, reason: "项目已被暂停或停止" }
@@ -1144,16 +1144,16 @@ async function generateMultiRoundPlan(
   projectId: string,
   currentRound: number,
 ): Promise<OrchestratorPlanPayload | null> {
-  const project = getStoredProjectById(projectId)
+  const project = await getStoredProjectById(projectId)
 
   if (!project) {
     return null
   }
 
-  const control = getStoredProjectSchedulerControl(projectId)
-  const availableTools = getAvailableOrchestratorTools()
-  const provider = resolveLlmProvider()
-  const providerStatus = getConfiguredLlmProviderStatus()
+  const control = await getStoredProjectSchedulerControl(projectId)
+  const availableTools = await getAvailableOrchestratorTools()
+  const provider = await resolveLlmProvider()
+  const providerStatus = await getConfiguredLlmProviderStatus()
   const fallbackItems = buildProjectFallbackPlanItems(project, availableTools, "replan")
 
   if (!provider) {
@@ -1169,10 +1169,10 @@ async function generateMultiRoundPlan(
     return { plan, provider: providerStatus }
   }
 
-  const assets = listStoredAssets(projectId)
-  const evidence = listStoredEvidence(projectId)
-  const findings = listStoredProjectFindings(projectId)
-  const approvals = listStoredProjectApprovals(projectId)
+  const assets = await listStoredAssets(projectId)
+  const evidence = await listStoredEvidence(projectId)
+  const findings = await listStoredProjectFindings(projectId)
+  const approvals = await listStoredProjectApprovals(projectId)
 
   const prompt = buildMultiRoundBrainPrompt({
     projectName: project.name,
@@ -1188,9 +1188,9 @@ async function generateMultiRoundPlan(
     findingCount: findings.length,
     pendingApprovals: approvals.filter((a) => a.status === "待处理").length,
     roundHistory: buildCompressedRoundHistory(projectId),
-    assetSnapshot: buildAssetSnapshot(projectId),
-    lastRoundDetail: buildLastRoundDetail(projectId),
-    unusedCapabilities: buildUnusedCapabilities(projectId),
+    assetSnapshot: await buildAssetSnapshot(projectId),
+    lastRoundDetail: await buildLastRoundDetail(projectId),
+    unusedCapabilities: await buildUnusedCapabilities(projectId),
     availableTools,
   })
 
@@ -1226,14 +1226,14 @@ export async function runProjectLifecycleKickoff(projectId: string, input: Proje
   // Auto-discover and register MCP tools on project start
   if (input.controlCommand === "start") {
     try {
-      discoverAndRegisterMcpServers()
+      await discoverAndRegisterMcpServers()
     } catch {
       // best-effort: continue even if discovery fails
     }
   }
 
-  const project = getStoredProjectById(projectId)
-  const control = getStoredProjectSchedulerControl(projectId)
+  const project = await getStoredProjectById(projectId)
+  const control = await getStoredProjectSchedulerControl(projectId)
 
   // First round uses existing plan generation
   const planPayload = await generateProjectLifecyclePlan(projectId, input)
@@ -1247,7 +1247,7 @@ export async function runProjectLifecycleKickoff(projectId: string, input: Proje
   const autoReplan = control?.autoReplan ?? true
 
   // Update current round
-  updateStoredProjectSchedulerControl(projectId, {
+  await updateStoredProjectSchedulerControl(projectId, {
     note: `第${startRound}轮编排已开始`,
   })
 
@@ -1276,7 +1276,7 @@ export async function runProjectLifecycleKickoff(projectId: string, input: Proje
   let currentRound = startRound
 
   // Record first round
-  recordOrchestratorRound(projectId, currentRound, roundStartedAt, execution, planPayload.plan.items.length)
+  await recordOrchestratorRound(projectId, currentRound, roundStartedAt, execution, planPayload.plan.items.length)
 
   // Update round counter in scheduler control
   const store = readPrototypeStore()
@@ -1288,7 +1288,7 @@ export async function runProjectLifecycleKickoff(projectId: string, input: Proje
   // Multi-round auto-replan loop
   if (autoReplan && execution.status === "completed") {
     while (currentRound < maxRounds) {
-      const continueCheck = shouldContinueAutoReplan(
+      const continueCheck = await shouldContinueAutoReplan(
         projectId,
         currentRound,
         maxRounds,
@@ -1347,7 +1347,7 @@ export async function runProjectLifecycleKickoff(projectId: string, input: Proje
       const nextRoundStart = formatTimestamp()
       execution = await executePlanItems(projectId, nextPlan.plan.items)
 
-      recordOrchestratorRound(projectId, currentRound, nextRoundStart, execution, nextPlan.plan.items.length)
+      await recordOrchestratorRound(projectId, currentRound, nextRoundStart, execution, nextPlan.plan.items.length)
 
       // Update round counter
       const storeUpdate = readPrototypeStore()
@@ -1381,17 +1381,17 @@ export async function generateProjectOrchestratorPlan(
   projectId: string,
   input: LocalValidationRunInput,
 ): Promise<OrchestratorPlanPayload | null> {
-  const project = getStoredProjectById(projectId)
+  const project = await getStoredProjectById(projectId)
   const localLab = await getLocalLabById(input.labId, { probe: true })
 
   if (!project || !localLab) {
     return null
   }
 
-  const availableTools = getAvailableOrchestratorTools()
-  const providerStatus = getConfiguredLlmProviderStatus()
-  const provider = resolveLlmProvider()
-  const fallbackItems = buildLocalLabFallbackPlanItems(
+  const availableTools = await getAvailableOrchestratorTools()
+  const providerStatus = await getConfiguredLlmProviderStatus()
+  const provider = await resolveLlmProvider()
+  const fallbackItems = await buildLocalLabFallbackPlanItems(
     localLab.baseUrl,
     availableTools,
     input.approvalScenario ?? "include-high-risk",
@@ -1450,9 +1450,9 @@ export async function executeProjectLocalValidation(
   input: LocalValidationRunInput,
 ): Promise<LocalValidationRunPayload | null> {
   const localLab = await getLocalLabById(input.labId, { probe: true })
-  const project = getStoredProjectById(projectId)
+  const project = await getStoredProjectById(projectId)
   const planPayload = await generateProjectOrchestratorPlan(projectId, input)
-  const schedulerControl = updateStoredProjectSchedulerControl(projectId, {
+  const schedulerControl = await updateStoredProjectSchedulerControl(projectId, {
     lifecycle: "running",
     note: "显式触发本地靶场闭环验证，项目已切换到运行态。",
   })
@@ -1517,7 +1517,7 @@ export async function executeProjectLocalValidation(
 
 export async function getProjectOrchestratorPanelPayload(projectId: string) {
   return {
-    provider: getConfiguredLlmProviderStatus(),
+    provider: await getConfiguredLlmProviderStatus(),
     localLabs: await listLocalLabs(),
     lastPlan: getStoredProjectOrchestratorPlan(projectId),
   }

@@ -4,8 +4,8 @@ import { McpGatewayClient } from "@/components/settings/mcp-gateway-client"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
 import { getMcpSettingsPayload } from "@/lib/prototype-api"
 
-export default function McpToolsSettingsPage() {
-  const payload = getMcpSettingsPayload()
+export default async function McpToolsSettingsPage() {
+  const payload = await getMcpSettingsPayload()
 
   return (
     <div className="space-y-6">

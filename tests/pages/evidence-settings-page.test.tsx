@@ -35,38 +35,38 @@ describe("Evidence and settings pages", () => {
     expect(screen.getByRole("link", { name: "打开 HTML" })).toBeInTheDocument()
   })
 
-  it("renders the settings hub", () => {
-    render(<SettingsPage />)
+  it("renders the settings hub", async () => {
+    render(await SettingsPage())
     expect(screen.getByRole("heading", { name: "设置分类" })).toBeInTheDocument()
     expect(screen.getAllByText("MCP 工具管理").length).toBeGreaterThan(0)
     expect(screen.getAllByText("LLM 设置").length).toBeGreaterThan(0)
     expect(screen.getAllByText("工作日志").length).toBeGreaterThan(0)
   })
 
-  it("renders the split settings subpages", () => {
-    render(<McpToolsSettingsPage />)
+  it("renders the split settings subpages", async () => {
+    render(await McpToolsSettingsPage())
     expect(screen.getAllByText("MCP 工具管理").length).toBeGreaterThan(0)
     expect(screen.getByRole("button", { name: "校验并注册 MCP" })).toBeInTheDocument()
     cleanup()
 
-    render(<LlmSettingsPage />)
+    render(await LlmSettingsPage())
     expect(screen.getByRole("heading", { name: "LLM 设置" })).toBeInTheDocument()
     expect(screen.getByLabelText("API Key · Default Orchestrator")).toBeInTheDocument()
     cleanup()
 
-    render(<ApprovalPolicySettingsPage />)
+    render(await ApprovalPolicySettingsPage())
     expect(screen.getByText("审批模式开关")).toBeInTheDocument()
     cleanup()
 
-    render(<WorkLogsSettingsPage />)
+    render(await WorkLogsSettingsPage())
     expect(screen.getByRole("heading", { name: "工作日志" })).toBeInTheDocument()
     cleanup()
 
-    render(<AuditLogsSettingsPage />)
+    render(await AuditLogsSettingsPage())
     expect(screen.getByRole("heading", { name: "审计日志" })).toBeInTheDocument()
     cleanup()
 
-    render(<SystemStatusSettingsPage />)
+    render(await SystemStatusSettingsPage())
     expect(screen.getByRole("heading", { name: "系统状态" })).toBeInTheDocument()
   })
 })

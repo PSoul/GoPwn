@@ -9,7 +9,7 @@ export async function dispatchProjectMcpRunAndDrain(
     ignoreProjectLifecycle?: boolean
   },
 ): Promise<McpDispatchPayload | null> {
-  const payload = dispatchStoredMcpRun(projectId, input)
+  const payload = await dispatchStoredMcpRun(projectId, input)
 
   if (!payload || payload.approval || payload.run.status === "已阻塞") {
     return payload

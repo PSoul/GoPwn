@@ -6,7 +6,7 @@ import { withApiHandler } from "@/lib/api-handler"
 
 export const GET = withApiHandler(async (_request, { params }) => {
   const { projectId } = await params
-  const payload = getProjectReportExportPayload(projectId)
+  const payload = await getProjectReportExportPayload(projectId)
 
   if (!payload) {
     return Response.json({ error: `Project '${projectId}' not found` }, { status: 404 })

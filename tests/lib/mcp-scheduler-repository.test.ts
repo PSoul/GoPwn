@@ -27,21 +27,21 @@ describe("MCP scheduler repository durable leases", () => {
     rmSync(tempDir, { force: true, recursive: true })
   })
 
-  it("claims a ready task with worker lease metadata", () => {
+  it("claims a ready task with worker lease metadata", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture()
-    const payload = dispatchStoredMcpRun(fixture.project.id, {
+    const fixture = await createStoredProjectFixture()
+    const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
       target: fixture.project.seed,
       riskLevel: "低",
     })
-    const task = getStoredSchedulerTaskByRunId(payload!.run.id)
-    updateStoredSchedulerTask(task!.id, {
+    const task = await getStoredSchedulerTaskByRunId(payload!.run.id)
+    await updateStoredSchedulerTask(task!.id, {
       availableAt: "2020-01-01 00:00",
     })
 
-    const claimedTask = claimStoredSchedulerTask(task!.id, {
+    const claimedTask = await claimStoredSchedulerTask(task!.id, {
       workerId: "worker-alpha",
       leaseToken: "lease-alpha",
       now: "2026-03-27 16:00",
@@ -57,34 +57,34 @@ describe("MCP scheduler repository durable leases", () => {
     expect(claimedTask?.leaseExpiresAt).toBe("2026-03-27 16:00")
   })
 
-  it("refreshes the lease only for the owning worker", () => {
+  it("refreshes the lease only for the owning worker", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture()
-    const payload = dispatchStoredMcpRun(fixture.project.id, {
+    const fixture = await createStoredProjectFixture()
+    const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
       target: fixture.project.seed,
       riskLevel: "低",
     })
-    const task = getStoredSchedulerTaskByRunId(payload!.run.id)
-    updateStoredSchedulerTask(task!.id, {
+    const task = await getStoredSchedulerTaskByRunId(payload!.run.id)
+    await updateStoredSchedulerTask(task!.id, {
       availableAt: "2020-01-01 00:00",
     })
 
-    claimStoredSchedulerTask(task!.id, {
+    await claimStoredSchedulerTask(task!.id, {
       workerId: "worker-alpha",
       leaseToken: "lease-alpha",
       now: "2026-03-27 16:05",
       leaseDurationMs: 30_000,
     })
 
-    const foreignHeartbeat = heartbeatStoredSchedulerTask(task!.id, {
+    const foreignHeartbeat = await heartbeatStoredSchedulerTask(task!.id, {
       workerId: "worker-alpha",
       leaseToken: "lease-beta",
       now: "2026-03-27 16:06",
       leaseDurationMs: 30_000,
     })
-    const refreshedTask = heartbeatStoredSchedulerTask(task!.id, {
+    const refreshedTask = await heartbeatStoredSchedulerTask(task!.id, {
       workerId: "worker-alpha",
       leaseToken: "lease-alpha",
       now: "2026-03-27 16:07",
@@ -96,32 +96,32 @@ describe("MCP scheduler repository durable leases", () => {
     expect(refreshedTask?.leaseExpiresAt).toBe("2026-03-27 16:07")
   })
 
-  it("recovers expired running tasks back into the ready queue", () => {
+  it("recovers expired running tasks back into the ready queue", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture()
-    const payload = dispatchStoredMcpRun(fixture.project.id, {
+    const fixture = await createStoredProjectFixture()
+    const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
       target: fixture.project.seed,
       riskLevel: "低",
     })
-    const task = getStoredSchedulerTaskByRunId(payload!.run.id)
-    updateStoredSchedulerTask(task!.id, {
+    const task = await getStoredSchedulerTaskByRunId(payload!.run.id)
+    await updateStoredSchedulerTask(task!.id, {
       availableAt: "2020-01-01 00:00",
     })
 
-    claimStoredSchedulerTask(task!.id, {
+    await claimStoredSchedulerTask(task!.id, {
       workerId: "worker-alpha",
       leaseToken: "lease-alpha",
       now: "2026-03-27 16:10",
       leaseDurationMs: 1_000,
     })
 
-    const recoveredTasks = recoverExpiredStoredSchedulerTasks({
+    const recoveredTasks = await recoverExpiredStoredSchedulerTasks({
       now: "2026-03-27 16:12",
       projectId: fixture.project.id,
     })
-    const recoveredTask = getStoredSchedulerTaskByRunId(payload!.run.id)
+    const recoveredTask = await getStoredSchedulerTaskByRunId(payload!.run.id)
 
     expect(recoveredTasks).toHaveLength(1)
     expect(recoveredTask?.status).toBe("ready")

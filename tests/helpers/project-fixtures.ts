@@ -156,9 +156,9 @@ export type WorkflowFixture = {
   runs: McpRunRecord[]
 }
 
-function readWorkflowFixture(projectId: string): WorkflowFixture {
-  const project = getStoredProjectById(projectId)
-  const detail = getStoredProjectDetailById(projectId)
+async function readWorkflowFixture(projectId: string): Promise<WorkflowFixture> {
+  const project = await getStoredProjectById(projectId)
+  const detail = await getStoredProjectDetailById(projectId)
 
   if (!project || !detail) {
     throw new Error(`fixture project not found: ${projectId}`)
@@ -167,11 +167,11 @@ function readWorkflowFixture(projectId: string): WorkflowFixture {
   return {
     project,
     detail,
-    approvals: listStoredProjectApprovals(projectId),
-    assets: listStoredAssets(projectId),
-    evidence: listStoredEvidence(projectId),
-    findings: listStoredProjectFindings(projectId),
-    runs: listStoredMcpRuns(projectId),
+    approvals: await listStoredProjectApprovals(projectId),
+    assets: await listStoredAssets(projectId),
+    evidence: await listStoredEvidence(projectId),
+    findings: await listStoredProjectFindings(projectId),
+    runs: await listStoredMcpRuns(projectId),
   }
 }
 
@@ -189,8 +189,8 @@ export function seedWorkflowReadyMcpTools(overrides: McpToolRecord[] = workflowR
   return store.mcpTools
 }
 
-export function createStoredProjectFixture(overrides: Partial<ProjectMutationInput> = {}) {
-  const payload = createStoredProject(
+export async function createStoredProjectFixture(overrides: Partial<ProjectMutationInput> = {}) {
+  const payload = await createStoredProject(
     buildProjectInput({
       targetInput: "localhost\nhttps://localhost/login\napi.localhost",
       description: "测试夹具创建项目后，将通过最小 MCP 流程回流资产、证据和发现。",
@@ -211,7 +211,7 @@ export async function createWorkflowFixture(
 ) {
   seedWorkflowReadyMcpTools()
 
-  const payload = createStoredProjectFixture(options.projectOverrides)
+  const payload = await createStoredProjectFixture(options.projectOverrides)
   const workflow = options.workflow ?? (options.approveHighRisk ? "with-approval" : "baseline")
   const result = await runProjectSmokeWorkflow(payload.project.id, workflow)
 
@@ -224,26 +224,26 @@ export async function createWorkflowFixture(
       throw new Error(`workflow fixture expected approval for ${payload.project.id}`)
     }
 
-    const approval = updateStoredApprovalDecision(result.approval.id, { decision: "已批准" })
+    const approval = await updateStoredApprovalDecision(result.approval.id, { decision: "已批准" })
 
     if (!approval) {
       throw new Error(`failed to approve workflow fixture for ${payload.project.id}`)
     }
 
-    const resumedTask = syncStoredSchedulerTaskAfterApprovalDecision(approval)
+    const resumedTask = await syncStoredSchedulerTaskAfterApprovalDecision(approval)
 
     if (resumedTask) {
       await drainStoredSchedulerTasks({ runId: result.blockedRun?.id ?? result.runs.at(-1)?.id })
     }
 
     if (options.exportReportAfterApproval) {
-      const project = getStoredProjectById(payload.project.id)
+      const project = await getStoredProjectById(payload.project.id)
 
       if (!project) {
         throw new Error(`fixture project disappeared before report export: ${payload.project.id}`)
       }
 
-      const reportPayload = dispatchStoredMcpRun(payload.project.id, {
+      const reportPayload = await dispatchStoredMcpRun(payload.project.id, {
         capability: "报告导出类",
         requestedAction: "导出基础流程测试报告",
         target: project.code,
@@ -269,7 +269,7 @@ export async function createApprovedWorkflowFixture(projectOverrides: Partial<Pr
 }
 
 export async function dispatchFixtureRun(projectId: string, input: McpDispatchInput) {
-  const payload = dispatchStoredMcpRun(projectId, input)
+  const payload = await dispatchStoredMcpRun(projectId, input)
 
   if (!payload) {
     throw new Error(`failed to dispatch fixture MCP run for ${projectId}`)

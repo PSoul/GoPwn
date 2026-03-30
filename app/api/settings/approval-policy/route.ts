@@ -3,7 +3,7 @@ import { getApprovalPolicyPayload, updateGlobalApprovalControlPayload } from "@/
 import { withApiHandler } from "@/lib/api-handler"
 
 export const GET = withApiHandler(async () => {
-  return Response.json(getApprovalPolicyPayload())
+  return Response.json(await getApprovalPolicyPayload())
 })
 
 export const PATCH = withApiHandler(async (request) => {
@@ -15,6 +15,6 @@ export const PATCH = withApiHandler(async (request) => {
   }
 
   return Response.json({
-    approvalControl: updateGlobalApprovalControlPayload(parsed.data),
+    approvalControl: await updateGlobalApprovalControlPayload(parsed.data),
   })
 })

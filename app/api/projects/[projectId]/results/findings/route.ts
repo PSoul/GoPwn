@@ -11,7 +11,7 @@ const findingStatusSchema = z.object({
 
 export const GET = withApiHandler(async (_request, { params }) => {
   const { projectId } = await params
-  const payload = getProjectFindingsPayload(projectId)
+  const payload = await getProjectFindingsPayload(projectId)
 
   if (!payload) {
     return Response.json({ error: `Project '${projectId}' not found` }, { status: 404 })
@@ -29,7 +29,7 @@ export const PATCH = withApiHandler(async (request, { params }) => {
     return Response.json({ error: "Invalid payload" }, { status: 400 })
   }
 
-  const findings = listStoredProjectFindings(projectId)
+  const findings = await listStoredProjectFindings(projectId)
   const target = findings.find((f) => f.id === parsed.data.findingId)
 
   if (!target) {
@@ -37,7 +37,7 @@ export const PATCH = withApiHandler(async (request, { params }) => {
   }
 
   const updated = { ...target, status: parsed.data.status, updatedAt: new Date().toISOString().slice(0, 16).replace("T", " ") }
-  upsertStoredProjectFindings([updated])
+  await upsertStoredProjectFindings([updated])
 
   return Response.json({ finding: updated })
 })

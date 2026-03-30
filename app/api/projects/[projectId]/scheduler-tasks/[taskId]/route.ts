@@ -11,7 +11,7 @@ export const PATCH = withApiHandler(async (request, { params }) => {
     return Response.json({ error: "Invalid project scheduler-task payload" }, { status: 400 })
   }
 
-  const payload = runProjectSchedulerTaskActionPayload(projectId, taskId, parsed.data.action, parsed.data.note)
+  const payload = await runProjectSchedulerTaskActionPayload(projectId, taskId, parsed.data.action, parsed.data.note)
 
   if (!payload) {
     return Response.json({ error: `Project '${projectId}' or task '${taskId}' not found` }, { status: 404 })

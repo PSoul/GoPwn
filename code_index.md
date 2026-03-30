@@ -1,13 +1,15 @@
 # 代码索引 (Code Index)
 
 > 本文件是项目代码的完整索引，帮助开发者和 LLM 快速了解每个文件的用途。
-> 最后更新: 2026-03-29
+> 最后更新: 2026-03-30
 
 ## 项目概览
 
 授权外网安全评估平台 — 一个基于 Next.js 15 + TypeScript 的漏洞扫描驾驶舱，集成 LLM 编排、MCP 工具执行、审批工作流和项目生命周期管理。
 
-**技术栈**: Next.js 15 (App Router) · TypeScript · Tailwind CSS · shadcn/ui · Prisma · Vitest · Playwright
+**技术栈**: Next.js 15 (App Router) · TypeScript · Tailwind CSS · shadcn/ui · Prisma 7.x (`@prisma/adapter-pg`) · Vitest · Playwright
+
+**数据层架构**: 双数据层 — `DATA_LAYER=prisma` 环境变量启用 PostgreSQL via Prisma，默认使用文件系统 JSON 存储。所有仓库函数均为 async，API 路由和页面组件均已适配 await。
 
 ---
 
@@ -27,6 +29,8 @@
 ## 2. App 目录 (页面与 API 路由)
 
 ### 页面路由
+
+> 21 个 `app/(console)/**/page.tsx` 文件已改为 async Server Component 模式，await 数据获取。
 
 | 路由 | 文件 | 用途 |
 |------|------|------|
@@ -52,6 +56,8 @@
 | `/settings/users` | `app/(console)/settings/users/page.tsx` | 用户管理（多角色 RBAC） |
 
 ### API 路由
+
+> 48 个 `app/api/**/route.ts` 文件已添加 await 以适配 async 仓库调用。
 
 | 端点 | 文件 | 用途 |
 |------|------|------|
@@ -117,9 +123,11 @@
 
 | 文件 | 用途 |
 |------|------|
-| `lib/prototype-store.ts` | 文件系统数据存储（JSON 持久化） |
+| `lib/prisma.ts` | PrismaClient 单例（使用 `@prisma/adapter-pg` PrismaPg 适配器，globalThis 缓存防热重载泄漏） |
+| `lib/prisma-transforms.ts` | Prisma DB 模型 ↔ TypeScript 接口双向转换（20+ 模型类型：Project/Finding/Evidence/McpRun/Approval 等） |
+| `lib/prototype-store.ts` | 文件系统数据存储（JSON 持久化，作为 fallback 数据层） |
 | `lib/prototype-types.ts` | 全部 TypeScript 类型定义（含 UserRecord/UserRole/UserStatus） |
-| `lib/prototype-api.ts` | 页面级数据聚合 API |
+| `lib/prototype-api.ts` | 页面级数据聚合 API（~20 函数已改为 async，await 所有仓库调用） |
 | `lib/prototype-data.ts` | 初始化种子数据 |
 
 ### 身份认证与安全
@@ -161,15 +169,21 @@
 | `lib/mcp-scheduler-service.ts` | MCP 任务调度 |
 | `lib/mcp-workflow-service.ts` | MCP 工作流编排 |
 
-### 数据访问层
+### 数据访问层（双数据层架构）
+
+> 所有 13 个 `*-repository.ts` 文件均已改为 async 函数，支持双路径：`DATA_LAYER=prisma` 走 PostgreSQL via Prisma，默认走文件存储。
 
 | 文件 | 用途 |
 |------|------|
-| `lib/project-repository.ts` | 项目 CRUD |
-| `lib/project-results-repository.ts` | 项目结果（发现/结论/报告） |
-| `lib/approval-repository.ts` | 审批数据访问 |
-| `lib/asset-repository.ts` | 资产数据访问 |
-| `lib/evidence-repository.ts` | 证据数据访问 |
+| `lib/project-repository.ts` | 项目 CRUD（async + 双数据层） |
+| `lib/project-results-repository.ts` | 项目结果：发现/结论/报告（async + 双数据层） |
+| `lib/approval-repository.ts` | 审批数据访问（async + 双数据层） |
+| `lib/asset-repository.ts` | 资产数据访问（async + 双数据层） |
+| `lib/evidence-repository.ts` | 证据数据访问（async + 双数据层） |
+| `lib/auth-repository.ts` | 多用户认证仓库（async + 双数据层） |
+| `lib/llm-call-logger.ts` | LLM 调用日志（async + 双数据层） |
+| `lib/mcp-scheduler-service.ts` | MCP 任务调度（async 传播） |
+| `lib/orchestrator-service.ts` | 编排器主服务（async 传播） |
 | `lib/navigation.ts` | 侧边栏导航定义（总览/发现/系统） |
 
 ### MCP 连接器
@@ -212,15 +226,18 @@
 
 ## 6. Prisma 数据库
 
-`prisma/schema.prisma` — 25+ 模型，包含：
+`prisma/schema.prisma` — 25+ 模型（已修复 User.role 默认值，新增 OrchestratorRound.reflection 字段）：
 - **LlmCallLog** — LLM 调用日志（prompt/response/状态/耗时/token 用量）
 - **Project** — 项目主记录
 - **Finding** — 漏洞发现（支持跨项目聚合）
 - **Evidence** — 执行证据
 - **McpRun** — MCP 工具执行记录
-- **OrchestratorRound** — 编排轮次记录
+- **OrchestratorRound** — 编排轮次记录（含 reflection 字段）
 - **SchedulerTask** — 调度任务
 - **Approval** — 审批记录
+- **User** — 用户（role 默认值已修正）
+
+`prisma/seed.ts` — 数据迁移脚本，从 JSON 文件存储迁移至 PostgreSQL
 
 ## 7. MCP 服务器 (mcps/ 目录)
 
@@ -239,7 +256,13 @@
 - `mcps/github-recon-mcp-server/` — GitHub 代码/仓库搜索
 - `mcps/script-mcp-server/` — **LLM 自主脚本执行**（核心能力）：execute_code（Node.js 代码执行）、execute_command（Shell 命令）、read_file / write_file（文件 I/O）
 
-## 8. Docker 靶场 (docker/local-labs/)
+## 8. Docker 基础设施
+
+### PostgreSQL 开发数据库
+
+`docker/postgres/compose.yaml` — PostgreSQL 16-alpine 容器，用于本地开发时的 Prisma 数据层（`DATA_LAYER=prisma`）
+
+### Docker 靶场 (docker/local-labs/)
 
 `docker/local-labs/compose.yaml` — 12 个靶场服务：
 

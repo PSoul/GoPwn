@@ -29,7 +29,7 @@ describe("project MCP workflow smoke api route", () => {
 
   it("completes the baseline local MCP workflow with foundational tools", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture()
+    const fixture = await createStoredProjectFixture()
     const response = await postWorkflowSmokeRun(
       new Request(`http://localhost/api/projects/${fixture.project.id}/mcp-workflow/smoke-run`, {
         method: "POST",
@@ -76,7 +76,7 @@ describe("project MCP workflow smoke api route", () => {
 
   it("halts the approval scenario at the high-risk MCP step", async () => {
     seedWorkflowReadyMcpTools()
-    const fixture = createStoredProjectFixture()
+    const fixture = await createStoredProjectFixture()
     const response = await postWorkflowSmokeRun(
       new Request(`http://localhost/api/projects/${fixture.project.id}/mcp-workflow/smoke-run`, {
         method: "POST",

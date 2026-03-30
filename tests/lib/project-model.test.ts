@@ -22,7 +22,7 @@ describe("simplified project model", () => {
     rmSync(tempDir, { force: true, recursive: true })
   })
 
-  it("accepts the minimal create payload and exposes only the simplified form preset", () => {
+  it("accepts the minimal create payload and exposes only the simplified form preset", async () => {
     expect(() =>
       projectMutationSchema.parse({
         name: "内网暴露面核查",
@@ -38,8 +38,8 @@ describe("simplified project model", () => {
     })
   })
 
-  it("stores raw target input, normalized targets, and description on new projects", () => {
-    const payload = createStoredProject({
+  it("stores raw target input, normalized targets, and description on new projects", async () => {
+    const payload = await createStoredProject({
       name: "多目标项目",
       targetInput: "example.com\n192.168.1.10\n\n 10.10.10.0/24 ",
       description: "统一调度多类目标。",
@@ -61,7 +61,7 @@ describe("simplified project model", () => {
     })
   })
 
-  it("migrates legacy project records into the simplified model during store normalization", () => {
+  it("migrates legacy project records into the simplified model during store normalization", async () => {
     const store = readPrototypeStore()
 
     writePrototypeStore({

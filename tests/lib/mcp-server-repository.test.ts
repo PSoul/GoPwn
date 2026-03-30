@@ -25,15 +25,15 @@ describe("MCP server repository", () => {
     rmSync(tempDir, { force: true, recursive: true })
   })
 
-  it("starts with an empty MCP server registry until a real server is registered", () => {
-    const servers = listStoredMcpServers()
+  it("starts with an empty MCP server registry until a real server is registered", async () => {
+    const servers = await listStoredMcpServers()
 
     expect(servers).toHaveLength(0)
-    expect(getStoredMcpServerById("mcp-server-web-surface-stdio")).toBeNull()
+    expect(await getStoredMcpServerById("mcp-server-web-surface-stdio")).toBeNull()
   })
 
-  it("persists invocation logs for external MCP server calls", () => {
-    registerStoredMcpServer({
+  it("persists invocation logs for external MCP server calls", async () => {
+    await registerStoredMcpServer({
       serverName: "web-surface-stdio",
       version: "1.0.0",
       transport: "stdio",
@@ -79,7 +79,7 @@ describe("MCP server repository", () => {
       ],
     })
 
-    appendStoredMcpServerInvocation({
+    await appendStoredMcpServerInvocation({
       serverId: "mcp-server-web-surface-stdio",
       toolName: "probe_web_surface",
       status: "succeeded",
@@ -88,7 +88,7 @@ describe("MCP server repository", () => {
       durationMs: 182,
     })
 
-    const logs = listStoredMcpServerInvocations("mcp-server-web-surface-stdio")
+    const logs = await listStoredMcpServerInvocations("mcp-server-web-surface-stdio")
 
     expect(logs).toHaveLength(1)
     expect(logs[0].toolName).toBe("probe_web_surface")
@@ -96,8 +96,8 @@ describe("MCP server repository", () => {
     expect(logs[0].summary).toContain("探测完成")
   })
 
-  it("normalizes omitted optional endpoint and notes fields before persistence", () => {
-    const result = registerStoredMcpServer({
+  it("normalizes omitted optional endpoint and notes fields before persistence", async () => {
+    const result = await registerStoredMcpServer({
       serverName: "fofa-query-stdio",
       version: "1.0.0",
       transport: "stdio",

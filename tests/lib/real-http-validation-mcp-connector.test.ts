@@ -72,8 +72,8 @@ describe("real http-validation MCP connector", () => {
     rmSync(tempDir, { force: true, recursive: true })
   })
 
-  function registerValidationServer(toolName = "auth-guard-check") {
-    registerStoredMcpServer({
+  async function registerValidationServer(toolName = "auth-guard-check") {
+    await registerStoredMcpServer({
       serverName: "http-validation-stdio",
       version: "1.0.0",
       transport: "stdio",
