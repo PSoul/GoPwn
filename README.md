@@ -1,446 +1,253 @@
-# LLM 渗透测试平台原型
+# LLM 渗透测试平台
 
-一个面向授权安全测试场景的本地全栈原型平台。
+AI Agent 驱动的授权安全评估全栈平台。
 
-本项目的核心边界是：
+## 核心架构
 
-- `LLM = 大脑`
-  - 负责计划、编排、审阅、解释、风险判断
-- `MCP = 四肢`
-  - 负责接触目标、调用外部工具、采集证据、回传结构化结果
-- `平台本身`
-  - 负责审批、调度、持久化、结果归一化、审计、状态推进
+```
+LLM = 大脑     计划、编排、审阅、解释、风险判断
+MCP = 四肢     接触目标、调用外部工具、采集证据、回传结构化结果
+平台 = 中枢     审批、调度、持久化、结果归一化、审计、状态推进
+```
 
-当前仓库已经不再是纯前端静态原型，而是一个可运行的 `Next.js + API + 本地持久化 + MCP 注册/调度 + 真实 LLM 接入 + 本地靶场验证` 的全栈原型底座。
+## 当前状态
 
-## 1. 当前状态
+- 版本: `v0.4.0`
+- 数据层: PostgreSQL via Prisma 7.x (`@prisma/adapter-pg`)，唯一数据层
+- 测试: 178 单元测试 + 14 E2E 测试
+- MCP: 14 个本地 MCP Server（36+ 工具）
+- 靶场: 13 个 Docker 容器（DVWA / Juice Shop / WebGoat / Redis / SSH / Tomcat / Elasticsearch / MongoDB 等）
+- 编排: 多轮 LLM 自动编排循环，支持自动续跑、并行执行、轮间自我反思
 
-- 当前版本：`v0.3.0`
-- 当前形态：AI Agent 驱动的全栈安全评估平台
-- 版本定位：第三阶段里程碑，平台本质上已是一个 AI Agent 智能体，具备自适应配置、环境感知、输出压缩、失败分析、并行执行、自我反思等核心 Agent 能力
-- 当前主线：13 个 MCP Server（36 个工具）+ 12 个 Docker 靶场 + AI Agent 大脑进化完成
-- 当前进行中：Phase 17a（Prisma 数据层迁移）+ Phase 17c（平台 UX 升级）待实施
+## 技术栈
 
-### 已完成的核心能力
+| 层 | 技术 |
+|---|------|
+| 框架 | Next.js 15 (App Router) |
+| 前端 | React 19, Tailwind CSS, shadcn/ui |
+| 后端 | Next.js API Routes, TypeScript |
+| 数据库 | PostgreSQL 16 + Prisma 7.x (`@prisma/adapter-pg`) |
+| MCP | `@modelcontextprotocol/sdk`, stdio 连接器 |
+| 测试 | Vitest, Playwright |
+| 容器 | Docker Compose (靶场 + PostgreSQL) |
 
-- **AI Agent 配置系统** — 30+ 可调参数（参考 Claude Code/Codex/Aider），支持 API 热更新
-- **平台环境感知** — 自动检测 OS/Shell/可用工具，注入 LLM 决策上下文
-- **工具输出智能压缩** — 15+ 工具专用提取器，按 token 预算自动摘要
-- **失败智能分析** — 9 类错误分类 + 重试建议 + 替代工具推荐
-- **并行工具执行** — 低/中风险工具批量并行，高风险串行审批
-- **轮间自我反思** — 确定性反思引擎，无额外 LLM 调用
-- **Token 预算上下文压缩** — 自动截断历史轮次和资产快照
-- 模板风格对齐的控制台前端与登录页
-- `Next.js App Router` 页面层与内置 API 层
-- 平台账号登录、会话保护、中间件鉴权
-- 项目、审批、资产、证据、审计日志、本地设置持久化
-- 项目详情拆分为结果、阶段流转、任务与调度、证据与上下文子页
-- 项目生命周期状态机：`idle / running / paused / stopped`
-- 新建项目后默认不自动运行，必须手动点击开始才会触发 LLM 编排
-- 项目支持 `开始 / 暂停 / 继续 / 停止`，且停止后不可重新开始
-- 项目开始后会在队列跑空时自动补一次报告导出，并生成持久化的“最终结论”
-- 审批通过后不再只恢复单个 MCP run，而是会继续推进项目后续动作并判断是否可以自动收束
-- 项目最终结论已经成为正式持久化模型，会回流到项目概览、报告导出面板和项目状态
-- LLM 编排增加了范围约束，URL 指向 IP / localhost 时不会再误派 `DNS / 子域 / 证书情报类` 动作
-- 真实 LLM 设置页面与持久化配置
-- 严格 MCP Server 注册合同与字段校验
-- MCP Server 元数据、调用日志、工具注册持久化
-- 项目级 MCP 调度、审批暂停、审批恢复、结果沉淀
-- LLM 编排大脑提示词集中管理，项目启动、恢复、本地靶场计划都走统一提示词构建
-- Durable worker lease、orphan running task 恢复
-- Cooperative cancellation，支持停止已经运行中的任务
-- 本地 Docker 靶场验证链路
-- 平台内置基础 MCP 工具兜底（`seed-normalizer`、`report-exporter`）
-- 项目操作页内的真实报告导出闭环
-- 真实 `HTTP / API 结构发现类` stdio MCP
-- 真实 `HTTP / API 结构发现类` 结果归一化落库，能把 GraphQL / Swagger / Actuator 候选入口沉淀成资产与证据
-- 真实 `受控验证类` HTTP workbench stdio MCP
-- 真实 `截图与证据采集类` Playwright stdio MCP
-- 真实页面截图与 HTML 快照 artifact 持久化，以及带会话校验的 artifact 读取 API
-- 证据详情页支持直接预览截图并打开 HTML 快照
+## 快速启动
 
-### 已确认跑通的真实闭环
+### 前置要求
 
-- `真实 LLM -> 编排计划 -> MCP 调度 -> 审批阻塞/恢复 -> 资产/证据/发现沉淀`
-- 已通过的样例：`Juice Shop`
-- 对应真实项目：`proj-20260327-f6a3fd0c`
-- 对应报告目录：`output/live-validation/2026-03-27T05-09-27-704Z-juice-shop/`
-- 已通过的样例：`WebGoat`（低风险识别闭环）
-- 对应真实项目：`proj-20260327-c98173af`
-- 对应报告目录：`output/live-validation/2026-03-27T10-36-16-464Z-webgoat/`
-- 浏览器级导出截图：`output/playwright/webgoat-operations-report-export.png`
-- 已通过的样例：`WebGoat`（真实 finding / 报告导出闭环）
-- 对应真实项目：`proj-20260327-4e3a91b0`
-- 对应报告目录：`output/live-validation/2026-03-27T11-12-11-708Z-webgoat/`
-- 浏览器级 finding 截图：`output/playwright/webgoat-findings-page.png`
-- 浏览器级导出截图：`output/playwright/webgoat-operations-report-export-after-finding.png`
-- 已通过的样例：`WebGoat`（结构发现证据增强后的复验闭环）
-- 对应真实项目：`proj-20260327-af2ebd69`
-- 对应报告目录：`output/live-validation/2026-03-27T11-38-59-701Z-webgoat/`
-- 关键证据标题：`Web 入口与响应特征识别`、`HTTP / API 结构线索识别`、`Spring Actuator 管理端点匿名暴露`
+- Node.js 20+
+- Docker Desktop (用于 PostgreSQL + 靶场)
+- npm
 
-### 当前主要缺口
+### 1. 安装依赖
 
-- 后端持久化仍有一部分在文件存储层（Phase 17a Prisma 全量迁移待实施）
-- LLM 设置目前为了调试仍是明文展示，后续要补掩码、连通性校验与更强的配置治理
-- Agent 配置系统已就绪但前端管理页面尚未开发
-- Web Search MCP、凭据链、Playwright 交互浏览器、攻击图建模等高级 Agent 能力待实施
-- 现有 E2E 已覆盖主要页面，但还缺”从手动开始到自动收束”的浏览器级专项回归
-
-## 2. 适合谁看
-
-这个 README 主要服务三类角色：
-
-- 想立刻启动项目并体验当前原型的人
-- 想接手继续开发的平台工程师
-- 想快速理解仓库结构、继续推进开发的其他 LLM
-
-如果你是后两者，建议阅读顺序：
-
-1. `README.md`
-2. `code_index.md`
-3. `roadmap.md`
-
-## 3. 技术栈
-
-- `Next.js 15`
-- `React 19`
-- `TypeScript`
-- `Tailwind CSS`
-- `Vitest`
-- `Playwright`
-- `@modelcontextprotocol/sdk`
-
-## 4. 仓库结构
-
-- `app/`
-  - 页面与 API 路由
-- `components/`
-  - 业务 UI 组件
-- `lib/`
-  - 仓储、调度、编排、MCP、LLM、类型与服务层
-- `scripts/`
-  - E2E、真实联调、live validation 脚本
-- `docker/local-labs/`
-  - 本地漏洞靶场定义
-- `docs/`
-  - 合同、操作文档、路线图、设计与阶段 prompt
-- `tests/`
-  - API / 组件 / 服务层测试
-- `e2e/`
-  - 浏览器端到端测试
-
-## 5. 快速启动
-
-### 安装依赖
-
-```powershell
+```bash
 npm install
 ```
 
-### 启动开发环境
+### 2. 启动 PostgreSQL
 
-```powershell
+```bash
+cd docker/postgres && docker compose up -d
+```
+
+### 3. 初始化数据库
+
+```bash
+npx prisma migrate dev
+```
+
+### 4. 启动开发服务器
+
+```bash
 npm run dev
 ```
 
-默认访问地址：
+访问 `http://127.0.0.1:3000`
 
-- 平台首页：`http://127.0.0.1:3000`
-- 登录页：`http://127.0.0.1:3000/login`
+### 5. 默认账号
 
-### 当前使用方式说明
+| 字段 | 值 |
+|------|---|
+| 账号 | `researcher@company.local` |
+| 密码 | `Prototype@2026` |
+| 验证码 | `7K2Q` |
+
+## 使用流程
 
 1. 登录平台
-2. 新建项目，只填写项目名称、目标、项目说明
-3. 进入项目后先查看概览和结果子页
-4. 需要手动点击“开始项目”，平台才会把目标交给 LLM 生成首轮计划并驱动 MCP 调度
-5. 运行中可以暂停、继续，停止后项目进入终态，不能重新开始
-6. 当当前轮次队列跑空、没有待审批动作时，平台会自动补一次报告导出并生成最终结论
+2. 新建项目 — 填写项目名称、目标、说明
+3. 点击 **开始项目** — LLM 自动生成首轮编排计划并驱动 MCP 调度
+4. 运行中可暂停 / 继续，停止后进入终态
+5. 队列跑空时平台自动补报告导出并生成最终结论
 
-### 默认测试账号
+## 仓库结构
 
-- 账号：`researcher@company.local`
-- 密码：`Prototype@2026`
-- 验证码：`7K2Q`
-
-## 6. 常用命令
-
-```powershell
-npm run dev
-npm run test
-npm run lint
-npm run build
-npm run e2e
-npm run test:all
-npm run live:validate
+```
+app/                    页面 (21) + API 路由 (48)
+components/             业务 UI 组件
+lib/                    核心业务层
+  types/                10 个领域类型文件
+  api-compositions.ts   8 个聚合查询函数
+  orchestrator-*.ts     编排器 5 模块 (service / plan-builder / execution / target-scope / local-lab)
+  *-repository.ts       13 个 Prisma 数据仓库
+  prisma.ts             PrismaClient 单例
+  prisma-transforms.ts  20+ 模型双向转换
+mcps/                   14 个本地 MCP Server (36+ 工具)
+docker/
+  local-labs/           13 个 Docker 靶场定义
+  postgres/             PostgreSQL 开发容器
+prisma/
+  schema.prisma         25 个数据模型
+tests/                  单元测试 + API 测试
+e2e/                    Playwright E2E 测试
+prompts/                阶段开发 prompt
+docs/                   合同、操作文档、设计 spec
 ```
 
-## 7. 真实 LLM 配置
+## 常用命令
 
-当前平台支持在 `/settings/llm` 中直接配置：
-
-- `apiKey`
-- `baseUrl`
-- `model`
-- `timeoutMs`
-- `temperature`
-- `enabled`
-
-当前为了调试方便，`apiKey` 仍然以明文方式展示；后续会增加掩码模式与显隐切换。
-
-如果希望通过环境变量进行 live validation，也可以这样设置：
-
-```powershell
-$env:LLM_API_KEY = "你的 key"
-$env:LLM_BASE_URL = "https://api.siliconflow.cn/v1"
-$env:LLM_ORCHESTRATOR_MODEL = "Pro/deepseek-ai/DeepSeek-V3.2"
-$env:LLM_REVIEWER_MODEL = "Pro/deepseek-ai/DeepSeek-V3.2"
+```bash
+npm run dev              # 启动开发服务器
+npm run build            # 生产构建
+npm run test             # 运行单元测试 (vitest)
+npm run e2e              # 运行 E2E 测试 (playwright)
+npm run lint             # 代码检查
+npm run test:all         # 单元 + E2E 全量测试
 ```
 
-## 8. 本地靶场与真实闭环验证
+## Docker 靶场
 
 ### 启动靶场
 
-```powershell
-docker compose -f docker/local-labs/compose.yaml up -d
+```bash
+cd docker/local-labs && docker compose up -d
 ```
 
-### 查看靶场状态
+### 靶场列表
 
-```powershell
-docker compose -f docker/local-labs/compose.yaml ps
+| 靶场 | 端口 | 协议 |
+|------|------|------|
+| DVWA | 8081 | HTTP |
+| Juice Shop | 3000 | HTTP |
+| WebGoat | 18080 / 19090 | HTTP |
+| Redis | 6380 | TCP |
+| SSH | 2222 | TCP |
+| Tomcat | 8888 | HTTP |
+| Elasticsearch | 9201 | HTTP |
+| MongoDB | 27018 | TCP |
+
+## LLM 配置
+
+在 `/settings/llm` 页面配置，或通过环境变量：
+
+```bash
+LLM_API_KEY=your-key
+LLM_BASE_URL=https://api.siliconflow.cn/v1
+LLM_ORCHESTRATOR_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
+LLM_REVIEWER_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
 ```
 
-### 执行真实闭环
+## MCP 工具体系
 
-```powershell
-npm run live:validate
-```
+14 个本地 MCP Server 覆盖以下能力族：
 
-常用环境变量：
+| 能力族 | MCP Server | 工具数 |
+|--------|-----------|--------|
+| 目标解析类 | 内置 seed-normalizer | 1 |
+| DNS / 子域 / 证书 | subfinder, whois | 3 |
+| Web 页面探测 | httpx, wafw00f | 3 |
+| HTTP / API 结构发现 | curl, dirsearch | 4 |
+| 端口 / 服务 / 网络 | fscan, netcat | 3 |
+| 受控验证类 | curl (http-validation) | 2 |
+| 截图与证据采集 | Playwright MCP | 2 |
+| 编解码与密码学 | encode | 4 |
+| 情报收集 | fofa, github-recon | 4 |
+| 漏洞扫描 | afrog | 2 |
+| 自主脚本执行 | script-mcp-server | 4 |
+| 报告导出类 | 内置 report-exporter | 1 |
 
-```powershell
-$env:LIVE_VALIDATION_LAB_ID = "juice-shop"
-$env:LIVE_VALIDATION_PROJECT_ID = ""
-$env:LIVE_VALIDATION_AUTO_APPROVE = "1"
-$env:LIVE_VALIDATION_START_LABS = "1"
-$env:LIVE_VALIDATION_STOP_LABS = "0"
-$env:LIVE_VALIDATION_STATE_MODE = "isolated"
-```
+新 MCP 接入流程：参考 `docs/contracts/mcp-server-contract.md` 和 `docs/templates/mcp-connector-template.md`
 
-状态持久化模式：
+## 核心能力
 
-- `isolated`
-  - 默认模式
-  - 每次跑独立 store，不污染当前工作区
-- `workspace`
-  - 真实项目、资产、证据、发现直接保留到当前工作区 `.prototype-store/`
-  - 适合在正常页面里持续查看结果
+### AI Agent 能力
+- 30+ 可调配置参数（参考 Claude Code / Codex / Aider 设计）
+- 平台环境感知（OS / Shell / 可用工具）自动注入 LLM 决策上下文
+- 工具输出结构化压缩（15+ 工具专用提取器，按 token 预算自动摘要）
+- 失败智能分析（9 类错误分类 + 重试建议 + 替代工具推荐）
+- 低 / 中风险工具批量并行执行，高风险串行审批
+- 轮间确定性自我反思（无额外 LLM 调用）
+- Token 预算上下文压缩
 
-### 当前真实验证结论
+### 项目生命周期
+- 状态机: `idle -> running -> paused -> stopped`
+- 手动开始 -> LLM 多轮自动编排 -> 审批阻塞 / 恢复 -> 自动收束
+- 队列跑空自动补报告导出 + 生成最终结论
+- 审批恢复后继续推进后续动作
 
-- `Juice Shop`
-  - 已真实跑通
-- `WebGoat`
-  - 已确认宿主机 `127.0.0.1:18080/WebGoat` 与 `127.0.0.1:18080/WebGoat/actuator/health` 可达
-  - 当前仓库默认通过 `18080:8080` 与 `19090:9090` 规避原 `8080` 占用问题
-  - 已完成低风险真实闭环，结果已沉淀到普通项目页，并已在项目操作页完成一次浏览器级报告导出
+### 调度与执行
+- Durable worker lease + orphan task 恢复
+- Cooperative cancellation（运行中任务可停止）
+- 项目级 pause / resume / cancel / retry
+- MCP 编排范围约束（URL / IP 目标不误派 DNS 动作）
 
-## 9. MCP 接入原则
+### 安全
+- HMAC 签名 session cookie
+- CSRF 双重提交 cookie
+- 滑动窗口速率限制（登录 5/min, API 60/min）
+- bcrypt 密码验证
+- 多用户 RBAC（admin / researcher / approver）
 
-当前平台已经具备严格的 MCP 注册合同校验能力，新接入的 MCP 必须先通过合同验证，才能进入平台调度候选池。
+## 已验证的真实闭环
 
-本仓库的宿主合同以 `D:\dev\llmpentest-mcp-template` 为协议标准源。
+以下靶场已通过完整的 `LLM 编排 -> MCP 执行 -> 发现 -> 报告` 闭环验证：
 
-当前建议流程是：
+- **DVWA** — 3 轮自动编排，发现 Apache 版本泄露 + 过时版本
+- **Juice Shop** — 真实 LLM 编排 + Web 探测 + 审批恢复 + 结果沉淀
+- **WebGoat** — 多次闭环验证，含 Actuator 匿名暴露发现 + 报告导出
 
-- 先对照 `D:\dev\llmpentest-mcp-template` 完成协议自检
-- 再在独立实现仓库或专门工作目录开发具体 MCP server
-- 最后把注册 JSON 回填到 `/settings/mcp-tools`
+## 文档索引
 
-建议优先阅读：
+| 文档 | 用途 |
+|------|------|
+| `code_index.md` | 全量代码索引 |
+| `roadmap.md` | 阶段规划与完成记录 |
+| `docs/contracts/mcp-server-contract.md` | MCP Server 注册合同 |
+| `docs/templates/mcp-connector-template.md` | MCP 接入模板 |
+| `docs/operations/local-docker-labs.md` | Docker 靶场操作文档 |
+| `docs/operations/llm-settings.md` | LLM 配置说明 |
+| `prompts/phase20-continued-refactoring.md` | 下一阶段开发 prompt |
 
-- `docs/contracts/mcp-server-contract.md`
-- `docs/templates/mcp-connector-template.md`
-- `docs/operations/mcp-onboarding-guide.md`
-- `docs/operations/standalone-mcp-scaffold-workflow.md`
+## 开发阶段历史
 
-当前合同重点约束：
+| Phase | 内容 | 状态 |
+|-------|------|------|
+| 1-3 | 前端原型 + Mock API + 真实后端核心 | 已完成 |
+| 4-5 | MCP 编排执行 + 真实连接器 + 调度器 | 已完成 |
+| 6-7 | 真实 LLM 编排 + Docker 验证 + MCP 扩展 | 已完成 |
+| 8-9 | 调度控制 + 项目生命周期 + 自动收束 | 已完成 |
+| 10-11 | 生产级 MCP 编排 + 前端闭环 | 已完成 |
+| 12 | 漏洞驾驶舱重构 + LLM 日志系统 | 已完成 |
+| 13-14 | 生产加固 (SSE / CSRF / 速率限制) + AI 聊天窗 | 已完成 |
+| 15 | 多用户认证 + RBAC | 已完成 |
+| 16 | Docker 靶场扩展 (TCP) + 自主脚本 MCP | 已完成 |
+| 17a-d | Prisma 数据层迁移 (PostgreSQL 唯一数据层) | 已完成 |
+| 17b | Agent 大脑进化 (配置 / 环境感知 / 压缩 / 反思) | 已完成 |
+| 19 | 架构重构 (类型拆分 / facade 删除 / 模块分解) | 已完成 |
+| 20 | 架构持续精简 + 二级模块拆分 | 待开始 |
 
-- 宿主当前接受模板定义的 `12` 个能力族、`8` 种结果映射和 `3` 种边界类型
-- `serverName`、`version`、`transport`、`enabled`、`tools` 是顶层必填
-- `endpoint`、`notes` 可省略，宿主持久化时会统一归一为空字符串
-- `tools[]` 中必须显式声明能力族、风险等级、审批要求、结果映射
-- `inputSchema` 和 `outputSchema` 都必须显式声明
-- 新工具不能只“能调用”，还必须“能被平台理解并落库”
-- 并非所有模板能力都已经完成运行时桥接；当前主仓优先保证“可注册、可校验、可说明”
+## 接手指南
 
-## 10. 文档入口
+如果你是新接手的开发者或 LLM：
 
-重点文档如下：
+1. 读 `README.md`（本文件）了解全貌
+2. 读 `code_index.md` 了解代码结构
+3. 读 `roadmap.md` 了解阶段边界和当前优先级
+4. 读 `prompts/phase20-continued-refactoring.md` 了解下一步开发方向
 
-- `code_index.md`
-  - 全量代码索引，便于其他 LLM 快速接手
-- `roadmap.md`
-  - 当前阶段、已完成事项、后续优先级
-- `docs/operations/local-docker-labs.md`
-  - 本地 Docker 靶场与 live validation 操作文档
-- `docs/operations/llm-settings.md`
-  - LLM 设置页面与 API 说明
-- `docs/contracts/mcp-server-contract.md`
-  - MCP Server 注册合同
-- `docs/templates/mcp-connector-template.md`
-  - MCP 接入模板
-- `docs/operations/standalone-mcp-scaffold-workflow.md`
-  - 如何围绕协议模板仓、宿主仓和独立实现仓协同开发新 MCP
-- `docs/prompts/2026-03-28-phase-11-platform-runtime-bridge-hardening-prompt.md`
-  - 下一阶段给“宿主平台仓库”本身使用的接手 prompt，重点是 runtime bridge、调度、配置与结果归一化硬化，而不是继续在这里孵化新 MCP
-- `docs/prompts/2026-03-28-phase-12-production-closure-hardening-prompt.md`
-  - 下一阶段给“宿主平台仓库”继续做非 MCP、面向生产闭环硬化时使用的接手 prompt，重点是自动收束可观察性、最终结论体验与专项 E2E
+## 备注
 
-## 11. 运行产物说明
-
-以下目录主要是运行产物或临时状态，不是业务源码主体：
-
-- `.prototype-store/`
-  - 本地运行时状态
-- `output/`
-  - live validation 报告、截图、日志等输出
-- `playwright-report/`
-  - Playwright 报告
-- `test-results/`
-  - 测试输出
-
-当前 `.txt` 文件已在 `.gitignore` 中忽略。
-
-## 12. 已完成事项总览
-
-- [x] 前端原型页面、路由与模板对齐
-- [x] 登录、鉴权、中间件保护
-- [x] 项目 CRUD 与本地持久化
-- [x] 审批中心与审批恢复
-- [x] 资产、证据、发现结果页
-- [x] 设置中心拆分与真实配置持久化
-- [x] MCP Server 严格注册与工具合同校验
-- [x] 真实 DNS / 子域 / 证书情报类 connector
-- [x] 真实 Web 页面探测 stdio MCP connector
-- [x] 真实 HTTP / API 结构发现 stdio MCP connector
-- [x] 真实 HTTP 受控验证 stdio MCP connector
-- [x] 真实截图与证据采集 stdio MCP connector
-- [x] 调度任务队列、pause / resume / retry / cancel
-- [x] 项目生命周期控制：手动开始、暂停、继续、停止
-- [x] 项目自动收束：队列跑空后补报告导出并生成最终结论
-- [x] 审批恢复后的后续推进与自动收束
-- [x] Durable worker lease 与 orphan running task 恢复
-- [x] Cooperative cancellation 打通运行中任务停止链路
-- [x] 本地 Juice Shop 真实闭环验证
-- [x] 本地 WebGoat 真实 finding / 报告导出闭环验证
-- [x] AI Agent 配置系统（30+ 参数，5 大分类）
-- [x] 平台环境感知与 LLM 上下文注入
-- [x] 工具输出结构化压缩（15+ 提取器）
-- [x] 失败智能分析（9 类错误 + 重试/替代建议）
-- [x] 并行工具执行 + 轮间自我反思
-- [x] Token 预算上下文压缩
-- [x] 12 个 Docker 靶场（HTTP + TCP 双协议）
-- [x] 13 个 MCP Server（36 个工具）
-- [x] 多用户认证与 RBAC
-- [x] `npm run test`
-- [x] `npm run lint`
-- [x] `npm run build`
-- [x] `npm run e2e`
-
-## 13. TODO List
-
-下面这份 TODO 按优先级排序。这个仓库后续优先做“闭环稳定性、运行时治理、配置治理、结果体验”，不在这里继续新增具体 MCP 或 `fscan` 相关实现。
-
-### P0：当前最高优先级
-
-- [x] 把平台主线收敛到 `v0.2.2`
-- [x] 新建独立 MCP 脚手架仓库，避免后续 MCP 开发继续耦合在平台主仓库中
-- [x] 提供独立脚手架仓库的示例 MCP、合同校验、平台注册 helper 与交接文档
-- [ ] 把当前 `WebGoat` 的“offline / 不可达”提示继续收敛成更可执行的环境诊断信息
-- [ ] 把“为什么项目还没收束”解释得更清楚，覆盖待审批、运行中任务、导出缺失、结论缺失等 blocker
-- [ ] 为“已完成 / 已停止”项目统一终态语义，避免 UI、API、按钮行为不一致
-
-### P1：运行时与后端稳定性
-
-- [ ] 继续把队列/执行状态从 prototype 级文件存储向更 durable 的长期运行模型演进
-- [ ] 完善 cooperative cancellation 在更多 connector family 上的传播与回滚语义
-- [ ] 增强运行中任务的超时、重试、熔断、限流策略
-- [ ] 补更明确的 worker 诊断、lease 争抢、ownership lost 可视化
-- [ ] 增强异常恢复后的审计链，确保“谁接手、何时恢复、为什么恢复”可追溯
-- [ ] 评估是否要把当前“按次请求式 LLM 编排 + 自动收束”演进成更强的状态化控制环，并定义真正的模型侧 pause / resume / finalize 语义
-- [ ] 让截图与 HTML artifact 生命周期进入更 durable 的存储与清理策略
-
-### P1：真实数据与闭环质量
-
-- [ ] 清理历史临时演示数据痕迹，确保默认界面继续保持 empty-first
-- [ ] 补更多真实项目闭环样本，避免平台只验证过单一目标
-- [ ] 为真实结果页补更稳定的分页、筛选、排序与大数据量展示策略
-- [ ] 让项目详情页更明确区分“阶段信息”和“结果信息”，避免信息再次混杂
-- [ ] 让最终结论、报告导出、项目状态在更多页面共用同一份权威读模型，避免多处摘要不一致
-
-### P1：LLM 与配置管理
-
-- [ ] 为 `/settings/llm` 增加配置连通性校验与保存前校验
-- [ ] 补 `apiKey` 掩码模式与“显示/隐藏”调试开关
-- [ ] 增加多模型 profile 管理，而不仅是固定角色配置
-- [ ] 增加失败回退策略，例如主模型失败时切换到备用模型
-- [ ] 记录更完整的 LLM 请求/响应元数据，便于调试但不泄露敏感内容
-
-### P1：MCP 契约与平台治理
-
-- [ ] 继续完善 MCP Server 注册校验错误提示，让字段问题更容易定位
-- [ ] 增加注册前预检与健康检查，降低错误注册概率
-- [ ] 让 MCP 注册页支持模板导入、合同示例与字段自动补全
-- [ ] 增加平台侧 capability coverage 视图，直观看到哪些能力族已经有真实 MCP
-- [ ] 增加 MCP tool 级别的审批策略覆盖与默认并发策略
-
-### P2：外部 MCP 仓库协同
-
-- [ ] 与独立 MCP 仓库对齐合同版本，避免平台注册字段和外部脚手架漂移
-- [ ] 为平台补更明确的“工具缺失提示”，在某个能力族未注册时给操作者清晰反馈
-- [ ] 梳理哪些能力族只需要合同即可，哪些能力族必须补平台桥接或结果归一化
-
-### P2：前端与运维体验
-
-- [ ] 增强系统状态页，展示队列长度、worker 健康、活跃 connector、活跃审批
-- [ ] 增强工作日志与审计日志筛选能力
-- [ ] 补更多结果页联动跳转，例如从漏洞直接跳证据、从证据跳资产
-- [ ] 增强新项目创建后的首次引导，降低空白页困惑
-- [ ] 为关键页面补更完整的加载态、错误态、空态
-
-### P2：测试与质量保障
-
-- [ ] 为 `WebGoat` 第二靶场补自动化验证测试
-- [ ] 增加 environment-blocked 场景测试，覆盖“容器起来但宿主机不可达”的诊断语义
-- [ ] 增加长时间运行、任务中断、恢复接管场景的回归测试
-- [ ] 增加更多真实 MCP 集成测试
-- [ ] 增加“开始项目 -> 审批恢复 -> 自动收束 -> 最终结论”的专项 API 合同测试与 UI E2E 回归
-- [ ] 增加版本化发布说明与 changelog 机制，避免后续里程碑不可追踪
-
-### P3：后续可选增强
-
-- [ ] 多用户与权限分层
-- [ ] 更真实的审批策略矩阵
-- [ ] 结果导出与外部报告生成
-- [ ] 更完整的系统观测与告警
-- [ ] 数据库存储全面替代 prototype-store
-
-## 14. 推荐的下一步开发顺序
-
-建议先按下面顺序继续推进：
-
-1. 平台主仓库继续稳住 durable backend、项目收束诊断语义和项目闭环
-2. 把 `/settings/llm` 做成更接近生产可用的配置入口，补连通性校验、显隐控制和失败诊断
-3. 补“手动开始 -> 审批恢复 -> 自动收束 -> 最终结论”的专项 API 与 E2E 回归
-4. 再继续扩大 durable backend 与运维观测能力
-5. 只有当外部 MCP 仓库交付了新能力且确实需要平台桥接时，再回平台主仓库补连接器或结果归一化
-
-## 15. 备注
-
-- 当前仓库已经适合继续做下一阶段真实后端、运行时治理与项目闭环硬化，但还不适合作为生产系统直接上线
-- 如果你是新的 LLM 接手本项目，先读 `code_index.md`，再读 `roadmap.md`
-- 如果你准备新增一个 MCP，请先对照协议模板仓 `D:\dev\llmpentest-mcp-template` 完成合同设计，再在独立实现仓库里开发具体 server
-- 当前版本 `v0.2.2` 更适合视为“可演示、可验证、可继续接近生产可用的原型里程碑”，而不是最终生产版本
+- 当前版本适合作为可演示、可验证、可继续迭代的原型平台，尚未达到生产部署标准
+- MCP Server 开发建议在独立仓库进行，完成后通过注册合同接入平台
+- `.prototype-store/` 为历史遗留目录，数据已全部迁移到 PostgreSQL
