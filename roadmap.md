@@ -651,19 +651,24 @@
 
 ## Phase 19: Architecture Refactoring (做减法)
 
-- Status: Planned
+- Status: Completed on `2026-03-31`
+- Branch: `feat/phase19-architecture-refactoring` (已合并至 main)
 - Goal: Reduce complexity by splitting 3 monolithic files, deleting ~850 lines of dead code, capping max file size at ~410 lines
 
-### Steps
+### 交付清单
 
-1. **Split `prototype-types.ts`** (918 lines) into 10 domain files under `lib/types/` + barrel re-export
-2. **Delete `prototype-api.ts`** (1,104 lines, 43 functions) → create `api-compositions.ts` (8 composition functions), update 58 import sites to use direct repository imports
-3. **Split `orchestrator-service.ts`** (1,536 lines) into 5 focused modules
+1. **Split `prototype-types.ts`** (918 lines → 10 行 barrel) — 90 个类型拆分到 `lib/types/` 下 10 个领域文件（project/approval/mcp/scheduler/asset/evidence/settings/llm-log/user/payloads）
+2. **Delete `prototype-api.ts`** (1,104 lines, 43 functions) — 35 个零价值透传函数删除，8 个聚合函数迁移到新建 `api-compositions.ts` (780 lines)，58 个 import 站点更新为直接 repository 导入
+3. **Split `orchestrator-service.ts`** (1,536 lines → 421 lines) — 拆为 5 个聚焦模块：orchestrator-service (421), orchestrator-target-scope (192), orchestrator-plan-builder (439), orchestrator-execution (436), orchestrator-local-lab (98)
+4. **代码简化** — 合并重复 import、删除死代码函数 (isTcpTarget)、消除冗余三元运算、去重复 normalizeUrlTarget 函数
 
-### Expected Results
+### 验收标准
 
-- All 178 unit tests + 14 E2E tests pass, zero functionality changes
-- Design spec: `docs/superpowers/specs/2026-03-30-architecture-refactoring-design.md`
+- [x] 79 文件变更，+2,548 / -2,658 行（净减 110 行）
+- [x] 178/178 单元测试通过，33 跳过
+- [x] 14/14 E2E 测试通过
+- [x] 零功能变更 — 所有行为完全保留
+- [x] Design spec: `docs/superpowers/specs/2026-03-30-architecture-refactoring-design.md`
 
 ## Recommended Next Phase
 
