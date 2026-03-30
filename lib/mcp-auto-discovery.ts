@@ -3,7 +3,8 @@ import path from "node:path"
 
 import { registerStoredMcpServer } from "@/lib/mcp-server-repository"
 import { formatTimestamp } from "@/lib/prototype-record-utils"
-import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
+import { prisma } from "@/lib/prisma"
+import { fromLogRecord } from "@/lib/prisma-transforms"
 import type { McpServerRegistrationInput } from "@/lib/mcp-registration-schema"
 
 type McpServersJsonEntry = {
@@ -555,16 +556,16 @@ export async function discoverAndRegisterMcpServers() {
   }
 
   if (registered.length > 0) {
-    const store = readPrototypeStore()
-    store.auditLogs.unshift({
-      id: `audit-auto-discovery-${Date.now()}`,
-      category: "MCP 自动发现",
-      summary: `自动发现并注册 ${registered.length} 个 MCP 服务器：${registered.join(", ")}`,
-      actor: "平台启动",
-      timestamp: formatTimestamp(),
-      status: "已完成",
+    await prisma.auditLog.create({
+      data: fromLogRecord({
+        id: `audit-auto-discovery-${Date.now()}`,
+        category: "MCP 自动发现",
+        summary: `自动发现并注册 ${registered.length} 个 MCP 服务器：${registered.join(", ")}`,
+        actor: "平台启动",
+        timestamp: formatTimestamp(),
+        status: "已完成",
+      }),
     })
-    writePrototypeStore(store)
   }
 
   return {

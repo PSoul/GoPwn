@@ -1,13 +1,13 @@
 import { listStoredProjectFindings } from "@/lib/project-results-repository"
-import { readPrototypeStore } from "@/lib/prototype-store"
+import { listStoredProjects } from "@/lib/project-repository"
 import { withApiHandler } from "@/lib/api-handler"
 import type { VulnCenterSummaryPayload } from "@/lib/prototype-types"
 
 export const GET = withApiHandler(async () => {
-  const store = readPrototypeStore()
+  const projects = await listStoredProjects()
   const allFindings = await listStoredProjectFindings()
 
-  const projectNameMap = new Map(store.projects.map((p) => [p.id, p.name]))
+  const projectNameMap = new Map(projects.map((p) => [p.id, p.name]))
 
   const findingsWithProject = allFindings.map((f) => ({
     ...f,

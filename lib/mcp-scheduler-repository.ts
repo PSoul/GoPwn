@@ -5,14 +5,11 @@ import {
   toDbTimestamp,
 } from "@/lib/prisma-transforms"
 import { formatTimestamp } from "@/lib/prototype-record-utils"
-import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
 import type {
   McpRunRecord,
   McpSchedulerTaskRecord,
   McpSchedulerTaskStatus,
 } from "@/lib/prototype-types"
-
-const USE_PRISMA = process.env.DATA_LAYER === "prisma"
 
 function buildSchedulerTaskId() {
   return `task-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`
@@ -40,39 +37,21 @@ function buildLeaseToken() {
 }
 
 export async function listStoredSchedulerTasks(projectId?: string) {
-  if (USE_PRISMA) {
-    const rows = await prisma.schedulerTask.findMany({
-      where: projectId ? { projectId } : undefined,
-      orderBy: { queuedAt: "desc" },
-    })
-    return rows.map(toSchedulerTaskRecord)
-  }
-
-  const tasks = readPrototypeStore().schedulerTasks
-
-  if (!projectId) {
-    return tasks
-  }
-
-  return tasks.filter((task) => task.projectId === projectId)
+  const rows = await prisma.schedulerTask.findMany({
+    where: projectId ? { projectId } : undefined,
+    orderBy: { queuedAt: "desc" },
+  })
+  return rows.map(toSchedulerTaskRecord)
 }
 
 export async function getStoredSchedulerTaskById(taskId: string) {
-  if (USE_PRISMA) {
-    const row = await prisma.schedulerTask.findUnique({ where: { id: taskId } })
-    return row ? toSchedulerTaskRecord(row) : null
-  }
-
-  return readPrototypeStore().schedulerTasks.find((task) => task.id === taskId) ?? null
+  const row = await prisma.schedulerTask.findUnique({ where: { id: taskId } })
+  return row ? toSchedulerTaskRecord(row) : null
 }
 
 export async function getStoredSchedulerTaskByRunId(runId: string) {
-  if (USE_PRISMA) {
-    const row = await prisma.schedulerTask.findFirst({ where: { runId } })
-    return row ? toSchedulerTaskRecord(row) : null
-  }
-
-  return readPrototypeStore().schedulerTasks.find((task) => task.runId === runId) ?? null
+  const row = await prisma.schedulerTask.findFirst({ where: { runId } })
+  return row ? toSchedulerTaskRecord(row) : null
 }
 
 export async function createStoredSchedulerTask(
@@ -106,15 +85,7 @@ export async function createStoredSchedulerTask(
     summaryLines: input.summaryLines ?? [...run.summaryLines],
   }
 
-  if (USE_PRISMA) {
-    await prisma.schedulerTask.create({ data: fromSchedulerTaskRecord(task) })
-    return task
-  }
-
-  const store = readPrototypeStore()
-  store.schedulerTasks.unshift(task)
-  writePrototypeStore(store)
-
+  await prisma.schedulerTask.create({ data: fromSchedulerTaskRecord(task) })
   return task
 }
 
@@ -165,44 +136,24 @@ export async function updateStoredSchedulerTask(
     >
   >,
 ) {
-  if (USE_PRISMA) {
-    const existing = await prisma.schedulerTask.findUnique({ where: { id: taskId } })
-    if (!existing) return null
-    const data: Record<string, unknown> = {}
-    if (patch.status !== undefined) data.status = patch.status
-    if (patch.attempts !== undefined) data.attempts = patch.attempts
-    if (patch.connectorMode !== undefined) data.connectorMode = patch.connectorMode
-    if (patch.summaryLines !== undefined) data.summaryLines = patch.summaryLines
-    if (patch.lastError !== undefined) data.lastError = patch.lastError ?? null
-    if (patch.recoveryCount !== undefined) data.recoveryCount = patch.recoveryCount ?? null
-    if (patch.workerId !== undefined) data.workerId = patch.workerId ?? null
-    if (patch.leaseToken !== undefined) data.leaseToken = patch.leaseToken ?? null
-    if (patch.leaseStartedAt !== undefined) data.leaseStartedAt = patch.leaseStartedAt ?? null
-    if (patch.leaseExpiresAt !== undefined) data.leaseExpiresAt = patch.leaseExpiresAt ?? null
-    if (patch.heartbeatAt !== undefined) data.heartbeatAt = patch.heartbeatAt ?? null
-    if (patch.lastRecoveredAt !== undefined) data.lastRecoveredAt = patch.lastRecoveredAt ?? null
-    if (patch.availableAt !== undefined) data.availableAt = toDbTimestamp(patch.availableAt)
-    const updated = await prisma.schedulerTask.update({ where: { id: taskId }, data })
-    return toSchedulerTaskRecord(updated)
-  }
-
-  const store = readPrototypeStore()
-  const taskIndex = store.schedulerTasks.findIndex((task) => task.id === taskId)
-
-  if (taskIndex < 0) {
-    return null
-  }
-
-  const nextTask: McpSchedulerTaskRecord = {
-    ...store.schedulerTasks[taskIndex],
-    ...patch,
-    updatedAt: patch.updatedAt ?? formatTimestamp(),
-  }
-
-  store.schedulerTasks[taskIndex] = nextTask
-  writePrototypeStore(store)
-
-  return nextTask
+  const existing = await prisma.schedulerTask.findUnique({ where: { id: taskId } })
+  if (!existing) return null
+  const data: Record<string, unknown> = {}
+  if (patch.status !== undefined) data.status = patch.status
+  if (patch.attempts !== undefined) data.attempts = patch.attempts
+  if (patch.connectorMode !== undefined) data.connectorMode = patch.connectorMode
+  if (patch.summaryLines !== undefined) data.summaryLines = patch.summaryLines
+  if (patch.lastError !== undefined) data.lastError = patch.lastError ?? null
+  if (patch.recoveryCount !== undefined) data.recoveryCount = patch.recoveryCount ?? null
+  if (patch.workerId !== undefined) data.workerId = patch.workerId ?? null
+  if (patch.leaseToken !== undefined) data.leaseToken = patch.leaseToken ?? null
+  if (patch.leaseStartedAt !== undefined) data.leaseStartedAt = patch.leaseStartedAt ?? null
+  if (patch.leaseExpiresAt !== undefined) data.leaseExpiresAt = patch.leaseExpiresAt ?? null
+  if (patch.heartbeatAt !== undefined) data.heartbeatAt = patch.heartbeatAt ?? null
+  if (patch.lastRecoveredAt !== undefined) data.lastRecoveredAt = patch.lastRecoveredAt ?? null
+  if (patch.availableAt !== undefined) data.availableAt = toDbTimestamp(patch.availableAt)
+  const updated = await prisma.schedulerTask.update({ where: { id: taskId }, data })
+  return toSchedulerTaskRecord(updated)
 }
 
 export async function claimStoredSchedulerTask(
@@ -214,62 +165,41 @@ export async function claimStoredSchedulerTask(
     leaseDurationMs?: number
   },
 ) {
-  if (USE_PRISMA) {
-    const now = input.now ?? formatTimestamp()
-    const nowDate = toDbTimestamp(now)
-    const claimableStatuses = ["ready", "retry_scheduled", "delayed"]
-
-    // Conditional update for atomicity — only succeeds if status + availableAt match
-    const result = await prisma.schedulerTask.updateMany({
-      where: {
-        id: taskId,
-        status: { in: claimableStatuses },
-        availableAt: { lte: nowDate },
-      },
-      data: {
-        status: "running",
-        workerId: input.workerId,
-        leaseToken: input.leaseToken ?? buildLeaseToken(),
-        leaseStartedAt: now,
-        leaseExpiresAt: addMilliseconds(now, input.leaseDurationMs ?? 30_000),
-        heartbeatAt: now,
-        lastError: null,
-      },
-    })
-    if (result.count === 0) return null
-
-    // Increment attempts + append summary separately (need current values)
-    const row = await prisma.schedulerTask.findUnique({ where: { id: taskId } })
-    if (!row) return null
-    const currentSummary = row.summaryLines ?? []
-    const updated = await prisma.schedulerTask.update({
-      where: { id: taskId },
-      data: {
-        attempts: row.attempts + 1,
-        summaryLines: [...currentSummary, `执行 worker ${input.workerId} 已认领任务并建立执行租约。`],
-      },
-    })
-    return toSchedulerTaskRecord(updated)
-  }
-
-  const task = await getStoredSchedulerTaskById(taskId)
   const now = input.now ?? formatTimestamp()
+  const nowDate = toDbTimestamp(now)
+  const claimableStatuses = ["ready", "retry_scheduled", "delayed"]
 
-  if (!task || !["ready", "retry_scheduled", "delayed"].includes(task.status) || task.availableAt > now) {
-    return null
-  }
-
-  return updateStoredSchedulerTask(task.id, {
-    attempts: task.attempts + 1,
-    heartbeatAt: now,
-    lastError: undefined,
-    leaseExpiresAt: addMilliseconds(now, input.leaseDurationMs ?? 30_000),
-    leaseStartedAt: now,
-    leaseToken: input.leaseToken ?? buildLeaseToken(),
-    status: "running",
-    summaryLines: [...task.summaryLines, `执行 worker ${input.workerId} 已认领任务并建立执行租约。`],
-    workerId: input.workerId,
+  // Conditional update for atomicity — only succeeds if status + availableAt match
+  const result = await prisma.schedulerTask.updateMany({
+    where: {
+      id: taskId,
+      status: { in: claimableStatuses },
+      availableAt: { lte: nowDate },
+    },
+    data: {
+      status: "running",
+      workerId: input.workerId,
+      leaseToken: input.leaseToken ?? buildLeaseToken(),
+      leaseStartedAt: now,
+      leaseExpiresAt: addMilliseconds(now, input.leaseDurationMs ?? 30_000),
+      heartbeatAt: now,
+      lastError: null,
+    },
   })
+  if (result.count === 0) return null
+
+  // Increment attempts + append summary separately (need current values)
+  const row = await prisma.schedulerTask.findUnique({ where: { id: taskId } })
+  if (!row) return null
+  const currentSummary = row.summaryLines ?? []
+  const updated = await prisma.schedulerTask.update({
+    where: { id: taskId },
+    data: {
+      attempts: row.attempts + 1,
+      summaryLines: [...currentSummary, `执行 worker ${input.workerId} 已认领任务并建立执行租约。`],
+    },
+  })
+  return toSchedulerTaskRecord(updated)
 }
 
 export async function heartbeatStoredSchedulerTask(
@@ -281,37 +211,23 @@ export async function heartbeatStoredSchedulerTask(
     leaseDurationMs?: number
   },
 ) {
-  if (USE_PRISMA) {
-    const now = input.now ?? formatTimestamp()
-    // Conditional update verifying workerId + leaseToken
-    const result = await prisma.schedulerTask.updateMany({
-      where: {
-        id: taskId,
-        status: "running",
-        workerId: input.workerId,
-        leaseToken: input.leaseToken,
-      },
-      data: {
-        heartbeatAt: now,
-        leaseExpiresAt: addMilliseconds(now, input.leaseDurationMs ?? 30_000),
-      },
-    })
-    if (result.count === 0) return null
-    const row = await prisma.schedulerTask.findUnique({ where: { id: taskId } })
-    return row ? toSchedulerTaskRecord(row) : null
-  }
-
-  const task = await getStoredSchedulerTaskById(taskId)
   const now = input.now ?? formatTimestamp()
-
-  if (!task || task.status !== "running" || task.workerId !== input.workerId || task.leaseToken !== input.leaseToken) {
-    return null
-  }
-
-  return updateStoredSchedulerTask(task.id, {
-    heartbeatAt: now,
-    leaseExpiresAt: addMilliseconds(now, input.leaseDurationMs ?? 30_000),
+  // Conditional update verifying workerId + leaseToken
+  const result = await prisma.schedulerTask.updateMany({
+    where: {
+      id: taskId,
+      status: "running",
+      workerId: input.workerId,
+      leaseToken: input.leaseToken,
+    },
+    data: {
+      heartbeatAt: now,
+      leaseExpiresAt: addMilliseconds(now, input.leaseDurationMs ?? 30_000),
+    },
   })
+  if (result.count === 0) return null
+  const row = await prisma.schedulerTask.findUnique({ where: { id: taskId } })
+  return row ? toSchedulerTaskRecord(row) : null
 }
 
 export async function clearStoredSchedulerTaskLease(taskId: string) {
@@ -337,77 +253,43 @@ export async function recoverExpiredStoredSchedulerTasks(
     runId?: string
   } = {},
 ) {
-  if (USE_PRISMA) {
-    const now = input.now ?? formatTimestamp()
-    const nowDate = toDbTimestamp(now)
-    const where: Record<string, unknown> = { status: "running" }
-    if (input.projectId) where.projectId = input.projectId
-    if (input.runId) where.runId = input.runId
-    // Find expired: running tasks with leaseExpiresAt < now or leaseExpiresAt is null
-    where.OR = [
-      { leaseExpiresAt: { lt: now } },
-      { leaseExpiresAt: null },
-    ]
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const expiredRows = await prisma.schedulerTask.findMany({ where: where as any })
-    const results: McpSchedulerTaskRecord[] = []
-    for (const row of expiredRows) {
-      const task = toSchedulerTaskRecord(row)
-      const updated = await prisma.schedulerTask.update({
-        where: { id: task.id },
-        data: {
-          status: "ready",
-          availableAt: nowDate,
-          heartbeatAt: null,
-          lastRecoveredAt: now,
-          leaseExpiresAt: null,
-          leaseStartedAt: null,
-          leaseToken: null,
-          recoveryCount: (row.recoveryCount ?? 0) + 1,
-          summaryLines: [
-            ...task.summaryLines,
-            task.leaseExpiresAt
-              ? "执行 worker 租约已过期，任务已恢复回待执行队列。"
-              : "任务缺少可用执行租约元数据，已恢复回待执行队列。",
-          ],
-          workerId: null,
-        },
-      })
-      results.push(toSchedulerTaskRecord(updated))
-    }
-    return results
-  }
-
   const now = input.now ?? formatTimestamp()
-  const allTasks = await listStoredSchedulerTasks(input.projectId)
-
-  const expired = allTasks
-    .filter((task) => (!input.runId ? true : task.runId === input.runId))
-    .filter((task) => task.status === "running")
-    .filter((task) => !task.leaseExpiresAt || task.leaseExpiresAt < now)
-
+  const nowDate = toDbTimestamp(now)
+  const where: Record<string, unknown> = { status: "running" }
+  if (input.projectId) where.projectId = input.projectId
+  if (input.runId) where.runId = input.runId
+  // Find expired: running tasks with leaseExpiresAt < now or leaseExpiresAt is null
+  where.OR = [
+    { leaseExpiresAt: { lt: now } },
+    { leaseExpiresAt: null },
+  ]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const expiredRows = await prisma.schedulerTask.findMany({ where: where as any })
   const results: McpSchedulerTaskRecord[] = []
-  for (const task of expired) {
-    const updated = await updateStoredSchedulerTask(task.id, {
-      availableAt: now,
-      heartbeatAt: undefined,
-      lastRecoveredAt: now,
-      leaseExpiresAt: undefined,
-      leaseStartedAt: undefined,
-      leaseToken: undefined,
-      recoveryCount: (task.recoveryCount ?? 0) + 1,
-      status: "ready",
-      summaryLines: [
-        ...task.summaryLines,
-        task.leaseExpiresAt
-          ? "执行 worker 租约已过期，任务已恢复回待执行队列。"
-          : "任务缺少可用执行租约元数据，已恢复回待执行队列。",
-      ],
-      workerId: undefined,
+  for (const row of expiredRows) {
+    const task = toSchedulerTaskRecord(row)
+    const updated = await prisma.schedulerTask.update({
+      where: { id: task.id },
+      data: {
+        status: "ready",
+        availableAt: nowDate,
+        heartbeatAt: null,
+        lastRecoveredAt: now,
+        leaseExpiresAt: null,
+        leaseStartedAt: null,
+        leaseToken: null,
+        recoveryCount: (row.recoveryCount ?? 0) + 1,
+        summaryLines: [
+          ...task.summaryLines,
+          task.leaseExpiresAt
+            ? "执行 worker 租约已过期，任务已恢复回待执行队列。"
+            : "任务缺少可用执行租约元数据，已恢复回待执行队列。",
+        ],
+        workerId: null,
+      },
     })
-    if (updated) results.push(updated)
+    results.push(toSchedulerTaskRecord(updated))
   }
-
   return results
 }
 
@@ -418,30 +300,19 @@ export async function listReadyStoredSchedulerTasks(
     now?: string
   } = {},
 ) {
-  if (USE_PRISMA) {
-    const now = input.now ?? formatTimestamp()
-    const nowDate = toDbTimestamp(now)
-    const readyStatuses = ["ready", "retry_scheduled", "delayed"]
-    const where: Record<string, unknown> = {
-      status: { in: readyStatuses },
-      availableAt: { lte: nowDate },
-    }
-    if (input.projectId) where.projectId = input.projectId
-    if (input.runId) where.runId = input.runId
-    const rows = await prisma.schedulerTask.findMany({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      where: where as any,
-      orderBy: { availableAt: "asc" },
-    })
-    return rows.map(toSchedulerTaskRecord)
-  }
-
   const now = input.now ?? formatTimestamp()
-  const readyStatuses: McpSchedulerTaskStatus[] = ["ready", "retry_scheduled", "delayed"]
-
-  return (await listStoredSchedulerTasks(input.projectId))
-    .filter((task) => (!input.runId ? true : task.runId === input.runId))
-    .filter((task) => readyStatuses.includes(task.status))
-    .filter((task) => task.availableAt <= now)
-    .sort((left, right) => left.availableAt.localeCompare(right.availableAt))
+  const nowDate = toDbTimestamp(now)
+  const readyStatuses = ["ready", "retry_scheduled", "delayed"]
+  const where: Record<string, unknown> = {
+    status: { in: readyStatuses },
+    availableAt: { lte: nowDate },
+  }
+  if (input.projectId) where.projectId = input.projectId
+  if (input.runId) where.runId = input.runId
+  const rows = await prisma.schedulerTask.findMany({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    where: where as any,
+    orderBy: { availableAt: "asc" },
+  })
+  return rows.map(toSchedulerTaskRecord)
 }

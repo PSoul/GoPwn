@@ -2,10 +2,7 @@ import bcrypt from "bcryptjs"
 
 import { prisma } from "@/lib/prisma"
 import { toUserRecord } from "@/lib/prisma-transforms"
-import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
-import type { LogRecord, UserRecord, UserRole } from "@/lib/prototype-types"
-
-const USE_PRISMA = process.env.DATA_LAYER === "prisma"
+import type { UserRecord, UserRole } from "@/lib/prototype-types"
 
 const CAPTCHA_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 const CAPTCHA_LENGTH = 4
@@ -59,97 +56,41 @@ const DEFAULT_SEED_USERS: Array<Omit<UserRecord, "id" | "createdAt">> = [
   },
 ]
 
-function generateUserId(): string {
-  return `user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-}
-
-function formatTimestamp(date = new Date()) {
-  const year = String(date.getFullYear())
-  const month = String(date.getMonth() + 1).padStart(2, "0")
-  const day = String(date.getDate()).padStart(2, "0")
-  const hours = String(date.getHours()).padStart(2, "0")
-  const minutes = String(date.getMinutes()).padStart(2, "0")
-
-  return `${year}-${month}-${day} ${hours}:${minutes}`
-}
-
 /**
  * Ensure at least the seed users exist. Also creates an admin user
  * from env vars if ADMIN_EMAIL is set and no admin exists yet.
  */
 export async function ensureSeedUsers(): Promise<void> {
-  if (USE_PRISMA) {
-    const existing = await prisma.user.findMany()
-    if (existing.length === 0) {
-      for (const seed of DEFAULT_SEED_USERS) {
-        await prisma.user.create({
-          data: {
-            account: seed.email,
-            password: seed.passwordHash,
-            displayName: seed.displayName,
-            role: seed.role,
-            status: seed.status,
-          },
-        })
-      }
-    }
-
-    const adminEmail = process.env.ADMIN_EMAIL
-    const adminPassword = process.env.ADMIN_PASSWORD
-    if (adminEmail && adminPassword) {
-      const existingAdmin = await prisma.user.findFirst({ where: { account: adminEmail } })
-      if (!existingAdmin) {
-        await prisma.user.create({
-          data: {
-            account: adminEmail,
-            password: bcrypt.hashSync(adminPassword, 10),
-            displayName: process.env.ADMIN_DISPLAY_NAME || "管理员",
-            role: "admin",
-            status: "active",
-          },
-        })
-      }
-    }
-    return
-  }
-
-  // ── file store ──
-  const store = readPrototypeStore()
-  let changed = false
-
-  // Seed default users if store is empty
-  if (store.users.length === 0) {
+  const existing = await prisma.user.findMany()
+  if (existing.length === 0) {
     for (const seed of DEFAULT_SEED_USERS) {
-      store.users.push({
-        id: generateUserId(),
-        ...seed,
-        createdAt: formatTimestamp(),
+      await prisma.user.create({
+        data: {
+          account: seed.email,
+          password: seed.passwordHash,
+          displayName: seed.displayName,
+          role: seed.role,
+          status: seed.status,
+        },
       })
     }
-    changed = true
   }
 
-  // Create admin from env vars if configured and no admin exists yet
   const adminEmail = process.env.ADMIN_EMAIL
   const adminPassword = process.env.ADMIN_PASSWORD
   if (adminEmail && adminPassword) {
-    const existingAdmin = store.users.find((u) => u.email === adminEmail)
+    const existingAdmin = await prisma.user.findFirst({ where: { account: adminEmail } })
     if (!existingAdmin) {
-      store.users.push({
-        id: generateUserId(),
-        email: adminEmail,
-        passwordHash: bcrypt.hashSync(adminPassword, 10),
-        displayName: process.env.ADMIN_DISPLAY_NAME || "管理员",
-        role: "admin",
-        status: "active",
-        createdAt: formatTimestamp(),
+      await prisma.user.create({
+        data: {
+          account: adminEmail,
+          password: bcrypt.hashSync(adminPassword, 10),
+          displayName: process.env.ADMIN_DISPLAY_NAME || "管理员",
+          role: "admin",
+          status: "active",
+        },
       })
-      changed = true
     }
-  }
-
-  if (changed) {
-    writePrototypeStore(store)
   }
 }
 
@@ -160,25 +101,15 @@ function stripPasswordHash(user: UserRecord): Omit<UserRecord, "passwordHash"> {
 }
 
 export async function listUsers(): Promise<Omit<UserRecord, "passwordHash">[]> {
-  if (USE_PRISMA) {
-    const rows = await prisma.user.findMany()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return rows.map((r: any) => stripPasswordHash(toUserRecord(r)))
-  }
-  const store = readPrototypeStore()
-  return store.users.map(stripPasswordHash)
+  const rows = await prisma.user.findMany()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return rows.map((r: any) => stripPasswordHash(toUserRecord(r)))
 }
 
 export async function getUserById(id: string): Promise<Omit<UserRecord, "passwordHash"> | null> {
-  if (USE_PRISMA) {
-    const row = await prisma.user.findUnique({ where: { id } })
-    if (!row) return null
-    return stripPasswordHash(toUserRecord(row))
-  }
-  const store = readPrototypeStore()
-  const user = store.users.find((u) => u.id === id)
-  if (!user) return null
-  return stripPasswordHash(user)
+  const row = await prisma.user.findUnique({ where: { id } })
+  if (!row) return null
+  return stripPasswordHash(toUserRecord(row))
 }
 
 export async function createUser(input: {
@@ -187,109 +118,52 @@ export async function createUser(input: {
   displayName: string
   role: UserRole
 }): Promise<{ error: string | null; user: Omit<UserRecord, "passwordHash"> | null }> {
-  if (USE_PRISMA) {
-    const existing = await prisma.user.findFirst({ where: { account: input.email } })
-    if (existing) {
-      return { error: "该邮箱已被注册", user: null }
-    }
-    const row = await prisma.user.create({
-      data: {
-        account: input.email,
-        password: bcrypt.hashSync(input.password, 10),
-        displayName: input.displayName,
-        role: input.role,
-        status: "active",
-      },
-    })
-    return { error: null, user: stripPasswordHash(toUserRecord(row)) }
-  }
-
-  const store = readPrototypeStore()
-
-  // Check duplicate email
-  if (store.users.some((u) => u.email === input.email)) {
+  const existing = await prisma.user.findFirst({ where: { account: input.email } })
+  if (existing) {
     return { error: "该邮箱已被注册", user: null }
   }
-
-  const newUser: UserRecord = {
-    id: generateUserId(),
-    email: input.email,
-    passwordHash: bcrypt.hashSync(input.password, 10),
-    displayName: input.displayName,
-    role: input.role,
-    status: "active",
-    createdAt: formatTimestamp(),
-  }
-
-  store.users.push(newUser)
-  writePrototypeStore(store)
-
-  return { error: null, user: stripPasswordHash(newUser) }
+  const row = await prisma.user.create({
+    data: {
+      account: input.email,
+      password: bcrypt.hashSync(input.password, 10),
+      displayName: input.displayName,
+      role: input.role,
+      status: "active",
+    },
+  })
+  return { error: null, user: stripPasswordHash(toUserRecord(row)) }
 }
 
 export async function updateUser(
   id: string,
   patch: { displayName?: string; role?: UserRole; status?: "active" | "disabled"; password?: string },
 ): Promise<{ error: string | null; user: Omit<UserRecord, "passwordHash"> | null }> {
-  if (USE_PRISMA) {
-    const existing = await prisma.user.findUnique({ where: { id } })
-    if (!existing) return { error: "用户不存在", user: null }
+  const existing = await prisma.user.findUnique({ where: { id } })
+  if (!existing) return { error: "用户不存在", user: null }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data: Record<string, any> = {}
-    if (patch.displayName !== undefined) data.displayName = patch.displayName
-    if (patch.role !== undefined) data.role = patch.role
-    if (patch.status !== undefined) data.status = patch.status
-    if (patch.password) data.password = bcrypt.hashSync(patch.password, 10)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data: Record<string, any> = {}
+  if (patch.displayName !== undefined) data.displayName = patch.displayName
+  if (patch.role !== undefined) data.role = patch.role
+  if (patch.status !== undefined) data.status = patch.status
+  if (patch.password) data.password = bcrypt.hashSync(patch.password, 10)
 
-    const row = await prisma.user.update({ where: { id }, data })
-    return { error: null, user: stripPasswordHash(toUserRecord(row)) }
-  }
-
-  const store = readPrototypeStore()
-  const idx = store.users.findIndex((u) => u.id === id)
-  if (idx === -1) return { error: "用户不存在", user: null }
-
-  const user = store.users[idx]
-  if (patch.displayName !== undefined) user.displayName = patch.displayName
-  if (patch.role !== undefined) user.role = patch.role
-  if (patch.status !== undefined) user.status = patch.status
-  if (patch.password) user.passwordHash = bcrypt.hashSync(patch.password, 10)
-
-  store.users[idx] = user
-  writePrototypeStore(store)
-
-  return { error: null, user: stripPasswordHash(user) }
+  const row = await prisma.user.update({ where: { id }, data })
+  return { error: null, user: stripPasswordHash(toUserRecord(row)) }
 }
 
 // --------------- 审计日志 ---------------
 
 async function appendAuditLog(summary: string, actor: string, status: string) {
-  if (USE_PRISMA) {
-    await prisma.auditLog.create({
-      data: {
-        id: `audit-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-        category: "认证与会话",
-        summary,
-        actor,
-        status,
-      },
-    })
-    return
-  }
-
-  const store = readPrototypeStore()
-  const log: LogRecord = {
-    id: `audit-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-    category: "认证与会话",
-    summary,
-    actor,
-    timestamp: formatTimestamp(),
-    status,
-  }
-
-  store.auditLogs.unshift(log)
-  writePrototypeStore(store)
+  await prisma.auditLog.create({
+    data: {
+      id: `audit-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+      category: "认证与会话",
+      summary,
+      actor,
+      status,
+    },
+  })
 }
 
 // --------------- 认证 ---------------
@@ -310,71 +184,35 @@ export async function authenticateResearcher(input: {
   // Ensure seed users exist on first login attempt
   await ensureSeedUsers()
 
-  if (USE_PRISMA) {
-    const row = await prisma.user.findFirst({ where: { account: input.account.trim() } })
+  const row = await prisma.user.findFirst({ where: { account: input.account.trim() } })
 
-    if (!row || !bcrypt.compareSync(input.password, row.password)) {
-      return {
-        error: "账号或密码不正确，请重新确认。",
-        user: null,
-      }
-    }
-
-    if (row.status === "disabled") {
-      return {
-        error: "该账号已被禁用，请联系管理员。",
-        user: null,
-      }
-    }
-
-    // Prisma User model has no lastLoginAt — updatedAt serves as proxy
-    await prisma.user.update({ where: { id: row.id }, data: { updatedAt: new Date() } })
-
-    await appendAuditLog(`${row.displayName} 登录平台`, row.displayName, "已完成")
-
-    return {
-      error: null,
-      user: {
-        id: row.id,
-        account: row.account,
-        displayName: row.displayName,
-        role: row.role,
-        status: row.status,
-      },
-    }
-  }
-
-  const store = readPrototypeStore()
-  const user = store.users.find((u) => u.email === input.account.trim())
-
-  if (!user || !bcrypt.compareSync(input.password, user.passwordHash)) {
+  if (!row || !bcrypt.compareSync(input.password, row.password)) {
     return {
       error: "账号或密码不正确，请重新确认。",
       user: null,
     }
   }
 
-  if (user.status === "disabled") {
+  if (row.status === "disabled") {
     return {
       error: "该账号已被禁用，请联系管理员。",
       user: null,
     }
   }
 
-  // Update last login time
-  user.lastLoginAt = formatTimestamp()
-  writePrototypeStore(store)
+  // Prisma User model has no lastLoginAt — updatedAt serves as proxy
+  await prisma.user.update({ where: { id: row.id }, data: { updatedAt: new Date() } })
 
-  await appendAuditLog(`${user.displayName} 登录平台`, user.displayName, "已完成")
+  await appendAuditLog(`${row.displayName} 登录平台`, row.displayName, "已完成")
 
   return {
     error: null,
     user: {
-      id: user.id,
-      account: user.email,
-      displayName: user.displayName,
-      role: user.role,
-      status: user.status,
+      id: row.id,
+      account: row.account,
+      displayName: row.displayName,
+      role: row.role,
+      status: row.status,
     },
   }
 }

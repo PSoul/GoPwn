@@ -3,7 +3,8 @@ import { listStoredEvidence } from "@/lib/evidence-repository"
 import { listStoredProjectFindings } from "@/lib/project-results-repository"
 import { listStoredMcpTools } from "@/lib/mcp-repository"
 import { listBuiltInMcpTools } from "@/lib/built-in-mcp-tools"
-import { readPrototypeStore } from "@/lib/prototype-store"
+import { prisma } from "@/lib/prisma"
+import { toOrchestratorRoundRecord, toMcpRunRecord } from "@/lib/prisma-transforms"
 import { getAgentConfig } from "@/lib/agent-config"
 import { summarizeToolOutput } from "@/lib/tool-output-summarizer"
 import { analyzeFailure, formatFailureForPrompt } from "@/lib/failure-analyzer"
@@ -90,11 +91,14 @@ export function buildRoundSummary(projectId: string, round: OrchestratorRoundRec
   return parts.join(", ")
 }
 
-export function buildCompressedRoundHistory(projectId: string): string {
+export async function buildCompressedRoundHistory(projectId: string): Promise<string> {
   const config = getAgentConfig()
   const detailCount = config.context.roundHistoryDetailCount
-  const store = readPrototypeStore()
-  const rounds = store.orchestratorRounds[projectId] ?? []
+  const dbRounds = await prisma.orchestratorRound.findMany({
+    where: { projectId },
+    orderBy: { round: "asc" },
+  })
+  const rounds = dbRounds.map(toOrchestratorRoundRecord)
 
   if (rounds.length === 0) {
     return "尚未执行过任何编排轮次。"
@@ -135,8 +139,11 @@ export function buildCompressedRoundHistory(projectId: string): string {
 }
 
 export async function buildLastRoundDetail(projectId: string): Promise<string> {
-  const store = readPrototypeStore()
-  const runs = store.mcpRuns.filter((r) => r.projectId === projectId)
+  const dbRuns = await prisma.mcpRun.findMany({
+    where: { projectId },
+    orderBy: { createdAt: "asc" },
+  })
+  const runs = dbRuns.map(toMcpRunRecord)
 
   if (runs.length === 0) {
     return "上一轮没有执行记录。"
@@ -176,9 +183,11 @@ export async function buildLastRoundDetail(projectId: string): Promise<string> {
 }
 
 export async function buildUnusedCapabilities(projectId: string): Promise<string> {
-  const store = readPrototypeStore()
-  const runs = store.mcpRuns.filter((r) => r.projectId === projectId)
-  const usedCapabilities = new Set(runs.map((r) => r.capability))
+  const dbRuns = await prisma.mcpRun.findMany({
+    where: { projectId },
+    select: { capability: true },
+  })
+  const usedCapabilities = new Set(dbRuns.map((r) => r.capability))
 
   const allTools = [...(await listStoredMcpTools()), ...listBuiltInMcpTools()].filter(
     (t) => t.status === "启用",

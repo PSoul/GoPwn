@@ -9,7 +9,6 @@ import {
   fromLogRecord,
 } from "@/lib/prisma-transforms"
 import { normalizeProjectSchedulerControl } from "@/lib/project-scheduler-lifecycle"
-import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
 import { createStoredSchedulerTaskFromRun } from "@/lib/mcp-scheduler-repository"
 import type {
   ApprovalRecord,
@@ -17,12 +16,9 @@ import type {
   McpDispatchPayload,
   McpRunRecord,
   McpToolRecord,
-  ProjectDetailRecord,
   ProjectKnowledgeItem,
   ProjectRecord,
 } from "@/lib/prototype-types"
-
-const USE_PRISMA = process.env.DATA_LAYER === "prisma"
 
 const approvalStatusPriority: Record<ApprovalRecord["status"], number> = {
   待处理: 0,
@@ -68,40 +64,6 @@ function reorderApprovals(approvals: ApprovalRecord[]) {
       ...approval,
       queuePosition: index + 1,
     }))
-}
-
-function updateProjectPendingCounts(approvals: ApprovalRecord[]) {
-  return approvals.reduce<Record<string, number>>((accumulator, approval) => {
-    if (approval.status === "待处理") {
-      accumulator[approval.projectId] = (accumulator[approval.projectId] ?? 0) + 1
-    }
-
-    return accumulator
-  }, {})
-}
-
-function pushProjectActivity(
-  detail: ProjectDetailRecord,
-  title: string,
-  detailText: string,
-  tone: "success" | "warning" | "danger" | "info",
-) {
-  return {
-    ...detail,
-    activity: [
-      {
-        title,
-        detail: detailText,
-        meta: "MCP 网关",
-        tone,
-      },
-      ...detail.activity,
-    ].slice(0, 8),
-    currentStage: {
-      ...detail.currentStage,
-      updatedAt: formatTimestamp(),
-    },
-  }
 }
 
 function buildRunId() {
@@ -282,64 +244,30 @@ function shouldRequireApproval({
 }
 
 export async function listStoredMcpRuns(projectId?: string) {
-  if (USE_PRISMA) {
-    const rows = await prisma.mcpRun.findMany({
-      where: projectId ? { projectId } : undefined,
-      orderBy: { createdAt: "desc" },
-    })
-    return rows.map(toMcpRunRecord)
-  }
-
-  const runs = readPrototypeStore().mcpRuns
-
-  if (!projectId) {
-    return runs
-  }
-
-  return runs.filter((run) => run.projectId === projectId)
+  const rows = await prisma.mcpRun.findMany({
+    where: projectId ? { projectId } : undefined,
+    orderBy: { createdAt: "desc" },
+  })
+  return rows.map(toMcpRunRecord)
 }
 
 export async function getStoredMcpRunById(runId: string) {
-  if (USE_PRISMA) {
-    const row = await prisma.mcpRun.findUnique({ where: { id: runId } })
-    return row ? toMcpRunRecord(row) : null
-  }
-
-  return readPrototypeStore().mcpRuns.find((run) => run.id === runId) ?? null
+  const row = await prisma.mcpRun.findUnique({ where: { id: runId } })
+  return row ? toMcpRunRecord(row) : null
 }
 
 export async function updateStoredMcpRun(
   runId: string,
   patch: Partial<Pick<McpRunRecord, "status" | "summaryLines" | "updatedAt" | "connectorMode">>,
 ) {
-  if (USE_PRISMA) {
-    const existing = await prisma.mcpRun.findUnique({ where: { id: runId } })
-    if (!existing) return null
-    const data: Record<string, unknown> = {}
-    if (patch.status !== undefined) data.status = patch.status
-    if (patch.summaryLines !== undefined) data.summaryLines = patch.summaryLines
-    if (patch.connectorMode !== undefined) data.connectorMode = patch.connectorMode
-    const updated = await prisma.mcpRun.update({ where: { id: runId }, data })
-    return toMcpRunRecord(updated)
-  }
-
-  const store = readPrototypeStore()
-  const runIndex = store.mcpRuns.findIndex((run) => run.id === runId)
-
-  if (runIndex < 0) {
-    return null
-  }
-
-  const nextRun: McpRunRecord = {
-    ...store.mcpRuns[runIndex],
-    ...patch,
-    updatedAt: patch.updatedAt ?? formatTimestamp(),
-  }
-
-  store.mcpRuns[runIndex] = nextRun
-  writePrototypeStore(store)
-
-  return nextRun
+  const existing = await prisma.mcpRun.findUnique({ where: { id: runId } })
+  if (!existing) return null
+  const data: Record<string, unknown> = {}
+  if (patch.status !== undefined) data.status = patch.status
+  if (patch.summaryLines !== undefined) data.summaryLines = patch.summaryLines
+  if (patch.connectorMode !== undefined) data.connectorMode = patch.connectorMode
+  const updated = await prisma.mcpRun.update({ where: { id: runId }, data })
+  return toMcpRunRecord(updated)
 }
 
 export async function updateStoredMcpRunResult(runId: string, summaryLines: string[]) {
@@ -347,216 +275,68 @@ export async function updateStoredMcpRunResult(runId: string, summaryLines: stri
 }
 
 export async function dispatchStoredMcpRun(projectId: string, input: McpDispatchInput): Promise<McpDispatchPayload | null> {
-  if (USE_PRISMA) {
-    // Import transforms for reading tool records
-    const { toProjectRecord, toProjectDetailRecord, toMcpToolRecord, toApprovalControlRecord: toGAC } = await import("@/lib/prisma-transforms")
+  // Import transforms for reading tool records
+  const { toProjectRecord, toProjectDetailRecord, toMcpToolRecord, toApprovalControlRecord: toGAC } = await import("@/lib/prisma-transforms")
 
-    const [projectRow, detailRow] = await Promise.all([
-      prisma.project.findUnique({ where: { id: projectId } }),
-      prisma.projectDetail.findUnique({ where: { projectId } }),
-    ])
-    if (!projectRow || !detailRow) return null
+  const [projectRow, detailRow] = await Promise.all([
+    prisma.project.findUnique({ where: { id: projectId } }),
+    prisma.projectDetail.findUnique({ where: { projectId } }),
+  ])
+  if (!projectRow || !detailRow) return null
 
-    const project = toProjectRecord(projectRow)
-    const detail = toProjectDetailRecord(detailRow)
-    const schedulerControlRow = await prisma.projectSchedulerControl.findUnique({ where: { projectId } })
-    const schedulerControl = normalizeProjectSchedulerControl({
-      control: schedulerControlRow
-        ? (await import("@/lib/prisma-transforms")).toProjectSchedulerControlRecord(schedulerControlRow)
-        : undefined,
-      projectStatus: project.status,
-      updatedAt: project.lastUpdated,
-    })
-
-    if (schedulerControl.lifecycle === "idle") {
-      await prisma.projectSchedulerControl.upsert({
-        where: { projectId },
-        create: { projectId, lifecycle: "running", paused: false, note: "显式派发 MCP 动作后，项目已自动进入运行态。" },
-        update: { lifecycle: "running", paused: false, note: "显式派发 MCP 动作后，项目已自动进入运行态。" },
-      })
-    }
-
-    // Resolve tools — read from Prisma mcpTools + built-in
-    const dbTools = (await prisma.mcpTool.findMany()).map(toMcpToolRecord)
-    const { enabledTool, matchedTool } = selectToolForCapability(dbTools, input)
-    const builtInSelection =
-      enabledTool || matchedTool
-        ? { enabledTool: undefined, matchedTool: undefined }
-        : selectToolForCapability(listBuiltInMcpTools(), input)
-    const resolvedEnabledTool = enabledTool ?? builtInSelection.enabledTool
-    const resolvedMatchedTool = matchedTool ?? builtInSelection.matchedTool
-
-    // Read global approval control
-    const globalControlRow = await prisma.globalApprovalControl.findUnique({ where: { id: "global" } })
-    const globalControl = globalControlRow
-      ? toGAC(globalControlRow)
-      : { enabled: true, mode: "", autoApproveLowRisk: true, description: "", note: "" }
-
-    // Helper to push activity into detail JSON
-    const pushActivityPrisma = async (title: string, detailText: string, tone: string) => {
-      const latestDetail = await prisma.projectDetail.findUnique({ where: { projectId } })
-      if (!latestDetail) return
-      const currentActivity = (latestDetail.activity ?? []) as unknown as ProjectKnowledgeItem[]
-      const newActivity = [
-        { title, detail: detailText, meta: "MCP 网关", tone },
-        ...currentActivity,
-      ].slice(0, 8)
-      const currentStage = (latestDetail.currentStage ?? {}) as Record<string, unknown>
-      await prisma.projectDetail.update({
-        where: { projectId },
-        data: {
-          activity: newActivity as unknown as Prisma.InputJsonArray,
-          currentStage: { ...currentStage, updatedAt: formatTimestamp() } as unknown as Prisma.InputJsonObject,
-        },
-      })
-    }
-
-    if (!resolvedEnabledTool) {
-      const blockedRun = createRunRecord({
-        input,
-        project,
-        tool: resolvedMatchedTool,
-        status: "已阻塞",
-        dispatchMode: "阻塞",
-        summaryLines: [
-          `能力族 ${input.capability} 当前没有可用的启用工具。`,
-          resolvedMatchedTool
-            ? `${resolvedMatchedTool.toolName} 当前状态为 ${resolvedMatchedTool.status}，请先恢复健康或启用状态。`
-            : "网关尚未接入对应能力的 MCP 工具，请先完成注册规范接入。",
-        ],
-      })
-
-      await prisma.mcpRun.create({ data: fromMcpRunRecord(blockedRun) })
-      await prisma.project.update({
-        where: { id: projectId },
-        data: { status: "已阻塞", lastActor: "MCP 网关 · 阻塞" },
-      })
-      await pushActivityPrisma(`${input.requestedAction} 已阻塞`, blockedRun.summaryLines[1], "danger")
-      const auditLog = createAuditLog(`MCP 调度阻塞：${project.name} -> ${input.requestedAction}`, "已阻塞", project.name)
-      await prisma.auditLog.create({ data: fromLogRecord(auditLog) })
-      createStoredSchedulerTaskFromRun(blockedRun)
-      return { run: blockedRun }
-    }
-
-    const requiresApproval = shouldRequireApproval({
-      input,
-      projectControlEnabled: detail.approvalControl.enabled,
-      projectAutoApproveLowRisk: detail.approvalControl.autoApproveLowRisk,
-      globalControlEnabled: globalControl.enabled,
-      globalAutoApproveLowRisk: globalControl.autoApproveLowRisk,
-      tool: resolvedEnabledTool,
-    })
-
-    if (requiresApproval) {
-      const approval = createApprovalRecord(project, resolvedEnabledTool, input)
-      const pendingRun = createRunRecord({
-        input,
-        project,
-        tool: resolvedEnabledTool,
-        status: "待审批",
-        dispatchMode: "审批后执行",
-        linkedApprovalId: approval.id,
-        summaryLines: [
-          `${input.requestedAction} 已提交审批，等待研究员确认后再调用 ${resolvedEnabledTool.toolName}。`,
-          "审批通过前，不会向目标环境发起实际探测或验证。",
-        ],
-      })
-
-      await prisma.approval.create({ data: fromApprovalRecord(approval) })
-      // Reorder approvals
-      const allApprovals = (await prisma.approval.findMany()).map(toApprovalRecord)
-      const reordered = reorderApprovals(allApprovals)
-      for (const item of reordered) {
-        await prisma.approval.update({ where: { id: item.id }, data: { queuePosition: item.queuePosition } })
-      }
-
-      await prisma.mcpRun.create({ data: fromMcpRunRecord(pendingRun) })
-      const pendingCount = reordered.filter((a) => a.projectId === projectId && a.status === "待处理").length
-      await prisma.project.update({
-        where: { id: projectId },
-        data: { status: "已阻塞", pendingApprovals: pendingCount, lastActor: "MCP 网关 · 待审批" },
-      })
-      await pushActivityPrisma(
-        `${input.requestedAction} 已进入审批`,
-        `MCP 网关已为 ${resolvedEnabledTool.toolName} 创建审批单，等待人工确认后继续调度。`,
-        "warning",
-      )
-      const auditLog = createAuditLog(`MCP 调度待审批：${project.name} -> ${input.requestedAction}`, "待审批", project.name)
-      await prisma.auditLog.create({ data: fromLogRecord(auditLog) })
-      createStoredSchedulerTaskFromRun(pendingRun, enabledTool?.retry)
-
-      const finalApproval = await prisma.approval.findUnique({ where: { id: approval.id } })
-      return {
-        run: pendingRun,
-        approval: finalApproval ? toApprovalRecord(finalApproval) : approval,
-      }
-    }
-
-    // Auto-execute path
-    const executedRun = createRunRecord({
-      input,
-      project,
-      tool: resolvedEnabledTool,
-      status: "执行中",
-      dispatchMode: "自动执行",
-      summaryLines: [
-        `${input.requestedAction} 已进入调度队列，准备调用 ${resolvedEnabledTool.toolName}。`,
-        "调度器将按连接器策略执行并把结构化结果回流到项目结果与证据链路。",
-      ],
-    })
-
-    await prisma.mcpRun.create({ data: fromMcpRunRecord(executedRun) })
-    await prisma.project.update({
-      where: { id: projectId },
-      data: {
-        status: project.status === "已完成" ? project.status : "运行中",
-        lastActor: "MCP 网关 · 已执行",
-      },
-    })
-    await pushActivityPrisma(
-      `${input.requestedAction} 已执行`,
-      `${resolvedEnabledTool.toolName} 已自动完成该动作，结果已写入项目上下文。`,
-      "success",
-    )
-    const auditLog = createAuditLog(`MCP 已入调度：${project.name} -> ${input.requestedAction}`, "执行中", project.name)
-    await prisma.auditLog.create({ data: fromLogRecord(auditLog) })
-    createStoredSchedulerTaskFromRun(executedRun, resolvedEnabledTool.retry)
-    return { run: executedRun }
-  }
-
-  const store = readPrototypeStore()
-  const projectIndex = store.projects.findIndex((project) => project.id === projectId)
-  const detailIndex = store.projectDetails.findIndex((detail) => detail.projectId === projectId)
-
-  if (projectIndex < 0 || detailIndex < 0) {
-    return null
-  }
-
-  const project = store.projects[projectIndex]
-  const detail = store.projectDetails[detailIndex]
+  const project = toProjectRecord(projectRow)
+  const detail = toProjectDetailRecord(detailRow)
+  const schedulerControlRow = await prisma.projectSchedulerControl.findUnique({ where: { projectId } })
   const schedulerControl = normalizeProjectSchedulerControl({
-    control: store.projectSchedulerControls[project.id],
+    control: schedulerControlRow
+      ? (await import("@/lib/prisma-transforms")).toProjectSchedulerControlRecord(schedulerControlRow)
+      : undefined,
     projectStatus: project.status,
     updatedAt: project.lastUpdated,
   })
 
   if (schedulerControl.lifecycle === "idle") {
-    store.projectSchedulerControls[project.id] = {
-      ...schedulerControl,
-      lifecycle: "running",
-      paused: false,
-      note: "显式派发 MCP 动作后，项目已自动进入运行态。",
-      updatedAt: formatTimestamp(),
-    }
+    await prisma.projectSchedulerControl.upsert({
+      where: { projectId },
+      create: { projectId, lifecycle: "running", paused: false, note: "显式派发 MCP 动作后，项目已自动进入运行态。" },
+      update: { lifecycle: "running", paused: false, note: "显式派发 MCP 动作后，项目已自动进入运行态。" },
+    })
   }
 
-  const { enabledTool, matchedTool } = selectToolForCapability(store.mcpTools, input)
+  // Resolve tools — read from Prisma mcpTools + built-in
+  const dbTools = (await prisma.mcpTool.findMany()).map(toMcpToolRecord)
+  const { enabledTool, matchedTool } = selectToolForCapability(dbTools, input)
   const builtInSelection =
     enabledTool || matchedTool
       ? { enabledTool: undefined, matchedTool: undefined }
       : selectToolForCapability(listBuiltInMcpTools(), input)
   const resolvedEnabledTool = enabledTool ?? builtInSelection.enabledTool
   const resolvedMatchedTool = matchedTool ?? builtInSelection.matchedTool
+
+  // Read global approval control
+  const globalControlRow = await prisma.globalApprovalControl.findUnique({ where: { id: "global" } })
+  const globalControl = globalControlRow
+    ? toGAC(globalControlRow)
+    : { enabled: true, mode: "", autoApproveLowRisk: true, description: "", note: "" }
+
+  // Helper to push activity into detail JSON
+  const pushActivityPrisma = async (title: string, detailText: string, tone: string) => {
+    const latestDetail = await prisma.projectDetail.findUnique({ where: { projectId } })
+    if (!latestDetail) return
+    const currentActivity = (latestDetail.activity ?? []) as unknown as ProjectKnowledgeItem[]
+    const newActivity = [
+      { title, detail: detailText, meta: "MCP 网关", tone },
+      ...currentActivity,
+    ].slice(0, 8)
+    const currentStage = (latestDetail.currentStage ?? {}) as Record<string, unknown>
+    await prisma.projectDetail.update({
+      where: { projectId },
+      data: {
+        activity: newActivity as unknown as Prisma.InputJsonArray,
+        currentStage: { ...currentStage, updatedAt: formatTimestamp() } as unknown as Prisma.InputJsonObject,
+      },
+    })
+  }
 
   if (!resolvedEnabledTool) {
     const blockedRun = createRunRecord({
@@ -573,25 +353,15 @@ export async function dispatchStoredMcpRun(projectId: string, input: McpDispatch
       ],
     })
 
-    store.mcpRuns.unshift(blockedRun)
-    store.projects[projectIndex] = {
-      ...project,
-      status: "已阻塞",
-      lastUpdated: formatTimestamp(),
-      lastActor: "MCP 网关 · 阻塞",
-    }
-    store.projectDetails[detailIndex] = pushProjectActivity(
-      detail,
-      `${input.requestedAction} 已阻塞`,
-      blockedRun.summaryLines[1],
-      "danger",
-    )
-    store.auditLogs.unshift(
-      createAuditLog(`MCP 调度阻塞：${project.name} -> ${input.requestedAction}`, "已阻塞", project.name),
-    )
-    writePrototypeStore(store)
+    await prisma.mcpRun.create({ data: fromMcpRunRecord(blockedRun) })
+    await prisma.project.update({
+      where: { id: projectId },
+      data: { status: "已阻塞", lastActor: "MCP 网关 · 阻塞" },
+    })
+    await pushActivityPrisma(`${input.requestedAction} 已阻塞`, blockedRun.summaryLines[1], "danger")
+    const auditLog = createAuditLog(`MCP 调度阻塞：${project.name} -> ${input.requestedAction}`, "已阻塞", project.name)
+    await prisma.auditLog.create({ data: fromLogRecord(auditLog) })
     createStoredSchedulerTaskFromRun(blockedRun)
-
     return { run: blockedRun }
   }
 
@@ -599,8 +369,8 @@ export async function dispatchStoredMcpRun(projectId: string, input: McpDispatch
     input,
     projectControlEnabled: detail.approvalControl.enabled,
     projectAutoApproveLowRisk: detail.approvalControl.autoApproveLowRisk,
-    globalControlEnabled: store.globalApprovalControl.enabled,
-    globalAutoApproveLowRisk: store.globalApprovalControl.autoApproveLowRisk,
+    globalControlEnabled: globalControl.enabled,
+    globalAutoApproveLowRisk: globalControl.autoApproveLowRisk,
     tool: resolvedEnabledTool,
   })
 
@@ -619,35 +389,37 @@ export async function dispatchStoredMcpRun(projectId: string, input: McpDispatch
       ],
     })
 
-    store.approvals = reorderApprovals([...store.approvals, approval])
-    store.mcpRuns.unshift(pendingRun)
-
-    const pendingCountByProjectId = updateProjectPendingCounts(store.approvals)
-    store.projects[projectIndex] = {
-      ...project,
-      status: "已阻塞",
-      pendingApprovals: pendingCountByProjectId[project.id] ?? 0,
-      lastUpdated: formatTimestamp(),
-      lastActor: "MCP 网关 · 待审批",
+    await prisma.approval.create({ data: fromApprovalRecord(approval) })
+    // Reorder approvals
+    const allApprovals = (await prisma.approval.findMany()).map(toApprovalRecord)
+    const reordered = reorderApprovals(allApprovals)
+    for (const item of reordered) {
+      await prisma.approval.update({ where: { id: item.id }, data: { queuePosition: item.queuePosition } })
     }
-    store.projectDetails[detailIndex] = pushProjectActivity(
-      detail,
+
+    await prisma.mcpRun.create({ data: fromMcpRunRecord(pendingRun) })
+    const pendingCount = reordered.filter((a) => a.projectId === projectId && a.status === "待处理").length
+    await prisma.project.update({
+      where: { id: projectId },
+      data: { status: "已阻塞", pendingApprovals: pendingCount, lastActor: "MCP 网关 · 待审批" },
+    })
+    await pushActivityPrisma(
       `${input.requestedAction} 已进入审批`,
       `MCP 网关已为 ${resolvedEnabledTool.toolName} 创建审批单，等待人工确认后继续调度。`,
       "warning",
     )
-    store.auditLogs.unshift(
-      createAuditLog(`MCP 调度待审批：${project.name} -> ${input.requestedAction}`, "待审批", project.name),
-    )
-    writePrototypeStore(store)
-    createStoredSchedulerTaskFromRun(pendingRun, enabledTool.retry)
+    const auditLog = createAuditLog(`MCP 调度待审批：${project.name} -> ${input.requestedAction}`, "待审批", project.name)
+    await prisma.auditLog.create({ data: fromLogRecord(auditLog) })
+    createStoredSchedulerTaskFromRun(pendingRun, enabledTool?.retry)
 
+    const finalApproval = await prisma.approval.findUnique({ where: { id: approval.id } })
     return {
       run: pendingRun,
-      approval: store.approvals.find((item) => item.id === approval.id) ?? approval,
+      approval: finalApproval ? toApprovalRecord(finalApproval) : approval,
     }
   }
 
+  // Auto-execute path
   const executedRun = createRunRecord({
     input,
     project,
@@ -660,67 +432,30 @@ export async function dispatchStoredMcpRun(projectId: string, input: McpDispatch
     ],
   })
 
-  store.mcpRuns.unshift(executedRun)
-  store.projects[projectIndex] = {
-    ...project,
-    status: project.status === "已完成" ? project.status : "运行中",
-    lastUpdated: formatTimestamp(),
-    lastActor: "MCP 网关 · 已执行",
-  }
-  store.projectDetails[detailIndex] = pushProjectActivity(
-    detail,
+  await prisma.mcpRun.create({ data: fromMcpRunRecord(executedRun) })
+  await prisma.project.update({
+    where: { id: projectId },
+    data: {
+      status: project.status === "已完成" ? project.status : "运行中",
+      lastActor: "MCP 网关 · 已执行",
+    },
+  })
+  await pushActivityPrisma(
     `${input.requestedAction} 已执行`,
     `${resolvedEnabledTool.toolName} 已自动完成该动作，结果已写入项目上下文。`,
     "success",
   )
-  store.auditLogs.unshift(
-    createAuditLog(`MCP 已入调度：${project.name} -> ${input.requestedAction}`, "执行中", project.name),
-  )
-  writePrototypeStore(store)
+  const auditLog = createAuditLog(`MCP 已入调度：${project.name} -> ${input.requestedAction}`, "执行中", project.name)
+  await prisma.auditLog.create({ data: fromLogRecord(auditLog) })
   createStoredSchedulerTaskFromRun(executedRun, resolvedEnabledTool.retry)
-
   return { run: executedRun }
 }
 
 export async function syncStoredMcpRunsAfterApprovalDecision(approval: ApprovalRecord) {
-  if (USE_PRISMA) {
-    const linkedRun = await prisma.mcpRun.findFirst({ where: { linkedApprovalId: approval.id } })
-    if (!linkedRun) return null
+  const linkedRun = await prisma.mcpRun.findFirst({ where: { linkedApprovalId: approval.id } })
+  if (!linkedRun) return null
 
-    const currentRun = toMcpRunRecord(linkedRun)
-    const nextStatus: McpRunRecord["status"] =
-      approval.status === "已批准" ? "执行中" : approval.status === "已延后" ? "已延后" : "已拒绝"
-    const nextSummary =
-      approval.status === "已批准"
-        ? `审批已批准，${currentRun.toolName} 已回到调度队列等待执行。`
-        : approval.status === "已延后"
-          ? "审批已延后，MCP 调度继续停留在待窗口确认状态。"
-          : "审批已拒绝，MCP 调度已终止，不再向目标继续推进。"
-
-    const updated = await prisma.mcpRun.update({
-      where: { id: linkedRun.id },
-      data: {
-        status: nextStatus,
-        summaryLines: [...currentRun.summaryLines, nextSummary],
-      },
-    })
-    const auditLog = createAuditLog(
-      `审批联动更新 MCP 调度：${approval.id} -> ${nextStatus}`,
-      nextStatus,
-      approval.projectName,
-    )
-    await prisma.auditLog.create({ data: fromLogRecord(auditLog) })
-    return toMcpRunRecord(updated)
-  }
-
-  const store = readPrototypeStore()
-  const runIndex = store.mcpRuns.findIndex((run) => run.linkedApprovalId === approval.id)
-
-  if (runIndex < 0) {
-    return null
-  }
-
-  const currentRun = store.mcpRuns[runIndex]
+  const currentRun = toMcpRunRecord(linkedRun)
   const nextStatus: McpRunRecord["status"] =
     approval.status === "已批准" ? "执行中" : approval.status === "已延后" ? "已延后" : "已拒绝"
   const nextSummary =
@@ -730,18 +465,18 @@ export async function syncStoredMcpRunsAfterApprovalDecision(approval: ApprovalR
         ? "审批已延后，MCP 调度继续停留在待窗口确认状态。"
         : "审批已拒绝，MCP 调度已终止，不再向目标继续推进。"
 
-  const nextRun: McpRunRecord = {
-    ...currentRun,
-    status: nextStatus,
-    updatedAt: formatTimestamp(),
-    summaryLines: [...currentRun.summaryLines, nextSummary],
-  }
-
-  store.mcpRuns[runIndex] = nextRun
-  store.auditLogs.unshift(
-    createAuditLog(`审批联动更新 MCP 调度：${approval.id} -> ${nextRun.status}`, nextRun.status, approval.projectName),
+  const updated = await prisma.mcpRun.update({
+    where: { id: linkedRun.id },
+    data: {
+      status: nextStatus,
+      summaryLines: [...currentRun.summaryLines, nextSummary],
+    },
+  })
+  const auditLog = createAuditLog(
+    `审批联动更新 MCP 调度：${approval.id} -> ${nextStatus}`,
+    nextStatus,
+    approval.projectName,
   )
-  writePrototypeStore(store)
-
-  return nextRun
+  await prisma.auditLog.create({ data: fromLogRecord(auditLog) })
+  return toMcpRunRecord(updated)
 }

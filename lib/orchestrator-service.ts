@@ -26,7 +26,14 @@ import {
   getStoredProjectSchedulerControl,
   updateStoredProjectSchedulerControl,
 } from "@/lib/project-scheduler-control-repository"
-import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
+import { prisma } from "@/lib/prisma"
+import {
+  toOrchestratorPlanRecord,
+  fromOrchestratorPlanRecord,
+  toOrchestratorRoundRecord,
+  fromOrchestratorRoundRecord,
+  toMcpRunRecord,
+} from "@/lib/prisma-transforms"
 import type {
   ApprovalRecord,
   LocalValidationRunInput,
@@ -722,8 +729,7 @@ function normalizePlanItems(
 }
 
 async function buildProjectRecentContext(projectId: string) {
-  const store = readPrototypeStore()
-  const project = store.projects.find((item) => item.id === projectId)
+  const project = await getStoredProjectById(projectId)
 
   if (!project) {
     return []
@@ -734,7 +740,8 @@ async function buildProjectRecentContext(projectId: string) {
   const findings = await listStoredProjectFindings(projectId)
   const approvals = await listStoredProjectApprovals(projectId)
   const workLogs = await listStoredWorkLogs(project.name)
-  const runs = store.mcpRuns.filter((run) => run.projectId === projectId)
+  const dbRuns = await prisma.mcpRun.findMany({ where: { projectId } })
+  const runs = dbRuns.map(toMcpRunRecord)
 
   return [
     ...assets.slice(0, 2).map((asset) => `资产 ${asset.label} (${asset.type}) / ${asset.scopeStatus}`),
@@ -759,14 +766,18 @@ function normalizePlanRecord(input: {
   }
 }
 
-function getStoredProjectOrchestratorPlan(projectId: string) {
-  return readPrototypeStore().orchestratorPlans[projectId] ?? null
+async function getStoredProjectOrchestratorPlan(projectId: string) {
+  const row = await prisma.orchestratorPlan.findUnique({ where: { projectId } })
+  return row ? toOrchestratorPlanRecord(row) : null
 }
 
-function persistProjectOrchestratorPlan(projectId: string, plan: OrchestratorPlanRecord) {
-  const store = readPrototypeStore()
-  store.orchestratorPlans[projectId] = plan
-  writePrototypeStore(store)
+async function persistProjectOrchestratorPlan(projectId: string, plan: OrchestratorPlanRecord) {
+  const data = fromOrchestratorPlanRecord(plan, projectId)
+  await prisma.orchestratorPlan.upsert({
+    where: { projectId },
+    create: data,
+    update: data,
+  })
 
   return plan
 }
@@ -936,7 +947,7 @@ export async function generateProjectLifecyclePlan(
   const recentContext = await buildProjectRecentContext(projectId)
 
   if (!provider) {
-    const plan = persistProjectOrchestratorPlan(
+    const plan = await persistProjectOrchestratorPlan(
       projectId,
       normalizePlanRecord({
         items: fallbackItems,
@@ -982,7 +993,7 @@ export async function generateProjectLifecyclePlan(
       mode: "project",
     }),
   )
-  const plan = persistProjectOrchestratorPlan(
+  const plan = await persistProjectOrchestratorPlan(
     projectId,
     normalizePlanRecord({
       items: normalizedItems,
@@ -1004,7 +1015,6 @@ async function recordOrchestratorRound(
   execution: DispatchPlanResult,
   planItemCount: number,
 ): Promise<OrchestratorRoundRecord> {
-  const store = readPrototypeStore()
   const beforeAssets = (await listStoredAssets(projectId)).length
   const beforeEvidence = (await listStoredEvidence(projectId)).length
   const beforeFindings = (await listStoredProjectFindings(projectId)).length
@@ -1026,11 +1036,12 @@ async function recordOrchestratorRound(
     reflection: generateRoundReflection(execution, round),
   }
 
-  if (!store.orchestratorRounds[projectId]) {
-    store.orchestratorRounds[projectId] = []
-  }
-  store.orchestratorRounds[projectId].push(record)
-  writePrototypeStore(store)
+  const data = fromOrchestratorRoundRecord(record, projectId)
+  await prisma.orchestratorRound.upsert({
+    where: { projectId_round: { projectId, round } },
+    create: data,
+    update: data,
+  })
 
   return record
 }
@@ -1116,8 +1127,11 @@ async function shouldContinueAutoReplan(
   }
 
   // Stop condition 5: No progress (check last 2 rounds)
-  const store = readPrototypeStore()
-  const rounds = store.orchestratorRounds[projectId] ?? []
+  const dbRounds = await prisma.orchestratorRound.findMany({
+    where: { projectId },
+    orderBy: { round: "asc" },
+  })
+  const rounds = dbRounds.map(toOrchestratorRoundRecord)
 
   if (rounds.length >= 2) {
     const lastTwo = rounds.slice(-2)
@@ -1157,7 +1171,7 @@ async function generateMultiRoundPlan(
   const fallbackItems = buildProjectFallbackPlanItems(project, availableTools, "replan")
 
   if (!provider) {
-    const plan = persistProjectOrchestratorPlan(
+    const plan = await persistProjectOrchestratorPlan(
       projectId,
       normalizePlanRecord({
         items: fallbackItems,
@@ -1187,7 +1201,7 @@ async function generateMultiRoundPlan(
     evidenceCount: evidence.length,
     findingCount: findings.length,
     pendingApprovals: approvals.filter((a) => a.status === "待处理").length,
-    roundHistory: buildCompressedRoundHistory(projectId),
+    roundHistory: await buildCompressedRoundHistory(projectId),
     assetSnapshot: await buildAssetSnapshot(projectId),
     lastRoundDetail: await buildLastRoundDetail(projectId),
     unusedCapabilities: await buildUnusedCapabilities(projectId),
@@ -1210,7 +1224,7 @@ async function generateMultiRoundPlan(
     }),
   )
 
-  const plan = persistProjectOrchestratorPlan(
+  const plan = await persistProjectOrchestratorPlan(
     projectId,
     normalizePlanRecord({
       items: normalizedItems,
@@ -1279,11 +1293,10 @@ export async function runProjectLifecycleKickoff(projectId: string, input: Proje
   await recordOrchestratorRound(projectId, currentRound, roundStartedAt, execution, planPayload.plan.items.length)
 
   // Update round counter in scheduler control
-  const store = readPrototypeStore()
-  if (store.projectSchedulerControls[projectId]) {
-    store.projectSchedulerControls[projectId].currentRound = currentRound
-    writePrototypeStore(store)
-  }
+  await prisma.projectSchedulerControl.updateMany({
+    where: { projectId },
+    data: { currentRound },
+  })
 
   // Multi-round auto-replan loop
   if (autoReplan && execution.status === "completed") {
@@ -1350,11 +1363,10 @@ export async function runProjectLifecycleKickoff(projectId: string, input: Proje
       await recordOrchestratorRound(projectId, currentRound, nextRoundStart, execution, nextPlan.plan.items.length)
 
       // Update round counter
-      const storeUpdate = readPrototypeStore()
-      if (storeUpdate.projectSchedulerControls[projectId]) {
-        storeUpdate.projectSchedulerControls[projectId].currentRound = currentRound
-        writePrototypeStore(storeUpdate)
-      }
+      await prisma.projectSchedulerControl.updateMany({
+        where: { projectId },
+        data: { currentRound },
+      })
 
       // If not completed (blocked/waiting_approval), stop the loop
       if (execution.status !== "completed") {
@@ -1398,7 +1410,7 @@ export async function generateProjectOrchestratorPlan(
   )
 
   if (!provider) {
-    const plan = persistProjectOrchestratorPlan(
+    const plan = await persistProjectOrchestratorPlan(
       projectId,
       normalizePlanRecord({
         items: fallbackItems,
@@ -1424,7 +1436,7 @@ export async function generateProjectOrchestratorPlan(
     purpose: "orchestrator",
     projectId,
   })
-  const plan = persistProjectOrchestratorPlan(
+  const plan = await persistProjectOrchestratorPlan(
     projectId,
     normalizePlanRecord({
       items: normalizePlanItems({
@@ -1519,6 +1531,6 @@ export async function getProjectOrchestratorPanelPayload(projectId: string) {
   return {
     provider: await getConfiguredLlmProviderStatus(),
     localLabs: await listLocalLabs(),
-    lastPlan: getStoredProjectOrchestratorPlan(projectId),
+    lastPlan: await getStoredProjectOrchestratorPlan(projectId),
   }
 }

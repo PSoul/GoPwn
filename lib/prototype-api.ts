@@ -77,7 +77,9 @@ import {
   listStoredProjects,
   updateStoredProject,
 } from "@/lib/project-repository"
-import { getDefaultProjectFormPreset, readPrototypeStore } from "@/lib/prototype-store"
+import { getDefaultProjectFormPreset } from "@/lib/prototype-store"
+import { prisma } from "@/lib/prisma"
+import { toOrchestratorRoundRecord } from "@/lib/prisma-transforms"
 import { buildRuntimeArtifactUrl } from "@/lib/runtime-artifacts"
 import { listStoredWorkLogs } from "@/lib/work-log-repository"
 import type {
@@ -258,18 +260,18 @@ function buildCapabilityPayloadFromTools(tools: McpToolRecord[]) {
   }))
 }
 
-function buildSystemStatusPayloadFromTools(tools: McpToolRecord[]): SystemStatusRecord[] {
-  const store = readPrototypeStore()
+async function buildSystemStatusPayloadFromTools(tools: McpToolRecord[]): Promise<SystemStatusRecord[]> {
   const enabledCount = tools.filter((tool) => tool.status === "启用").length
   const abnormalTools = tools.filter((tool) => tool.status === "异常")
-  const activeTasks = store.schedulerTasks.filter((task) => !["succeeded", "failed", "cancelled"].includes(task.status))
+  const allSchedulerTasks = await prisma.schedulerTask.findMany()
+  const activeTasks = allSchedulerTasks.filter((task) => !["succeeded", "failed", "cancelled"].includes(task.status))
   const waitingApprovalTasks = activeTasks.filter((task) => task.status === "waiting_approval").length
   const runningTasks = activeTasks.filter((task) => task.status === "running").length
   const retryTasks = activeTasks.filter((task) => task.status === "retry_scheduled").length
   const browserTools = tools.filter((tool) => tool.capability === "截图与证据采集类" && tool.status === "启用")
   const webSurfaceTools = tools.filter((tool) => tool.capability === "Web 页面探测类" && tool.status === "启用")
-  const auditLogTotal = store.auditLogs.length
-  const workLogTotal = store.workLogs.length
+  const auditLogTotal = await prisma.auditLog.count()
+  const workLogTotal = await prisma.workLog.count()
 
   return systemStatusCards.map((card) => {
     if (card.title === "MCP 网关") {
@@ -363,7 +365,10 @@ export async function getProjectOperationsPayload(projectId: string): Promise<Pr
     return null
   }
 
-  const store = readPrototypeStore()
+  const dbRounds = await prisma.orchestratorRound.findMany({
+    where: { projectId },
+    orderBy: { round: "asc" },
+  })
 
   return {
     ...base,
@@ -373,7 +378,7 @@ export async function getProjectOperationsPayload(projectId: string): Promise<Pr
     schedulerTasks: await listStoredSchedulerTasks(projectId),
     orchestrator: await getProjectOrchestratorPanelPayload(projectId),
     reportExport: await getStoredProjectReportExportPayload(projectId),
-    orchestratorRounds: store.orchestratorRounds[projectId] ?? [],
+    orchestratorRounds: dbRounds.map(toOrchestratorRoundRecord),
   }
 }
 
@@ -535,7 +540,12 @@ async function buildDashboardSystemOverview({
 }): Promise<DashboardSystemRecord[]> {
   const llmProfiles = await listStoredLlmProfiles()
   const enabledModels = llmProfiles.filter((profile) => profile.enabled && profile.model)
-  const store = readPrototypeStore()
+  const activeTaskCount = await prisma.schedulerTask.count({
+    where: { status: { notIn: ["completed", "failed", "cancelled"] } },
+  })
+  const pendingApprovalCount = await prisma.approval.count({
+    where: { status: "待处理" },
+  })
   const memoryUsage = process.memoryUsage()
   const heapUsedMb = Math.round(memoryUsage.heapUsed / 1024 / 1024)
   const heapTotalMb = Math.round(memoryUsage.heapTotal / 1024 / 1024)
@@ -558,8 +568,8 @@ async function buildDashboardSystemOverview({
     },
     {
       title: "调度队列",
-      value: `${store.schedulerTasks.filter((task) => !["completed", "failed", "cancelled"].includes(task.status)).length} 条`,
-      detail: `${projects.filter((project) => project.status === "运行中").length} 个运行中项目 / ${store.approvals.filter((item) => item.status === "待处理").length} 个待审批动作`,
+      value: `${activeTaskCount} 条`,
+      detail: `${projects.filter((project) => project.status === "运行中").length} 个运行中项目 / ${pendingApprovalCount} 个待审批动作`,
       href: "/settings/system-status",
       tone: "neutral",
     },
@@ -670,7 +680,7 @@ export async function getSettingsSectionsPayload(): Promise<SettingsSectionsPayl
 }
 
 export async function getSystemStatusPayload(): Promise<SystemStatusPayload> {
-  const items = buildSystemStatusPayloadFromTools(await listStoredMcpTools())
+  const items = await buildSystemStatusPayloadFromTools(await listStoredMcpTools())
 
   return {
     items,
@@ -912,8 +922,9 @@ export async function runProjectSchedulerTaskActionPayload(
 }
 
 export async function getMcpSettingsPayload(): Promise<McpSettingsPayload> {
-  const store = readPrototypeStore()
   const tools = await listStoredMcpTools()
+  const dbServerContracts = await prisma.mcpServerContract.findMany()
+  const dbToolContracts = await prisma.mcpToolContract.findMany()
 
   return {
     tools,
@@ -922,8 +933,31 @@ export async function getMcpSettingsPayload(): Promise<McpSettingsPayload> {
     capabilities: buildCapabilityPayloadFromTools(tools),
     boundaryRules: mcpBoundaryRules,
     registrationFields: mcpRegistrationFields,
-    serverContracts: store.mcpServerContracts,
-    toolContracts: store.mcpToolContracts,
+    serverContracts: dbServerContracts.map((row) => ({
+      serverId: row.serverId,
+      serverName: row.serverName,
+      version: row.version,
+      transport: row.transport as "stdio" | "streamable_http" | "sse",
+      enabled: row.enabled,
+      toolNames: row.toolNames,
+      command: row.command ?? undefined,
+      endpoint: row.endpoint,
+      projectId: row.projectId ?? undefined,
+      updatedAt: row.updatedAt.toISOString(),
+    })),
+    toolContracts: dbToolContracts.map((row) => ({
+      serverId: row.serverId,
+      serverName: row.serverName,
+      toolName: row.toolName,
+      title: row.title,
+      capability: row.capability,
+      boundary: row.boundary as "外部目标交互" | "平台内部处理" | "外部第三方API",
+      riskLevel: row.riskLevel as "高" | "中" | "低",
+      requiresApproval: row.requiresApproval,
+      resultMappings: row.resultMappings as import("@/lib/prototype-types").McpResultMapping[],
+      projectId: row.projectId ?? undefined,
+      updatedAt: row.updatedAt.toISOString(),
+    })),
   }
 }
 

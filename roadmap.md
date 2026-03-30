@@ -3,35 +3,29 @@
 ## Project Snapshot
 
 - Date: `2026-03-30`
-- Current focus: Phase 17a Prisma 数据层迁移部分完成（Build 通过，核心实现完成，Docker/PostgreSQL 测试待进行）。Phase 17b Agent 大脑进化已完成。
+- Current focus: Phase 17a Prisma 数据层迁移已完成 — Prisma 为唯一数据层，文件存储双路径已移除，构建通过，CRUD 烟雾测试 15/15 通过。测试套件需适配 Prisma（测试仍使用文件存储 fixture）。Phase 17b Agent 大脑进化已完成。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
 
 ## Phase 17a: Prisma 数据层迁移 (Prisma Data Layer Migration)
 
-- Status: 部分完成 (Build 通过，核心实现完成，Docker/PostgreSQL 测试待进行)
-- Branch: `feat/phase17-platform-evolution`
-- Goal: 将平台从 JSON 文件存储迁移到 Prisma ORM + PostgreSQL，实现全部 13 个 repository 的异步化改造和分层迁移。
+- Status: Completed on `2026-03-30`
+- Branch: `feat/phase17a-prisma-validation`
+- Goal: 将平台从 JSON 文件存储迁移到 Prisma ORM + PostgreSQL，实现全部 13 个 repository 的异步化改造、分层迁移，并移除文件存储双路径使 Prisma 成为唯一数据层。
 
 ### 交付清单
 
 1. **Step A: 全量异步化改造** — 13 个 repository 文件 + `prototype-api.ts` + 48 个 API routes + 21 个 page components + service 文件全部改为 async
-2. **Step B1: Prisma 基础设施** — `prisma.ts` 单例、`prisma-transforms.ts` 转换层、`docker-compose` PostgreSQL 配置
-3. **Step B2: Tier 0 迁移** — auth、llm-settings、mcp-repository 三个核心模块迁移到 Prisma
-4. **Step B3: Tier 1 迁移** — project、scheduler-control 模块迁移
-5. **Step B4: Tier 2 迁移** — asset、evidence、work-log 模块迁移
-6. **Step B5: Tier 3 迁移** — approval、mcp-gateway 模块迁移（使用 `$transaction` 事务）
-7. **Step B6: Tier 4 迁移** — mcp-scheduler 模块迁移（条件原子更新）
-8. **Step B7: Tier 5 迁移** — project-results、mcp-server 模块迁移
-9. **Schema 对齐** — `User.role` 默认值修复、`OrchestratorRound.reflection` 字段补充
-10. **Prisma 7.x 适配器集成** — `@prisma/adapter-pg` 集成
+2. **Step B1: Prisma 基础设施** — `prisma.ts` 单例（PrismaPg 适配器）、`prisma-transforms.ts` 转换层（20+ 模型双向转换）、`docker-compose` PostgreSQL 配置
+3. **Step B2-B7: Tier 0-5 分层迁移** — 全部 13 个 repository 从文件 I/O 替换为 Prisma 调用
+4. **Step C: 数据迁移** — `prisma/seed.ts` 完成 JSON → PostgreSQL 迁移，~3,400 条记录
+5. **Step D: 烟雾测试** — `scripts/smoke-test-prisma-crud.ts` (15 CRUD 测试全部通过) + `scripts/test-prisma-queries.ts` (12 查询全部通过)
+6. **Step E: 文件存储移除** — 移除所有 `USE_PRISMA` 条件分支和 `readPrototypeStore`/`writePrototypeStore` 调用，Prisma 为唯一数据层
+7. **Prisma 7.x 适配器集成** — `@prisma/adapter-pg` (PrismaPg) 替代已废弃的 `datasourceUrl`
 
-### 待完成事项
+### 已知待办
 
-- [ ] Docker PostgreSQL 环境搭建 + 真实数据库测试
-- [ ] JSON 存储数据迁移（`seed.ts` 已创建但未测试）
-- [ ] Prisma 数据层激活后的 E2E 测试
-- [ ] 审批流程部分测试失败需排查
-- [ ] 文件存储清理（可选，Prisma 验证通过后进行）
+- [ ] 测试套件适配 Prisma（38 个测试文件仍使用文件存储 fixture，需改为数据库 fixture 或 mock）
+- [ ] E2E 测试验证（需 Prisma 模式下的数据库 seeding）
 
 ### 验收标准
 
@@ -39,11 +33,12 @@
 - [x] 全部 13 个 repository 文件异步化完成
 - [x] 48 个 API routes 适配异步 repository
 - [x] 21 个 page components 适配异步数据获取
-- [x] Prisma schema 覆盖全部平台实体
-- [x] 分层迁移（Tier 0-5）核心代码完成
-- [ ] Docker PostgreSQL 实际运行验证
-- [ ] 数据迁移脚本验证
-- [ ] E2E 测试通过
+- [x] Prisma schema 覆盖全部平台实体（25 模型）
+- [x] 分层迁移（Tier 0-5）全部完成
+- [x] Docker PostgreSQL 实际运行验证
+- [x] 数据迁移脚本验证（~3,400 条记录）
+- [x] CRUD 烟雾测试 15/15 通过
+- [x] 文件存储双路径完全移除
 
 ## Phase 17b: Agent 大脑进化 (Agent Brain Evolution)
 
@@ -619,7 +614,7 @@
 - Treat the provided backend template as the primary visual reference.
 - Do not develop new MCP servers directly in this platform repo by default; prefer `D:\dev\llmpentest-mcp-scaffold`.
 - Keep the “LLM = brain, MCP = limbs” boundary explicit: external interactions should flow through MCP, while normalization and platform-side aggregation can stay internal.
-- LLM 配置已预填: SiliconFlow DeepSeek-V3.2 (api_key 在 prototype-store 中, base_url=https://api.siliconflow.cn/v1)
+- LLM 配置已预填: SiliconFlow DeepSeek-V3.2 (配置在 PostgreSQL llm_profiles 表中, base_url=https://api.siliconflow.cn/v1)
 - 12 个 MCP 服务器全部本地化在 `mcps/` 目录，通过 `mcp-auto-discovery.ts` 自动发现注册
 - 通用 stdio 连接器 (`stdio-mcp-connector.ts`) 驱动所有 34 个外部工具
 - Docker 靶场：DVWA (8081), Juice Shop (3000), WebGoat (18080/19090)

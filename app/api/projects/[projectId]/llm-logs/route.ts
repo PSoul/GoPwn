@@ -9,7 +9,7 @@ export const GET = withApiHandler(async (request, context) => {
   const status = url.searchParams.get("status")
   const since = url.searchParams.get("since")
 
-  const logs = listLlmCallLogs(projectId, {
+  const logs = await listLlmCallLogs(projectId, {
     role: role ?? undefined,
     status: status ?? undefined,
     since: since ?? undefined,

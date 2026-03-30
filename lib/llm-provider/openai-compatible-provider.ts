@@ -104,7 +104,7 @@ export function createOpenAiCompatibleProvider(config: OpenAiCompatibleConfig): 
 
       // Create LLM call log for tracking
       const callLog = input.projectId
-        ? createLlmCallLog({
+        ? await createLlmCallLog({
             projectId: input.projectId,
             role: mapPurposeToRole(input.purpose),
             phase: mapPurposeToPhase(input.purpose),
@@ -178,7 +178,7 @@ export function createOpenAiCompatibleProvider(config: OpenAiCompatibleConfig): 
                   content += delta
                   // Flush to DB every ~500ms
                   if (callLog && Date.now() - lastFlush > 500) {
-                    appendLlmCallResponse(callLog.id, content.slice(callLog.response.length))
+                    await appendLlmCallResponse(callLog.id, content.slice(callLog.response.length))
                     lastFlush = Date.now()
                   }
                 }
@@ -203,7 +203,7 @@ export function createOpenAiCompatibleProvider(config: OpenAiCompatibleConfig): 
 
         // Complete the log
         if (callLog) {
-          completeLlmCallLog(callLog.id, {
+          await completeLlmCallLog(callLog.id, {
             response: content,
             durationMs,
           })
@@ -216,7 +216,7 @@ export function createOpenAiCompatibleProvider(config: OpenAiCompatibleConfig): 
         }
       } catch (error) {
         if (callLog) {
-          failLlmCallLog(callLog.id, error instanceof Error ? error.message : "Unknown error")
+          await failLlmCallLog(callLog.id, error instanceof Error ? error.message : "Unknown error")
         }
         throw error
       } finally {

@@ -1,6 +1,8 @@
 import { EventEmitter } from "events"
 
-import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
+import { Prisma } from "@/lib/generated/prisma/client"
+import { prisma } from "@/lib/prisma"
+import { toLlmCallLogRecord } from "@/lib/prisma-transforms"
 import type { LlmCallLogRecord, LlmCallRole, LlmCallPhase } from "@/lib/prototype-types"
 
 // ── Event bus (survives HMR via globalThis) ─────────────────
@@ -14,128 +16,133 @@ export type LlmLogEvent =
   | { type: "completed"; log: LlmCallLogRecord }
   | { type: "failed"; log: LlmCallLogRecord }
 
-function generateId() {
-  return `llmlog_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-}
-
-export function createLlmCallLog(input: {
+export async function createLlmCallLog(input: {
   projectId: string
   role: LlmCallRole
   phase: LlmCallPhase
   prompt: string
   model: string
   provider: string
-}): LlmCallLogRecord {
-  const store = readPrototypeStore()
-  const projectName = store.projects.find((p) => p.id === input.projectId)?.name ?? "未知项目"
+}): Promise<LlmCallLogRecord> {
+  const project = await prisma.project.findUnique({
+    where: { id: input.projectId },
+    select: { name: true },
+  })
+  const projectName = project?.name ?? "未知项目"
+
+  const dbRow = await prisma.llmCallLog.create({
+    data: {
+      projectId: input.projectId,
+      role: input.role,
+      phase: input.phase,
+      prompt: input.prompt,
+      response: "",
+      status: "streaming",
+      model: input.model,
+      provider: input.provider,
+      tokenUsage: Prisma.DbNull,
+      durationMs: null,
+      error: null,
+    },
+    include: { project: { select: { name: true } } },
+  })
 
   const record: LlmCallLogRecord = {
-    id: generateId(),
-    projectId: input.projectId,
+    ...toLlmCallLogRecord(dbRow),
     projectName,
-    role: input.role,
-    phase: input.phase,
-    prompt: input.prompt,
-    response: "",
-    status: "streaming",
-    model: input.model,
-    provider: input.provider,
-    tokenUsage: null,
-    durationMs: null,
-    error: null,
-    createdAt: new Date().toISOString(),
-    completedAt: null,
   }
-  if (!store.llmCallLogs) {
-    store.llmCallLogs = []
-  }
-  store.llmCallLogs.push(record)
-  writePrototypeStore(store)
 
   llmLogBus.emit("log", { type: "created", log: record } satisfies LlmLogEvent)
 
   return record
 }
 
-export function appendLlmCallResponse(logId: string, chunk: string): void {
-  const store = readPrototypeStore()
-  if (!store.llmCallLogs) return
-  const log = store.llmCallLogs.find((l) => l.id === logId)
-  if (!log) return
-  log.response += chunk
-  writePrototypeStore(store)
+export async function appendLlmCallResponse(logId: string, chunk: string): Promise<void> {
+  const existing = await prisma.llmCallLog.findUnique({ where: { id: logId } })
+  if (!existing) return
+
+  await prisma.llmCallLog.update({
+    where: { id: logId },
+    data: { response: existing.response + chunk },
+  })
 
   llmLogBus.emit("log", { type: "updated", logId, chunk } satisfies LlmLogEvent)
 }
 
-export function completeLlmCallLog(
+export async function completeLlmCallLog(
   logId: string,
   result: {
     response?: string
     tokenUsage?: LlmCallLogRecord["tokenUsage"]
     durationMs?: number
   },
-): void {
-  const store = readPrototypeStore()
-  if (!store.llmCallLogs) return
-  const log = store.llmCallLogs.find((l) => l.id === logId)
-  if (!log) return
+): Promise<void> {
+  const existing = await prisma.llmCallLog.findUnique({ where: { id: logId } })
+  if (!existing) return
 
-  if (result.response !== undefined) {
-    log.response = result.response
-  }
-  log.status = "completed"
-  log.tokenUsage = result.tokenUsage ?? null
-  log.durationMs = result.durationMs ?? null
-  log.completedAt = new Date().toISOString()
-  writePrototypeStore(store)
+  const dbRow = await prisma.llmCallLog.update({
+    where: { id: logId },
+    data: {
+      ...(result.response !== undefined ? { response: result.response } : {}),
+      status: "completed",
+      tokenUsage: (result.tokenUsage ?? null) as unknown as import("@/lib/generated/prisma/client").Prisma.InputJsonValue,
+      durationMs: result.durationMs ?? null,
+      completedAt: new Date(),
+    },
+    include: { project: { select: { name: true } } },
+  })
 
-  llmLogBus.emit("log", { type: "completed", log } satisfies LlmLogEvent)
+  llmLogBus.emit("log", { type: "completed", log: toLlmCallLogRecord(dbRow) } satisfies LlmLogEvent)
 }
 
-export function failLlmCallLog(logId: string, error: string): void {
-  const store = readPrototypeStore()
-  if (!store.llmCallLogs) return
-  const log = store.llmCallLogs.find((l) => l.id === logId)
-  if (!log) return
+export async function failLlmCallLog(logId: string, error: string): Promise<void> {
+  const existing = await prisma.llmCallLog.findUnique({ where: { id: logId } })
+  if (!existing) return
 
-  log.status = "failed"
-  log.error = error
-  log.completedAt = new Date().toISOString()
-  writePrototypeStore(store)
+  const dbRow = await prisma.llmCallLog.update({
+    where: { id: logId },
+    data: {
+      status: "failed",
+      error,
+      completedAt: new Date(),
+    },
+    include: { project: { select: { name: true } } },
+  })
 
-  llmLogBus.emit("log", { type: "failed", log } satisfies LlmLogEvent)
+  llmLogBus.emit("log", { type: "failed", log: toLlmCallLogRecord(dbRow) } satisfies LlmLogEvent)
 }
 
-export function listLlmCallLogs(
+export async function listLlmCallLogs(
   projectId: string,
   filters?: { role?: LlmCallRole; status?: string; since?: string },
-): LlmCallLogRecord[] {
-  const store = readPrototypeStore()
-  const logs = (store.llmCallLogs ?? []).filter((l) => l.projectId === projectId)
+): Promise<LlmCallLogRecord[]> {
+  const rows = await prisma.llmCallLog.findMany({
+    where: {
+      projectId,
+      ...(filters?.role ? { role: filters.role } : {}),
+      ...(filters?.status ? { status: filters.status } : {}),
+      ...(filters?.since ? { createdAt: { gte: new Date(filters.since) } } : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    include: { project: { select: { name: true } } },
+  })
 
-  let filtered = logs
-  if (filters?.role) {
-    filtered = filtered.filter((l) => l.role === filters.role)
-  }
-  if (filters?.status) {
-    filtered = filtered.filter((l) => l.status === filters.status)
-  }
-  if (filters?.since) {
-    filtered = filtered.filter((l) => l.createdAt >= filters.since!)
-  }
-
-  return filtered.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  return rows.map(toLlmCallLogRecord)
 }
 
-export function getLlmCallLogById(logId: string): LlmCallLogRecord | null {
-  const store = readPrototypeStore()
-  return (store.llmCallLogs ?? []).find((l) => l.id === logId) ?? null
+export async function getLlmCallLogById(logId: string): Promise<LlmCallLogRecord | null> {
+  const row = await prisma.llmCallLog.findUnique({
+    where: { id: logId },
+    include: { project: { select: { name: true } } },
+  })
+  return row ? toLlmCallLogRecord(row) : null
 }
 
-export function listAllRecentLlmCallLogs(limit = 50): LlmCallLogRecord[] {
-  const store = readPrototypeStore()
-  return (store.llmCallLogs ?? [])
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .slice(0, limit)
+export async function listAllRecentLlmCallLogs(limit = 50): Promise<LlmCallLogRecord[]> {
+  const rows = await prisma.llmCallLog.findMany({
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: { project: { select: { name: true } } },
+  })
+  return rows.map(toLlmCallLogRecord)
 }

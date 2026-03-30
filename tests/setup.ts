@@ -1,3 +1,4 @@
+import "dotenv/config"
 import { existsSync, mkdirSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"

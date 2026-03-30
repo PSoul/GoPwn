@@ -23,7 +23,8 @@ import {
   upsertStoredProjectFindings,
 } from "@/lib/project-results-repository"
 import { getStoredProjectById } from "@/lib/project-repository"
-import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
+import { prisma } from "@/lib/prisma"
+import { fromLogRecord } from "@/lib/prisma-transforms"
 import type {
   AssetRecord,
   EvidenceRecord,
@@ -1059,21 +1060,16 @@ function normalizeStdioMcpArtifacts(
   }
 }
 
-function updateProjectExecutionMeta(project: ProjectRecord, run: McpRunRecord) {
-  const store = readPrototypeStore()
-  const projectIndex = store.projects.findIndex((item) => item.id === project.id)
-
-  if (projectIndex < 0) {
-    return
-  }
-
-  store.projects[projectIndex] = {
-    ...store.projects[projectIndex],
-    lastUpdated: formatTimestamp(),
-    lastActor: `${run.toolName} · ${run.requestedAction}`,
-  }
-  store.auditLogs.unshift(buildExecutionAuditLog(project, run, "已完成"))
-  writePrototypeStore(store)
+async function updateProjectExecutionMeta(project: ProjectRecord, run: McpRunRecord) {
+  await prisma.project.update({
+    where: { id: project.id },
+    data: {
+      lastActor: `${run.toolName} · ${run.requestedAction}`,
+    },
+  })
+  await prisma.auditLog.create({
+    data: fromLogRecord(buildExecutionAuditLog(project, run, "已完成")),
+  })
 }
 
 async function taskOwnershipLost(runId: string, ownership?: SchedulerTaskOwnership) {
@@ -1196,7 +1192,7 @@ export async function executeStoredMcpRun(
   await upsertStoredEvidence(artifacts.evidence)
   await upsertStoredProjectFindings(artifacts.findings)
   await upsertStoredWorkLogs(artifacts.workLogs)
-  updateProjectExecutionMeta(project, run)
+  await updateProjectExecutionMeta(project, run)
 
   const persistedRun = await updateStoredMcpRun(run.id, {
     connectorMode: rawResult.mode,
@@ -1235,9 +1231,10 @@ export async function resumeStoredApprovedMcpRun(approvalId: string) {
     return null
   }
 
-  const run = await getStoredMcpRunById(
-    readPrototypeStore().mcpRuns.find((item) => item.linkedApprovalId === approvalId)?.id ?? "",
-  )
+  const dbRun = await prisma.mcpRun.findFirst({
+    where: { linkedApprovalId: approvalId },
+  })
+  const run = dbRun ? await getStoredMcpRunById(dbRun.id) : null
 
   if (!run) {
     return null
