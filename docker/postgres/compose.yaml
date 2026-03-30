@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: llm-pentest-postgres
+    environment:
+      POSTGRES_USER: pentest
+      POSTGRES_PASSWORD: pentest
+      POSTGRES_DB: pentest
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

@@ -16,7 +16,7 @@ model User {
   account     String   @unique
   password    String   // bcrypt hash
   displayName String
-  role        String   @default("研究员")
+  role        String   @default("researcher")
   status      String   @default("active")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -394,6 +394,7 @@ model OrchestratorRound {
   failedActions        String[] @default([])
   blockedByApproval    String[] @default([])
   summaryForNextRound  String   @default("")
+  reflection           Json?
 
   @@unique([projectId, round])
   @@index([projectId])
