@@ -201,16 +201,20 @@
 
 ## 5. Tests 目录
 
-### 测试基础设施（Phase 17c Prisma 适配）
+### 测试基础设施（Phase 17c/17d Prisma 适配）
 
 | 文件 | 用途 |
 |------|------|
-| `tests/setup.ts` | 全局 beforeEach/afterEach — 数据库 TRUNCATE CASCADE 清理 + 用户种子 + MCP 执行中断 |
+| `tests/setup.ts` | 全局 beforeEach/afterEach — 数据库 TRUNCATE CASCADE 清理 + 用户种子 + MCP 执行中断；条件加载 jsdom/node 环境模块 |
 | `tests/helpers/prisma-test-utils.ts` | cleanDatabase()（24 表 TRUNCATE）+ seedTestUsers()（3 用户 + LLM profiles） |
 | `tests/helpers/project-fixtures.ts` | createStoredProjectFixture / createWorkflowFixture — Prisma 数据库 fixture |
 | `vitest.config.mts` | `fileParallelism: false` 防止数据库竞争，`pool: "forks"` |
+| `scripts/e2e-seed-database.mjs` | E2E 专用数据库种子脚本 — 直接 pg 连接 TRUNCATE 24 表 + 种子用户/LLM profiles |
+| `scripts/run-playwright.mjs` | Playwright 运行入口 — 端口清理 + 数据库种子 + NO_PROXY 代理绕过 |
 
-**测试统计**: 55 files passed, 8 skipped | 178 tests passed, 33 skipped
+**测试统计**: 55 files passed, 8 skipped | 178 tests passed, 33 skipped | 14 E2E tests passed
+
+**MCP 集成测试**: 8 个文件默认跳过（`SKIP_MCP_INTEGRATION=1`），需 `// @vitest-environment node` 指令运行于 Node.js 环境（StdioClientTransport 与 jsdom 不兼容）
 
 ### API 测试
 - `tests/api/vuln-center-api.test.ts` — 漏洞中心 API 测试
@@ -237,9 +241,10 @@
 - `tests/lib/real-http-validation-mcp-connector.test.ts` — 真实 HTTP 受控验证 MCP 连接器测试
 - `tests/lib/real-evidence-capture-mcp-connector.test.ts` — 真实截图证据采集 MCP 连接器测试
 
-### E2E 测试
-- `e2e/prototype-smoke.spec.ts` — 基础功能烟雾测试
-- `e2e/vuln-cockpit.spec.ts` — 漏洞驾驶舱 E2E 测试
+### E2E 测试（14 tests, Playwright + Chromium）
+- `e2e/prototype-smoke.spec.ts` — 基础功能烟雾测试（8 tests：登录、仪表盘、资产中心、项目、设置、编排、调度）
+- `e2e/vuln-cockpit.spec.ts` — 漏洞驾驶舱 E2E 测试（6 tests：侧边栏、漏洞中心、重定向、项目卡片、AI 日志、聊天窗）
+- `playwright.config.ts` — 端口 4500、NO_PROXY 代理绕过、`--no-proxy-server` Chromium 参数
 
 ### 验证脚本
 - `scripts/e2e-docker-validation.ts` — Docker 靶场端到端编排验证（创建项目 → 编排 → 执行 → 报告）

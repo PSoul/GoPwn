@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-30`
-- Current focus: Phase 17c 测试套件 Prisma 适配已完成 — 全部 55 个测试文件通过（178 tests passed, 33 skipped），测试基础设施从文件存储 fixture 迁移到 PostgreSQL + TRUNCATE CASCADE 隔离。
+- Current focus: Phase 17d 完成 — E2E 测试 Prisma 适配（14/14 通过）、分支合并至 main（17a-17d）、MCP 集成测试代码修复（`// @vitest-environment node` + async await）、工程清理（worktree + 分支清理）。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
 
 ## Phase 17a: Prisma 数据层迁移 (Prisma Data Layer Migration)
@@ -25,7 +25,31 @@
 ### 已知待办
 
 - [x] 测试套件适配 Prisma（Phase 17c 已完成）
-- [ ] E2E 测试验证（需 Prisma 模式下的数据库 seeding）
+- [x] E2E 测试验证（Phase 17d 已完成，14/14 通过）
+
+## Phase 17d: E2E 适配 + 分支合并 + MCP 集成测试修复
+
+- Status: Completed on `2026-03-30`
+- Branch: `feat/phase17d-e2e-merge-integration` (已合并至 main)
+- Goal: 完成 E2E 测试 Prisma 适配、合并 Phase 17a-17d 分支到 main、修复 MCP 集成测试代码、工程清理。
+
+### 交付清单
+
+1. **E2E 数据库种子脚本** — `scripts/e2e-seed-database.mjs`，直接 pg 连接 TRUNCATE 24 表 + 种子研究员用户 + 3 个 LLM profiles（使用 Prisma camelCase 列名带引号标识符）
+2. **Playwright 代理绕过** — 端口 4500、`NO_PROXY=localhost,127.0.0.1`、Chromium `--no-proxy-server` 参数，解决 Windows 代理导致 WebServer 误判
+3. **E2E 选择器修复** — "新建项目"链接 `.first()`、"全部"按钮重复元素精确定位、"AI 思考日志"标题断言替代面板内按钮
+4. **MCP 集成测试修复** — 5 个测试文件添加 `// @vitest-environment node`（StdioClientTransport 与 jsdom 不兼容）、`supports()` 和 `registerValidationServer()` 添加 `await`
+5. **tests/setup.ts 双环境** — 条件加载 `@testing-library/jest-dom/vitest`、`cleanup`、`window.matchMedia`（node 环境跳过）
+6. **分支合并** — Phase 17a/17c/17d 全部合并至 main（fast-forward merge）
+7. **工程清理** — 删除 16 个 codex worktree + 30+ 已合并本地分支，仅保留 main
+
+### 验收标准
+
+- [x] 14/14 E2E 测试通过（Playwright + Chromium）
+- [x] 178/178 单元测试通过，33 跳过
+- [x] 所有 Phase 17 分支合并至 main
+- [x] `.gitignore` 新增 `*.txt` 规则
+- [x] worktree 和分支清理完毕
 
 ## Phase 17c: 测试套件 Prisma 适配 (Test Suite Prisma Adaptation)
 
@@ -627,8 +651,13 @@
 
 ## Recommended Next Phase
 
-- Name: `Phase 15 - 错误边界与空状态体验`
-- Goal: 完善错误边界、空状态提示、API 失败友好提示，确保所有 E2E 测试稳定通过。
+- Name: `Phase 18 - 真实渗透测试闭环验证 + 多目标并行`
+- Goal: 使用当前 Prisma 数据层对 Docker 靶场进行完整端到端渗透测试闭环验证；优化多目标项目的并行编排；加强 MCP 连接器错误恢复与结果标准化。
+- Priorities:
+  1. 对 DVWA/WebGoat/Juice Shop 各执行一次完整的 LLM 编排 → MCP 执行 → 发现 → 报告闭环
+  2. 多目标项目编排：同一项目覆盖多个靶场目标，验证并行调度和作用域隔离
+  3. MCP 连接器增强：超时/重试改进、结构化错误返回、执行日志可视化
+  4. CI 就绪化：GitHub Actions 配置 PostgreSQL service + vitest + playwright
 
 ## Notes for Future LLM Sessions
 
