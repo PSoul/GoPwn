@@ -16,7 +16,7 @@ let mockedExecutionResult:
       summaryLines: string[]
       errorMessage: string
       retryAfterMinutes?: number
-      run: ReturnType<typeof getStoredMcpRunById>
+      run: Awaited<ReturnType<typeof getStoredMcpRunById>>
     }
   | null = null
 
@@ -40,12 +40,12 @@ describe("MCP scheduler retry transitions", () => {
   })
 
   it("moves retryable failures into retry_scheduled and updates the visible run state", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
-      target: fixture.project.seed,
+      target: fixture.project.seed!,
       riskLevel: "低",
     })
 

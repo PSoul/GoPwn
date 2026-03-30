@@ -34,12 +34,12 @@ describe("scheduler operator controls", () => {
   })
 
   it("pauses a project scheduler and keeps ready work from draining", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
-      target: fixture.project.seed,
+      target: fixture.project.seed!,
       riskLevel: "低",
     })
 
@@ -51,7 +51,7 @@ describe("scheduler operator controls", () => {
       note: "研究员临时暂停本项目调度，等待人工确认运行窗口。",
     })
 
-    expect(updated?.schedulerControl.paused).toBe(true)
+    expect((updated as { schedulerControl: { paused: boolean } })?.schedulerControl.paused).toBe(true)
 
     const drained = await drainStoredSchedulerTasks({ projectId: fixture.project.id })
     const queuedTask = await getStoredSchedulerTaskByRunId(payload!.run.id)
@@ -63,12 +63,12 @@ describe("scheduler operator controls", () => {
   })
 
   it("cancels a queued scheduler task and marks the linked run as cancelled", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
-      target: fixture.project.seed,
+      target: fixture.project.seed!,
       riskLevel: "低",
     })
 
@@ -76,17 +76,17 @@ describe("scheduler operator controls", () => {
     const result = await cancelStoredSchedulerTask(fixture.project.id, queuedTask!.id, "研究员手动取消当前排队任务。")
 
     expect(result?.task.status).toBe("cancelled")
-    expect(result?.run.status).toBe("已取消")
+    expect(result!.run!.status).toBe("已取消")
     expect(result?.task.summaryLines.at(-1)).toContain("手动取消")
   })
 
   it("records a stop request for a running scheduler task and closes the linked run", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
-      target: fixture.project.seed,
+      target: fixture.project.seed!,
       riskLevel: "低",
     })
 
@@ -101,18 +101,18 @@ describe("scheduler operator controls", () => {
     const result = await cancelStoredSchedulerTask(fixture.project.id, runningTask!.id, "研究员请求停止当前运行中的任务。")
 
     expect(result?.task.status).toBe("cancelled")
-    expect(result?.run.status).toBe("已取消")
+    expect(result!.run!.status).toBe("已取消")
     expect(result?.task.summaryLines.at(-1)).toContain("停止")
     expect(controller.signal.aborted).toBe(true)
   })
 
   it("requeues a failed scheduler task for another attempt", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
-      target: fixture.project.seed,
+      target: fixture.project.seed!,
       riskLevel: "低",
     })
 
@@ -131,7 +131,7 @@ describe("scheduler operator controls", () => {
 
     expect(retried?.task.status).toBe("ready")
     expect(retried?.task.lastError).toBeUndefined()
-    expect(retried?.run.status).toBe("执行中")
+    expect(retried!.run!.status).toBe("执行中")
     expect(retried?.task.summaryLines.at(-1)).toContain("重新排队")
   })
 })

@@ -1,42 +1,32 @@
-import { mkdtempSync, rmSync } from "node:fs"
-import { tmpdir } from "node:os"
-import path from "node:path"
-
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { describe, expect, it } from "vitest"
 
 import { listAssetsPayload, getDashboardPayload } from "@/lib/prototype-api"
 import { createStoredProject } from "@/lib/project-repository"
-import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
+import { upsertStoredAssets } from "@/lib/asset-repository"
+import { upsertStoredEvidence } from "@/lib/evidence-repository"
+import { upsertStoredProjectFindings } from "@/lib/project-results-repository"
+import { prisma } from "@/lib/prisma"
 
 describe("dashboard and asset payload regrouping", () => {
-  let tempDir: string
-
-  beforeEach(() => {
-    tempDir = mkdtempSync(path.join(tmpdir(), "llm-pentest-dashboard-"))
-    process.env.PROTOTYPE_DATA_DIR = tempDir
-  })
-
-  afterEach(() => {
-    delete process.env.PROTOTYPE_DATA_DIR
-    rmSync(tempDir, { force: true, recursive: true })
-  })
-
   it("exposes four KPI cards, recent result updates, and typed asset previews on the dashboard", async () => {
     const created = await createStoredProject({
       name: "Dashboard 项目",
       targetInput: "demo.example.com",
       description: "仪表盘聚合测试",
     } as never)
-    const store = readPrototypeStore()
 
-    store.projects[0] = {
-      ...store.projects[0],
-      status: "运行中",
-      pendingApprovals: 1,
-      assetCount: 4,
-      evidenceCount: 2,
-    }
-    store.assets = [
+    // Update project counters directly via Prisma
+    await prisma.project.update({
+      where: { id: created.project.id },
+      data: {
+        status: "运行中",
+        pendingApprovals: 1,
+        assetCount: 4,
+        evidenceCount: 2,
+      },
+    })
+
+    await upsertStoredAssets([
       {
         id: "asset-domain-1",
         projectId: created.project.id,
@@ -109,8 +99,9 @@ describe("dashboard and asset payload regrouping", () => {
         issueLead: "headers",
         relations: [],
       },
-    ]
-    store.projectFindings = [
+    ])
+
+    await upsertStoredProjectFindings([
       {
         id: "finding-1",
         projectId: created.project.id,
@@ -123,8 +114,9 @@ describe("dashboard and asset payload regrouping", () => {
         owner: "研究员席位",
         updatedAt: "2026-03-27 10:05",
       },
-    ]
-    store.evidenceRecords = [
+    ])
+
+    await upsertStoredEvidence([
       {
         id: "evidence-1",
         projectId: created.project.id,
@@ -142,9 +134,10 @@ describe("dashboard and asset payload regrouping", () => {
         timeline: ["2026-03-27 10:01"],
         verdict: "入口已确认",
       },
-    ]
-    store.approvals = [
-      {
+    ])
+
+    await prisma.approval.create({
+      data: {
         id: "approval-1",
         projectId: created.project.id,
         projectName: created.project.name,
@@ -161,12 +154,10 @@ describe("dashboard and asset payload regrouping", () => {
         stopCondition: "失败即停",
         blockingImpact: "阻塞漏洞确认",
         queuePosition: 1,
-        submittedAt: "2026-03-27 10:05",
       },
-    ]
-    writePrototypeStore(store)
+    })
 
-    const payload = await getDashboardPayload() as Record<string, unknown>
+    const payload = await getDashboardPayload() as unknown as Record<string, unknown>
 
     expect((payload.metrics as Array<{ label: string }>).map((item) => item.label)).toEqual([
       "项目总数",
@@ -191,9 +182,8 @@ describe("dashboard and asset payload regrouping", () => {
       targetInput: "demo.example.com",
       description: "资产中心视图测试",
     } as never)
-    const store = readPrototypeStore()
 
-    store.assets = [
+    await upsertStoredAssets([
       {
         id: "asset-domain-1",
         projectId: created.project.id,
@@ -230,10 +220,9 @@ describe("dashboard and asset payload regrouping", () => {
         issueLead: "TLS 入口",
         relations: [],
       },
-    ]
-    writePrototypeStore(store)
+    ])
 
-    const payload = await listAssetsPayload() as Record<string, unknown>
+    const payload = await listAssetsPayload() as unknown as Record<string, unknown>
 
     expect(payload).toHaveProperty("views")
     expect((payload.views as Array<{ key: string }>).map((view) => view.key)).toEqual([
@@ -252,9 +241,8 @@ describe("dashboard and asset payload regrouping", () => {
       targetInput: "demo.example.com",
       description: "最近结果更新去重测试",
     } as never)
-    const store = readPrototypeStore()
 
-    store.evidenceRecords = [
+    await upsertStoredEvidence([
       {
         id: "evidence-1",
         projectId: created.project.id,
@@ -289,8 +277,7 @@ describe("dashboard and asset payload regrouping", () => {
         timeline: ["2026-03-27 10:01"],
         verdict: "入口已确认",
       },
-    ]
-    writePrototypeStore(store)
+    ])
 
     const payload = await getDashboardPayload()
 

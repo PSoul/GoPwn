@@ -31,8 +31,11 @@ describe("mcp tools api routes", () => {
   })
 
   it("returns MCP settings payload without phantom servers when nothing has been registered", async () => {
-    seedWorkflowReadyMcpTools()
-    const response = await getMcpSettings()
+    await seedWorkflowReadyMcpTools()
+    const response = await getMcpSettings(
+      new Request("http://localhost/api/settings/mcp-tools"),
+      { params: Promise.resolve({}) },
+    )
     const payload = await response.json()
 
     expect(response.status).toBe(200)
@@ -45,7 +48,7 @@ describe("mcp tools api routes", () => {
   })
 
   it("persists MCP tool configuration updates", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const toolId = workflowReadyMcpToolFixtures.find((tool) => tool.toolName === "dns-census")?.id ?? "tool-dns-census"
     const response = await patchMcpTool(
       new Request(`http://localhost/api/settings/mcp-tools/${toolId}`, {
@@ -88,7 +91,7 @@ describe("mcp tools api routes", () => {
           }
         : tool,
     )
-    seedWorkflowReadyMcpTools(unhealthyTools)
+    await seedWorkflowReadyMcpTools(unhealthyTools)
     const toolId = unhealthyTools.find((tool) => tool.toolName === "web-surface-map")?.id ?? "tool-web-surface-map"
     const response = await postHealthCheck(
       new Request(`http://localhost/api/settings/mcp-tools/${toolId}/health-check`, { method: "POST" }),
@@ -99,7 +102,10 @@ describe("mcp tools api routes", () => {
     expect(response.status).toBe(200)
     expect(payload.tool.status).toBe("启用")
 
-    const systemStatusResponse = await getSystemStatus()
+    const systemStatusResponse = await getSystemStatus(
+      new Request("http://localhost/api/settings/system-status"),
+      { params: Promise.resolve({}) },
+    )
     const systemStatusPayload = await systemStatusResponse.json()
 
     expect(systemStatusResponse.status).toBe(200)

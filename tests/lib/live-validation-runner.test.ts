@@ -38,6 +38,7 @@ describe("live validation runner helpers", () => {
   it("uses the workspace store when workspace mode is requested", () => {
     const dataDir = resolveLiveValidationPrototypeDataDir({
       cwd: "D:\\dev\\llmpentest0326",
+      explicitStateDir: undefined,
       runDirectoryName: "2026-03-27T08-00-00-000Z-juice-shop",
       stateMode: "workspace",
     })
@@ -48,6 +49,7 @@ describe("live validation runner helpers", () => {
   it("creates an isolated validation store by default", () => {
     const dataDir = resolveLiveValidationPrototypeDataDir({
       cwd: "D:\\dev\\llmpentest0326",
+      explicitStateDir: undefined,
       runDirectoryName: "2026-03-27T08-00-00-000Z-juice-shop",
       stateMode: "isolated",
     })
@@ -178,7 +180,6 @@ describe("live validation runner helpers", () => {
     const result = await ensureWebSurfaceMcpRegistration({
       baseUrl: "http://127.0.0.1:3301",
       cookie: "prototype_session=test",
-      cwd: "D:\\dev\\llmpentest0326",
       requestJson,
     })
 

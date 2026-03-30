@@ -8,6 +8,7 @@ import { GET as getLlmLogs } from "@/app/api/projects/[projectId]/llm-logs/route
 import { GET as getLlmLogDetail } from "@/app/api/projects/[projectId]/llm-logs/[logId]/route"
 import { GET as getRecentLlmLogs } from "@/app/api/llm-logs/recent/route"
 import { createLlmCallLog, completeLlmCallLog, failLlmCallLog } from "@/lib/llm-call-logger"
+import { createStoredProjectFixture } from "@/tests/helpers/project-fixtures"
 
 const buildProjectContext = (projectId: string) => ({
   params: Promise.resolve({ projectId }),
@@ -19,10 +20,14 @@ const buildLogContext = (projectId: string, logId: string) => ({
 
 describe("llm call logs api", () => {
   let tempDir: string
+  let projectId: string
 
-  beforeEach(() => {
+  beforeEach(async () => {
     tempDir = mkdtempSync(path.join(tmpdir(), "llm-pentest-llm-logs-"))
     process.env.PROTOTYPE_DATA_DIR = tempDir
+
+    const { project } = await createStoredProjectFixture()
+    projectId = project.id
   })
 
   afterEach(() => {
@@ -31,8 +36,8 @@ describe("llm call logs api", () => {
   })
 
   it("returns empty list when no logs exist", async () => {
-    const request = new Request("http://localhost/api/projects/proj-1/llm-logs")
-    const response = await getLlmLogs(request, buildProjectContext("proj-1"))
+    const request = new Request(`http://localhost/api/projects/${projectId}/llm-logs`)
+    const response = await getLlmLogs(request, buildProjectContext(projectId))
     const payload = await response.json()
 
     expect(response.status).toBe(200)
@@ -41,8 +46,8 @@ describe("llm call logs api", () => {
   })
 
   it("creates and lists llm call logs", async () => {
-    const log = createLlmCallLog({
-      projectId: "proj-1",
+    const log = await createLlmCallLog({
+      projectId,
       role: "orchestrator",
       phase: "planning",
       prompt: "Test prompt",
@@ -50,13 +55,13 @@ describe("llm call logs api", () => {
       provider: "openai-compatible",
     })
 
-    completeLlmCallLog(log.id, {
+    await completeLlmCallLog(log.id, {
       response: "Test response",
       durationMs: 1234,
     })
 
-    const request = new Request("http://localhost/api/projects/proj-1/llm-logs")
-    const response = await getLlmLogs(request, buildProjectContext("proj-1"))
+    const request = new Request(`http://localhost/api/projects/${projectId}/llm-logs`)
+    const response = await getLlmLogs(request, buildProjectContext(projectId))
     const payload = await response.json()
 
     expect(response.status).toBe(200)
@@ -68,16 +73,16 @@ describe("llm call logs api", () => {
   })
 
   it("filters by role", async () => {
-    createLlmCallLog({
-      projectId: "proj-1",
+    await createLlmCallLog({
+      projectId,
       role: "orchestrator",
       phase: "planning",
       prompt: "Plan prompt",
       model: "gpt-4",
       provider: "openai-compatible",
     })
-    createLlmCallLog({
-      projectId: "proj-1",
+    await createLlmCallLog({
+      projectId,
       role: "reviewer",
       phase: "reviewing",
       prompt: "Review prompt",
@@ -85,8 +90,8 @@ describe("llm call logs api", () => {
       provider: "openai-compatible",
     })
 
-    const request = new Request("http://localhost/api/projects/proj-1/llm-logs?role=reviewer")
-    const response = await getLlmLogs(request, buildProjectContext("proj-1"))
+    const request = new Request(`http://localhost/api/projects/${projectId}/llm-logs?role=reviewer`)
+    const response = await getLlmLogs(request, buildProjectContext(projectId))
     const payload = await response.json()
 
     expect(payload.total).toBe(1)
@@ -94,8 +99,8 @@ describe("llm call logs api", () => {
   })
 
   it("returns single log detail", async () => {
-    const log = createLlmCallLog({
-      projectId: "proj-1",
+    const log = await createLlmCallLog({
+      projectId,
       role: "orchestrator",
       phase: "planning",
       prompt: "Detail prompt",
@@ -103,8 +108,8 @@ describe("llm call logs api", () => {
       provider: "openai-compatible",
     })
 
-    const request = new Request(`http://localhost/api/projects/proj-1/llm-logs/${log.id}`)
-    const response = await getLlmLogDetail(request, buildLogContext("proj-1", log.id))
+    const request = new Request(`http://localhost/api/projects/${projectId}/llm-logs/${log.id}`)
+    const response = await getLlmLogDetail(request, buildLogContext(projectId, log.id))
     const payload = await response.json()
 
     expect(response.status).toBe(200)
@@ -113,15 +118,15 @@ describe("llm call logs api", () => {
   })
 
   it("returns 404 for missing log", async () => {
-    const request = new Request("http://localhost/api/projects/proj-1/llm-logs/nonexistent")
-    const response = await getLlmLogDetail(request, buildLogContext("proj-1", "nonexistent"))
+    const request = new Request(`http://localhost/api/projects/${projectId}/llm-logs/nonexistent`)
+    const response = await getLlmLogDetail(request, buildLogContext(projectId, "nonexistent"))
 
     expect(response.status).toBe(404)
   })
 
   it("records failed logs correctly", async () => {
-    const log = createLlmCallLog({
-      projectId: "proj-1",
+    const log = await createLlmCallLog({
+      projectId,
       role: "orchestrator",
       phase: "planning",
       prompt: "Fail prompt",
@@ -129,10 +134,10 @@ describe("llm call logs api", () => {
       provider: "openai-compatible",
     })
 
-    failLlmCallLog(log.id, "Connection timeout")
+    await failLlmCallLog(log.id, "Connection timeout")
 
-    const request = new Request("http://localhost/api/projects/proj-1/llm-logs")
-    const response = await getLlmLogs(request, buildProjectContext("proj-1"))
+    const request = new Request(`http://localhost/api/projects/${projectId}/llm-logs`)
+    const response = await getLlmLogs(request, buildProjectContext(projectId))
     const payload = await response.json()
 
     expect(payload.items[0].status).toBe("failed")
@@ -140,16 +145,18 @@ describe("llm call logs api", () => {
   })
 
   it("returns recent logs across all projects", async () => {
-    createLlmCallLog({
-      projectId: "proj-1",
+    const { project: project2 } = await createStoredProjectFixture({ name: "测试项目2" })
+
+    await createLlmCallLog({
+      projectId,
       role: "orchestrator",
       phase: "planning",
       prompt: "P1",
       model: "gpt-4",
       provider: "openai-compatible",
     })
-    createLlmCallLog({
-      projectId: "proj-2",
+    await createLlmCallLog({
+      projectId: project2.id,
       role: "reviewer",
       phase: "reviewing",
       prompt: "P2",

@@ -10,7 +10,7 @@ import { realEvidenceCaptureMcpConnector } from "@/lib/mcp-connectors/real-evide
 import type { McpConnectorExecutionContext } from "@/lib/mcp-connectors/types"
 import { registerStoredMcpServer } from "@/lib/mcp-server-repository"
 
-describe("real evidence-capture MCP connector", () => {
+describe.skipIf(process.env.SKIP_MCP_INTEGRATION === "1")("real evidence-capture MCP connector", () => {
   let server: ReturnType<typeof createServer>
   let tempDir: string
   let targetUrl: string

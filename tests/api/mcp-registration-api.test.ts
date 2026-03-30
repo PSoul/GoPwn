@@ -80,6 +80,7 @@ describe("mcp registration api route", () => {
         },
         body: JSON.stringify(validRegistrationPayload),
       }),
+      { params: Promise.resolve({}) },
     )
     const payload = await response.json()
 
@@ -92,7 +93,10 @@ describe("mcp registration api route", () => {
     expect(payload.toolContracts[0].resultMappings).toEqual(["intelligence"])
     expect(payload.toolRecords[0].toolName).toBe("external-intel-query")
 
-    const settingsResponse = await getMcpSettings()
+    const settingsResponse = await getMcpSettings(
+      new Request("http://localhost/api/settings/mcp-tools"),
+      { params: Promise.resolve({}) },
+    )
     const settingsPayload = await settingsResponse.json()
 
     expect(settingsResponse.status).toBe(200)
@@ -115,6 +119,7 @@ describe("mcp registration api route", () => {
           notes: undefined,
         }),
       }),
+      { params: Promise.resolve({}) },
     )
     const payload = await response.json()
 
@@ -142,6 +147,7 @@ describe("mcp registration api route", () => {
         },
         body: JSON.stringify(invalidPayload),
       }),
+      { params: Promise.resolve({}) },
     )
     const payload = await response.json()
 
@@ -167,6 +173,7 @@ describe("mcp registration api route", () => {
         },
         body: JSON.stringify(invalidPayload),
       }),
+      { params: Promise.resolve({}) },
     )
     const payload = await response.json()
 
@@ -188,6 +195,7 @@ describe("mcp registration api route", () => {
         },
         body: JSON.stringify(invalidPayload),
       }),
+      { params: Promise.resolve({}) },
     )
     const payload = await response.json()
 
@@ -209,6 +217,7 @@ describe("mcp registration api route", () => {
         },
         body: JSON.stringify(invalidPayload),
       }),
+      { params: Promise.resolve({}) },
     )
     const payload = await response.json()
 

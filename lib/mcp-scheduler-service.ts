@@ -56,13 +56,15 @@ function isAbortError(error: unknown) {
 }
 
 function buildLeaseClearingPatch() {
+  // Use null (not undefined) so that updateStoredSchedulerTask sees the keys
+  // as "present" and writes NULL to PostgreSQL, clearing the lease fields.
   return {
-    heartbeatAt: undefined,
-    leaseExpiresAt: undefined,
-    leaseStartedAt: undefined,
-    leaseToken: undefined,
-    workerId: undefined,
-  } as const
+    heartbeatAt: null as unknown as string | undefined,
+    leaseExpiresAt: null as unknown as string | undefined,
+    leaseStartedAt: null as unknown as string | undefined,
+    leaseToken: null as unknown as string | undefined,
+    workerId: null as unknown as string | undefined,
+  }
 }
 
 function taskMatchesOwnership(task: McpSchedulerTaskRecord | null, ownership: SchedulerTaskOwnership) {

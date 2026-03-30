@@ -5,7 +5,8 @@ import { dispatchStoredMcpRun, listStoredMcpRuns } from "@/lib/mcp-gateway-repos
 import { drainStoredSchedulerTasks, syncStoredSchedulerTaskAfterApprovalDecision } from "@/lib/mcp-scheduler-service"
 import { createStoredProject, getStoredProjectById, getStoredProjectDetailById } from "@/lib/project-repository"
 import { listStoredProjectFindings } from "@/lib/project-results-repository"
-import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
+import { prisma } from "@/lib/prisma"
+import { fromMcpToolRecord } from "@/lib/prisma-transforms"
 import { runProjectSmokeWorkflow } from "@/lib/mcp-workflow-service"
 import type {
   ApprovalRecord,
@@ -175,18 +176,17 @@ async function readWorkflowFixture(projectId: string): Promise<WorkflowFixture> 
   }
 }
 
-export function seedWorkflowReadyMcpTools(overrides: McpToolRecord[] = workflowReadyMcpToolFixtures) {
-  const store = readPrototypeStore()
-  const toolMap = new Map(store.mcpTools.map((tool) => [tool.id, tool]))
-
+export async function seedWorkflowReadyMcpTools(overrides: McpToolRecord[] = workflowReadyMcpToolFixtures) {
   for (const tool of overrides) {
-    toolMap.set(tool.id, tool)
+    const data = fromMcpToolRecord(tool)
+    await prisma.mcpTool.upsert({
+      where: { id: tool.id },
+      create: data,
+      update: data,
+    })
   }
 
-  store.mcpTools = Array.from(toolMap.values())
-  writePrototypeStore(store)
-
-  return store.mcpTools
+  return overrides
 }
 
 export async function createStoredProjectFixture(overrides: Partial<ProjectMutationInput> = {}) {
@@ -209,7 +209,7 @@ export async function createWorkflowFixture(
     exportReportAfterApproval?: boolean
   } = {},
 ) {
-  seedWorkflowReadyMcpTools()
+  await seedWorkflowReadyMcpTools()
 
   const payload = await createStoredProjectFixture(options.projectOverrides)
   const workflow = options.workflow ?? (options.approveHighRisk ? "with-approval" : "baseline")

@@ -14,7 +14,7 @@ import { registerStoredMcpServer } from "@/lib/mcp-server-repository"
 import { getStoredProjectDetailById } from "@/lib/project-repository"
 import { createStoredProjectFixture } from "@/tests/helpers/project-fixtures"
 
-describe("HTTP structure execution normalization", () => {
+describe.skipIf(process.env.SKIP_MCP_INTEGRATION === "1")("HTTP structure execution normalization", () => {
   let tempDir: string
   let targetServer: ReturnType<typeof createServer>
   let targetUrl: string

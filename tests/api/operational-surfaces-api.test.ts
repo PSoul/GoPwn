@@ -35,7 +35,10 @@ describe("operational surface api routes", () => {
 
   it("returns dashboard payload with metrics and queue data", async () => {
     const fixture = await createWorkflowFixture({ workflow: "with-approval" })
-    const response = await getDashboard()
+    const response = await getDashboard(
+      new Request("http://localhost/api/dashboard"),
+      { params: Promise.resolve({}) },
+    )
     const payload = await response.json()
 
     expect(response.status).toBe(200)
@@ -46,19 +49,28 @@ describe("operational surface api routes", () => {
 
   it("returns approvals, assets, and evidence collections", async () => {
     await createWorkflowFixture({ workflow: "with-approval" })
-    const approvalsResponse = await getApprovals()
+    const approvalsResponse = await getApprovals(
+      new Request("http://localhost/api/approvals"),
+      { params: Promise.resolve({}) },
+    )
     const approvalsPayload = await approvalsResponse.json()
 
     expect(approvalsResponse.status).toBe(200)
     expect(approvalsPayload.total).toBeGreaterThan(0)
 
-    const assetsResponse = await getAssets()
+    const assetsResponse = await getAssets(
+      new Request("http://localhost/api/assets"),
+      { params: Promise.resolve({}) },
+    )
     const assetsPayload = await assetsResponse.json()
 
     expect(assetsResponse.status).toBe(200)
     expect(assetsPayload.total).toBeGreaterThan(0)
 
-    const evidenceResponse = await getEvidence()
+    const evidenceResponse = await getEvidence(
+      new Request("http://localhost/api/evidence"),
+      { params: Promise.resolve({}) },
+    )
     const evidencePayload = await evidenceResponse.json()
 
     expect(evidenceResponse.status).toBe(200)

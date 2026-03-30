@@ -36,6 +36,15 @@ export function unregisterActiveExecution(runId: string, controller?: AbortContr
   return true
 }
 
+export function abortAllActiveExecutions(reason = "All active executions aborted.") {
+  for (const [, controller] of activeExecutionControllers) {
+    if (!controller.signal.aborted) {
+      controller.abort(reason)
+    }
+  }
+  activeExecutionControllers.clear()
+}
+
 export function resetActiveExecutionRegistry() {
   activeExecutionControllers.clear()
 }

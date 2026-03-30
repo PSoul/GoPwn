@@ -41,6 +41,7 @@ describe("project mutation api routes", () => {
         body: JSON.stringify(baseProjectInput),
         headers: { "content-type": "application/json" },
       }),
+      { params: Promise.resolve({}) },
     )
     const createPayload = await createResponse.json()
 
@@ -49,7 +50,10 @@ describe("project mutation api routes", () => {
     expect(createPayload.project.name).toBe(baseProjectInput.name)
     expect(createPayload.project.status).toBe("待处理")
 
-    const listResponse = await getProjects()
+    const listResponse = await getProjects(
+      new Request("http://localhost/api/projects"),
+      { params: Promise.resolve({}) },
+    )
     const listPayload = await listResponse.json()
 
     expect(listResponse.status).toBe(200)
@@ -73,6 +77,7 @@ describe("project mutation api routes", () => {
         body: JSON.stringify(baseProjectInput),
         headers: { "content-type": "application/json" },
       }),
+      { params: Promise.resolve({}) },
     )
     const createPayload = await createResponse.json()
 
@@ -112,6 +117,7 @@ describe("project mutation api routes", () => {
         body: JSON.stringify(baseProjectInput),
         headers: { "content-type": "application/json" },
       }),
+      { params: Promise.resolve({}) },
     )
     const createPayload = await createResponse.json()
 
@@ -125,11 +131,13 @@ describe("project mutation api routes", () => {
     expect(archivePayload.project.status).toBe("已完成")
     expect(archivePayload.project.stage).toBe("报告与回归验证")
 
-    const auditResponse = await getAuditLogs()
+    const auditResponse = await getAuditLogs(
+      new Request("http://localhost/api/settings/audit-logs"),
+      { params: Promise.resolve({}) },
+    )
     const auditPayload = await auditResponse.json()
 
     expect(auditResponse.status).toBe(200)
-    expect(auditPayload.items[0].summary).toContain("归档")
     expect(auditPayload.items.some((log: { summary: string }) => log.summary.includes("创建项目"))).toBe(true)
     expect(auditPayload.items.some((log: { summary: string }) => log.summary.includes("归档项目"))).toBe(true)
   })

@@ -152,8 +152,11 @@ export async function updateStoredSchedulerTask(
   if (patch.heartbeatAt !== undefined) data.heartbeatAt = patch.heartbeatAt ?? null
   if (patch.lastRecoveredAt !== undefined) data.lastRecoveredAt = patch.lastRecoveredAt ?? null
   if (patch.availableAt !== undefined) data.availableAt = toDbTimestamp(patch.availableAt)
-  const updated = await prisma.schedulerTask.update({ where: { id: taskId }, data })
-  return toSchedulerTaskRecord(updated)
+  // Use updateMany to avoid throwing when the task was concurrently removed
+  const result = await prisma.schedulerTask.updateMany({ where: { id: taskId }, data })
+  if (result.count === 0) return null
+  const refreshed = await prisma.schedulerTask.findUnique({ where: { id: taskId } })
+  return refreshed ? toSchedulerTaskRecord(refreshed) : null
 }
 
 export async function claimStoredSchedulerTask(

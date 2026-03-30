@@ -8,7 +8,7 @@ import { GET as getArtifact } from "@/app/api/artifacts/[...artifactPath]/route"
 import { AUTH_COOKIE_NAME, createSessionToken } from "@/lib/auth-session"
 
 const buildArtifactContext = (artifactPath: string[]) => ({
-  params: Promise.resolve({ artifactPath }),
+  params: Promise.resolve({ artifactPath } as any),
 })
 
 describe("artifact api route", () => {

@@ -1061,7 +1061,9 @@ function normalizeStdioMcpArtifacts(
 }
 
 async function updateProjectExecutionMeta(project: ProjectRecord, run: McpRunRecord) {
-  await prisma.project.update({
+  // Use updateMany to avoid throwing when the project no longer exists
+  // (e.g., test cleanup truncated the table between execution steps).
+  await prisma.project.updateMany({
     where: { id: project.id },
     data: {
       lastActor: `${run.toolName} · ${run.requestedAction}`,

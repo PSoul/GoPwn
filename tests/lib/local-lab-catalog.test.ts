@@ -43,7 +43,7 @@ describe("local lab catalog", () => {
 
         throw new Error(`connect ECONNREFUSED ${url}`)
       }) as typeof fetch,
-      execFile: ((_file, args, callback) => {
+      execFile: ((_file: string, args: string[], callback: (err: Error | null, result?: { stdout: string; stderr: string }) => void) => {
         const joinedArgs = args.join(" ")
 
         if (joinedArgs.includes("llm-pentest-webgoat") && joinedArgs.includes("/WebGoat/actuator/health")) {
@@ -75,7 +75,7 @@ describe("local lab catalog", () => {
 
         throw new Error(`connect ECONNREFUSED ${url}`)
       }) as typeof fetch,
-      execFile: ((_file, _args, callback) => {
+      execFile: ((_file: string, _args: string[], callback: (err: Error | null) => void) => {
         callback(new Error("docker exec failed"))
         return {} as never
       }) as never,

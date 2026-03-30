@@ -12,7 +12,7 @@ describe("http runtime", () => {
         fetch: vi.fn(async () => {
           throw new Error("connect ECONNREFUSED 127.0.0.1:18080")
         }) as typeof fetch,
-        execFile: ((_file, args, callback) => {
+        execFile: ((_file: string, args: string[], callback: (err: Error | null, result?: { stdout: string; stderr: string }) => void) => {
           expect(args).toContain("llm-pentest-webgoat")
           expect(args).toContain("wget")
           expect(args.join(" ")).toContain("http://127.0.0.1:8080/WebGoat/login")
@@ -36,6 +36,6 @@ describe("http runtime", () => {
     expect(result.webEntry.url).toBe("http://127.0.0.1:18080/WebGoat/login")
     expect(result.webEntry.finalUrl).toBe("http://127.0.0.1:8080/WebGoat/login")
     expect(result.webEntry.title).toBe("WebGoat")
-    expect(result.webEntry.headers.some((header) => header.includes("Apache-Coyote"))).toBe(true)
+    expect(result.webEntry.headers.some((header: string) => header.includes("Apache-Coyote"))).toBe(true)
   })
 })

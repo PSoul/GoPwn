@@ -63,7 +63,7 @@ describe("scheduler control api routes", () => {
   })
 
   it("starts an idle project only after manual start and still refuses restart after stop", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture({
       targetInput: "http://127.0.0.1:18080/WebGoat",
       description: "手动开始生命周期测试项目。",
@@ -137,7 +137,7 @@ describe("scheduler control api routes", () => {
   })
 
   it("skips DNS expansion for direct URL/IP targets and auto-settles into report export plus final conclusion", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture({
       targetInput: "http://127.0.0.1:18080/WebGoat",
       description: "直接 URL/IP 目标不应该被误判成需要 DNS 扩展。",
@@ -188,12 +188,12 @@ describe("scheduler control api routes", () => {
   })
 
   it("cancels a queued scheduler task through the project api", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const dispatchPayload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
-      target: fixture.project.seed,
+      target: fixture.project.seed!,
       riskLevel: "低",
     })
     const task = await getStoredSchedulerTaskByRunId(dispatchPayload!.run.id)
@@ -217,12 +217,12 @@ describe("scheduler control api routes", () => {
   })
 
   it("records a stop request for a running scheduler task through the project api", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const dispatchPayload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
-      target: fixture.project.seed,
+      target: fixture.project.seed!,
       riskLevel: "低",
     })
     const task = await getStoredSchedulerTaskByRunId(dispatchPayload!.run.id)
@@ -251,12 +251,12 @@ describe("scheduler control api routes", () => {
   })
 
   it("retries a failed scheduler task through the project api", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const dispatchPayload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
-      target: fixture.project.seed,
+      target: fixture.project.seed!,
       riskLevel: "低",
     })
     const task = await getStoredSchedulerTaskByRunId(dispatchPayload!.run.id)

@@ -23,6 +23,8 @@ const initialPayload: ProjectOrchestratorPanelPayload = {
       image: "bkimminich/juice-shop",
       ports: ["127.0.0.1:3000->3000"],
       status: "unknown",
+      availability: "unknown",
+      statusNote: "",
     },
   ],
   lastPlan: null,

@@ -5,13 +5,24 @@ import path from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 import { GET as getLlmSettings, PATCH as patchLlmSettings } from "@/app/api/settings/llm/route"
+import { prisma } from "@/lib/prisma"
 
 describe("llm settings api route", () => {
   let tempDir: string
 
-  beforeEach(() => {
+  beforeEach(async () => {
     tempDir = mkdtempSync(path.join(tmpdir(), "llm-pentest-llm-settings-store-"))
     process.env.PROTOTYPE_DATA_DIR = tempDir
+
+    // Seed the 3 default LLM profiles that tests expect
+    await prisma.llmProfile.createMany({
+      data: [
+        { id: "orchestrator", provider: "openai-compatible", label: "Orchestrator", apiKey: "", baseUrl: "", model: "", timeoutMs: 15000, temperature: 0.2, enabled: false },
+        { id: "reviewer", provider: "openai-compatible", label: "Reviewer", apiKey: "", baseUrl: "", model: "", timeoutMs: 15000, temperature: 0.2, enabled: false },
+        { id: "extractor", provider: "openai-compatible", label: "Extractor", apiKey: "", baseUrl: "", model: "", timeoutMs: 15000, temperature: 0.2, enabled: false },
+      ],
+      skipDuplicates: true,
+    })
   })
 
   afterEach(() => {
@@ -20,7 +31,10 @@ describe("llm settings api route", () => {
   })
 
   it("returns persisted LLM profiles from the prototype store", async () => {
-    const response = await getLlmSettings()
+    const response = await getLlmSettings(
+      new Request("http://localhost/api/settings/llm"),
+      { params: Promise.resolve({}) },
+    )
     const payload = await response.json()
 
     expect(response.status).toBe(200)
@@ -48,6 +62,7 @@ describe("llm settings api route", () => {
           enabled: true,
         }),
       }),
+      { params: Promise.resolve({}) },
     )
     const payload = await response.json()
 
@@ -56,7 +71,10 @@ describe("llm settings api route", () => {
     expect(payload.profile.apiKey).toBe("sk-real-debug")
     expect(payload.profile.enabled).toBe(true)
 
-    const nextResponse = await getLlmSettings()
+    const nextResponse = await getLlmSettings(
+      new Request("http://localhost/api/settings/llm"),
+      { params: Promise.resolve({}) },
+    )
     const nextPayload = await nextResponse.json()
     const profile = nextPayload.profiles.find((item: { id: string }) => item.id === "orchestrator")
 

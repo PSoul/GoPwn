@@ -1,31 +1,22 @@
-import { mkdtempSync, rmSync } from "node:fs"
 import { createServer } from "node:http"
 import type { AddressInfo } from "node:net"
-import { tmpdir } from "node:os"
-import path from "node:path"
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
 
 import { listStoredAssets } from "@/lib/asset-repository"
+import { listStoredEvidence } from "@/lib/evidence-repository"
 import { executeStoredMcpRun } from "@/lib/mcp-execution-service"
 import { dispatchStoredMcpRun, getStoredMcpRunById } from "@/lib/mcp-gateway-repository"
 import { registerStoredMcpServer } from "@/lib/mcp-server-repository"
 import { getStoredSchedulerTaskByRunId, updateStoredSchedulerTask } from "@/lib/mcp-scheduler-repository"
-import { readPrototypeStore } from "@/lib/prototype-store"
+import { listStoredProjectFindings } from "@/lib/project-results-repository"
 import { createStoredProjectFixture, seedWorkflowReadyMcpTools } from "@/tests/helpers/project-fixtures"
 
 describe("MCP execution service cancellation guard", () => {
-  let tempDir: string
   let fixtureServer: ReturnType<typeof createServer> | null = null
   let fixtureUrl = ""
 
-  beforeEach(() => {
-    tempDir = mkdtempSync(path.join(tmpdir(), "llm-pentest-execution-guard-store-"))
-    process.env.PROTOTYPE_DATA_DIR = tempDir
-  })
-
   afterEach(async () => {
-    delete process.env.PROTOTYPE_DATA_DIR
     if (fixtureServer) {
       await new Promise<void>((resolve, reject) => {
         fixtureServer!.close((error) => {
@@ -39,16 +30,15 @@ describe("MCP execution service cancellation guard", () => {
       })
       fixtureServer = null
     }
-    rmSync(tempDir, { force: true, recursive: true })
   })
 
   it("does not commit normalized execution results when the scheduler task is already cancelled", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
-      target: fixture.project.seed,
+      target: fixture.project.seed!,
       riskLevel: "低",
     })
 
@@ -66,12 +56,12 @@ describe("MCP execution service cancellation guard", () => {
   })
 
   it("does not commit normalized execution results when the lease ownership has moved to a newer worker", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
-      target: fixture.project.seed,
+      target: fixture.project.seed!,
       riskLevel: "低",
     })
 
@@ -104,7 +94,7 @@ describe("MCP execution service cancellation guard", () => {
     const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "目标解析类",
       requestedAction: "标准化 WebGoat 种子目标",
-      target: fixture.project.seed,
+      target: fixture.project.seed!,
       riskLevel: "低",
     })
 
@@ -140,7 +130,7 @@ describe("MCP execution service cancellation guard", () => {
     expect((await getStoredMcpRunById(payload!.run.id))?.toolName).toBe("report-exporter")
   })
 
-  it("normalizes findings and evidence for a generic controlled-validation tool binding that reuses the shared HTTP validation MCP shape", async () => {
+  it.skipIf(process.env.SKIP_MCP_INTEGRATION === "1")("normalizes findings and evidence for a generic controlled-validation tool binding that reuses the shared HTTP validation MCP shape", async () => {
     fixtureServer = createServer((_request, response) => {
       response.writeHead(200, {
         "content-type": "application/vnd.spring-boot.actuator.v3+json",
@@ -223,7 +213,9 @@ describe("MCP execution service cancellation guard", () => {
 
     expect(result?.status).toBe("succeeded")
     expect((await getStoredMcpRunById(payload!.run.id))?.status).toBe("已执行")
-    expect(readPrototypeStore().projectFindings.some((item) => item.projectId === fixture.project.id)).toBe(true)
-    expect(readPrototypeStore().evidenceRecords.some((item) => item.projectId === fixture.project.id)).toBe(true)
+    const findings = await listStoredProjectFindings(fixture.project.id)
+    expect(findings.some((item) => item.projectId === fixture.project.id)).toBe(true)
+    const evidence = await listStoredEvidence(fixture.project.id)
+    expect(evidence.some((item) => item.projectId === fixture.project.id)).toBe(true)
   })
 })

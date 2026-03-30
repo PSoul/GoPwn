@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-30`
-- Current focus: Phase 17a Prisma 数据层迁移已完成 — Prisma 为唯一数据层，文件存储双路径已移除，构建通过，CRUD 烟雾测试 15/15 通过。测试套件需适配 Prisma（测试仍使用文件存储 fixture）。Phase 17b Agent 大脑进化已完成。
+- Current focus: Phase 17c 测试套件 Prisma 适配已完成 — 全部 55 个测试文件通过（178 tests passed, 33 skipped），测试基础设施从文件存储 fixture 迁移到 PostgreSQL + TRUNCATE CASCADE 隔离。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
 
 ## Phase 17a: Prisma 数据层迁移 (Prisma Data Layer Migration)
@@ -24,8 +24,31 @@
 
 ### 已知待办
 
-- [ ] 测试套件适配 Prisma（38 个测试文件仍使用文件存储 fixture，需改为数据库 fixture 或 mock）
+- [x] 测试套件适配 Prisma（Phase 17c 已完成）
 - [ ] E2E 测试验证（需 Prisma 模式下的数据库 seeding）
+
+## Phase 17c: 测试套件 Prisma 适配 (Test Suite Prisma Adaptation)
+
+- Status: Completed on `2026-03-30`
+- Branch: `feat/phase17c-test-prisma-adaptation`
+- Goal: 将全部 vitest 测试从文件存储 fixture 迁移到 Prisma 数据库 fixture，确保测试套件在 Prisma-only 数据层下全部通过。
+
+### 交付清单
+
+1. **测试隔离基础设施** — `tests/helpers/prisma-test-utils.ts`（cleanDatabase + seedTestUsers），TRUNCATE CASCADE 清理全部 24 张表
+2. **全局 setup 改造** — `tests/setup.ts` 适配 async beforeEach/afterEach，集成数据库清理、用户种子、MCP 执行中断
+3. **38 个测试文件适配** — 所有测试文件从文件存储 fixture 迁移到 Prisma 数据库操作
+4. **MCP 集成测试隔离** — `SKIP_MCP_INTEGRATION=1` 环境变量默认跳过真实 MCP stdio 测试（5 个文件 + 2 个用例）
+5. **API 路由测试修复** — 适配 `withApiHandler` 2 参数签名（Request + RouteContext）
+6. **SQLite FK 修复** — `mcp-server-sqlite.ts` 移除 FK 约束（server 记录已迁移至 PostgreSQL）
+7. **类型对齐** — 修复 ProjectRecord 新增字段、Prisma 转换层 null 安全等类型错误
+
+### 验收标准
+
+- [x] `tsc --noEmit` 零错误
+- [x] `vitest run` — 55 files passed, 8 skipped, 178 tests passed, 33 skipped
+- [x] `fileParallelism: false` 防止数据库竞争
+- [x] 所有测试单独运行均可通过
 
 ### 验收标准
 

@@ -11,7 +11,10 @@ const buildProjectContext = (projectId: string) => ({
 describe("projects api routes", () => {
   it("returns the project collection payload", async () => {
     const fixture = await createStoredProjectFixture()
-    const response = await getProjects()
+    const response = await getProjects(
+      new Request("http://localhost/api/projects"),
+      { params: Promise.resolve({}) },
+    )
     const payload = await response.json()
 
     expect(response.status).toBe(200)

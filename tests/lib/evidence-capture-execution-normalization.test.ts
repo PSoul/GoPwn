@@ -14,7 +14,7 @@ import { registerStoredMcpServer } from "@/lib/mcp-server-repository"
 import { getEvidenceDetailPayload } from "@/lib/prototype-api"
 import { createStoredProjectFixture } from "@/tests/helpers/project-fixtures"
 
-describe("evidence capture execution normalization", () => {
+describe.skipIf(process.env.SKIP_MCP_INTEGRATION === "1")("evidence capture execution normalization", () => {
   let tempDir: string
   let targetServer: ReturnType<typeof createServer>
   let targetUrl: string

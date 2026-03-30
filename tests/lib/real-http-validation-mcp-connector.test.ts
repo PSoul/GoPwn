@@ -10,7 +10,7 @@ import { realHttpValidationMcpConnector } from "@/lib/mcp-connectors/real-http-v
 import type { McpConnectorExecutionContext } from "@/lib/mcp-connectors/types"
 import { registerStoredMcpServer } from "@/lib/mcp-server-repository"
 
-describe("real http-validation MCP connector", () => {
+describe.skipIf(process.env.SKIP_MCP_INTEGRATION === "1")("real http-validation MCP connector", () => {
   let server: ReturnType<typeof createServer>
   let tempDir: string
   let targetUrl: string
@@ -132,6 +132,9 @@ describe("real http-validation MCP connector", () => {
         id: "proj-webgoat",
         code: "PRJ-20260327-003",
         name: "WebGoat Local Validation",
+        targetInput: `http://127.0.0.1:${targetPort}/WebGoat`,
+        targets: [`http://127.0.0.1:${targetPort}/WebGoat`],
+        description: "测试",
         seed: `http://127.0.0.1:${targetPort}/WebGoat`,
         targetType: "url",
         targetSummary: `http://127.0.0.1:${targetPort}/WebGoat`,

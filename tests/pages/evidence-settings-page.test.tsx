@@ -20,7 +20,7 @@ describe("Evidence and settings pages", () => {
     expect(screen.getByRole("heading", { name: "漏洞中心" })).toBeInTheDocument()
     cleanup()
 
-    upsertStoredEvidence([
+    await upsertStoredEvidence([
       {
         ...fixture.evidence[0],
         screenshotArtifactPath: "proj-test/run-test/page.png",

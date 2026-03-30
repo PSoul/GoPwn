@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { getConfiguredLlmProviderStatus, resolveLlmProvider } from "@/lib/llm-provider/registry"
-import { readPrototypeStore, writePrototypeStore } from "@/lib/prototype-store"
+import { prisma } from "@/lib/prisma"
 
 describe("LLM provider registry", () => {
   beforeEach(() => {
@@ -27,32 +27,51 @@ describe("LLM provider registry", () => {
     expect(status.note).toContain("未配置")
   })
 
-  it("prefers persisted prototype-store profiles before env vars", async () => {
-    const store = readPrototypeStore()
-    store.llmProfiles = store.llmProfiles.map((profile) =>
-      profile.id === "orchestrator"
-        ? {
-            ...profile,
-            apiKey: "sk-store-priority",
-            baseUrl: "https://api.siliconflow.cn/v1",
-            model: "Pro/deepseek-ai/DeepSeek-V3.2",
-            timeoutMs: 21000,
-            temperature: 0.1,
-            enabled: true,
-          }
-        : profile.id === "reviewer"
-          ? {
-              ...profile,
-              apiKey: "sk-store-priority",
-              baseUrl: "https://api.siliconflow.cn/v1",
-              model: "Qwen/Qwen2.5-7B-Instruct",
-              timeoutMs: 18000,
-              temperature: 0.05,
-              enabled: true,
-            }
-          : profile,
-    )
-    writePrototypeStore(store)
+  it("prefers persisted Prisma LLM profiles before env vars", async () => {
+    await prisma.llmProfile.upsert({
+      where: { id: "orchestrator" },
+      create: {
+        id: "orchestrator",
+        provider: "openai-compatible",
+        label: "编排模型",
+        apiKey: "sk-store-priority",
+        baseUrl: "https://api.siliconflow.cn/v1",
+        model: "Pro/deepseek-ai/DeepSeek-V3.2",
+        timeoutMs: 21000,
+        temperature: 0.1,
+        enabled: true,
+      },
+      update: {
+        apiKey: "sk-store-priority",
+        baseUrl: "https://api.siliconflow.cn/v1",
+        model: "Pro/deepseek-ai/DeepSeek-V3.2",
+        timeoutMs: 21000,
+        temperature: 0.1,
+        enabled: true,
+      },
+    })
+    await prisma.llmProfile.upsert({
+      where: { id: "reviewer" },
+      create: {
+        id: "reviewer",
+        provider: "openai-compatible",
+        label: "复核模型",
+        apiKey: "sk-store-priority",
+        baseUrl: "https://api.siliconflow.cn/v1",
+        model: "Qwen/Qwen2.5-7B-Instruct",
+        timeoutMs: 18000,
+        temperature: 0.05,
+        enabled: true,
+      },
+      update: {
+        apiKey: "sk-store-priority",
+        baseUrl: "https://api.siliconflow.cn/v1",
+        model: "Qwen/Qwen2.5-7B-Instruct",
+        timeoutMs: 18000,
+        temperature: 0.05,
+        enabled: true,
+      },
+    })
 
     const status = await getConfiguredLlmProviderStatus()
     const provider = await resolveLlmProvider()

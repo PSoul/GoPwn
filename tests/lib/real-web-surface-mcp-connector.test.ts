@@ -11,7 +11,7 @@ import { resetLocalLabCatalogTestAdapters, setLocalLabCatalogTestAdapters } from
 import type { McpConnectorExecutionContext } from "@/lib/mcp-connectors/types"
 import { listStoredMcpServerInvocations, registerStoredMcpServer } from "@/lib/mcp-server-repository"
 
-describe("real web-surface MCP connector", () => {
+describe.skipIf(process.env.SKIP_MCP_INTEGRATION === "1")("real web-surface MCP connector", () => {
   let server: ReturnType<typeof createServer>
   let tempDir: string
   let targetUrl: string
@@ -104,6 +104,9 @@ describe("real web-surface MCP connector", () => {
         id: "proj-huayao",
         code: "PRJ-20260326-001",
         name: "华曜科技匿名外网面梳理",
+        targetInput: targetUrl,
+        targets: [targetUrl],
+        description: "测试",
         seed: targetUrl,
         targetType: "url",
         targetSummary: targetUrl,
@@ -231,6 +234,9 @@ describe("real web-surface MCP connector", () => {
         id: "proj-webgoat",
         code: "PRJ-20260327-002",
         name: "WebGoat Local Validation",
+        targetInput: "http://127.0.0.1:18080/WebGoat",
+        targets: ["http://127.0.0.1:18080/WebGoat"],
+        description: "测试",
         seed: "http://127.0.0.1:18080/WebGoat",
         targetType: "url",
         targetSummary: "http://127.0.0.1:18080/WebGoat",
@@ -356,6 +362,9 @@ describe("real web-surface MCP connector", () => {
         id: "proj-huayao",
         code: "PRJ-20260326-001",
         name: "华曜科技匿名外网面梳理",
+        targetInput: targetUrl,
+        targets: [targetUrl],
+        description: "测试",
         seed: targetUrl,
         targetType: "url",
         targetSummary: targetUrl,
@@ -402,7 +411,7 @@ describe("real web-surface MCP connector", () => {
       },
       signal: controller.signal,
       tool: null,
-    } as McpConnectorExecutionContext
+    } as unknown as McpConnectorExecutionContext
 
     const startedAt = Date.now()
     const executionPromise = realWebSurfaceMcpConnector.execute(context)

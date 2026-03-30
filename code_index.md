@@ -201,21 +201,41 @@
 
 ## 5. Tests 目录
 
+### 测试基础设施（Phase 17c Prisma 适配）
+
+| 文件 | 用途 |
+|------|------|
+| `tests/setup.ts` | 全局 beforeEach/afterEach — 数据库 TRUNCATE CASCADE 清理 + 用户种子 + MCP 执行中断 |
+| `tests/helpers/prisma-test-utils.ts` | cleanDatabase()（24 表 TRUNCATE）+ seedTestUsers()（3 用户 + LLM profiles） |
+| `tests/helpers/project-fixtures.ts` | createStoredProjectFixture / createWorkflowFixture — Prisma 数据库 fixture |
+| `vitest.config.mts` | `fileParallelism: false` 防止数据库竞争，`pool: "forks"` |
+
+**测试统计**: 55 files passed, 8 skipped | 178 tests passed, 33 skipped
+
 ### API 测试
 - `tests/api/vuln-center-api.test.ts` — 漏洞中心 API 测试
 - `tests/api/llm-logs-api.test.ts` — LLM 日志 API 测试（7 个用例）
 - `tests/api/orchestrator-api.test.ts` — 编排器 API 测试
 - `tests/api/scheduler-controls-api.test.ts` — 调度器控制 API 测试
 - `tests/api/users-api.test.ts` — 用户管理 API 测试（6 个用例：CRUD + 角色权限 + 禁用登录）
+- `tests/api/project-mutations-api.test.ts` — 项目创建/更新/归档测试
+- `tests/api/approval-controls-api.test.ts` — 审批控制工作流测试
+- `tests/api/mcp-registration-api.test.ts` — MCP 服务器注册 API 测试
 
 ### 单元测试
 - `tests/lib/llm-call-logger.test.ts` — LLM 调用日志服务测试（7 个用例）
 - `tests/lib/rate-limit.test.ts` — 速率限制测试
-- `tests/lib/prototype-store.test.ts` — 数据存储测试
+- `tests/lib/prototype-store.test.ts` — 数据存储测试（已跳过，文件存储已移除）
+- `tests/lib/mcp-scheduler-repository.test.ts` — 调度器仓库测试（认领/心跳/过期回收）
+- `tests/lib/mcp-scheduler-service.test.ts` — 调度服务测试
+- `tests/lib/scheduler-operator-controls.test.ts` — 调度器操作控制测试
 
-### 集成测试
+### 集成测试（默认跳过，需 SKIP_MCP_INTEGRATION=0）
 - `tests/integration/docker-lab-mcp.test.ts` — Docker 靶场 MCP 集成测试（需 ENABLE_DOCKER_LAB_TESTS=1 + Docker 靶场运行），13 个用例
-- `tests/integration/script-mcp-server.test.ts` — Script MCP Server 集成测试（LLM 自主脚本能力验证），7 个用例：基础执行、Redis/SSH/MySQL/Elasticsearch TCP 探测、Shell 命令、文件 I/O
+- `tests/integration/script-mcp-server.test.ts` — Script MCP Server 集成测试（LLM 自主脚本能力验证），7 个用例
+- `tests/lib/real-web-surface-mcp-connector.test.ts` — 真实 Web 页面探测 MCP 连接器测试
+- `tests/lib/real-http-validation-mcp-connector.test.ts` — 真实 HTTP 受控验证 MCP 连接器测试
+- `tests/lib/real-evidence-capture-mcp-connector.test.ts` — 真实截图证据采集 MCP 连接器测试
 
 ### E2E 测试
 - `e2e/prototype-smoke.spec.ts` — 基础功能烟雾测试

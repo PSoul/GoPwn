@@ -31,12 +31,12 @@ describe("MCP scheduler service", () => {
   })
 
   it("creates ready tasks for auto-runnable work and completes them through the scheduler", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
-      target: fixture.project.seed,
+      target: fixture.project.seed!,
       riskLevel: "低",
     })
 
@@ -50,6 +50,7 @@ describe("MCP scheduler service", () => {
     const completedTask = await getStoredSchedulerTaskByRunId(payload!.run.id)
     const completedRun = await getStoredMcpRunById(payload!.run.id)
 
+
     expect(drained.status).toBe("completed")
     expect(completedTask?.status).toBe("completed")
     expect(completedRun?.status).toBe("已执行")
@@ -60,7 +61,7 @@ describe("MCP scheduler service", () => {
   })
 
   it("moves approval-gated work into delayed state when the operator postpones it", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "受控验证类",
@@ -80,7 +81,7 @@ describe("MCP scheduler service", () => {
   })
 
   it("resumes approved work back into the scheduler and completes execution", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "受控验证类",
@@ -107,12 +108,12 @@ describe("MCP scheduler service", () => {
   })
 
   it("recovers expired running tasks before draining the queue again", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
-      target: fixture.project.seed,
+      target: fixture.project.seed!,
       riskLevel: "低",
     })
     const task = await getStoredSchedulerTaskByRunId(payload!.run.id)

@@ -43,10 +43,10 @@ const ctx = { params: Promise.resolve({}) }
 describe("users api routes", () => {
   let tempDir: string
 
-  beforeEach(() => {
+  beforeEach(async () => {
     tempDir = mkdtempSync(path.join(tmpdir(), "llm-pentest-users-"))
     process.env.PROTOTYPE_DATA_DIR = tempDir
-    ensureSeedUsers()
+    await ensureSeedUsers()
   })
 
   afterEach(() => {
@@ -61,9 +61,10 @@ describe("users api routes", () => {
 
     expect(res.status).toBe(200)
     expect(payload.items.length).toBeGreaterThanOrEqual(1)
-    expect(payload.items[0].email).toBe("researcher@company.local")
+    const researcher = payload.items.find((u: { email: string }) => u.email === "researcher@company.local")
+    expect(researcher).toBeDefined()
     // passwordHash should not be exposed
-    expect(payload.items[0].passwordHash).toBeUndefined()
+    expect(researcher.passwordHash).toBeUndefined()
   })
 
   it("admin can create a new user", async () => {
@@ -129,10 +130,10 @@ describe("users api routes", () => {
   it("admin can disable and re-enable a user", async () => {
     const cookie = await getAdminCookie()
 
-    // Get user list to find the seed user id
+    // Get user list to find the researcher user id
     const listRes = await GET(makeRequest("http://localhost/api/users", { cookie }), ctx)
     const listPayload = await listRes.json()
-    const userId = listPayload.items[0].id
+    const userId = listPayload.items.find((u: { email: string }) => u.email === "researcher@company.local")?.id
 
     // Disable
     const disableRes = await PATCH(
@@ -162,10 +163,10 @@ describe("users api routes", () => {
   it("disabled user cannot login", async () => {
     const adminCookie = await getAdminCookie()
 
-    // Get seed user
+    // Get researcher user
     const listRes = await GET(makeRequest("http://localhost/api/users", { cookie: adminCookie }), ctx)
     const listPayload = await listRes.json()
-    const userId = listPayload.items[0].id
+    const userId = listPayload.items.find((u: { email: string }) => u.email === "researcher@company.local")?.id
 
     // Disable user
     await PATCH(

@@ -47,8 +47,7 @@ function applySchema(database: DatabaseSync) {
       target TEXT NOT NULL,
       summary TEXT NOT NULL,
       duration_ms INTEGER NOT NULL,
-      created_at TEXT NOT NULL,
-      FOREIGN KEY (server_id) REFERENCES mcp_servers(id)
+      created_at TEXT NOT NULL
     ) STRICT;
 
     CREATE INDEX IF NOT EXISTS idx_mcp_server_invocations_server_id

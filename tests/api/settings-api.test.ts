@@ -5,9 +5,12 @@ import { GET as getSystemStatus } from "@/app/api/settings/system-status/route"
 import { GET as getWorkLogs } from "@/app/api/settings/work-logs/route"
 import { createWorkflowFixture } from "@/tests/helpers/project-fixtures"
 
+const dummyContext = { params: Promise.resolve({}) }
+const dummyRequest = (path: string) => new Request(`http://localhost${path}`)
+
 describe("settings api routes", () => {
   it("returns settings section summaries", async () => {
-    const response = await getSettingsSections()
+    const response = await getSettingsSections(dummyRequest("/api/settings/sections"), dummyContext)
     const payload = await response.json()
 
     expect(response.status).toBe(200)
@@ -16,7 +19,7 @@ describe("settings api routes", () => {
   })
 
   it("returns system health cards", async () => {
-    const response = await getSystemStatus()
+    const response = await getSystemStatus(dummyRequest("/api/settings/system-status"), dummyContext)
     const payload = await response.json()
 
     expect(response.status).toBe(200)
@@ -26,7 +29,7 @@ describe("settings api routes", () => {
 
   it("returns persisted work logs", async () => {
     await createWorkflowFixture()
-    const response = await getWorkLogs()
+    const response = await getWorkLogs(dummyRequest("/api/settings/work-logs"), dummyContext)
     const payload = await response.json()
 
     expect(response.status).toBe(200)

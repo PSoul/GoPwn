@@ -28,7 +28,7 @@ describe("project MCP workflow smoke api route", () => {
   })
 
   it("completes the baseline local MCP workflow with foundational tools", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const response = await postWorkflowSmokeRun(
       new Request(`http://localhost/api/projects/${fixture.project.id}/mcp-workflow/smoke-run`, {
@@ -67,7 +67,10 @@ describe("project MCP workflow smoke api route", () => {
     expect(contextPayload.evidence.length).toBeGreaterThan(0)
     expect(contextPayload.detail.assetGroups.some((group: { count: string }) => group.count !== "0 项")).toBe(true)
 
-    const workLogsResponse = await getWorkLogs()
+    const workLogsResponse = await getWorkLogs(
+      new Request("http://localhost/api/settings/work-logs"),
+      { params: Promise.resolve({}) },
+    )
     const workLogsPayload = await workLogsResponse.json()
 
     expect(workLogsResponse.status).toBe(200)
@@ -75,7 +78,7 @@ describe("project MCP workflow smoke api route", () => {
   })
 
   it("halts the approval scenario at the high-risk MCP step", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const response = await postWorkflowSmokeRun(
       new Request(`http://localhost/api/projects/${fixture.project.id}/mcp-workflow/smoke-run`, {

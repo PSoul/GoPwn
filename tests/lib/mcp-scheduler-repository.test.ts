@@ -28,12 +28,12 @@ describe("MCP scheduler repository durable leases", () => {
   })
 
   it("claims a ready task with worker lease metadata", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
-      target: fixture.project.seed,
+      target: fixture.project.seed!,
       riskLevel: "低",
     })
     const task = await getStoredSchedulerTaskByRunId(payload!.run.id)
@@ -58,12 +58,12 @@ describe("MCP scheduler repository durable leases", () => {
   })
 
   it("refreshes the lease only for the owning worker", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
-      target: fixture.project.seed,
+      target: fixture.project.seed!,
       riskLevel: "低",
     })
     const task = await getStoredSchedulerTaskByRunId(payload!.run.id)
@@ -97,12 +97,12 @@ describe("MCP scheduler repository durable leases", () => {
   })
 
   it("recovers expired running tasks back into the ready queue", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
       requestedAction: "补采证书与子域情报",
-      target: fixture.project.seed,
+      target: fixture.project.seed!,
       riskLevel: "低",
     })
     const task = await getStoredSchedulerTaskByRunId(payload!.run.id)

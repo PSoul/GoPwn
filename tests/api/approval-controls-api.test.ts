@@ -59,7 +59,10 @@ describe("approval and control api routes", () => {
     expect(projectPayload.detail.finalConclusion).not.toBeNull()
     expect(projectPayload.detail.currentStage.title).toBe("风险聚合与项目结论")
 
-    const auditResponse = await getAuditLogs()
+    const auditResponse = await getAuditLogs(
+      new Request("http://localhost/api/settings/audit-logs"),
+      { params: Promise.resolve({}) },
+    )
     const auditPayload = await auditResponse.json()
 
     expect(auditResponse.status).toBe(200)
@@ -77,6 +80,7 @@ describe("approval and control api routes", () => {
         }),
         headers: { "content-type": "application/json" },
       }),
+      { params: Promise.resolve({}) },
     )
     const payload = await response.json()
 
@@ -84,7 +88,10 @@ describe("approval and control api routes", () => {
     expect(payload.approvalControl.enabled).toBe(false)
     expect(payload.approvalControl.note).toContain("临时关闭")
 
-    const readResponse = await getApprovalPolicy()
+    const readResponse = await getApprovalPolicy(
+      new Request("http://localhost/api/settings/approval-policy"),
+      { params: Promise.resolve({}) },
+    )
     const readPayload = await readResponse.json()
 
     expect(readResponse.status).toBe(200)
@@ -110,7 +117,7 @@ describe("approval and control api routes", () => {
 
     expect(response.status).toBe(200)
     expect(payload.detail.approvalControl.autoApproveLowRisk).toBe(false)
-    expect(payload.project.approvalMode).toContain("中高风险")
+    expect(payload.detail.approvalControl.mode).toContain("中高风险")
 
     const detailResponse = await getProjectDetail(
       new Request(`http://localhost/api/projects/${fixture.project.id}`),

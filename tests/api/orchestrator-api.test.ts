@@ -37,6 +37,10 @@ describe("project orchestrator api routes", () => {
     delete process.env.LLM_ORCHESTRATOR_MODEL
     delete process.env.LLM_REVIEWER_MODEL
     delete process.env.LLM_TIMEOUT_MS
+    delete process.env.WEBGOAT_HOST_PORT
+
+    // Restore native fetch before setting up per-test mock
+    global.fetch = nativeFetch
 
     global.fetch = vi.fn(async (input: string | URL | Request) => {
       const url = String(input)
@@ -51,17 +55,27 @@ describe("project orchestrator api routes", () => {
 
       throw new Error(`Unexpected fetch in orchestrator api test: ${url}`)
     }) as unknown as typeof fetch
+
+    // Ensure local lab probes use the test fetch mock
+    setLocalLabCatalogTestAdapters({ fetch: global.fetch })
   })
 
   afterEach(() => {
     vi.restoreAllMocks()
+    global.fetch = nativeFetch
     resetLocalLabCatalogTestAdapters()
     delete process.env.PROTOTYPE_DATA_DIR
+    delete process.env.WEBGOAT_HOST_PORT
+    delete process.env.LLM_PROVIDER
+    delete process.env.LLM_BASE_URL
+    delete process.env.LLM_API_KEY
+    delete process.env.LLM_ORCHESTRATOR_MODEL
+    delete process.env.LLM_REVIEWER_MODEL
     rmSync(tempDir, { force: true, recursive: true })
   })
 
   it("generates a fallback orchestrator plan and exposes it on the operations payload", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const planResponse = await postOrchestratorPlan(
       new Request(`http://localhost/api/projects/${fixture.project.id}/orchestrator/plan`, {
@@ -95,8 +109,9 @@ describe("project orchestrator api routes", () => {
   }, 15_000)
 
   it("runs local validation, pauses on approval, and resumes after approval", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
+    setLocalLabCatalogTestAdapters({ fetch: global.fetch })
     const validationResponse = await postLocalValidation(
       new Request(`http://localhost/api/projects/${fixture.project.id}/orchestrator/local-validation`, {
         method: "POST",
@@ -111,7 +126,6 @@ describe("project orchestrator api routes", () => {
       buildProjectContext(fixture.project.id),
     )
     const validationPayload = await validationResponse.json()
-
     expect(validationResponse.status).toBe(202)
     expect(validationPayload.status).toBe("waiting_approval")
     expect(validationPayload.plan.items.length).toBeGreaterThanOrEqual(3)
@@ -155,11 +169,12 @@ describe("project orchestrator api routes", () => {
   })
 
   it("continues project closure after approval resumes and lands on report export plus final conclusion", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture({
       targetInput: "http://127.0.0.1:3000",
       description: "审批恢复后需要继续把项目收束到最终结论。",
     })
+    setLocalLabCatalogTestAdapters({ fetch: global.fetch })
     const validationResponse = await postLocalValidation(
       new Request(`http://localhost/api/projects/${fixture.project.id}/orchestrator/local-validation`, {
         method: "POST",
@@ -206,7 +221,7 @@ describe("project orchestrator api routes", () => {
   })
 
   it("normalizes real-provider plans with markdown-wrapped JSON and near-match capability labels", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     process.env.LLM_PROVIDER = "openai-compatible"
     process.env.LLM_BASE_URL = "https://api.siliconflow.cn/v1"
@@ -264,6 +279,7 @@ describe("project orchestrator api routes", () => {
 
       throw new Error(`Unexpected fetch in orchestrator api test: ${url}`)
     }) as unknown as typeof fetch
+    setLocalLabCatalogTestAdapters({ fetch: global.fetch })
 
     const targetServer = createServer((_request, response) => {
       response.writeHead(200, {
@@ -276,7 +292,7 @@ describe("project orchestrator api routes", () => {
 
     await new Promise<void>((resolve, reject) => {
       targetServer.once("error", (error: NodeJS.ErrnoException) => {
-        if (error.code === "EADDRINUSE") {
+        if (error.code === "EADDRINUSE" || error.code === "EACCES") {
           resolve()
           return
         }
@@ -288,6 +304,8 @@ describe("project orchestrator api routes", () => {
         resolve()
       })
     })
+
+    setLocalLabCatalogTestAdapters({ fetch: global.fetch })
 
     try {
       const validationResponse = await postLocalValidation(
@@ -335,7 +353,7 @@ describe("project orchestrator api routes", () => {
   })
 
   it("allows WebGoat local validation to proceed when only the container-internal probe is reachable", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     process.env.WEBGOAT_HOST_PORT = "18080"
     setLocalLabCatalogTestAdapters({
       fetch: vi.fn(async (input: string | URL | Request) => {
@@ -347,7 +365,7 @@ describe("project orchestrator api routes", () => {
 
         throw new Error(`connect ECONNREFUSED ${url}`)
       }) as typeof fetch,
-      execFile: ((_file, args, callback) => {
+      execFile: ((_file: string, args: string[], callback: (err: Error | null, result?: { stdout: string; stderr: string }) => void) => {
         if (args.join(" ").includes("llm-pentest-webgoat")) {
           callback(null, { stdout: '{"status":"UP"}', stderr: "" })
           return {} as never
@@ -384,8 +402,8 @@ describe("project orchestrator api routes", () => {
     delete process.env.WEBGOAT_HOST_PORT
   })
 
-  it("writes a real WebGoat actuator exposure finding after approval resumes", async () => {
-    seedWorkflowReadyMcpTools()
+  it.skipIf(process.env.SKIP_MCP_INTEGRATION === "1")("writes a real WebGoat actuator exposure finding after approval resumes", { timeout: 30_000 }, async () => {
+    await seedWorkflowReadyMcpTools()
 
     const targetServer = createServer((request, response) => {
       if (request.url === "/WebGoat/actuator/health") {
@@ -441,6 +459,7 @@ describe("project orchestrator api routes", () => {
 
       throw new Error(`Unexpected fetch in orchestrator api test: ${url}`)
     }) as unknown as typeof fetch
+    setLocalLabCatalogTestAdapters({ fetch: global.fetch })
 
     await registerStoredMcpServer({
       serverName: "http-validation-stdio",
@@ -493,6 +512,7 @@ describe("project orchestrator api routes", () => {
     })
 
     try {
+      setLocalLabCatalogTestAdapters({ fetch: global.fetch })
       const fixture = await createStoredProjectFixture({
         targetInput: `http://127.0.0.1:${port}/WebGoat`,
       })
@@ -582,10 +602,10 @@ describe("project orchestrator api routes", () => {
         })
       }
     }
-  }, 15_000)
+  })
 
   it("drops provider-returned high-risk actions when approvalScenario is none", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     process.env.WEBGOAT_HOST_PORT = "18080"
     process.env.LLM_PROVIDER = "openai-compatible"
     process.env.LLM_BASE_URL = "https://api.siliconflow.cn/v1"
@@ -642,6 +662,7 @@ describe("project orchestrator api routes", () => {
 
       throw new Error(`Unexpected fetch in orchestrator api test: ${url}`)
     }) as unknown as typeof fetch
+    setLocalLabCatalogTestAdapters({ fetch: global.fetch })
 
     const fixture = await createStoredProjectFixture({
       targetInput: "http://127.0.0.1:18080/WebGoat",

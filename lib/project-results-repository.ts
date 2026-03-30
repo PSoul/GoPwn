@@ -14,6 +14,7 @@ import {
   toApprovalRecord,
   toMcpRunRecord,
   toLogRecord,
+  toSchedulerTaskRecord,
 } from "@/lib/prisma-transforms"
 import { buildProjectClosureStatus } from "@/lib/project-closure-status"
 import { formatTimestamp, toDisplayCount } from "@/lib/prototype-record-utils"
@@ -643,11 +644,7 @@ export async function refreshStoredProjectResults(projectId: string) {
   const projectApprovals = approvalRows.map(toApprovalRecord)
   const projectRuns = runRows.map(toMcpRunRecord)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const projectSchedulerTasks = taskRows.map((r: any) => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
-    const { toSchedulerTaskRecord: toST } = require("@/lib/prisma-transforms")
-    return toST(r)
-  })
+  const projectSchedulerTasks = taskRows.map((r: any) => toSchedulerTaskRecord(r))
   const latestConclusion = conclusionRow ? toProjectConclusionRecord(conclusionRow) : null
   const projectWorkLogs = workLogRows.map(toLogRecord)
 
@@ -720,8 +717,9 @@ export async function refreshStoredProjectResults(projectId: string) {
           ? "已有证据与入口线索，可继续补厚结果面。"
           : project.riskSummary
 
-  // Update project
-  await prisma.project.update({
+  // Update project — use updateMany to avoid throwing when the project was
+  // concurrently removed (e.g., test cleanup between execution steps).
+  await prisma.project.updateMany({
     where: { id: projectId },
     data: {
       stage: currentStage.title as ProjectStage,

@@ -38,7 +38,7 @@ describe("project MCP run api routes", () => {
   })
 
   it("dispatches low-risk MCP actions immediately when approval is not required", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const response = await postProjectMcpRun(
       new Request(`http://localhost/api/projects/${fixture.project.id}/mcp-runs`, {
@@ -78,7 +78,10 @@ describe("project MCP run api routes", () => {
     expect(contextResponse.status).toBe(200)
     expect(contextPayload.evidence.some((item: { title: string }) => item.title === "被动域名与子域情报回流")).toBe(true)
 
-    const workLogsResponse = await getWorkLogs()
+    const workLogsResponse = await getWorkLogs(
+      new Request("http://localhost/api/settings/work-logs"),
+      { params: Promise.resolve({}) },
+    )
     const workLogsPayload = await workLogsResponse.json()
 
     expect(workLogsResponse.status).toBe(200)
@@ -86,7 +89,7 @@ describe("project MCP run api routes", () => {
   })
 
   it("queues high-risk MCP actions for approval and resumes them after approval", async () => {
-    seedWorkflowReadyMcpTools()
+    await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const dispatchResponse = await postProjectMcpRun(
       new Request(`http://localhost/api/projects/${fixture.project.id}/mcp-runs`, {
@@ -115,6 +118,15 @@ describe("project MCP run api routes", () => {
 
     expect(projectResponse.status).toBe(200)
     expect(projectPayload.project.pendingApprovals).toBeGreaterThan(0)
+
+    // Stop the scheduler lifecycle to prevent the approval handler from triggering
+    // a full multi-round orchestration kickoff that can exceed the test timeout.
+    // The drain still executes the linked run thanks to ignoreProjectLifecycle.
+    const { prisma: testPrisma } = await import("@/lib/prisma")
+    await testPrisma.projectSchedulerControl.updateMany({
+      where: { projectId: fixture.project.id },
+      data: { lifecycle: "stopped" },
+    })
 
     const approvalResponse = await patchApproval(
       new Request(`http://localhost/api/approvals/${dispatchPayload.approval.id}`, {
@@ -153,7 +165,7 @@ describe("project MCP run api routes", () => {
   })
 
   it("prefers the enabled tool whose metadata best matches the requested action within one capability", async () => {
-    seedWorkflowReadyMcpTools([
+    await seedWorkflowReadyMcpTools([
       ...workflowReadyMcpToolFixtures,
       {
         id: "tool-http-request-workbench",

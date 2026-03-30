@@ -208,7 +208,7 @@ function createApprovalRecord(project: ProjectRecord, tool: McpToolRecord, input
     prerequisites: ["确认目标仍在授权范围内", "确认当前时间窗口允许执行", "确认结果链路可正常留痕"],
     stopCondition: "出现异常回显、速率限制、目标波动或授权边界不清时立即停止。",
     blockingImpact: "审批通过前，该动作不会进入 MCP 实际执行阶段。",
-    queuePosition: Number.MAX_SAFE_INTEGER,
+    queuePosition: 2147483647,
     submittedAt: formatTimestamp(),
   }
 }
@@ -266,8 +266,11 @@ export async function updateStoredMcpRun(
   if (patch.status !== undefined) data.status = patch.status
   if (patch.summaryLines !== undefined) data.summaryLines = patch.summaryLines
   if (patch.connectorMode !== undefined) data.connectorMode = patch.connectorMode
-  const updated = await prisma.mcpRun.update({ where: { id: runId }, data })
-  return toMcpRunRecord(updated)
+  // Use updateMany to avoid throwing when the run was concurrently removed
+  const result = await prisma.mcpRun.updateMany({ where: { id: runId }, data })
+  if (result.count === 0) return null
+  const refreshed = await prisma.mcpRun.findUnique({ where: { id: runId } })
+  return refreshed ? toMcpRunRecord(refreshed) : null
 }
 
 export async function updateStoredMcpRunResult(runId: string, summaryLines: string[]) {
@@ -354,14 +357,14 @@ export async function dispatchStoredMcpRun(projectId: string, input: McpDispatch
     })
 
     await prisma.mcpRun.create({ data: fromMcpRunRecord(blockedRun) })
-    await prisma.project.update({
+    await prisma.project.updateMany({
       where: { id: projectId },
       data: { status: "已阻塞", lastActor: "MCP 网关 · 阻塞" },
     })
     await pushActivityPrisma(`${input.requestedAction} 已阻塞`, blockedRun.summaryLines[1], "danger")
     const auditLog = createAuditLog(`MCP 调度阻塞：${project.name} -> ${input.requestedAction}`, "已阻塞", project.name)
     await prisma.auditLog.create({ data: fromLogRecord(auditLog) })
-    createStoredSchedulerTaskFromRun(blockedRun)
+    await createStoredSchedulerTaskFromRun(blockedRun)
     return { run: blockedRun }
   }
 
@@ -399,7 +402,7 @@ export async function dispatchStoredMcpRun(projectId: string, input: McpDispatch
 
     await prisma.mcpRun.create({ data: fromMcpRunRecord(pendingRun) })
     const pendingCount = reordered.filter((a) => a.projectId === projectId && a.status === "待处理").length
-    await prisma.project.update({
+    await prisma.project.updateMany({
       where: { id: projectId },
       data: { status: "已阻塞", pendingApprovals: pendingCount, lastActor: "MCP 网关 · 待审批" },
     })
@@ -410,7 +413,7 @@ export async function dispatchStoredMcpRun(projectId: string, input: McpDispatch
     )
     const auditLog = createAuditLog(`MCP 调度待审批：${project.name} -> ${input.requestedAction}`, "待审批", project.name)
     await prisma.auditLog.create({ data: fromLogRecord(auditLog) })
-    createStoredSchedulerTaskFromRun(pendingRun, enabledTool?.retry)
+    await createStoredSchedulerTaskFromRun(pendingRun, enabledTool?.retry)
 
     const finalApproval = await prisma.approval.findUnique({ where: { id: approval.id } })
     return {
@@ -433,7 +436,7 @@ export async function dispatchStoredMcpRun(projectId: string, input: McpDispatch
   })
 
   await prisma.mcpRun.create({ data: fromMcpRunRecord(executedRun) })
-  await prisma.project.update({
+  await prisma.project.updateMany({
     where: { id: projectId },
     data: {
       status: project.status === "已完成" ? project.status : "运行中",
@@ -447,7 +450,7 @@ export async function dispatchStoredMcpRun(projectId: string, input: McpDispatch
   )
   const auditLog = createAuditLog(`MCP 已入调度：${project.name} -> ${input.requestedAction}`, "执行中", project.name)
   await prisma.auditLog.create({ data: fromLogRecord(auditLog) })
-  createStoredSchedulerTaskFromRun(executedRun, resolvedEnabledTool.retry)
+  await createStoredSchedulerTaskFromRun(executedRun, resolvedEnabledTool.retry)
   return { run: executedRun }
 }
 

@@ -590,8 +590,14 @@ export async function getProjectContextPayload(projectId: string): Promise<Proje
     return null
   }
 
+  const findings = await listStoredProjectFindings(projectId)
+
   return {
     ...base,
+    detail: {
+      ...base.detail,
+      findings,
+    },
     approvals: await listStoredProjectApprovals(projectId),
     assets: await listStoredAssets(projectId),
     evidence: await listStoredEvidence(projectId),
@@ -839,6 +845,7 @@ export async function updateApprovalDecisionPayload(approvalId: string, input: A
     if (linkedRunId) {
       await drainStoredSchedulerTasks({
         runId: linkedRunId,
+        ignoreProjectLifecycle: true,
       })
     }
 
