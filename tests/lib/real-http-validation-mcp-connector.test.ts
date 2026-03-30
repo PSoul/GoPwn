@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { mkdtempSync, rmSync } from "node:fs"
 import { createServer } from "node:http"
 import type { AddressInfo } from "node:net"
@@ -185,10 +186,10 @@ describe.skipIf(process.env.SKIP_MCP_INTEGRATION === "1")("real http-validation 
   }
 
   it("executes an auditable GET validation request through a real MCP stdio server", async () => {
-    registerValidationServer()
+    await registerValidationServer()
     const context = buildContext(targetUrl)
 
-    expect(realHttpValidationMcpConnector.supports(context)).toBe(true)
+    expect(await realHttpValidationMcpConnector.supports(context)).toBe(true)
 
     const result = await realHttpValidationMcpConnector.execute(context)
 
@@ -223,7 +224,7 @@ describe.skipIf(process.env.SKIP_MCP_INTEGRATION === "1")("real http-validation 
   })
 
   it("notes docker fallback injection for WebGoat-shaped local lab targets", async () => {
-    registerValidationServer()
+    await registerValidationServer()
     process.env.WEBGOAT_HOST_PORT = String(targetPort)
 
     const result = await realHttpValidationMcpConnector.execute(buildContext(targetUrl))
@@ -241,7 +242,7 @@ describe.skipIf(process.env.SKIP_MCP_INTEGRATION === "1")("real http-validation 
     registerValidationServer("http-request-workbench")
     const context = buildContext(targetUrl, "http-request-workbench")
 
-    expect(realHttpValidationMcpConnector.supports(context)).toBe(true)
+    expect(await realHttpValidationMcpConnector.supports(context)).toBe(true)
 
     const result = await realHttpValidationMcpConnector.execute(context)
 

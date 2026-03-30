@@ -10,9 +10,14 @@ import { existsSync, mkdirSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 
-import "@testing-library/jest-dom/vitest"
-import { cleanup } from "@testing-library/react"
 import { afterEach, beforeEach } from "vitest"
+
+const isNodeEnv = typeof window === "undefined"
+
+if (!isNodeEnv) {
+  await import("@testing-library/jest-dom/vitest")
+}
+const { cleanup } = isNodeEnv ? { cleanup: () => {} } : await import("@testing-library/react")
 
 import { cleanDatabase, seedTestUsers } from "@/tests/helpers/prisma-test-utils"
 import { abortAllActiveExecutions } from "@/lib/mcp-execution-runtime"
@@ -60,7 +65,7 @@ afterEach(async () => {
   }
 })
 
-Object.defineProperty(window, "matchMedia", {
+if (typeof window !== "undefined") Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: (query: string) => ({
     matches: false,

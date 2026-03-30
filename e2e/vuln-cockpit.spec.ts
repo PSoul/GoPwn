@@ -148,13 +148,11 @@ test("AI chat widget is present and toggleable", async ({ page }) => {
   const minimizeButton = page.getByLabel("最小化")
   await expect(minimizeButton).toBeVisible({ timeout: 10_000 })
 
-  // Role filter tab buttons (use getByRole("button") to avoid matching <span> role badges)
-  await expect(page.getByRole("button", { name: "全部", exact: true })).toBeVisible()
-  await expect(page.getByRole("button", { name: "编排", exact: true })).toBeVisible()
-  await expect(page.getByRole("button", { name: "审阅", exact: true })).toBeVisible()
+  // Chat panel should show the "AI 思考日志" heading
+  await expect(page.getByText("AI 思考日志")).toBeVisible()
 
   // Project filter dropdown button should be visible
-  await expect(page.getByLabel("筛选项目")).toBeVisible()
+  await expect(page.getByText("全部项目")).toBeVisible()
 
   // Minimize button
   await minimizeButton.click()

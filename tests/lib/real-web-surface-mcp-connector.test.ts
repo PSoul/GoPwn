@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { mkdtempSync, rmSync } from "node:fs"
 import { createServer } from "node:http"
 import type { AddressInfo } from "node:net"
@@ -154,7 +155,7 @@ describe.skipIf(process.env.SKIP_MCP_INTEGRATION === "1")("real web-surface MCP 
       tool: null,
     }
 
-    expect(realWebSurfaceMcpConnector.supports(context)).toBe(true)
+    expect(await realWebSurfaceMcpConnector.supports(context)).toBe(true)
 
     const result = await realWebSurfaceMcpConnector.execute(context)
 

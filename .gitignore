@@ -1,21 +1,21 @@
-.next/
-node_modules/
-out/
-coverage/
-dist/
-*.log
-tmp-review/
-.worktrees/
-.prototype-store/
-output/
-playwright-report/
-test-results/
-*.txt
-tsconfig.tsbuildinfo
 
 # 环境变量（.env.example 保留在版本控制中）
+*.log
+*.txt
+*.txt
 .env
 .env.local
 .env.production.local
-
+.next/
+.prototype-store/
+.worktrees/
 /lib/generated/prisma
+coverage/
+dist/
+node_modules/
+out/
+output/
+playwright-report/
+test-results/
+tmp-review/
+tsconfig.tsbuildinfo

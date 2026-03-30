@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 
-const port = Number(process.env.PLAYWRIGHT_WEB_PORT ?? 3005)
+const port = Number(process.env.PLAYWRIGHT_WEB_PORT ?? 4500)
 const prototypeDataDir = mkdtempSync(path.join(tmpdir(), "llm-pentest-playwright-"))
 
 function killPort(targetPort) {
@@ -47,7 +47,26 @@ function killPort(targetPort) {
   } catch {}
 }
 
+/**
+ * Clean the database before E2E runs to ensure a fresh state.
+ * Runs the dedicated E2E seed script which TRUNCATEs all tables
+ * and seeds the researcher user + LLM profiles.
+ */
+function seedDatabase() {
+  console.log("[E2E] Seeding database for clean E2E run...")
+  try {
+    execSync("node scripts/e2e-seed-database.mjs", {
+      encoding: "utf8",
+      stdio: "inherit",
+      timeout: 30_000,
+    })
+  } catch (error) {
+    console.error("[E2E] Database seed failed — E2E tests may see stale data:", error.message)
+  }
+}
+
 killPort(port)
+seedDatabase()
 
 const command = ["npx", "playwright", "test", ...process.argv.slice(2)].join(" ")
 const child = spawn(command, {
@@ -55,6 +74,8 @@ const child = spawn(command, {
   env: {
     ...process.env,
     PROTOTYPE_DATA_DIR: prototypeDataDir,
+    NO_PROXY: "localhost,127.0.0.1",
+    no_proxy: "localhost,127.0.0.1",
   },
   stdio: "inherit",
 })
