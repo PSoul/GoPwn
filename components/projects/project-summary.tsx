@@ -2,12 +2,12 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState, useTransition } from "react"
+import { useCallback, useEffect, useRef, useState, useTransition } from "react"
 import { Loader2, PlayCircle } from "lucide-react"
 
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import type { ProjectDetailRecord, ProjectRecord, Tone } from "@/lib/prototype-types"
+import type { ProjectDetailRecord, ProjectRecord, Tone, McpSchedulerTaskRecord, OrchestratorRoundRecord, ProjectSchedulerControl } from "@/lib/prototype-types"
 import { apiFetch } from "@/lib/api-client"
 
 const metricToneStyles: Record<Tone, string> = {
@@ -33,6 +33,36 @@ export function ProjectSummary({
   const isRunning = project.status === "运行中"
   const isCompleted = project.status === "已完成"
   const isStopped = project.status === "已停止"
+
+  // Poll operations data for running projects
+  const [runningTasks, setRunningTasks] = useState<McpSchedulerTaskRecord[]>([])
+  const [rounds, setRounds] = useState<OrchestratorRoundRecord[]>([])
+  const [schedulerControl, setSchedulerControl] = useState<ProjectSchedulerControl | null>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const pollOperations = useCallback(async () => {
+    try {
+      const res = await apiFetch(`/api/projects/${project.id}/operations`)
+      if (!res.ok) return
+      const payload = await res.json()
+      if (payload.schedulerTasks) setRunningTasks(payload.schedulerTasks)
+      if (payload.orchestratorRounds) setRounds(payload.orchestratorRounds)
+      if (payload.schedulerControl) setSchedulerControl(payload.schedulerControl)
+    } catch { /* best-effort */ }
+  }, [project.id])
+
+  useEffect(() => {
+    if (isRunning) {
+      void pollOperations()
+      pollRef.current = setInterval(pollOperations, 5000)
+    }
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current)
+        pollRef.current = null
+      }
+    }
+  }, [isRunning, pollOperations])
 
   async function handleStartProject() {
     setIsStarting(true)
@@ -75,22 +105,65 @@ export function ProjectSummary({
         </div>
       )}
 
-      {isRunning && (
-        <div className="rounded-2xl border border-sky-200/80 bg-sky-50/60 px-5 py-4 dark:border-sky-900/60 dark:bg-sky-950/20">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <Loader2 className="h-4 w-4 animate-spin text-sky-600 dark:text-sky-400" />
-              <p className="text-sm font-medium text-slate-900 dark:text-white">自动化测试进行中</p>
+      {isRunning && (() => {
+        const activeTools = runningTasks.filter((t) => t.status === "running")
+        const completedCount = runningTasks.filter((t) => t.status === "completed").length
+        const failedCount = runningTasks.filter((t) => t.status === "failed").length
+        const waitingApproval = runningTasks.filter((t) => t.status === "waiting_approval")
+        const currentRound = schedulerControl?.currentRound ?? 0
+        const maxRounds = schedulerControl?.maxRounds ?? 10
+        const lastRound = rounds.length > 0 ? rounds[rounds.length - 1] : null
+
+        return (
+          <div className="rounded-2xl border border-sky-200/80 bg-sky-50/60 px-5 py-4 dark:border-sky-900/60 dark:bg-sky-950/20">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <Loader2 className="h-4 w-4 animate-spin text-sky-600 dark:text-sky-400" />
+                <p className="text-sm font-medium text-slate-900 dark:text-white">
+                  自动化测试进行中 — 第 {currentRound}/{maxRounds} 轮
+                </p>
+              </div>
+              <Button asChild variant="outline" size="sm" className="rounded-full">
+                <Link href={`/projects/${project.id}/operations`}>查看调度详情</Link>
+              </Button>
             </div>
-            <Button asChild variant="outline" size="sm" className="rounded-full">
-              <Link href={`/projects/${project.id}/operations`}>查看调度详情</Link>
-            </Button>
+
+            {/* Current tool execution status */}
+            <div className="mt-3 space-y-1.5">
+              {activeTools.length > 0 ? (
+                activeTools.map((t) => (
+                  <div key={t.id} className="flex items-center gap-2 text-xs">
+                    <Loader2 className="h-3 w-3 animate-spin text-sky-500" />
+                    <span className="font-medium text-sky-700 dark:text-sky-300">正在执行</span>
+                    <span className="text-slate-700 dark:text-slate-200">{t.toolName}</span>
+                    <span className="text-slate-400">→ {t.target}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-slate-500 dark:text-slate-400">{detail.currentStage.summary}</p>
+              )}
+
+              {waitingApproval.length > 0 && (
+                <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
+                  <span>⏳ {waitingApproval.length} 个任务等待审批</span>
+                  <Link href="/approvals" className="font-medium underline hover:text-amber-800 dark:hover:text-amber-200">前往审批 →</Link>
+                </div>
+              )}
+            </div>
+
+            {/* Brief progress summary */}
+            {(completedCount > 0 || failedCount > 0 || lastRound) && (
+              <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-400">
+                {completedCount > 0 && <span>✓ 已完成 {completedCount} 个任务</span>}
+                {failedCount > 0 && <span className="text-rose-500">✗ 失败 {failedCount} 个</span>}
+                {lastRound && lastRound.newAssetCount > 0 && <span className="text-sky-600 dark:text-sky-400">+{lastRound.newAssetCount} 资产</span>}
+                {lastRound && lastRound.newEvidenceCount > 0 && <span className="text-sky-600 dark:text-sky-400">+{lastRound.newEvidenceCount} 证据</span>}
+                {lastRound && lastRound.newFindingCount > 0 && <span className="text-amber-600 dark:text-amber-400">+{lastRound.newFindingCount} 发现</span>}
+              </div>
+            )}
           </div>
-          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-            {detail.currentStage.summary}
-          </p>
-        </div>
-      )}
+        )
+      })()}
 
       {isCompleted && detail.finalConclusion && (
         <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/60 px-5 py-4 dark:border-emerald-900/60 dark:bg-emerald-950/20">
@@ -123,15 +196,28 @@ export function ProjectSummary({
         </div>
       )}
 
-      {/* Key metrics — flat row, no nested cards */}
+      {/* Key metrics — flat row, clickable cards */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {detail.resultMetrics.map((metric) => (
-          <div key={metric.label} className={`rounded-xl border bg-white p-3 dark:bg-slate-950 ${metricToneStyles[metric.tone]}`}>
-            <p className="text-xs text-slate-500 dark:text-slate-400">{metric.label}</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-950 dark:text-white">{metric.value}</p>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{metric.note}</p>
-          </div>
-        ))}
+        {detail.resultMetrics.map((metric) => {
+          const hrefMap: Record<string, string> = {
+            "已纳入域名": `/projects/${project.id}/results/domains`,
+            "开放端口": `/projects/${project.id}/results/network`,
+            "漏洞线索": `/projects/${project.id}/results/findings`,
+            "证据锚点": `/projects/${project.id}/context`,
+          }
+          const href = hrefMap[metric.label]
+          return (
+            <Link
+              key={metric.label}
+              href={href ?? `/projects/${project.id}`}
+              className={`block rounded-xl border bg-white p-3 transition-colors hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900 ${metricToneStyles[metric.tone]}`}
+            >
+              <p className="text-xs text-slate-500 dark:text-slate-400">{metric.label}</p>
+              <p className="mt-1 text-2xl font-semibold text-slate-950 dark:text-white">{metric.value}</p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{metric.note}</p>
+            </Link>
+          )
+        })}
       </div>
 
       {/* Recent activity — simplified */}

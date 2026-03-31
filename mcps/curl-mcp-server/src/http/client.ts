@@ -1,5 +1,11 @@
 import type { HttpRequestOptions, HttpResponse } from './types.js';
 
+// Allow self-signed / invalid TLS certificates (common in security testing targets)
+// Node 18+ honours this env var for its built-in fetch implementation.
+if (!process.env.NODE_TLS_REJECT_UNAUTHORIZED) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
+
 export async function sendHttpRequest(opts: HttpRequestOptions): Promise<HttpResponse> {
   const start = Date.now();
   const controller = new AbortController();

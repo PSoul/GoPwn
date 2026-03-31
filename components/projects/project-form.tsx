@@ -156,7 +156,7 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
                       </select>
                     </FormControl>
                     <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-                      选择"全自动"后，该项目的所有 MCP 工具调用将直接执行，不再进入审批队列。
+                      选择&ldquo;全自动&rdquo;后，该项目的所有 MCP 工具调用将直接执行，不再进入审批队列。
                     </p>
                     <FormMessage />
                   </FormItem>

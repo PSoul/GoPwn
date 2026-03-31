@@ -14,10 +14,12 @@ import { afterEach, beforeEach } from "vitest"
 
 const isNodeEnv = typeof window === "undefined"
 
+let cleanup: () => void = () => {}
 if (!isNodeEnv) {
-  await import("@testing-library/jest-dom/vitest")
+  // Use dynamic import with .then() to avoid top-level await (incompatible with tsconfig module setting)
+  import("@testing-library/jest-dom/vitest").catch(() => {})
+  import("@testing-library/react").then((mod) => { cleanup = mod.cleanup }).catch(() => {})
 }
-const { cleanup } = isNodeEnv ? { cleanup: () => {} } : await import("@testing-library/react")
 
 import { cleanDatabase, seedTestUsers } from "@/tests/helpers/prisma-test-utils"
 import { abortAllActiveExecutions } from "@/lib/mcp-execution-runtime"

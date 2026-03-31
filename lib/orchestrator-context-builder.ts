@@ -237,6 +237,43 @@ function compressContextByBudget(sections: { label: string; content: string }[])
   return compressed.map((s) => `[${s.label}]\n${s.content}`).join("\n\n")
 }
 
+/**
+ * Build a summary of tools that have failed repeatedly across rounds.
+ * LLM should avoid re-scheduling these tools.
+ */
+export async function buildFailedToolsSummary(projectId: string): Promise<string> {
+  const dbTasks = await prisma.schedulerTask.findMany({
+    where: { projectId, status: "failed" },
+    select: { toolName: true, target: true, lastError: true },
+  })
+
+  if (dbTasks.length === 0) return ""
+
+  // Group by toolName and count failures
+  const failMap = new Map<string, { count: number; error: string }>()
+  for (const t of dbTasks) {
+    const key = t.toolName
+    const existing = failMap.get(key)
+    if (existing) {
+      existing.count += 1
+    } else {
+      // Extract short error reason
+      const shortError = (t.lastError ?? "未知错误").split(" / ")[0].slice(0, 80)
+      failMap.set(key, { count: 1, error: shortError })
+    }
+  }
+
+  // Only report tools that failed 2+ times (not one-off transient errors)
+  const lines: string[] = []
+  for (const [tool, info] of failMap) {
+    if (info.count >= 2) {
+      lines.push(`- ${tool}: 已失败 ${info.count} 次。原因: ${info.error}`)
+    }
+  }
+
+  return lines.join("\n")
+}
+
 export function buildMultiRoundBrainPrompt(input: {
   projectName: string
   targetInput: string
@@ -254,6 +291,7 @@ export function buildMultiRoundBrainPrompt(input: {
   assetSnapshot: string
   lastRoundDetail: string
   unusedCapabilities: string
+  failedToolsSummary?: string
   availableTools: Pick<McpToolRecord, "boundary" | "capability" | "requiresApproval" | "riskLevel" | "toolName">[]
   note?: string
 }): string {
@@ -287,12 +325,16 @@ export function buildMultiRoundBrainPrompt(input: {
     "当前可用 MCP 能力与工具：",
     ...input.availableTools.map(formatToolLine),
     "",
+    input.failedToolsSummary ? `\n[持续失败的工具 — 请勿再次调度]\n${input.failedToolsSummary}` : "",
+    "",
     "输出要求：",
     "- 如果你认为当前结果已经足够完整，返回 items: [] 并在 summary 中说明收尾原因。",
     "- 不要重复已经成功执行过的相同动作（相同工具+相同目标）。",
+    "- 不要调度上面列出的「持续失败的工具」，除非你有明确理由认为失败原因已解决。",
     "- 优先覆盖尚未使用的能力维度。",
     "- 默认给出 3 到 6 条 item。",
     "- 可以包含后续需要审批的动作，但只有在低风险结果已经支撑它时才允许出现高风险动作。",
     "- 范围约束：只能围绕项目输入目标本身及其子域展开。",
+    "- target 格式：tcp_connect 和 tcp_banner_grab 的 target 必须为 host:port 格式（如 1.2.3.4:443）；要探测多个端口请拆分为多条 item。",
   ].filter(Boolean).join("\n")
 }

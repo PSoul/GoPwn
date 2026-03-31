@@ -22,6 +22,38 @@ const roleBgColor: Record<LlmCallRole, string> = {
 
 const STORAGE_KEY = "ai-chat-widget-expanded"
 
+/** Render LLM plan JSON as a compact readable summary for the chat widget */
+function renderChatBubbleContent(response: string): React.ReactNode | null {
+  if (!response) return null
+  try {
+    const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/) ?? response.match(/(\{[\s\S]*\}|\[[\s\S]*\])/)
+    const jsonStr = jsonMatch ? jsonMatch[1] : response
+    const parsed = JSON.parse(jsonStr.trim()) as Record<string, unknown>
+    const rawItems = Array.isArray(parsed.items) ? parsed.items : Array.isArray(parsed) ? parsed : null
+    const summary = typeof parsed.summary === "string" ? parsed.summary : null
+    if (!rawItems || rawItems.length === 0) return null
+    const items = rawItems as Array<Record<string, string>>
+
+    return (
+      <div className="space-y-1.5 text-xs leading-5 text-slate-700 dark:text-slate-200">
+        {summary && <p>{summary}</p>}
+        {items.map((item: Record<string, unknown>, idx: number) => (
+          <div key={idx} className="flex items-start gap-1.5">
+            <span className="mt-0.5 shrink-0 text-slate-400">{idx + 1}.</span>
+            <span>
+              <span className="font-medium">{String(item.requestedAction ?? item.action ?? "")}</span>
+              {!!item.toolName && <span className="ml-1 text-sky-600 dark:text-sky-400">[{String(item.toolName)}]</span>}
+              {!!item.target && <span className="ml-1 text-slate-400">→ {String(item.target)}</span>}
+            </span>
+          </div>
+        ))}
+      </div>
+    )
+  } catch {
+    return null
+  }
+}
+
 export function AiChatWidget() {
   const [expanded, setExpanded] = useState(false)
   const [logs, setLogs] = useState<LlmCallLogRecord[]>([])
@@ -296,14 +328,20 @@ export function AiChatWidget() {
                   )}
                 </div>
 
-                {/* Bubble */}
+                {/* Bubble — structured view for plan JSON, raw for everything else */}
                 <div className="rounded-xl rounded-tl-sm bg-slate-50 px-3 py-2.5 dark:bg-slate-900">
-                  <pre className="whitespace-pre-wrap text-xs leading-5 text-slate-700 dark:text-slate-200">
-                    {log.response || (log.status === "streaming" ? "思考中..." : log.error || "暂无输出")}
-                    {log.status === "streaming" && (
-                      <span className="ml-0.5 inline-block h-3 w-0.5 animate-pulse bg-sky-500" />
-                    )}
-                  </pre>
+                  {(() => {
+                    const structured = log.response ? renderChatBubbleContent(log.response) : null
+                    if (structured) return structured
+                    return (
+                      <pre className="whitespace-pre-wrap text-xs leading-5 text-slate-700 dark:text-slate-200">
+                        {log.response || (log.status === "streaming" ? "思考中..." : log.error || "暂无输出")}
+                        {log.status === "streaming" && (
+                          <span className="ml-0.5 inline-block h-3 w-0.5 animate-pulse bg-sky-500" />
+                        )}
+                      </pre>
+                    )
+                  })()}
                 </div>
 
                 {/* Metadata */}

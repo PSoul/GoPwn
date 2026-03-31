@@ -74,6 +74,7 @@ export const DEFAULT_LLM_PROFILES: LlmProfileRecord[] = [
     model: "",
     timeoutMs: 120000,
     temperature: 0.2,
+    contextWindowSize: 65536,
     enabled: false,
   },
   {
@@ -85,6 +86,7 @@ export const DEFAULT_LLM_PROFILES: LlmProfileRecord[] = [
     model: "",
     timeoutMs: 120000,
     temperature: 0.1,
+    contextWindowSize: 65536,
     enabled: false,
   },
   {
@@ -96,6 +98,7 @@ export const DEFAULT_LLM_PROFILES: LlmProfileRecord[] = [
     model: "",
     timeoutMs: 120000,
     temperature: 0,
+    contextWindowSize: 65536,
     enabled: false,
   },
 ]
@@ -114,6 +117,7 @@ export const PRODUCTION_LLM_PROFILES: LlmProfileRecord[] = [
     model: "Pro/deepseek-ai/DeepSeek-V3.2",
     timeoutMs: 120000,
     temperature: 0.2,
+    contextWindowSize: 65536,
     enabled: true,
   },
   {
@@ -125,6 +129,7 @@ export const PRODUCTION_LLM_PROFILES: LlmProfileRecord[] = [
     model: "Pro/deepseek-ai/DeepSeek-V3.2",
     timeoutMs: 120000,
     temperature: 0.1,
+    contextWindowSize: 65536,
     enabled: true,
   },
   {
@@ -136,6 +141,7 @@ export const PRODUCTION_LLM_PROFILES: LlmProfileRecord[] = [
     model: "Pro/deepseek-ai/DeepSeek-V3.2",
     timeoutMs: 60000,
     temperature: 0,
+    contextWindowSize: 65536,
     enabled: true,
   },
 ]

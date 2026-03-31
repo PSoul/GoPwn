@@ -14,6 +14,7 @@ const initialProfiles: LlmProfileRecord[] = [
     model: "",
     timeoutMs: 15000,
     temperature: 0.2,
+    contextWindowSize: 65536,
     enabled: false,
   },
   {
@@ -25,6 +26,7 @@ const initialProfiles: LlmProfileRecord[] = [
     model: "",
     timeoutMs: 15000,
     temperature: 0.1,
+    contextWindowSize: 65536,
     enabled: false,
   },
   {
@@ -36,6 +38,7 @@ const initialProfiles: LlmProfileRecord[] = [
     model: "",
     timeoutMs: 10000,
     temperature: 0,
+    contextWindowSize: 65536,
     enabled: false,
   },
 ]

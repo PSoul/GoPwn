@@ -9,7 +9,7 @@ export function registerWhoisIp(server: McpServer) {
     'Query WHOIS information for an IP address (for authorized penetration testing)',
     {
       ip: z.string().describe('IP address to query, e.g. 8.8.8.8'),
-      timeout: z.number().optional().default(10000).describe('Timeout in milliseconds'),
+      timeout: z.number().optional().default(20000).describe('Timeout in milliseconds'),
     },
     async ({ ip, timeout }) => {
       try {

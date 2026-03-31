@@ -116,16 +116,45 @@ async function normalizeExecutionArtifacts(
   if (context.run.toolName === "seed-normalizer") {
     const targets = (rawResult.structuredContent.normalizedTargets as string[]) ?? []
 
+    // Create initial host assets from normalized targets so asset inventory is populated immediately
+    const seedAssets: AssetRecord[] = []
+    for (const target of targets) {
+      const host = getHostFromTarget(target)
+      if (!host) continue
+      const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(host)
+      const assetType = isIp ? "host" : "domain"
+      const assetId = buildStableRecordId("asset", context.project.id, assetType, host)
+      if (existingAssets.has(assetId) || seedAssets.some((a) => a.id === assetId)) continue
+      seedAssets.push({
+        id: assetId,
+        projectId: context.project.id,
+        projectName: context.project.name,
+        type: assetType,
+        label: host,
+        profile: "种子目标",
+        scopeStatus: "已纳入",
+        lastSeen: timestamp,
+        host,
+        ownership: `${context.project.name} 种子输入`,
+        confidence: "1.00",
+        exposure: "项目初始输入目标",
+        linkedEvidenceId: "",
+        linkedTaskTitle: "目标标准化",
+        issueLead: "等待侦查工具采集更多信息。",
+        relations: [],
+      })
+    }
+
     return {
       actor,
-      assets: [],
+      assets: seedAssets,
       evidence: [],
       findings: [],
       workLogs: [
         {
           id: `work-${context.run.id}`,
           category: "目标标准化",
-          summary: `种子目标已规范化为 ${targets.join(" / ")}。`,
+          summary: `种子目标已规范化为 ${targets.join(" / ")}，创建了 ${seedAssets.length} 个初始资产。`,
           projectName: context.project.name,
           actor,
           timestamp,
@@ -834,6 +863,91 @@ function normalizeStdioMcpArtifacts(
     }
   }
 
+  // Extract host/port assets from tcp_connect / tcp_banner_grab results
+  // These tools return {connected: boolean, response: {...}} or {banner: string, ...}
+  // They operate on a single host:port, so we derive the asset from the run context.
+  const isTcpTool = context.run.toolName === "tcp_connect" || context.run.toolName === "tcp_banner_grab"
+  if (isTcpTool && (sc.connected === true || typeof sc.banner === "string")) {
+    const target = context.run.target
+    const host = getHostFromTarget(target)
+    // Derive port from the tool arguments or target string
+    let port = 0
+    const portMatch = target.match(/:(\d+)$/) ?? target.match(/^tcp:\/\/[^:]+:(\d+)$/i)
+    if (portMatch) port = Number(portMatch[1])
+    // Infer from URL scheme
+    if (!port) {
+      try {
+        const url = new URL(target)
+        port = Number(url.port) || (url.protocol === "https:" ? 443 : 80)
+      } catch { /* bare host, no port derivable */ }
+    }
+
+    // Create host asset (always)
+    const hostAssetId = buildStableRecordId("asset", context.project.id, "host", host)
+    if (!assets.some((a) => a.id === hostAssetId)) {
+      const existing = existingAssets.get(hostAssetId)
+      assets.push({
+        id: hostAssetId,
+        projectId: context.project.id,
+        projectName: context.project.name,
+        type: "host",
+        label: host,
+        profile: `${context.run.toolName} 发现`,
+        scopeStatus: "已纳入",
+        lastSeen: timestamp,
+        host,
+        ownership: `${context.project.name} MCP 结果`,
+        confidence: "0.82",
+        exposure: `由 ${context.run.toolName} 确认可达`,
+        linkedEvidenceId: evidenceId,
+        linkedTaskTitle: context.run.requestedAction,
+        issueLead: "可继续采集端口和服务信息。",
+        relations: mergeRelations(existing?.relations, [{
+          id: buildStableRecordId("asset-rel", host, "evidence"),
+          label: evidenceId,
+          type: "evidence",
+          relation: "主机发现证据",
+          scopeStatus: "已纳入",
+        }]),
+      })
+    }
+
+    // Create port asset (when port is known)
+    if (port) {
+      const label = `${host}:${port}`
+      const portAssetId = buildStableRecordId("asset", context.project.id, "port", label)
+      if (!assets.some((a) => a.id === portAssetId)) {
+        const bannerStr = typeof sc.banner === "string" ? sc.banner.trim().slice(0, 80) : ""
+        const service = bannerStr.match(/^(SSH|HTTP|FTP|SMTP|POP3|IMAP|MySQL|RDP)/i)?.[1]?.toLowerCase() ?? ""
+        const existing = existingAssets.get(portAssetId)
+        assets.push({
+          id: portAssetId,
+          projectId: context.project.id,
+          projectName: context.project.name,
+          type: "port",
+          label,
+          profile: service ? `${service} · tcp` : `${context.run.toolName} 发现`,
+          scopeStatus: "已纳入",
+          lastSeen: timestamp,
+          host,
+          ownership: `${context.project.name} MCP 结果`,
+          confidence: "0.82",
+          exposure: bannerStr ? `Banner: ${bannerStr}` : `端口 ${port} 开放`,
+          linkedEvidenceId: evidenceId,
+          linkedTaskTitle: context.run.requestedAction,
+          issueLead: service ? `${service} 服务可继续进行版本识别和漏洞检测。` : "可继续采集服务版本信息。",
+          relations: mergeRelations(existing?.relations, [{
+            id: buildStableRecordId("asset-rel", label, "evidence"),
+            label: evidenceId,
+            type: "evidence",
+            relation: "端口发现证据",
+            scopeStatus: "已纳入",
+          }]),
+        })
+      }
+    }
+  }
+
   // Extract web entry assets
   if (Array.isArray(sc.webEntries)) {
     for (const entry of sc.webEntries as Array<{ url?: string; statusCode?: number; title?: string; fingerprint?: string; headers?: string[] }>) {
@@ -874,6 +988,57 @@ function normalizeStdioMcpArtifacts(
           },
         ]),
       })
+
+      // Auto-create host + port assets from web entries so IP/port/service lists are populated
+      const hostAssetId = buildStableRecordId("asset", context.project.id, "host", host)
+      if (!assets.some((a) => a.id === hostAssetId) && !existingAssets.has(hostAssetId)) {
+        assets.push({
+          id: hostAssetId,
+          projectId: context.project.id,
+          projectName: context.project.name,
+          type: "host",
+          label: host,
+          profile: `${context.run.toolName} 发现`,
+          scopeStatus: "已纳入",
+          lastSeen: timestamp,
+          host,
+          ownership: `${context.project.name} MCP 结果`,
+          confidence: "0.80",
+          exposure: `由 ${context.run.toolName} 在 Web 探测中发现`,
+          linkedEvidenceId: evidenceId,
+          linkedTaskTitle: context.run.requestedAction,
+          issueLead: "可继续采集端口和服务信息。",
+          relations: [],
+        })
+      }
+      // Derive port from the web entry URL
+      try {
+        const entryUrl = new URL(url)
+        const entryPort = Number(entryUrl.port) || (entryUrl.protocol === "https:" ? 443 : 80)
+        const portLabel = `${host}:${entryPort}`
+        const portAssetId = buildStableRecordId("asset", context.project.id, "port", portLabel)
+        if (!assets.some((a) => a.id === portAssetId) && !existingAssets.has(portAssetId)) {
+          const svc = entryUrl.protocol === "https:" ? "https" : "http"
+          assets.push({
+            id: portAssetId,
+            projectId: context.project.id,
+            projectName: context.project.name,
+            type: "port",
+            label: portLabel,
+            profile: `${svc} · tcp`,
+            scopeStatus: "已纳入",
+            lastSeen: timestamp,
+            host,
+            ownership: `${context.project.name} MCP 结果`,
+            confidence: "0.80",
+            exposure: `端口 ${entryPort} 运行 ${svc}（由 Web 探测推断）`,
+            linkedEvidenceId: evidenceId,
+            linkedTaskTitle: context.run.requestedAction,
+            issueLead: `${svc} 服务可继续进行漏洞检测。`,
+            relations: [],
+          })
+        }
+      } catch { /* URL parse failed, skip port derivation */ }
     }
   }
 

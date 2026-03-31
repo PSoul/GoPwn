@@ -12,7 +12,7 @@ MCP = 四肢     接触目标、调用外部工具、采集证据、回传结构
 
 ## 当前状态
 
-- 版本: `v0.4.0`
+- 版本: `v0.4.5`
 - 数据层: PostgreSQL via Prisma 7.x (`@prisma/adapter-pg`)，唯一数据层
 - 测试: 178 单元测试 + 14 E2E 测试
 - MCP: 14 个本地 MCP Server（36+ 工具）
@@ -235,7 +235,8 @@ LLM_REVIEWER_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
 | 17a-d | Prisma 数据层迁移 (PostgreSQL 唯一数据层) | 已完成 |
 | 17b | Agent 大脑进化 (配置 / 环境感知 / 压缩 / 反思) | 已完成 |
 | 19 | 架构重构 (类型拆分 / facade 删除 / 模块分解) | 已完成 |
-| 20 | 架构持续精简 + 二级模块拆分 | 待开始 |
+| 20 | 架构持续精简 + 二级模块拆分 | 已完成 |
+| 21 | UI/UX 全站审查 + 5 轮真实使用 Debug | 已完成 |
 
 ## 接手指南
 

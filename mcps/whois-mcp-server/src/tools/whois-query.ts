@@ -10,7 +10,7 @@ export function registerWhoisQuery(server: McpServer) {
     {
       domain: z.string().describe('Domain name to query, e.g. example.com'),
       server: z.string().optional().describe('Custom WHOIS server to use'),
-      timeout: z.number().optional().default(10000).describe('Timeout in milliseconds'),
+      timeout: z.number().optional().default(20000).describe('Timeout in milliseconds'),
     },
     async ({ domain, server: whoisServer, timeout }) => {
       try {

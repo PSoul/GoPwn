@@ -1,7 +1,7 @@
 import { listStoredProjectApprovals } from "@/lib/approval-repository"
 import { listStoredAssets } from "@/lib/asset-repository"
 import { listStoredEvidence } from "@/lib/evidence-repository"
-import { buildCompressedRoundHistory, buildLastRoundDetail, buildUnusedCapabilities, buildAssetSnapshot, buildMultiRoundBrainPrompt } from "@/lib/orchestrator-context-builder"
+import { buildCompressedRoundHistory, buildLastRoundDetail, buildUnusedCapabilities, buildAssetSnapshot, buildMultiRoundBrainPrompt, buildFailedToolsSummary } from "@/lib/orchestrator-context-builder"
 import { getConfiguredLlmProviderStatus, resolveLlmProvider } from "@/lib/llm-provider/registry"
 import { dispatchProjectMcpRunAndDrain } from "@/lib/project-mcp-dispatch-service"
 import { formatTimestamp } from "@/lib/prototype-record-utils"
@@ -400,6 +400,7 @@ export async function generateMultiRoundPlan(
     assetSnapshot: await buildAssetSnapshot(projectId),
     lastRoundDetail: await buildLastRoundDetail(projectId),
     unusedCapabilities: await buildUnusedCapabilities(projectId),
+    failedToolsSummary: await buildFailedToolsSummary(projectId),
     availableTools,
   })
 

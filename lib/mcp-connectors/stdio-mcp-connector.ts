@@ -116,10 +116,12 @@ function buildToolArguments(toolName: string, target: string): Record<string, un
       const url = new URL(target)
       args.host = url.hostname
       args.port = Number(url.port) || (url.protocol === "https:" ? 443 : 80)
-      args.request = `GET ${url.pathname || "/"} HTTP/1.1\r\nHost: ${url.hostname}\r\n\r\n`
+      args.rawRequest = `GET ${url.pathname || "/"} HTTP/1.1\r\nHost: ${url.hostname}\r\n\r\n`
+      args.tls = url.protocol === "https:"
     } catch {
       args.host = target
       args.port = 80
+      args.rawRequest = `GET / HTTP/1.1\r\nHost: ${target}\r\n\r\n`
     }
     return args
   }
@@ -194,7 +196,7 @@ function buildToolArguments(toolName: string, target: string): Record<string, un
   }
 
   if (toolName === "icp_query") {
-    args.domain = target.replace(/^https?:\/\//i, "").replace(/\/.*$/, "").replace(/:\d+$/, "")
+    args.query = target.replace(/^https?:\/\//i, "").replace(/\/.*$/, "").replace(/:\d+$/, "")
     return args
   }
 
@@ -385,6 +387,23 @@ function extractSummaryLines(structured: Record<string, unknown>, toolName: stri
     lines.push("已获取外部情报信息")
   }
 
+  // TCP connect / banner grab results
+  if (structured.connected === true) {
+    const banner = typeof structured.banner === "string" ? structured.banner.trim().slice(0, 60) : ""
+    lines.push(banner ? `TCP 连接成功，Banner: ${banner}` : "TCP 连接成功")
+  } else if (structured.connected === false) {
+    lines.push("TCP 连接失败（端口关闭或不可达）")
+  }
+  if (typeof structured.banner === "string" && structured.connected === undefined) {
+    lines.push(`Banner: ${structured.banner.trim().slice(0, 60)}`)
+  }
+
+  // WHOIS results
+  if (typeof structured.registrar === "string" || typeof structured.org === "string") {
+    const info = structured.registrar ?? structured.org ?? ""
+    lines.push(`WHOIS 信息: ${String(info).slice(0, 60)}`)
+  }
+
   if (structured.result !== undefined) {
     lines.push(`工具 ${toolName} 已返回结果`)
   }
@@ -475,6 +494,23 @@ export const stdioMcpConnector: McpConnector = {
           summaryLines: [`${run.toolName} 执行超时（>${timeoutMs}ms）`],
           errorMessage: message,
           retryAfterMinutes: 5,
+        }
+      }
+
+      // ENOENT = binary not found — give a clear actionable message
+      if (message.includes("ENOENT") || message.includes("not found")) {
+        const serverKey = getServerKeyByToolName(run.toolName)
+        const envHint = serverKey ? `检查 mcps/mcp-servers.json 中 ${serverKey} 的二进制路径配置` : ""
+        return {
+          status: "failed",
+          connectorKey: "stdio-mcp-generic",
+          mode: "real",
+          summaryLines: [
+            `${run.toolName} 所需的可执行文件不存在`,
+            envHint,
+            "请下载对应的二进制文件并放置到正确路径，或设置对应的环境变量",
+          ].filter(Boolean),
+          errorMessage: `二进制文件缺失: ${message}`,
         }
       }
 

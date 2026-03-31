@@ -27,6 +27,88 @@ const statusTone: Record<string, "info" | "success" | "danger" | "neutral"> = {
   failed: "danger",
 }
 
+/**
+ * Try to parse LLM response as a structured plan and render it in a human-readable format.
+ * Falls back to raw text if the response is not a recognized JSON structure.
+ */
+function renderResponseContent(response: string, isStreaming: boolean) {
+  if (!response) {
+    return isStreaming ? "正在输出中..." : "暂无内容"
+  }
+
+  // Try to extract JSON from the response (may be wrapped in markdown code blocks)
+  let parsed: unknown = null
+  try {
+    const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/) ?? response.match(/(\{[\s\S]*\}|\[[\s\S]*\])/)
+    const jsonStr = jsonMatch ? jsonMatch[1] : response
+    parsed = JSON.parse(jsonStr.trim())
+  } catch {
+    // Not JSON — render as plain text
+    return null
+  }
+
+  if (!parsed || typeof parsed !== "object") return null
+
+  // Handle plan response with items array
+  const obj = parsed as Record<string, unknown>
+  const items = Array.isArray(obj.items) ? obj.items : Array.isArray(parsed) ? parsed : null
+  const summary = typeof obj.summary === "string" ? obj.summary : null
+
+  if (!items || items.length === 0) return null
+
+  return (
+    <div className="space-y-3">
+      {summary && (
+        <p className="text-sm leading-6 text-slate-700 dark:text-slate-200">{summary}</p>
+      )}
+      <div className="space-y-2">
+        {items.map((item: Record<string, unknown>, idx: number) => {
+          const riskColors: Record<string, string> = {
+            "低": "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+            "中": "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+            "高": "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",
+          }
+          const risk = String(item.riskLevel ?? "")
+          return (
+            <div key={idx} className="rounded-lg border border-slate-200/80 bg-slate-50/50 px-3 py-2 dark:border-slate-700/60 dark:bg-slate-900/30">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-slate-900 dark:text-white">
+                  {String(item.requestedAction ?? item.action ?? `动作 ${idx + 1}`)}
+                </span>
+                {!!item.toolName && (
+                  <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
+                    {String(item.toolName)}
+                  </span>
+                )}
+                {risk && (
+                  <span className={`rounded-full px-2 py-0.5 text-xs ${riskColors[risk] ?? "bg-slate-100 text-slate-600"}`}>
+                    {risk}
+                  </span>
+                )}
+              </div>
+              {!!item.target && (
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  目标: {String(item.target)}
+                </p>
+              )}
+              {!!item.rationale && (
+                <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                  {String(item.rationale)}
+                </p>
+              )}
+              {!!item.capability && (
+                <p className="mt-1 text-xs text-slate-400">
+                  能力: {String(item.capability)}
+                </p>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export function ProjectLlmLogPanel({
   projectId,
   isRunning,
@@ -239,16 +321,43 @@ export function ProjectLlmLogPanel({
                       )}
                     </div>
 
-                    {/* Response (expanded by default) */}
+                    {/* Response (expanded by default, structured when possible) */}
                     <div className="px-5 py-3">
-                      <p className="mb-2 text-xs font-medium text-slate-500">Response</p>
+                      <div className="mb-2 flex items-center justify-between">
+                        <p className="text-xs font-medium text-slate-500">Response</p>
+                        {log.response && renderResponseContent(log.response, log.status === "streaming") && (
+                          <button
+                            type="button"
+                            className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                            onClick={() => {
+                              setExpandedPrompts((prev) => {
+                                const next = new Set(prev)
+                                const rawKey = `raw-${log.id}`
+                                if (next.has(rawKey)) next.delete(rawKey)
+                                else next.add(rawKey)
+                                return next
+                              })
+                            }}
+                          >
+                            {expandedPrompts.has(`raw-${log.id}`) ? "结构化视图" : "原始内容"}
+                          </button>
+                        )}
+                      </div>
                       <div className="max-h-96 overflow-y-auto">
-                        <pre className="whitespace-pre-wrap text-xs leading-5 text-slate-700 dark:text-slate-200">
-                          {log.response || (log.status === "streaming" ? "正在输出中..." : "暂无内容")}
-                          {log.status === "streaming" && (
-                            <span className="ml-0.5 inline-block h-3 w-0.5 animate-pulse bg-slate-500" />
-                          )}
-                        </pre>
+                        {(() => {
+                          const structured = !expandedPrompts.has(`raw-${log.id}`) && log.response
+                            ? renderResponseContent(log.response, log.status === "streaming")
+                            : null
+                          if (structured) return structured
+                          return (
+                            <pre className="whitespace-pre-wrap text-xs leading-5 text-slate-700 dark:text-slate-200">
+                              {log.response || (log.status === "streaming" ? "正在输出中..." : "暂无内容")}
+                              {log.status === "streaming" && (
+                                <span className="ml-0.5 inline-block h-3 w-0.5 animate-pulse bg-slate-500" />
+                              )}
+                            </pre>
+                          )
+                        })()}
                       </div>
                     </div>
 

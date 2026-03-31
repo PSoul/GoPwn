@@ -194,7 +194,7 @@ const TOOL_REGISTRY: Record<string, ToolMapping[]> = {
     {
       toolName: "tcp_connect",
       title: "TCP 连接",
-      description: "TCP 连接并可选发送数据",
+      description: "TCP 连接单个端口并可选发送数据。target 格式必须为 host:port（如 1.2.3.4:443）",
       capability: "TCP 数据包交互类",
       boundary: "外部目标交互",
       riskLevel: "中",
@@ -214,7 +214,7 @@ const TOOL_REGISTRY: Record<string, ToolMapping[]> = {
     {
       toolName: "tcp_banner_grab",
       title: "Banner 抓取",
-      description: "连接目标端口读取 banner 信息",
+      description: "连接目标端口读取 banner 信息。target 格式必须为 host:port（如 1.2.3.4:22）",
       capability: "TCP 数据包交互类",
       boundary: "外部目标交互",
       riskLevel: "低",

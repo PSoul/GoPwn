@@ -20,4 +20,5 @@ test-results/
 tmp-review/
 tsconfig.tsbuildinfo
 screenshots/
+mcps/*/bin/
 *.txt

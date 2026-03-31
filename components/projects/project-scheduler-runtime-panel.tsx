@@ -225,14 +225,23 @@ export function ProjectSchedulerRuntimePanel({
               </div>
             </div>
           )}
-          {control.lifecycle === "running" && (
-            <div className="border-t border-slate-100 px-5 py-2.5 dark:border-slate-800">
-              <span className="flex items-center gap-2 text-xs text-sky-600 dark:text-sky-400">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                正在规划第 {(rounds.length > 0 ? rounds[rounds.length - 1].round : 0) + 1} 轮...
-              </span>
-            </div>
-          )}
+          {control.lifecycle === "running" && (() => {
+            const lastRound = rounds.length > 0 ? rounds[rounds.length - 1].round : 0
+            return lastRound < control.maxRounds ? (
+              <div className="border-t border-slate-100 px-5 py-2.5 dark:border-slate-800">
+                <span className="flex items-center gap-2 text-xs text-sky-600 dark:text-sky-400">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  正在规划第 {lastRound + 1} 轮...
+                </span>
+              </div>
+            ) : (
+              <div className="border-t border-slate-100 px-5 py-2.5 dark:border-slate-800">
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                  已达到最大轮次限制 ({control.maxRounds})，正在收束...
+                </span>
+              </div>
+            )
+          })()}
         </div>
       )}
 

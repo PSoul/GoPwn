@@ -62,7 +62,7 @@ export async function updateApprovalDecisionPayload(approvalId: string, input: A
       _pendingKickoff = runProjectLifecycleKickoff(approval.projectId, {
         controlCommand: "resume",
         note: "审批通过后，继续根据当前结果推进项目后续动作并判断是否可以收束。",
-      }).catch((err) => console.error(`[lifecycle] resume failed for ${approval.projectId}:`, err))
+      }).catch((err) => console.error(`[lifecycle] resume failed for ${approval.projectId}:`, err)).then(() => {})
       void _pendingKickoff
     }
   }
@@ -95,7 +95,7 @@ export async function updateProjectSchedulerControlPayload(
       _pendingKickoff = runProjectLifecycleKickoff(projectId, {
         controlCommand: payload.transition.previousLifecycle === "paused" ? "resume" : "start",
         note: payload.schedulerControl.note,
-      }).catch((err) => console.error(`[lifecycle] kickoff failed for ${projectId}:`, err))
+      }).catch((err) => console.error(`[lifecycle] kickoff failed for ${projectId}:`, err)).then(() => {})
       void _pendingKickoff
     }
 

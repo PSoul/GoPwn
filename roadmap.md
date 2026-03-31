@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-31`
-- Current focus: Phase 21 Debug Round 3 完成 — 修复 5 个 UX/功能问题（LLM 超时 / 文案清理 / 审批策略下拉框 / 阶段负责人移除 / 生命周期状态文案），分支 `fix/phase21-debug-0331`。
+- Current focus: Phase 21 Debug Round 5 完成 — 资产提取管线重写 + fscan 编译 + MCP 连接器增强，分支 `fix/phase21-debug-0331`。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
 
 ## Phase 17a: Prisma 数据层迁移 (Prisma Data Layer Migration)
@@ -793,6 +793,50 @@
 - [x] 项目创建表单包含审批策略下拉框
 - [x] 178/178 单元测试通过
 - [x] Prisma schema 同步
+
+## Phase 21 Debug Round 4: 统计卡片跳转 + 进度横幅 + AI 日志结构化 + 失败工具摘要
+
+- Status: Completed on `2026-03-31`
+- Branch: `fix/phase21-debug-0331`
+- Goal: 修复 debug/0331-4.md 中 7 个问题，增强运行时可视性和 LLM 编排智能。
+
+### 交付清单
+
+1. **统计卡片可点击** — 4 个统计卡片（已纳入域名/开放端口/漏洞线索/证据锚点）改为 `<Link>` 跳转到对应结果页
+2. **进度横幅实时状态** — 显示当前轮次、执行中工具名+目标、待审批数、已完成/失败任务数、最新轮次指标
+3. **fscan ENOENT 检测** — stdio 连接器捕获二进制缺失错误，返回明确安装提示
+4. **AI 日志结构化渲染** — JSON 计划渲染为卡片（含 toolName/riskLevel/target/rationale 标签），支持原始/结构化视图切换
+5. **失败工具摘要注入** — `buildFailedToolsSummary()` 将连续失败 2+ 次的工具注入 LLM prompt，防止重复调度
+6. **MCP 参数修复** — `icp_query` 参数 domain→query、`http_raw_request` 参数 request→rawRequest + tls 字段
+7. **maxRounds 文案** — 达到最大轮次时显示"已达到最大轮次限制，正在收束"
+
+### 验收标准
+
+- [x] TypeScript 无新增错误
+- [x] 涉及 7 个源文件修改
+
+## Phase 21 Debug Round 5: 资产提取管线重写 + fscan 编译 + MCP 增强
+
+- Status: Completed on `2026-03-31`
+- Branch: `fix/phase21-debug-0331`
+- Goal: 修复 debug/0331-5.md 中 7 个问题，解决资产数据为空的核心问题。
+
+### 交付清单
+
+1. **seed-normalizer 创建初始资产** — 从 normalizedTargets 自动创建 host/domain 资产，不再返回空 assets 数组
+2. **tcp_connect/tcp_banner_grab 资产提取** — 识别 `{connected: true}` / `{banner: "..."}` 返回格式，自动创建 host + port 资产
+3. **webEntries 自动衍生 host+port** — 从 Web 入口 URL 推导并创建对应的 host 和 port 资产
+4. **fscan.exe 编译** — 从 GitHub 源码编译 46MB 二进制，放置到 `mcps/fscan-mcp-server/bin/fscan.exe`
+5. **TLS 证书忽略** — curl-mcp-server 设置 `NODE_TLS_REJECT_UNAUTHORIZED=0` 解决自签名证书 fetch 失败
+6. **WHOIS 超时延长** — whois_ip/whois_query 默认超时从 10s 提升到 20s
+7. **extractSummaryLines 增强** — 对 tcp/whois 工具返回有意义的摘要（Banner/连接状态/WHOIS 信息）
+8. **LLM target 格式约束** — 工具描述和编排 prompt 中明确 tcp_connect/tcp_banner_grab 的 target 必须为 host:port 格式
+
+### 验收标准
+
+- [x] TypeScript 无新增错误
+- [x] 涉及 12 个源文件修改
+- [x] fscan.exe 编译成功
 
 ## Recommended Next Phase
 
