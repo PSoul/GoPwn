@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Activity, PlugZap, ShieldCheck, ShieldOff } from "lucide-react"
 
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
@@ -305,10 +306,13 @@ export function McpGatewayClient({
         ))}
       </div>
 
-      <SectionCard
-        title="MCP 契约注册"
-        description="这里输入新的 MCP server 注册 JSON。平台会按合同文档做字段校验，通过后才会把 server、工具契约和可调度工具一起写入真实存储。"
-      >
+      <Accordion type="multiple" defaultValue={[]}>
+        <AccordionItem value="contract-registration" className="border-none">
+          <SectionCard
+            title={<AccordionTrigger className="hover:no-underline">MCP 契约注册</AccordionTrigger>}
+            description="这里输入新的 MCP server 注册 JSON。平台会按合同文档做字段校验，通过后才会把 server、工具契约和可调度工具一起写入真实存储。"
+          >
+            <AccordionContent>
         <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
           <div className="space-y-4">
             <div className="rounded-3xl border border-sky-200/80 bg-sky-50/80 p-4 text-sm leading-6 text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-100">
@@ -368,7 +372,10 @@ export function McpGatewayClient({
             </div>
           </div>
         </div>
-      </SectionCard>
+            </AccordionContent>
+          </SectionCard>
+        </AccordionItem>
+      </Accordion>
 
       <div className="grid gap-6 xl:grid-cols-[1.18fr_0.82fr]">
         <SectionCard title="已注册 MCP 工具" description="工具是具体接入位，平台调度时真正依赖的是能力族和注册契约。">
@@ -512,10 +519,13 @@ export function McpGatewayClient({
         </SectionCard>
       </div>
 
-      <SectionCard
-        title="已连接 MCP 服务器"
-        description="这里展示真实 MCP server 注册表和最近一次实际调用，让我们能快速确认哪些能力已经从原型接线升级到了真实 stdio 链路。"
-      >
+      <Accordion type="multiple" defaultValue={[]}>
+        <AccordionItem value="connected-servers" className="border-none">
+          <SectionCard
+            title={<AccordionTrigger className="hover:no-underline">已连接 MCP 服务器</AccordionTrigger>}
+            description="这里展示真实 MCP server 注册表和最近一次实际调用，让我们能快速确认哪些能力已经从原型接线升级到了真实 stdio 链路。"
+          >
+            <AccordionContent>
         <div className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
           <div className="space-y-4">
             <div className="rounded-3xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
@@ -599,64 +609,83 @@ export function McpGatewayClient({
             )}
           </div>
         </div>
-      </SectionCard>
+            </AccordionContent>
+          </SectionCard>
+        </AccordionItem>
+      </Accordion>
 
       <div className="grid gap-6 xl:grid-cols-[1.04fr_0.96fr]">
-        <SectionCard title="MCP 能力族" description="平台调度时优先看能力契约，工具只是实现承载位。">
-          <div className="grid gap-4 md:grid-cols-2">
-            {capabilities.map((capability) => (
-              <div
-                key={capability.id}
-                className="rounded-3xl border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-950 dark:text-white">{capability.name}</p>
-                  <StatusBadge tone={capability.defaultRiskLevel === "高" ? "danger" : capability.defaultRiskLevel === "中" ? "warning" : "success"}>
-                    风险 {capability.defaultRiskLevel}
-                  </StatusBadge>
+        <Accordion type="multiple" defaultValue={[]}>
+          <AccordionItem value="capabilities" className="border-none">
+            <SectionCard title={<AccordionTrigger className="hover:no-underline">MCP 能力族</AccordionTrigger>} description="平台调度时优先看能力契约，工具只是实现承载位。">
+              <AccordionContent>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {capabilities.map((capability) => (
+                    <div
+                      key={capability.id}
+                      className="rounded-3xl border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-slate-950 dark:text-white">{capability.name}</p>
+                        <StatusBadge tone={capability.defaultRiskLevel === "高" ? "danger" : capability.defaultRiskLevel === "中" ? "warning" : "success"}>
+                          风险 {capability.defaultRiskLevel}
+                        </StatusBadge>
+                      </div>
+                      <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{capability.description}</p>
+                      <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">{capability.defaultApprovalRule}</p>
+                      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">边界：{capability.boundary}</p>
+                      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                        已接入：{capability.connectedTools.length > 0 ? capability.connectedTools.join("、") : "待接入"}
+                      </p>
+                    </div>
+                  ))}
                 </div>
-                <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{capability.description}</p>
-                <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">{capability.defaultApprovalRule}</p>
-                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">边界：{capability.boundary}</p>
-                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                  已接入：{capability.connectedTools.length > 0 ? capability.connectedTools.join("、") : "待接入"}
-                </p>
-              </div>
-            ))}
-          </div>
-        </SectionCard>
+              </AccordionContent>
+            </SectionCard>
+          </AccordionItem>
+        </Accordion>
 
         <div className="space-y-6">
-          <SectionCard title="调用边界规则" description="先把“哪些动作必须经过 MCP”定义清楚，后面逐个接入工具才不会跑偏。">
-            <div className="space-y-4">
-              {boundaryRules.map((rule) => (
-                <div
-                  key={rule.title}
-                  className="rounded-3xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-slate-950 dark:text-white">{rule.title}</p>
-                    <StatusBadge tone={rule.type === "外部目标交互" ? "warning" : "info"}>{rule.type}</StatusBadge>
+          <Accordion type="multiple" defaultValue={[]}>
+            <AccordionItem value="boundary-rules" className="border-none">
+              <SectionCard title={<AccordionTrigger className="hover:no-underline">调用边界规则</AccordionTrigger>} description={`先把"哪些动作必须经过 MCP"定义清楚，后面逐个接入工具才不会跑偏。`}>
+                <AccordionContent>
+                  <div className="space-y-4">
+                    {boundaryRules.map((rule) => (
+                      <div
+                        key={rule.title}
+                        className="rounded-3xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-semibold text-slate-950 dark:text-white">{rule.title}</p>
+                          <StatusBadge tone={rule.type === "外部目标交互" ? "warning" : "info"}>{rule.type}</StatusBadge>
+                        </div>
+                        <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{rule.description}</p>
+                      </div>
+                    ))}
                   </div>
-                  <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{rule.description}</p>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
+                </AccordionContent>
+              </SectionCard>
+            </AccordionItem>
 
-          <SectionCard title="接入规范清单" description="后续新增 MCP 时，先满足这些字段，再决定是否允许进入调度网关。">
-            <div className="space-y-3">
-              {registrationFields.map((field) => (
-                <div
-                  key={field.label}
-                  className="rounded-3xl border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/70"
-                >
-                  <p className="text-sm font-semibold text-slate-950 dark:text-white">{field.label}</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{field.description}</p>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
+            <AccordionItem value="registration-fields" className="border-none">
+              <SectionCard title={<AccordionTrigger className="hover:no-underline">接入规范清单</AccordionTrigger>} description="后续新增 MCP 时，先满足这些字段，再决定是否允许进入调度网关。">
+                <AccordionContent>
+                  <div className="space-y-3">
+                    {registrationFields.map((field) => (
+                      <div
+                        key={field.label}
+                        className="rounded-3xl border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/70"
+                      >
+                        <p className="text-sm font-semibold text-slate-950 dark:text-white">{field.label}</p>
+                        <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{field.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </AccordionContent>
+              </SectionCard>
+            </AccordionItem>
+          </Accordion>
         </div>
       </div>
     </div>

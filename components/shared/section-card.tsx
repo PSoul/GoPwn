@@ -7,7 +7,7 @@ export function SectionCard({
   children,
   className,
 }: {
-  title: string
+  title: React.ReactNode
   eyebrow?: string
   description?: string
   children: React.ReactNode
