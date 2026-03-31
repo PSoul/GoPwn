@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-31`
-- Current focus: Phase 21 Debug 完成 — 修复 6 个真实使用 bug（LLM 上下文窗口设置 / 模型未配置警告 / 阻塞原因显示 / AI 日志空提示 / 用户名显示 / subfinder 对象提取），分支 `fix/phase21-debug-0331`。
+- Current focus: Phase 21 Debug Round 3 完成 — 修复 5 个 UX/功能问题（LLM 超时 / 文案清理 / 审批策略下拉框 / 阶段负责人移除 / 生命周期状态文案），分支 `fix/phase21-debug-0331`。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
 
 ## Phase 17a: Prisma 数据层迁移 (Prisma Data Layer Migration)
@@ -754,6 +754,45 @@
 - [x] `npx next lint` 无报错
 - [x] Prisma schema 同步（`db push` 成功）
 - [x] 14 个文件变更
+
+## Phase 21 Debug Round 2: 超时 / 自动展开 / 角色名称
+
+- Status: Completed on `2026-03-31`
+- Branch: `fix/phase21-debug-0331`
+- Goal: 修复用户第二轮真实使用中发现的 3 个问题。
+
+### 交付清单
+
+1. **移除角色名称编辑** — LLM 设置面板移除可编辑的 label 输入框
+2. **Fire-and-forget 生命周期** — 将 `runProjectLifecycleKickoff` 改为后台执行避免 API 超时 500，添加 `flushPendingKickoff()` 测试辅助函数
+3. **AI 聊天窗自动展开** — SSE 收到新 `created` 事件时自动展开聊天窗口
+
+### 验收标准
+
+- [x] 178/178 单元测试通过
+- [x] API 不再因 LLM 超时返回 500
+
+## Phase 21 Debug Round 3: 文案清理 + 审批策略 + 超时优化
+
+- Status: Completed on `2026-03-31`
+- Branch: `fix/phase21-debug-0331`
+- Goal: 修复用户第三轮真实使用中发现的 5 个问题，全站文案大清理。
+
+### 交付清单
+
+1. **LLM 超时默认值** — 所有 `timeoutMs` 默认从 15000ms 提升到 120000ms（涉及 Prisma schema、registry、provider、transforms、prototype-store、seed、tests）
+2. **"手动开始" 文案清理** — 全站 22 处 "手动开始" / "等待手动开始" 替换为 "启动" / "等待启动"（7 个源文件 + 2 个测试文件）
+3. **"回流"/"补采" 术语替换** — 全站 70+ 处晦涩术语替换为通俗文案："回流"→"返回/同步/汇入"，"补采"→"采集"，"回流补采"→"追加采集"（30+ 个源文件 + 15 个测试文件）
+4. **项目创建审批策略下拉框** — 新增 `approvalMode` 字段（"默认审批策略" / "全自动执行"），表单 + zod schema + mutation repository 全链路支持
+5. **移除"阶段负责人"字段** — 从 flow/page.tsx 删除该卡片，改为 2 列布局
+
+### 验收标准
+
+- [x] `grep "回流\|补采" --include="*.ts" --include="*.tsx"` 零结果
+- [x] `grep "手动开始" --include="*.ts" --include="*.tsx"` 零结果
+- [x] 项目创建表单包含审批策略下拉框
+- [x] 178/178 单元测试通过
+- [x] Prisma schema 同步
 
 ## Recommended Next Phase
 

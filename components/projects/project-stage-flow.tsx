@@ -13,7 +13,7 @@ const toneMap = {
 
 export function ProjectStageFlow({ detail }: { detail: ProjectDetailRecord }) {
   return (
-    <SectionCard title="阶段流转" description="主阶段保持稳定，但允许前置阶段在发现新对象时回流补采，不粗暴重置整个项目。">
+    <SectionCard title="阶段流转" description="主阶段保持稳定，允许前置阶段在发现新对象时继续采集，不会重置整个项目。">
       <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
         <div className="grid gap-3">
           {detail.timeline.map((stage, index) => (
@@ -49,7 +49,7 @@ export function ProjectStageFlow({ detail }: { detail: ProjectDetailRecord }) {
           <div className="rounded-item border border-amber-200 bg-amber-50/80 p-5 dark:border-amber-900/80 dark:bg-amber-950/40">
             <div className="mb-2 flex items-center gap-2">
               <GitBranch className="h-4 w-4 text-amber-700 dark:text-amber-200" />
-              <p className="text-sm font-semibold text-amber-700 dark:text-amber-200">回流提示</p>
+              <p className="text-sm font-semibold text-amber-700 dark:text-amber-200">阶段提示</p>
             </div>
             <p className="text-sm leading-6 text-amber-800/90 dark:text-amber-100/90">{detail.reflowNotice}</p>
           </div>

@@ -61,7 +61,7 @@ describe("ProjectDetailPage", () => {
     render(await ProjectFlowPage({ params: Promise.resolve({ projectId: fixture.project.id }) }))
 
     expect(screen.getByText("阶段流转详情")).toBeInTheDocument()
-    expect(screen.getByText("回流提示")).toBeInTheDocument()
+    expect(screen.getByText("阶段提示")).toBeInTheDocument()
     cleanup()
 
     render(await ProjectOperationsPage({ params: Promise.resolve({ projectId: fixture.project.id }) }))

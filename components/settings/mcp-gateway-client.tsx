@@ -37,7 +37,7 @@ const registrationTemplate = JSON.stringify(
       {
         toolName: "web-surface-map",
         title: "Web 页面探测",
-        description: "补采页面入口与响应特征。",
+        description: "采集页面入口与响应特征。",
         version: "1.0.0",
         capability: "Web 页面探测类",
         boundary: "外部目标交互",

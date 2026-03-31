@@ -29,7 +29,7 @@ function buildDnsContext(target: string): McpConnectorExecutionContext {
     capability: tool.capability,
     toolId: tool.id,
     toolName: tool.toolName,
-    requestedAction: "补采证书与子域情报",
+    requestedAction: "采集证书与子域情报",
     target,
     riskLevel: "低",
     boundary: "外部目标交互",

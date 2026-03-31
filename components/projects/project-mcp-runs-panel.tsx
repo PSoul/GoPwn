@@ -20,9 +20,9 @@ import { apiFetch } from "@/lib/api-client"
 
 const capabilityPresets: Record<string, { requestedAction: string; riskLevel: "高" | "中" | "低" }> = {
   "目标解析类": { requestedAction: "标准化种子目标", riskLevel: "低" },
-  "DNS / 子域 / 证书情报类": { requestedAction: "补采证书与子域情报", riskLevel: "低" },
-  "端口探测类": { requestedAction: "补采开放端口清单", riskLevel: "中" },
-  "Web 页面探测类": { requestedAction: "补采页面入口与响应特征", riskLevel: "低" },
+  "DNS / 子域 / 证书情报类": { requestedAction: "采集证书与子域情报", riskLevel: "低" },
+  "端口探测类": { requestedAction: "采集开放端口清单", riskLevel: "中" },
+  "Web 页面探测类": { requestedAction: "采集页面入口与响应特征", riskLevel: "低" },
   "HTTP / API 结构发现类": { requestedAction: "识别 API 与文档暴露面", riskLevel: "中" },
   "接口识别类": { requestedAction: "识别 API 与文档暴露面", riskLevel: "中" },
   "受控验证类": { requestedAction: "受控验证候选项", riskLevel: "高" },
@@ -367,7 +367,7 @@ export function ProjectMcpRunsPanel({
             ))
           ) : (
             <div className="rounded-panel border border-dashed border-slate-300 bg-slate-50/80 px-6 py-12 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
-              当前项目还没有 MCP 运行记录，可以先发起一次低风险补采或结果刷新。
+              当前项目还没有 MCP 运行记录，可以先发起一次低风险采集或结果刷新。
             </div>
           )}
           {runs.length > 3 && (

@@ -45,7 +45,7 @@ function toStoredProjectReportExportRecord(
     summary:
       reportLogSummary ??
       run.summaryLines.at(-1) ??
-      `${run.requestedAction} 已执行完成，报告导出记录已回流。`,
+      `${run.requestedAction} 已执行完成，报告导出记录已同步。`,
     digestLines: digestLines.length > 0 ? digestLines : run.summaryLines.slice(-3),
     assetCount,
     evidenceCount,

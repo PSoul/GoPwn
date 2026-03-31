@@ -33,7 +33,7 @@ export const MCP_RESULT_MAPPINGS = ["domains", "webEntries", "network", "finding
 
 export const dashboardMetrics: MetricCard[] = [
   { label: "项目总数", value: "0", delta: "等待真实项目", tone: "neutral" },
-  { label: "已发现资产", value: "0", delta: "等待真实资产回流", tone: "success" },
+  { label: "已发现资产", value: "0", delta: "等待真实资产数据", tone: "success" },
   { label: "已发现漏洞", value: "0", delta: "等待真实发现沉淀", tone: "warning" },
   { label: "待审批动作", value: "0", delta: "按项目实时聚合", tone: "danger" },
 ]

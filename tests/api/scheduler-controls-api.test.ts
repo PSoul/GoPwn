@@ -67,7 +67,7 @@ describe("scheduler control api routes", () => {
     await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture({
       targetInput: "http://127.0.0.1:18080/WebGoat",
-      description: "手动开始生命周期测试项目。",
+      description: "启动生命周期测试项目。",
     })
 
     const startResponse = await patchProjectSchedulerControl(
@@ -75,7 +75,7 @@ describe("scheduler control api routes", () => {
         method: "PATCH",
         body: JSON.stringify({
           lifecycle: "running",
-          note: "研究员确认后手动开始项目。",
+          note: "确认后启动项目。",
         }),
         headers: { "content-type": "application/json" },
       }),
@@ -195,7 +195,7 @@ describe("scheduler control api routes", () => {
     const fixture = await createStoredProjectFixture()
     const dispatchPayload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
-      requestedAction: "补采证书与子域情报",
+      requestedAction: "采集证书与子域情报",
       target: fixture.project.seed!,
       riskLevel: "低",
     })
@@ -224,7 +224,7 @@ describe("scheduler control api routes", () => {
     const fixture = await createStoredProjectFixture()
     const dispatchPayload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
-      requestedAction: "补采证书与子域情报",
+      requestedAction: "采集证书与子域情报",
       target: fixture.project.seed!,
       riskLevel: "低",
     })
@@ -258,7 +258,7 @@ describe("scheduler control api routes", () => {
     const fixture = await createStoredProjectFixture()
     const dispatchPayload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
-      requestedAction: "补采证书与子域情报",
+      requestedAction: "采集证书与子域情报",
       target: fixture.project.seed!,
       riskLevel: "低",
     })

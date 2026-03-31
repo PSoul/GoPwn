@@ -18,7 +18,7 @@ const roleMeta = {
   },
   reviewer: {
     title: "结果审阅模型",
-    description: "负责审阅执行回流结果、压缩摘要和帮助判断结论是否足够稳定。",
+    description: "负责审阅执行返回的结果、压缩摘要和帮助判断结论是否足够稳定。",
     icon: Eye,
   },
   extractor: {

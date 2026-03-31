@@ -45,7 +45,7 @@ describe("project MCP run api routes", () => {
         method: "POST",
         body: JSON.stringify({
           capability: "DNS / 子域 / 证书情报类",
-          requestedAction: "补采证书与子域情报",
+          requestedAction: "采集证书与子域情报",
           target: getProjectPrimaryTarget(fixture.project),
           riskLevel: "低",
         }),
@@ -67,7 +67,7 @@ describe("project MCP run api routes", () => {
 
     expect(readResponse.status).toBe(200)
     expect(readPayload.items[0].target).toBe(getProjectPrimaryTarget(fixture.project))
-    expect(readPayload.items[0].summaryLines[0]).toContain("补采证书与子域情报")
+    expect(readPayload.items[0].summaryLines[0]).toContain("采集证书与子域情报")
 
     const contextResponse = await getProjectContext(
       new Request(`http://localhost/api/projects/${fixture.project.id}/context`),
@@ -76,7 +76,7 @@ describe("project MCP run api routes", () => {
     const contextPayload = await contextResponse.json()
 
     expect(contextResponse.status).toBe(200)
-    expect(contextPayload.evidence.some((item: { title: string }) => item.title === "被动域名与子域情报回流")).toBe(true)
+    expect(contextPayload.evidence.some((item: { title: string }) => item.title === "被动域名与子域情报返回")).toBe(true)
 
     const workLogsResponse = await getWorkLogs(
       new Request("http://localhost/api/settings/work-logs"),

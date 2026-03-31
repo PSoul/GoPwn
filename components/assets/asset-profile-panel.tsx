@@ -19,7 +19,7 @@ export function AssetProfilePanel({ asset }: { asset: AssetRecord }) {
     <SectionCard
       title="当前识别画像"
       eyebrow="Asset Profile"
-      description="先回答“这个对象现在被识别成什么”，再决定是否进入受控验证或回流补采。"
+      description="先回答”这个对象现在被识别成什么”，再决定是否进入受控验证或继续采集。"
     >
       <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-3xl border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">

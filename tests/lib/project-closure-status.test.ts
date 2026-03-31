@@ -16,7 +16,7 @@ describe("project closure status", () => {
     })
 
     expect(status.state).toBe("waiting_start")
-    expect(status.label).toBe("等待手动开始")
+    expect(status.label).toBe("等待启动")
     expect(status.blockers).toEqual([
       expect.objectContaining({
         title: "等待研究员开始项目",

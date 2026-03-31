@@ -25,7 +25,7 @@ export default async function AssetDetailPage({
     <div className="space-y-6">
       <PageHeader
         title={`资产详情 · ${asset.host}`}
-        description="资产详情页围绕“当前识别画像 + 关系链路 + 下一步入口”组织，让研究员能快速决定是回流补采、做范围判断还是进入验证。"
+        description="资产详情页围绕“当前识别画像 + 关系链路 + 下一步入口”组织，让研究员能快速决定是追加采集、做范围判断还是进入验证。"
         actions={
           <>
             <StatusBadge tone={asset.scopeStatus === "已纳入" ? "success" : asset.scopeStatus === "待确认" ? "warning" : "info"}>
@@ -50,7 +50,7 @@ export default async function AssetDetailPage({
           <div className="rounded-3xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
             <p className="text-sm font-semibold text-slate-950 dark:text-white">范围动作</p>
             <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              {asset.scopeStatus === "已纳入" ? "维持当前范围归属，并继续补齐相关入口和证据。" : "先完成归属判断，再决定是否回流到前置阶段。"}
+              {asset.scopeStatus === "已纳入" ? "维持当前范围归属，并继续补齐相关入口和证据。" : "先完成归属判断，再决定是否返回前置阶段。"}
             </p>
           </div>
           <div className="rounded-3xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">

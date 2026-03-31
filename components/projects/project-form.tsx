@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { FolderKanban, ListTree, ScanSearch } from "lucide-react"
+import { FolderKanban, ListTree, ScanSearch, ShieldCheck } from "lucide-react"
 
 import { SectionCard } from "@/components/shared/section-card"
 import { Button } from "@/components/ui/button"
@@ -21,6 +21,7 @@ const projectSchema = z.object({
   name: z.string().min(1, "项目名称不能为空").max(100, "项目名称最多 100 个字符"),
   targetInput: z.string().min(1, "请至少填写一个目标"),
   description: z.string().optional(),
+  approvalMode: z.enum(["default", "auto"]).default("default"),
 })
 type ProjectFormValues = z.infer<typeof projectSchema>
 
@@ -40,6 +41,7 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
       name: preset.name ?? "",
       targetInput: preset.targetInput ?? "",
       description: preset.description ?? "",
+      approvalMode: (preset.approvalMode === "auto" ? "auto" : "default") as "default" | "auto",
     },
   })
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -136,6 +138,31 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
                 </FormItem>
               )}
             />
+
+            {!isEdit && (
+              <FormField
+                control={form.control}
+                name="approvalMode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>审批策略</FormLabel>
+                    <FormControl>
+                      <select
+                        {...field}
+                        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-950 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                      >
+                        <option value="default">默认审批策略（高风险操作需审批）</option>
+                        <option value="auto">全自动执行（跳过所有审批）</option>
+                      </select>
+                    </FormControl>
+                    <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                      选择"全自动"后，该项目的所有 MCP 工具调用将直接执行，不再进入审批队列。
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
           </div>
         </SectionCard>
 
@@ -203,11 +230,23 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
 
             <div className="rounded-item border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/70">
               <div className="mb-2 flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-slate-500" />
+                <p className="text-sm font-semibold text-slate-950 dark:text-white">审批策略</p>
+              </div>
+              <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
+                {watchedValues.approvalMode === "auto"
+                  ? "全自动执行：所有 MCP 工具调用将直接运行，不进入审批队列。"
+                  : "默认审批策略：高风险操作需要人工审批后才能执行。"}
+              </p>
+            </div>
+
+            <div className="rounded-item border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/70">
+              <div className="mb-2 flex items-center gap-2">
                 <ScanSearch className="h-4 w-4 text-slate-500" />
                 <p className="text-sm font-semibold text-slate-950 dark:text-white">工作台提示</p>
               </div>
               <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
-                当前平台为单用户模式，负责人固定为 {SINGLE_USER_LABEL}。审批、并发、超时和重试在 MCP 工具配置与系统设置中统一生效。
+                当前平台为单用户模式，负责人固定为 {SINGLE_USER_LABEL}。并发、超时和重试在 MCP 工具配置与系统设置中统一生效。
               </p>
             </div>
           </div>

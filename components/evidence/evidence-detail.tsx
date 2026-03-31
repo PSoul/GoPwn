@@ -155,7 +155,7 @@ export function EvidenceDetail({
             </div>
           </SectionCard>
 
-          <SectionCard title="最终结论" eyebrow="Verdict" description="最终结论不是结果终点，而是指导下一步是否复核、回流或继续验证。">
+          <SectionCard title="最终结论" eyebrow="Verdict" description="最终结论不是结果终点，而是指导下一步是否复核、返回上一阶段或继续验证。">
             <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">{record.verdict}</p>
           </SectionCard>
         </div>

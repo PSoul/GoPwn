@@ -87,7 +87,7 @@ export const workflowReadyMcpToolFixtures: McpToolRecord[] = [
     riskLevel: "低",
     status: "启用",
     category: "入口识别",
-    description: "补采页面入口与响应特征。",
+    description: "采集页面入口与响应特征。",
     inputMode: "json",
     outputMode: "json",
     boundary: "外部目标交互",
@@ -193,7 +193,7 @@ export async function createStoredProjectFixture(overrides: Partial<ProjectMutat
   const payload = await createStoredProject(
     buildProjectInput({
       targetInput: "localhost\nhttps://localhost/login\napi.localhost",
-      description: "测试夹具创建项目后，将通过最小 MCP 流程回流资产、证据和发现。",
+      description: "测试夹具创建项目后，将通过最小 MCP 流程同步资产、证据和发现。",
       ...overrides,
     }),
   )

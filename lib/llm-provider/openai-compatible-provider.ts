@@ -232,14 +232,14 @@ export function buildOpenAiCompatibleStatusFromEnv() {
       apiKey: process.env.LLM_API_KEY ?? "",
       baseUrl: process.env.LLM_BASE_URL ?? "",
       model: process.env.LLM_ORCHESTRATOR_MODEL ?? "",
-      timeoutMs: Number(process.env.LLM_TIMEOUT_MS ?? 15000),
+      timeoutMs: Number(process.env.LLM_TIMEOUT_MS ?? 120000),
       temperature: 0.2,
     },
     reviewer: {
       apiKey: process.env.LLM_API_KEY ?? "",
       baseUrl: process.env.LLM_BASE_URL ?? "",
       model: process.env.LLM_REVIEWER_MODEL ?? process.env.LLM_ORCHESTRATOR_MODEL ?? "",
-      timeoutMs: Number(process.env.LLM_TIMEOUT_MS ?? 15000),
+      timeoutMs: Number(process.env.LLM_TIMEOUT_MS ?? 120000),
       temperature: 0.1,
     },
   })

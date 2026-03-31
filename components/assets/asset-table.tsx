@@ -241,7 +241,7 @@ function getColumnsForView(viewKey: AssetCollectionView["key"]): AssetColumn[] {
         className: "min-w-[240px]",
         render: (asset) => (
           <div className="space-y-1">
-            <p className="text-sm text-slate-900 dark:text-slate-100">{asset.linkedTaskTitle || "等待回流"}</p>
+            <p className="text-sm text-slate-900 dark:text-slate-100">{asset.linkedTaskTitle || "等待数据返回"}</p>
             <p className="text-xs text-slate-500 dark:text-slate-400">{asset.issueLead || asset.linkedEvidenceId}</p>
           </div>
         ),
@@ -362,7 +362,7 @@ function getColumnsForView(viewKey: AssetCollectionView["key"]): AssetColumn[] {
       className: "min-w-[220px]",
       render: (asset) => (
         <div className="space-y-1">
-          <p className="text-sm text-slate-900 dark:text-slate-100">{asset.linkedTaskTitle || "等待任务回流"}</p>
+          <p className="text-sm text-slate-900 dark:text-slate-100">{asset.linkedTaskTitle || "等待任务完成"}</p>
           <p className="text-xs text-slate-500 dark:text-slate-400">{asset.issueLead || asset.exposure}</p>
         </div>
       ),
@@ -519,7 +519,7 @@ export function AssetTable({
                       <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
                         {query || scopeFilter !== "all"
                           ? "调整搜索词或范围状态后再看一次。"
-                          : "等真实任务继续回流后，这里会自动出现对应的资产对象。"}
+                          : "等真实任务执行后，这里会自动出现对应的资产对象。"}
                       </p>
                     </div>
                   </TableCell>

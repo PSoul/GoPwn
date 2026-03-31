@@ -397,7 +397,7 @@ export async function dispatchStoredMcpRun(projectId: string, input: McpDispatch
     dispatchMode: "自动执行",
     summaryLines: [
       `${input.requestedAction} 已进入调度队列，准备调用 ${resolvedEnabledTool.toolName}。`,
-      "调度器将按连接器策略执行并把结构化结果回流到项目结果与证据链路。",
+      "调度器将按连接器策略执行并把结构化结果同步到项目结果与证据链路。",
     ],
   })
 

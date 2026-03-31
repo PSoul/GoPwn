@@ -53,7 +53,7 @@ async function buildDashboardMetrics(projects: ProjectRecord[], approvalTotal: n
       return {
         ...metric,
         value: String(assets.length),
-        delta: assets.length > 0 ? `${assets.filter((asset) => asset.scopeStatus !== "已纳入").length} 个待确认` : "等待真实资产回流",
+        delta: assets.length > 0 ? `${assets.filter((asset) => asset.scopeStatus !== "已纳入").length} 个待确认` : "等待真实资产数据",
       }
     }
 
@@ -108,7 +108,7 @@ function buildDashboardPriorities({
 
   if (pendingAssets.length > 0) {
     priorities.push({
-      title: "待确认资产需要回流",
+      title: "待确认资产需要处理",
       detail: `${pendingAssets.length} 个对象仍待确认或复核，建议先补归属再推进下一步验证。`,
       tone: "warning",
     })
@@ -333,7 +333,7 @@ async function buildSystemStatusPayloadFromTools(tools: McpToolRecord[]): Promis
           browserTools.length > 0
             ? `当前已注册 ${browserTools.map((tool) => tool.toolName).join("、")}，可用于截图或证据采集。`
             : webSurfaceTools.length > 0
-            ? "当前还没有独立浏览器/截图采集节点，但 Web 页面探测链路仍可回流基础入口证据。"
+            ? "当前还没有独立浏览器/截图采集节点，但 Web 页面探测链路仍可返回基础入口证据。"
             : "当前还没有浏览器或截图采集能力注册。",
         tone: browserTools.length > 0 ? "success" : webSurfaceTools.length > 0 ? "warning" : "neutral",
       }

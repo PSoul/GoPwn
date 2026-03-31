@@ -145,7 +145,7 @@ const projectKnowledge = {
     },
     {
       title: "静态资源域名疑似共用对象存储",
-      detail: "assets.huayao.com 暴露静态资源结构，可能需要回流补采附件访问控制。",
+      detail: "assets.huayao.com 暴露静态资源结构，可能需要追加采集附件访问控制。",
       meta: "今天 12:18 · 待复核",
       tone: "info",
     },
@@ -206,7 +206,7 @@ const projectKnowledge = {
     {
       title: "assets.huayao.com/static",
       detail: "静态资源目录结构可见，需要确认是否存在附件链路。",
-      meta: "回流补采",
+      meta: "追加采集",
       tone: "warning",
     },
     {
@@ -224,7 +224,7 @@ const projectKnowledge = {
       tone: "info",
     },
     {
-      title: "登录链路截图补采",
+      title: "登录链路截图采集",
       detail: "capture-evidence 恢复后自动回补关键页面截图。",
       meta: "blocked",
       tone: "warning",
@@ -381,7 +381,7 @@ const projectKnowledge = {
 const huayaoTimeline: TimelineStage[] = [
   { title: "授权与范围定义", state: "done", note: "授权说明与范围规则已锁定" },
   { title: "种子目标接收", state: "done", note: "域名与种子 URL 已标准化" },
-  { title: "持续信息收集", state: "watching", note: "发现新管理入口，已回流补采" },
+  { title: "持续信息收集", state: "watching", note: "发现新管理入口，已追加采集" },
   { title: "目标关联与范围判定", state: "done", note: "新增子域已确认为授权范围内" },
   { title: "发现与指纹识别", state: "done", note: "识别到 nginx、Next.js 与管理入口特征" },
   { title: "待验证项生成", state: "current", note: "2 个高风险验证项等待人工判断" },
@@ -520,7 +520,7 @@ const allProjectTasks: TaskRecord[] = [
 const projectResultMetrics = {
   huayao: [
     { label: "已纳入域名", value: "3", note: "主域、后台子域、静态资源域", tone: "success" },
-    { label: "开放端口", value: "4", note: "80/443 为主，补采 2 个历史端口", tone: "info" },
+    { label: "开放端口", value: "4", note: "80/443 为主，采集到 2 个历史端口", tone: "info" },
     { label: "漏洞线索", value: "3", note: "1 个登录链路，2 个资产暴露候选", tone: "warning" },
     { label: "证据锚点", value: "12", note: "截图、响应头、跳转链路已归档", tone: "neutral" },
   ] satisfies ProjectResultMetric[],
@@ -557,7 +557,7 @@ const projectAssetGroups = {
       items: [
         { primary: "47.98.21.34:443", secondary: "nginx 1.22 -> Next.js 前端入口", meta: "admin.huayao.com", status: "开放", tone: "info" },
         { primary: "47.98.21.34:80", secondary: "HTTP 跳转到 HTTPS，保留明文入口线索", meta: "重定向", status: "开放", tone: "info" },
-        { primary: "47.98.21.35:443", secondary: "静态资源 CDN 出口，归属仍在补采", meta: "assets.huayao.com", status: "待复核", tone: "warning" },
+        { primary: "47.98.21.35:443", secondary: "静态资源 CDN 出口，归属仍在确认", meta: "assets.huayao.com", status: "待复核", tone: "warning" },
       ],
     },
     {
@@ -823,7 +823,7 @@ export const projectDetails: ProjectDetailRecord[] = [
     target: "huayao.com / admin.huayao.com / assets.huayao.com",
     blockingReason: "2 个高风险验证项待审批，主路径暂停进入受控 PoC 验证。",
     nextStep: "优先处理管理后台与 API 入口审批，随后恢复受控验证并补齐截图链路。",
-    reflowNotice: "发现新管理入口 admin.huayao.com，已回流至持续信息收集并补充前置任务。",
+    reflowNotice: "发现新管理入口 admin.huayao.com，已返回持续信息收集阶段并补充前置任务。",
     currentFocus: "先清审批，再恢复受控验证与证据复核。",
     timeline: huayaoTimeline,
     tasks: allProjectTasks.filter((task) => task.projectId === "proj-huayao"),
@@ -968,7 +968,7 @@ export const dashboardPriorities = [
     tone: "danger" as const,
   },
   {
-    title: "新入口回流补采",
+    title: "新入口追加采集",
     detail: "发现 admin.huayao.com 与 assets.huayao.com，需补做范围判定和信息收集。",
     tone: "warning" as const,
   },
@@ -1119,7 +1119,7 @@ export const assets: AssetRecord[] = [
     exposure: "目录结构线索与主站一致，但归属尚未完全确认。",
     linkedEvidenceId: "EV-20260326-012",
     linkedTaskTitle: "新增子域归属与范围判定",
-    issueLead: "若确认纳入，需要回流补采对象存储与附件访问控制。",
+    issueLead: "若确认纳入，需要追加采集对象存储与附件访问控制。",
     relations: [
       { id: "asset-rel-008", label: "admin.huayao.com", type: "subdomain", relation: "同源关联", scopeStatus: "待复核" },
       { id: "asset-rel-009", label: "对象存储桶", type: "storage", relation: "疑似后端依赖", scopeStatus: "待复核" },
@@ -1240,7 +1240,7 @@ export const mcpTools: McpToolRecord[] = [
     timeout: "25s",
     retry: "1 次",
     lastCheck: "今天 11:18",
-    notes: "只执行被动情报补采，默认可自动执行，但仍受项目范围和速率策略约束。",
+    notes: "只执行被动情报采集，默认可自动执行，但仍受项目范围和速率策略约束。",
   },
   {
     id: "mcp-06",
@@ -1316,7 +1316,7 @@ export const mcpTools: McpToolRecord[] = [
     riskLevel: "中",
     status: "启用",
     category: "页面探测",
-    description: "识别页面入口、状态码、标题、重定向和基础页面特征，适合结果页前置补采。",
+    description: "识别页面入口、状态码、标题、重定向和基础页面特征，适合结果页前置采集。",
     inputMode: "url / domain / entry-list",
     outputMode: "web-surface.json",
     boundary: "外部目标交互",
@@ -1493,7 +1493,7 @@ export const mcpRuns: McpRunRecord[] = [
     capability: "Web 页面探测类",
     toolId: "mcp-07",
     toolName: "web-surface-map",
-    requestedAction: "补采登录入口状态码与标题",
+    requestedAction: "采集登录入口状态码与标题",
     target: "admin.huayao.com/login",
     riskLevel: "低",
     boundary: "外部目标交互",
@@ -1503,7 +1503,7 @@ export const mcpRuns: McpRunRecord[] = [
     createdAt: "今天 10:56",
     updatedAt: "今天 10:57",
     summaryLines: [
-      "已通过 web-surface-map 自动补采登录入口页面特征。",
+      "已通过 web-surface-map 自动采集登录入口页面特征。",
       "识别到 302 跳转链路与后台入口标题，结果已写回证据上下文。",
     ],
   },
@@ -1604,7 +1604,7 @@ export const approvalPolicies: PolicyRecord[] = [
 export const scopeRules: PolicyRecord[] = [
   {
     title: "新增子域名默认进入待确认",
-    description: "发现新子域后先判定归属，再决定是否回流到前置阶段任务。",
+    description: "发现新子域后先判定归属，再决定是否返回前置阶段任务。",
     owner: "项目流程",
     status: "启用",
   },
@@ -1679,7 +1679,7 @@ export const llmSettings: LlmSettingRecord[] = [
   {
     title: "主编排模型",
     value: "GPT-5.4 Orchestrator",
-    description: "负责拆解目标、调度 MCP 工具调用顺序，并决定何时需要人工审批或回流补采。",
+    description: "负责拆解目标、调度 MCP 工具调用顺序，并决定何时需要人工审批或追加采集。",
     owner: "平台默认",
   },
   {

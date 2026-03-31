@@ -87,7 +87,7 @@ describe("project mutation api routes", () => {
         body: JSON.stringify({
           name: "北栖支付开放资产复核",
           targetInput: "open.beiqi-pay.cn\npay-gateway.beiqi-pay.cn\nsandbox.beiqi-pay.cn",
-          description: "更新后的项目说明，纳入 sandbox 入口并继续观察结果回流。",
+          description: "更新后的项目说明，纳入 sandbox 入口并继续观察结果同步。",
         }),
         headers: { "content-type": "application/json" },
       }),

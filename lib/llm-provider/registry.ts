@@ -47,7 +47,7 @@ export async function resolveLlmProvider() {
   const baseUrl = process.env.LLM_BASE_URL
   const orchestratorModel = process.env.LLM_ORCHESTRATOR_MODEL
   const reviewerModel = process.env.LLM_REVIEWER_MODEL ?? orchestratorModel ?? ""
-  const timeoutMs = Number(process.env.LLM_TIMEOUT_MS ?? 15000)
+  const timeoutMs = Number(process.env.LLM_TIMEOUT_MS ?? 120000)
 
   if (
     providerName !== "openai-compatible" ||
@@ -63,14 +63,14 @@ export async function resolveLlmProvider() {
       apiKey,
       baseUrl,
       model: orchestratorModel,
-      timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : 15000,
+      timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : 120000,
       temperature: 0.2,
     },
     reviewer: {
       apiKey,
       baseUrl,
       model: reviewerModel,
-      timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : 15000,
+      timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : 120000,
       temperature: 0.1,
     },
   })

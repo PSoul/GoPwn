@@ -509,7 +509,7 @@ export function toLlmProfileRecord(db: any): LlmProfileRecord {
     apiKey: db.apiKey ?? "",
     baseUrl: db.baseUrl ?? "",
     model: db.model ?? "",
-    timeoutMs: db.timeoutMs ?? 15000,
+    timeoutMs: db.timeoutMs ?? 120000,
     temperature: db.temperature ?? 0.2,
     enabled: db.enabled ?? false,
     contextWindowSize: db.contextWindowSize ?? 65536,

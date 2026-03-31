@@ -18,7 +18,7 @@ function buildDispatchMessage(payload: ProjectReportExportActionPayload) {
     return payload.dispatch.run.summaryLines.at(-1) ?? "报告导出被阻塞，请先恢复相关 MCP 工具。"
   }
 
-  return "报告导出已完成，最新结果已回流。"
+  return "报告导出已完成，最新结果已同步。"
 }
 
 export function ProjectReportExportPanel({

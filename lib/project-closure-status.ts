@@ -19,7 +19,7 @@ type BuildProjectClosureStatusInput = {
 }
 
 const stateLabelMap: Record<ProjectClosureState, string> = {
-  waiting_start: "等待手动开始",
+  waiting_start: "等待启动",
   running: "运行中",
   blocked: "存在收束阻塞",
   settling: "等待自动收束",
@@ -90,7 +90,7 @@ export function buildProjectClosureStatus(input: BuildProjectClosureStatusInput)
   if (input.projectStatus === "待处理" || input.lifecycle === "idle") {
     return buildStateRecord(
       "waiting_start",
-      "项目还没有手动开始，LLM 与调度器尚未接管目标。",
+      "项目尚未启动，LLM 与调度器尚未接管目标。",
       [
         {
           title: "等待研究员开始项目",

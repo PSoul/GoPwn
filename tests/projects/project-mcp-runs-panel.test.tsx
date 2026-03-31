@@ -12,7 +12,7 @@ const initialRuns: McpRunRecord[] = [
     capability: "Web 页面探测类",
     toolId: "tool-web-surface",
     toolName: "web-surface-map",
-    requestedAction: "补采页面入口与响应特征",
+    requestedAction: "采集页面入口与响应特征",
     target: "http://127.0.0.1:3000",
     riskLevel: "低",
     boundary: "外部目标交互",

@@ -35,7 +35,7 @@ export default async function ProjectFlowPage({
     <div className="space-y-5">
       <ProjectWorkspaceIntro
         title="阶段流转详情"
-        description="阶段流转被下沉到二级页，只在需要排查主路径、回流补采和阻塞原因时再展开查看。"
+        description="阶段流转被下沉到二级页，用于查看各阶段推进详情和阻塞原因。"
         actions={
           <>
             <StatusBadge tone={statusTone}>
@@ -49,14 +49,10 @@ export default async function ProjectFlowPage({
       />
 
       <SectionCard title="当前阶段摘要" description={detail.target}>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2">
           <div className="rounded-panel border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
             <p className="text-xs text-slate-500 dark:text-slate-400">当前阶段</p>
             <p className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">{detail.currentStage.title}</p>
-          </div>
-          <div className="rounded-panel border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
-            <p className="text-xs text-slate-500 dark:text-slate-400">阶段负责人</p>
-            <p className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">{detail.currentStage.owner}</p>
           </div>
           <div className="rounded-panel border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
             <p className="text-xs text-slate-500 dark:text-slate-400">最近更新</p>

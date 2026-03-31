@@ -71,6 +71,7 @@ describe("Project mutation ui", () => {
             name: "新项目",
             targetInput: "example.com\n10.10.10.10",
             description: "用于验证最小项目输入。",
+            approvalMode: "default",
           }),
         }),
       )

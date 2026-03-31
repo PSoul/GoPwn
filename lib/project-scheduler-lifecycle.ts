@@ -7,7 +7,7 @@ import type {
 function getLifecycleNote(lifecycle: ProjectSchedulerLifecycle) {
   switch (lifecycle) {
     case "idle":
-      return "项目已创建，等待研究员手动开始后再交给 LLM 编排与调度。"
+      return "等待启动后交给 LLM 编排与调度。"
     case "running":
       return "项目正在运行，LLM 会继续规划低风险动作并驱动 MCP 调度。"
     case "paused":

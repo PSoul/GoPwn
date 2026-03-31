@@ -62,7 +62,7 @@ function buildProjectSummary(input: ProjectMutationInput, targets: string[]) {
   const targetCount = targets.length
   const targetLabel = targetCount > 0 ? `${targetCount} 个目标` : "目标"
 
-  return `${targetLabel}已录入，等待研究员手动开始后再交给 LLM 拆分任务并驱动 MCP。`
+  return `${targetLabel}已录入，等待启动后交给 LLM 拆分任务并驱动 MCP。`
 }
 
 function buildProjectRecord(input: ProjectMutationInput, existingProjects: ProjectRecord[]): ProjectRecord {
@@ -85,12 +85,12 @@ function buildProjectRecord(input: ProjectMutationInput, existingProjects: Proje
     createdAt: timestamp,
     lastUpdated: timestamp,
     lastActor: "项目创建",
-    riskSummary: "项目已创建，尚未开始回流真实资产或漏洞结果。",
+    riskSummary: "项目已创建，尚未开始返回真实资产或漏洞结果。",
     summary: buildProjectSummary(input, targets),
   }
 }
 
-function buildProjectDetail(project: ProjectRecord): ProjectDetailRecord {
+function buildProjectDetail(project: ProjectRecord, approvalMode?: string): ProjectDetailRecord {
   const closureStatus = buildProjectClosureStatus({
     finalConclusionGenerated: false,
     lifecycle: "idle",
@@ -105,12 +105,12 @@ function buildProjectDetail(project: ProjectRecord): ProjectDetailRecord {
   return {
     projectId: project.id,
     target: project.targetInput,
-    blockingReason: "项目已创建，但还没有手动开始，LLM 与 MCP 仍未接管目标。",
-    nextStep: "进入任务与调度页，手动开始项目后再让 LLM 基于目标生成首轮计划。",
-    reflowNotice: "项目开始后，新域名、IP、端口、指纹和漏洞线索会持续回流到当前工作台。",
-    currentFocus: "先确认目标和项目说明，再决定何时手动开始项目。",
+    blockingReason: "项目已创建但尚未启动，LLM 与 MCP 仍未接管目标。",
+    nextStep: "进入任务与调度页启动项目，让 LLM 基于目标生成首轮计划。",
+    reflowNotice: "项目开始后，新域名、IP、端口、指纹和漏洞线索会持续同步到当前工作台。",
+    currentFocus: "先确认目标和项目说明，再决定何时启动项目。",
     timeline: [
-      { title: "种子目标接收", state: "current", note: "项目已创建，等待研究员手动开始。" },
+      { title: "种子目标接收", state: "current", note: "等待启动。" },
       { title: "持续信息收集", state: "watching", note: "项目开始后，LLM 会先发起低风险整理与信息收集。" },
       { title: "发现与指纹识别", state: "watching", note: "识别到资产后会开始补充端口、服务和指纹表格。" },
     ],
@@ -146,8 +146,8 @@ function buildProjectDetail(project: ProjectRecord): ProjectDetailRecord {
     entries: [],
     scheduler: [
       {
-        title: "等待手动开始",
-        detail: "只有在研究员手动开始后，LLM 才会接管目标并生成真实 MCP 调度。",
+        title: "等待启动",
+        detail: "启动后 LLM 将接管目标并生成真实 MCP 调度。",
         meta: "pending",
         tone: "warning",
       },
@@ -161,7 +161,7 @@ function buildProjectDetail(project: ProjectRecord): ProjectDetailRecord {
       },
     ],
     resultMetrics: [
-      { label: "已发现资产", value: "0", note: "等待资产回流", tone: "neutral" },
+      { label: "已发现资产", value: "0", note: "等待资产数据", tone: "neutral" },
       { label: "已发现漏洞", value: "0", note: "等待结果沉淀", tone: "neutral" },
       { label: "证据锚点", value: "0", note: "等待证据归档", tone: "neutral" },
       { label: "待审批动作", value: "0", note: "等待风险动作产生", tone: "neutral" },
@@ -183,18 +183,26 @@ function buildProjectDetail(project: ProjectRecord): ProjectDetailRecord {
     findings: [],
     currentStage: {
       title: "种子目标接收",
-      summary: "项目已创建，等待手动开始后再根据输入目标展开真实编排。",
+      summary: "等待启动后根据输入目标展开真实编排。",
       blocker: "尚未开始，因此还没有任何真实资产、证据或漏洞结果。",
       owner: SINGLE_USER_LABEL,
       updatedAt: project.lastUpdated,
     },
-    approvalControl: {
-      enabled: defaultGlobalApprovalControl.enabled,
-      mode: defaultGlobalApprovalControl.mode,
-      autoApproveLowRisk: defaultGlobalApprovalControl.autoApproveLowRisk,
-      description: "审批开关由系统设置与 MCP 工具契约统一控制，项目页只展示当前生效状态。",
-      note: defaultGlobalApprovalControl.note,
-    },
+    approvalControl: approvalMode === "auto"
+      ? {
+          enabled: false,
+          mode: "全自动执行",
+          autoApproveLowRisk: true,
+          description: "该项目已设置为全自动执行，所有工具调用将直接运行，不进入审批队列。",
+          note: "",
+        }
+      : {
+          enabled: defaultGlobalApprovalControl.enabled,
+          mode: defaultGlobalApprovalControl.mode,
+          autoApproveLowRisk: defaultGlobalApprovalControl.autoApproveLowRisk,
+          description: "审批开关由系统设置与 MCP 工具契约统一控制，项目页只展示当前生效状态。",
+          note: defaultGlobalApprovalControl.note,
+        },
     closureStatus,
     finalConclusion: null,
   }
@@ -265,13 +273,13 @@ function updateProjectDetail(detail: ProjectDetailRecord, project: ProjectRecord
       detail.assetGroups.some((group) => group.items.length > 0) || detail.findings.length > 0
         ? detail.blockingReason
         : waitingToStart
-          ? "项目已更新，但仍然需要研究员手动开始后才会进入真实执行。"
-        : "项目已更新，但仍在等待第一批真实结果回流。",
+          ? "需要启动后才会进入真实执行。"
+        : "项目已更新，但仍在等待第一批真实结果返回。",
     nextStep: waitingToStart
-      ? "如果目标已经确认无误，请进入任务与调度页手动开始项目。"
+      ? "如果目标已确认无误，请进入任务与调度页启动项目。"
       : "围绕最新目标继续观察结果表、阶段流转和任务调度是否发生变化。",
     currentFocus: waitingToStart
-      ? "优先确认目标与项目说明，然后决定何时手动开始。"
+      ? "优先确认目标与项目说明，然后决定何时启动。"
       : "优先查看目标内容是否需要补充，以及首轮结果是否已经开始沉淀。",
     discoveredInfo: [
       {
@@ -290,7 +298,7 @@ function updateProjectDetail(detail: ProjectDetailRecord, project: ProjectRecord
     ],
     currentStage: {
       ...detail.currentStage,
-      summary: waitingToStart ? "项目已更新，仍然等待手动开始。" : detail.currentStage.summary,
+      summary: waitingToStart ? "仍在等待启动。" : detail.currentStage.summary,
       updatedAt: project.lastUpdated,
       owner: SINGLE_USER_LABEL,
     },
@@ -314,7 +322,7 @@ export async function createStoredProject(input: ProjectMutationInput) {
   const existingRecords = allProjects.map(toProjectRecord)
   const project = buildProjectRecord(input, existingRecords)
   const preset = buildProjectFormPreset(input)
-  const detail = buildProjectDetail(project)
+  const detail = buildProjectDetail(project, input.approvalMode)
   const control = buildDefaultProjectSchedulerControl(project.lastUpdated, "idle")
   const auditLog = createAuditLog(`创建项目 ${project.name}`, project, "已完成")
 

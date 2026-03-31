@@ -155,7 +155,7 @@ export default async function DashboardPage() {
             <div className="mt-5 rounded-card border border-dashed border-slate-300 bg-slate-50/85 px-6 py-14 text-center dark:border-slate-700 dark:bg-slate-900/60">
               <p className="text-sm font-medium text-slate-950 dark:text-white">当前还没有结果更新时间流</p>
               <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                一旦真实项目开始执行，证据、资产、漏洞与审批动作会按时间顺序回流到这里。
+                一旦真实项目开始执行，证据、资产、漏洞与审批动作会按时间顺序同步到这里。
               </p>
             </div>
           )}

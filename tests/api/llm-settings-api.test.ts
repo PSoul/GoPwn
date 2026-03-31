@@ -17,9 +17,9 @@ describe("llm settings api route", () => {
     // Seed the 3 default LLM profiles that tests expect
     await prisma.llmProfile.createMany({
       data: [
-        { id: "orchestrator", provider: "openai-compatible", label: "Orchestrator", apiKey: "", baseUrl: "", model: "", timeoutMs: 15000, temperature: 0.2, enabled: false },
-        { id: "reviewer", provider: "openai-compatible", label: "Reviewer", apiKey: "", baseUrl: "", model: "", timeoutMs: 15000, temperature: 0.2, enabled: false },
-        { id: "extractor", provider: "openai-compatible", label: "Extractor", apiKey: "", baseUrl: "", model: "", timeoutMs: 15000, temperature: 0.2, enabled: false },
+        { id: "orchestrator", provider: "openai-compatible", label: "Orchestrator", apiKey: "", baseUrl: "", model: "", timeoutMs: 120000, temperature: 0.2, enabled: false },
+        { id: "reviewer", provider: "openai-compatible", label: "Reviewer", apiKey: "", baseUrl: "", model: "", timeoutMs: 120000, temperature: 0.2, enabled: false },
+        { id: "extractor", provider: "openai-compatible", label: "Extractor", apiKey: "", baseUrl: "", model: "", timeoutMs: 120000, temperature: 0.2, enabled: false },
       ],
       skipDuplicates: true,
     })

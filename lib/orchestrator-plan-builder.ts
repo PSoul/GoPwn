@@ -256,9 +256,9 @@ export function buildProjectFallbackPlanItems(
   const targets = project.targets.slice(0, 4)
   const lifecycleReason =
     controlCommand === "resume"
-      ? "项目从暂停恢复，需要基于当前结果继续补采而不是重复回放。"
+      ? "项目从暂停恢复，需要基于当前结果继续采集而不是重复执行。"
       : controlCommand === "start"
-        ? "项目刚手动开始，需要先把目标整理成可执行的低风险动作。"
+        ? "项目刚启动，需要先把目标整理成可执行的低风险动作。"
         : "项目需要重新梳理下一步动作。"
 
   for (const target of targets) {
@@ -284,7 +284,7 @@ export function buildProjectFallbackPlanItems(
       dnsCapability && (targetType === "domain" || (targetType === "url" && classifyTarget(host) === "domain"))
         ? {
             capability: dnsCapability,
-            requestedAction: "补采域名、子域与证书情报",
+            requestedAction: "采集域名、子域与证书情报",
             target: host,
             riskLevel: "低",
             rationale: "域名类目标优先做被动情报收集，能快速扩展资产面且风险最低。",

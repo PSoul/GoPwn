@@ -90,13 +90,13 @@ export async function runProjectSmokeWorkflow(
     },
     {
       capability: "DNS / 子域 / 证书情报类",
-      requestedAction: "补采证书与子域情报",
+      requestedAction: "采集证书与子域情报",
       target: primaryTarget,
       riskLevel: "低",
     },
     {
       capability: "Web 页面探测类",
-      requestedAction: "补采页面入口与响应特征",
+      requestedAction: "采集页面入口与响应特征",
       target: primaryTarget,
       riskLevel: "低",
     },

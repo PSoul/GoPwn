@@ -155,7 +155,7 @@ async function normalizeExecutionArtifacts(
         projectName: context.project.name,
         type: host === getRootDomain(host) ? "domain" : "subdomain",
         label: host,
-        profile: "被动 DNS / 证书情报回流",
+        profile: "被动 DNS / 证书情报返回",
         scopeStatus: "已纳入",
         lastSeen: timestamp,
         host,
@@ -164,12 +164,12 @@ async function normalizeExecutionArtifacts(
         exposure:
           resolvedAddresses.length > 0
             ? `解析地址 ${resolvedAddresses.join(" / ")}；可继续衔接 Web 入口识别。`
-            : "由被动子域与证书情报补采发现，可继续衔接 Web 入口识别。",
+            : "由被动子域与证书情报采集发现，可继续衔接 Web 入口识别。",
         linkedEvidenceId: evidenceId,
         linkedTaskTitle: context.run.requestedAction,
         issueLead: certificate?.fingerprint256
           ? `证书指纹 ${certificate.fingerprint256.slice(0, 18)}...`
-          : "建议继续补采 Web 面入口、响应头和服务指纹。",
+          : "建议继续采集 Web 面入口、响应头和服务指纹。",
         relations: mergeRelations(existingAsset?.relations, [
           {
             id: buildStableRecordId("asset-rel", host, "evidence"),
@@ -222,7 +222,7 @@ async function normalizeExecutionArtifacts(
           id: evidenceId,
           projectId: context.project.id,
           projectName: context.project.name,
-          title: "被动域名与子域情报回流",
+          title: "被动域名与子域情报返回",
           source: "DNS / 子域 / 证书情报类",
           confidence: "0.78",
           conclusion: "情报已归档",
@@ -238,7 +238,7 @@ async function normalizeExecutionArtifacts(
           linkedTaskTitle: context.run.requestedAction,
           linkedAssetLabel: discoveredSubdomains[0] ?? context.run.target,
           timeline: [`${timestamp} DNS 情报归一化完成`],
-          verdict: "当前结果作为资产基础盘使用，等待后续入口和归属补采。",
+          verdict: "当前结果作为资产基础盘使用，等待后续入口和归属确认。",
         },
       ],
       findings: [],
@@ -285,7 +285,7 @@ async function normalizeExecutionArtifacts(
         exposure: `页面标题 ${entry.title}；响应头 ${entry.headers.join(" / ")}`,
         linkedEvidenceId: evidenceId,
         linkedTaskTitle: context.run.requestedAction,
-        issueLead: "当前入口已可继续衔接受控验证或证据补采。",
+        issueLead: "当前入口已可继续衔接受控验证或证据采集。",
         relations: mergeRelations(existingAsset?.relations, [
           {
             id: buildStableRecordId("asset-rel", entry.url, "host"),
@@ -322,7 +322,7 @@ async function normalizeExecutionArtifacts(
           screenshotNote: "本轮为结构化入口识别，截图可在后续证据采集能力接入后补足。",
           structuredSummary: [
             `识别到 ${webEntries.length} 个 Web 入口或管理台路径。`,
-            "入口已进入域名 / Web 入口表格，可继续向高风险验证或证据补采流转。",
+            "入口已进入域名 / Web 入口表格，可继续向高风险验证或证据采集流转。",
           ],
           linkedTaskTitle: context.run.requestedAction,
           linkedAssetLabel: webEntries[0]?.url ?? context.run.target,
@@ -385,7 +385,7 @@ async function normalizeExecutionArtifacts(
         exposure: `基础入口标题 ${entry.title}；响应头 ${entry.headers.join(" / ") || "未采集关键响应头"}`,
         linkedEvidenceId: evidenceId,
         linkedTaskTitle: context.run.requestedAction,
-        issueLead: structureEntries.length > 0 ? `继续围绕 ${structureEntries[0].label} 候选入口补齐证据。` : "继续补采 API / 文档结构线索。",
+        issueLead: structureEntries.length > 0 ? `继续围绕 ${structureEntries[0].label} 候选入口补充证据。` : "继续采集 API / 文档结构线索。",
         relations: mergeRelations(existingAsset?.relations, [
           {
             id: buildStableRecordId("asset-rel", entry.url, "host"),
@@ -421,7 +421,7 @@ async function normalizeExecutionArtifacts(
         host,
         ownership: `${context.project.name} API / 文档候选入口`,
         confidence: entry.confidence,
-        exposure: `由 ${entry.source} 线索识别，当前作为 ${entry.label} 候选入口回流。`,
+        exposure: `由 ${entry.source} 线索识别，当前作为 ${entry.label} 候选入口返回。`,
         linkedEvidenceId: evidenceId,
         linkedTaskTitle: context.run.requestedAction,
         issueLead: buildHttpStructureIssueLead(entry.kind),
@@ -493,7 +493,7 @@ async function normalizeExecutionArtifacts(
           category: "HTTP / API 结构发现",
           summary:
             structureEntries.length > 0
-              ? `HTTP / API 结构发现已回流 ${structureEntries.length} 个候选入口。`
+              ? `HTTP / API 结构发现已返回 ${structureEntries.length} 个候选入口。`
               : "HTTP / API 结构发现已执行，但未识别到明确候选入口。",
           projectName: context.project.name,
           actor,
@@ -822,7 +822,7 @@ function normalizeStdioMcpArtifacts(
         exposure: entry.service ? `端口 ${port} 运行 ${entry.service}` : `由 ${context.run.toolName} 发现`,
         linkedEvidenceId: evidenceId,
         linkedTaskTitle: context.run.requestedAction,
-        issueLead: entry.service ? `${entry.service} 服务可继续进行版本识别和漏洞检测。` : "可继续补采服务版本信息。",
+        issueLead: entry.service ? `${entry.service} 服务可继续进行版本识别和漏洞检测。` : "可继续采集服务版本信息。",
         relations: mergeRelations(existing?.relations, [{
           id: buildStableRecordId("asset-rel", label, "evidence"),
           label: evidenceId,
@@ -1003,7 +1003,7 @@ function normalizeStdioMcpArtifacts(
         exposure: `由 ${context.run.toolName} 发现`,
         linkedEvidenceId: evidenceId,
         linkedTaskTitle: context.run.requestedAction,
-        issueLead: "可继续补采详细信息。",
+        issueLead: "可继续采集详细信息。",
         relations: mergeRelations(existing?.relations, [{
           id: buildStableRecordId("asset-rel", label, "evidence"),
           label: evidenceId,
@@ -1207,7 +1207,7 @@ export async function executeStoredMcpRun(
         artifacts.evidence.length > 0 ? `证据中心已新增或刷新 ${artifacts.evidence.length} 条记录。` : "",
         artifacts.findings.length > 0 ? `漏洞与发现已新增 ${artifacts.findings.length} 条。` : "",
         rawResult.mode === "real" ? "本次执行由真实连接器完成采集。" : "本次执行由本地基础连接器完成。",
-        run.linkedApprovalId ? "审批已批准后的执行结果已回流到平台记录。" : "",
+        run.linkedApprovalId ? "审批已批准后的执行结果已同步到平台记录。" : "",
       ].filter(Boolean)),
     ),
   })

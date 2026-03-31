@@ -73,7 +73,7 @@ describe("ProjectReportExportPanel", () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText("报告导出已完成，最新结果已回流。")).toBeInTheDocument()
+      expect(screen.getByText("报告导出已完成，最新结果已同步。")).toBeInTheDocument()
       expect(screen.getByText("资产 5 条")).toBeInTheDocument()
       expect(screen.getByText("证据 3 条")).toBeInTheDocument()
       expect(screen.getByText("漏洞 1 条")).toBeInTheDocument()

@@ -131,7 +131,7 @@ function buildResultMetrics(
     {
       label: "已纳入域名",
       value: String(domainAssets.length),
-      note: domainAssets.length > 0 ? "域名、Web 入口和 API 面已回流到独立结果表。" : "等待识别",
+      note: domainAssets.length > 0 ? "域名、Web 入口和 API 面已同步到独立结果表。" : "等待识别",
       tone: domainAssets.length > 0 ? "success" : "neutral",
     },
     {
@@ -284,7 +284,7 @@ function resolveCurrentStage(
 
   if (reportRun) {
     title = findings.length > 0 ? "风险聚合与项目结论" : "报告与回归验证"
-    summary = findings.length > 0 ? "报告摘要与发现列表已经具备，可以继续进入结论整理。" : "基础流程结果已导出，可继续做回归补采。"
+    summary = findings.length > 0 ? "报告摘要与发现列表已经具备，可以继续进入结论整理。" : "基础流程结果已导出，可继续做继续采集。"
     blocker = pendingApprovals.length > 0 ? "仍有审批动作未处理，会影响下一轮高风险验证。" : "当前无硬阻塞，可继续扩展执行。"
   } else if (approvedValidationRun || findings.length > 0) {
     title = findings.length > 0 ? "证据归档与结果判定" : "受控 PoC 验证"
@@ -296,12 +296,12 @@ function resolveCurrentStage(
     blocker = pendingApprovals.length > 0 ? "待审批动作会阻塞继续深入验证。" : "当前无硬阻塞，可继续扩展结果面。"
   } else if (runs.some((run) => run.toolName === "dns-census" && run.status === "已执行")) {
     title = "目标关联与范围判定"
-    summary = "子域与候选目标已被发现，等待继续回流入口和归属。"
+    summary = "子域与候选目标已被发现，等待继续同步入口和归属。"
     blocker = pendingApprovals.length > 0 ? "审批动作仍在队列中。" : "继续推进 Web 和服务面识别。"
   } else if (runs.some((run) => run.toolName === "seed-normalizer" && run.status === "已执行")) {
     title = "持续信息收集"
-    summary = "种子目标已标准化，正在展开被动情报补采。"
-    blocker = pendingApprovals.length > 0 ? "审批动作仍在队列中。" : "继续补采 DNS、证书和页面入口。"
+    summary = "种子目标已标准化，正在展开被动情报采集。"
+    blocker = pendingApprovals.length > 0 ? "审批动作仍在队列中。" : "继续采集 DNS、证书和页面入口。"
   }
 
   return {
@@ -524,7 +524,7 @@ export async function refreshStoredProjectResults(projectId: string) {
       ? `当前仍有 ${pendingApprovals} 个待审批动作，后续高风险验证会继续受控推进。`
       : projectFindings.length > 0
         ? "当前没有硬阻塞，重点转为复核现有问题、补齐证据和继续扩展结果面。"
-        : "当前没有硬阻塞，可继续补采域名、服务和 Web 入口结果。"
+        : "当前没有硬阻塞，可继续采集域名、服务和 Web 入口结果。"
 
   const nextStep = latestConclusion
     ? "查看最终结论与报告摘要，如需继续扩展测试，请新建下一轮项目。"
@@ -532,7 +532,7 @@ export async function refreshStoredProjectResults(projectId: string) {
       ? "优先在漏洞与发现页复核当前问题，同时补齐关联证据与受影响资产。"
       : domainAssets.length > 0
         ? "继续围绕 Web 入口、网络面和证据锚点补厚当前项目结果。"
-        : "继续推进被动情报补采和入口识别。"
+        : "继续推进被动情报采集和入口识别。"
 
   const currentFocus = latestConclusion
     ? "当前项目已收束，重点转为复核最终结论、报告摘要和导出结果。"

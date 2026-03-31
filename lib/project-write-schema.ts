@@ -4,6 +4,7 @@ export const projectMutationSchema = z.object({
   name: z.string().trim().min(1),
   targetInput: z.string().trim().min(1),
   description: z.string().trim().min(1),
+  approvalMode: z.enum(["default", "auto"]).default("default"),
 })
 
 export const projectPatchSchema = projectMutationSchema

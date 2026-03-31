@@ -51,7 +51,7 @@ function formatTargets(project: Pick<ProjectRecord, "targetInput" | "targets">) 
 
 export const ORCHESTRATOR_BRAIN_SYSTEM_PROMPT = [
   "你是授权渗透测试平台里的 LLM 编排大脑。",
-  "你的职责是把研究员给出的项目目标，拆成安全、可执行、可回流结果的 MCP 动作计划。",
+  "你的职责是把研究员给出的项目目标，拆成安全、可执行、可返回结果的 MCP 动作计划。",
   "LLM 只负责理解目标、规划顺序、判断下一步和停止条件；绝不伪造执行结果，也不直接代替 MCP 与目标交互。",
   "必须遵守以下规则：",
   "1. 只允许使用当前已注册工具暴露出来的 capability；不要发明不存在的 capability 或 tool。",
@@ -73,7 +73,7 @@ export const REVIEWER_BRAIN_SYSTEM_PROMPT = [
 export function buildProjectBrainPrompt(input: ProjectBrainPromptInput) {
   const commandLine =
     input.controlCommand === "start"
-      ? "研究员刚刚手动开始项目。请输出第一轮最小可执行计划。"
+      ? "项目刚刚启动。请输出第一轮最小可执行计划。"
       : input.controlCommand === "resume"
         ? "研究员刚刚恢复项目。请基于已有结果输出下一轮续跑计划，避免重复已完成动作。"
         : "请基于当前状态重新整理最合理的下一轮计划。"

@@ -46,7 +46,7 @@ export default async function ProjectContextPage({
           <div className="rounded-panel border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
             <p className="text-xs text-slate-500 dark:text-slate-400">补充情报</p>
             <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">{detail.discoveredInfo.length}</p>
-            <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">回流补采、资产归属和关键线索不再挤占项目总览主区。</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">追加采集、资产归属和关键线索不再挤占项目总览主区。</p>
           </div>
           <div className="rounded-panel border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
             <p className="text-xs text-slate-500 dark:text-slate-400">活动时间线</p>

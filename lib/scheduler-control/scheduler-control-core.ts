@@ -88,9 +88,9 @@ function getLifecycleMeta(nextLifecycle: ProjectSchedulerLifecycle) {
       return {
         actor: "等待开始",
         auditStatus: "待开始",
-        auditSummary: "等待手动开始",
+        auditSummary: "等待启动",
         detailText: "项目已回到待开始状态，LLM 与调度器暂不推进新动作。",
-        title: "项目等待手动开始",
+        title: "项目等待启动",
         tone: "warning" as const,
       }
     case "running":

@@ -242,7 +242,7 @@ async function main() {
         apiKey: p.apiKey ?? "",
         baseUrl: p.baseUrl ?? "",
         model: p.model ?? "",
-        timeoutMs: p.timeoutMs ?? 15000,
+        timeoutMs: p.timeoutMs ?? 120000,
         temperature: p.temperature ?? 0.2,
         enabled: p.enabled ?? false,
       },

@@ -38,7 +38,7 @@ describe("MCP execution service cancellation guard", () => {
     const fixture = await createStoredProjectFixture()
     const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
-      requestedAction: "补采证书与子域情报",
+      requestedAction: "采集证书与子域情报",
       target: fixture.project.seed!,
       riskLevel: "低",
     })
@@ -61,7 +61,7 @@ describe("MCP execution service cancellation guard", () => {
     const fixture = await createStoredProjectFixture()
     const payload = await dispatchStoredMcpRun(fixture.project.id, {
       capability: "DNS / 子域 / 证书情报类",
-      requestedAction: "补采证书与子域情报",
+      requestedAction: "采集证书与子域情报",
       target: fixture.project.seed!,
       riskLevel: "低",
     })

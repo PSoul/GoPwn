@@ -412,7 +412,7 @@ model LlmProfile {
   apiKey           String  @default("")
   baseUrl          String  @default("")
   model            String  @default("")
-  timeoutMs        Int     @default(15000)
+  timeoutMs        Int     @default(120000)
   temperature      Float   @default(0.2)
   enabled          Boolean @default(false)
   contextWindowSize Int    @default(65536)

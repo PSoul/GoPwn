@@ -41,7 +41,7 @@ export function AssetCenterClient({
     {
       label: "资产总数",
       value: String(uniqueAssets.length),
-      detail: "所有项目回流到平台后的统一资产视图。",
+      detail: "所有项目汇总的统一资产视图。",
       icon: Boxes,
     },
     {

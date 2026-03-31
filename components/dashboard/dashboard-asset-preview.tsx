@@ -28,7 +28,7 @@ export function DashboardAssetPreview({ views }: { views: AssetCollectionView[] 
           全局资产预览
         </div>
         <div className="mt-5 rounded-card border border-dashed border-slate-300 bg-slate-50/85 px-6 py-14 text-center dark:border-slate-700 dark:bg-slate-900/60">
-          <p className="text-sm font-medium text-slate-950 dark:text-white">当前还没有真实资产回流</p>
+          <p className="text-sm font-medium text-slate-950 dark:text-white">当前还没有真实资产数据</p>
           <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
             创建项目并开始执行后，域名、IP、端口、服务与指纹会自动沉淀到这里。
           </p>

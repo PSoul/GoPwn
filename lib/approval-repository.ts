@@ -58,7 +58,7 @@ function buildProjectApprovalDescription(enabled: boolean, autoApproveLowRisk: b
   }
 
   return autoApproveLowRisk
-    ? "项目保留高风险审批，低风险补采、被动识别和常规日志刷新默认放行。"
+    ? "项目保留高风险审批，低风险采集、被动识别和常规日志刷新默认放行。"
     : "项目当前对中高风险动作都要求人工确认，适合结果面已复杂、需要更稳妥推进的阶段。"
 }
 

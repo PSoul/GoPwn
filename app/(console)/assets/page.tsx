@@ -23,7 +23,7 @@ export default async function AssetsPage({
       <PageHeader
         title="资产中心"
         eyebrow="资产工作区"
-        description="资产中心只展示真实回流结果。这里把域名 / Web、IP / 主机、端口 / 服务、指纹 / 技术栈、待确认对象拆成独立视图，避免随着项目规模扩大把所有内容挤在同一张页面里。"
+        description="资产中心只展示真实执行结果。这里把域名 / Web、IP / 主机、端口 / 服务、指纹 / 技术栈、待确认对象拆成独立视图，避免随着项目规模扩大把所有内容挤在同一张页面里。"
         actions={
           <>
             <StatusBadge tone={pendingCount > 0 ? "warning" : "success"}>
