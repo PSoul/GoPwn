@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-31`
-- Current focus: Phase 21 Debug Round 5 完成 — 资产提取管线重写 + fscan 编译 + MCP 连接器增强，分支 `fix/phase21-debug-0331`。
+- Current focus: Phase 22a 完成 — Tab 重构 + 术语清理 (8→7 tabs, scopeStatus/ProjectStatus 术语统一, 全站 DB 直查), 分支 `feat/phase22-tab-restructure`。下一步: Phase 22 真实渗透测试闭环验证。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
 
 ## Phase 17a: Prisma 数据层迁移 (Prisma Data Layer Migration)
@@ -838,10 +838,36 @@
 - [x] 涉及 12 个源文件修改
 - [x] fscan.exe 编译成功
 
+## Phase 22a: Tab 重构 + 术语清理
+
+- Status: 已完成 on `2026-03-31`
+- Branch: `feat/phase22-tab-restructure`
+- Goal: 重构项目详情 Tab 结构，统一全站术语，所有结果页改用 DB 直查替代 assetGroups JSON 缓存。
+
+### 交付清单
+
+1. **Tab 结构重构 (8→7 tabs)** — 概览/域名/站点/端口/漏洞/执行控制/AI日志
+2. **拆分 "域名/Web"** — 原合并 tab 拆为独立的 "域名" 和 "站点" tabs
+3. **重写 "端口/服务"** — 改为 "端口" tab，使用 Nmap 风格表格展示
+4. **移除 "上下文" 和 "阶段" tabs** — 精简信息架构，减少冗余页面
+5. **重命名 "调度"→"执行控制"** — 更准确地反映该 tab 的实际功能
+6. **全站 DB 直查** — 所有结果页改用 Prisma 直接查询数据库，移除 assetGroups JSON 缓存依赖
+7. **scopeStatus 术语统一** — 已纳入→已确认, 待确认→待验证, 待复核→需人工判断
+8. **ProjectStatus 术语统一** — 待处理→待启动, 已阻塞→等待审批
+9. **UI 术语全站清理** — 编排→AI规划, MCP工具→探测工具, 收束→自动收尾, 情报→信息
+
+### 验收标准
+
+- [x] 80 files changed, 2 created, 4 deleted
+- [x] 178/178 单元测试通过
+- [x] Tab 结构从 8 个精简为 7 个
+- [x] 所有结果页使用 DB 直查，不再依赖 assetGroups JSON
+
 ## Recommended Next Phase
 
 - Name: `Phase 22 - 真实渗透测试闭环验证 (Real Pentest Closure Validation)`
-- Goal: 使用当前 Prisma 数据层 + 完善后的 UI 对 Docker 靶场进行完整端到端渗透测试闭环验证；优化多目标项目的并行编排；加强 MCP 连接器错误恢复与结果标准化。
+- Spec: `prompts/phase22-real-pentest-validation.md`
+- Goal: 使用当前 Prisma 数据层 + Phase 22a 重构后的 UI 对 Docker 靶场进行完整端到端渗透测试闭环验证；优化多目标项目的并行编排；加强 MCP 连接器错误恢复与结果标准化。
 - Priorities:
   1. 对 DVWA/WebGoat/Juice Shop 各执行一次完整的 LLM 编排 → MCP 执行 → 发现 → 报告闭环
   2. 多目标项目编排：同一项目覆盖多个靶场目标，验证并行调度和作用域隔离

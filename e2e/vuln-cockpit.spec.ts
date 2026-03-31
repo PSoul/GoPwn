@@ -88,7 +88,7 @@ test("project list renders card grid layout", async ({ page }) => {
   await expect(page.getByPlaceholder("搜索项目名称、目标、项目编号或项目说明...")).toBeVisible()
 })
 
-test("project workspace shows AI 日志 tab and renamed 上下文 tab", async ({ page }) => {
+test("project workspace shows 7-tab layout with 站点 and AI 日志 tabs", async ({ page }) => {
   await loginAsResearcher(page)
 
   // Create a project first
@@ -113,15 +113,17 @@ test("project workspace shows AI 日志 tab and renamed 上下文 tab", async ({
 
   await expect(page).toHaveURL(new RegExp(`/projects/${projectId}$`), { timeout: 15_000 })
 
-  // Check renamed tab: "上下文" instead of "证据"
-  await expect(page.getByRole("tab", { name: "上下文" })).toBeVisible()
-
-  // Check new tab: "AI 日志"
+  // Check 7-tab structure: 概览/域名/站点/端口/漏洞/执行控制/AI日志
+  await expect(page.getByRole("tab", { name: "概览" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "域名" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "站点" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "端口" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "漏洞" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "执行控制" })).toBeVisible()
   await expect(page.getByRole("tab", { name: "AI 日志" })).toBeVisible()
 
-  // Navigate to AI logs tab (tab switch, URL stays on project page)
+  // Navigate to AI logs tab
   await page.getByRole("tab", { name: "AI 日志" }).click()
-  // The AI 日志 tab should now be selected
   const aiLogTab = page.getByRole("tab", { name: "AI 日志" })
   await expect(aiLogTab).toBeVisible()
   await expect(aiLogTab).toHaveAttribute("aria-selected", "true", { timeout: 5_000 })

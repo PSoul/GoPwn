@@ -107,23 +107,24 @@ test("project overview links to dedicated results and context pages", async ({ p
 
   // Tab-based workspace navigation
   await expect(page.getByRole("tab", { name: "概览" })).toBeVisible()
-  await expect(page.getByRole("tab", { name: /域名/ })).toBeVisible()
-  await expect(page.getByRole("tab", { name: /端口/ })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "域名" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "站点" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "端口" })).toBeVisible()
   await expect(page.getByRole("tab", { name: "漏洞" })).toBeVisible()
-  await expect(page.getByRole("tab", { name: "上下文" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "执行控制" })).toBeVisible()
   await expect(page.getByRole("tab", { name: "AI 日志" })).toBeVisible()
 
-  // Result links in overview panel
-  await expect(page.getByRole("link", { name: /域名 \/ Web/ })).toBeVisible()
-  await expect(page.getByRole("link", { name: /IP \/ 端口 \/ 服务/ })).toBeVisible()
-  await expect(page.getByRole("link", { name: /漏洞与发现/ })).toBeVisible()
+  // Result cards in overview panel (4 cards: 域名/站点/端口/漏洞)
+  await expect(page.getByRole("link", { name: /域名/ }).first()).toBeVisible()
+  await expect(page.getByRole("link", { name: /端口/ }).first()).toBeVisible()
+  await expect(page.getByRole("link", { name: /漏洞/ }).first()).toBeVisible()
 
-  // Click the "域名 / Web" result link — it uses Next.js client navigation
+  // Click the "域名" result link — it uses Next.js client navigation
   await Promise.all([
     page.waitForURL(new RegExp(`/projects/${projectId}/results/domains$`), { timeout: 15_000 }),
-    page.getByRole("link", { name: /域名 \/ Web/ }).click(),
+    page.getByRole("link", { name: /域名/ }).first().click(),
   ])
-  await expect(page.getByRole("heading", { name: "域名 / Web 入口" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "域名资产" })).toBeVisible()
 })
 
 test("create project routes to the new detail page", async ({ page }) => {
@@ -153,8 +154,8 @@ test("project operations page can generate a local orchestrator plan", async ({ 
   const { projectId } = await createProject(page)
   await page.goto(`/projects/${projectId}/operations`)
 
-  // Operations page uses the "调度" tab in project workspace
-  await expect(page.getByRole("tab", { name: "调度" })).toBeVisible()
+  // Operations page uses the "执行控制" tab in project workspace
+  await expect(page.getByRole("tab", { name: "执行控制" })).toBeVisible()
   await expect(page.getByRole("button", { name: "开始" }).first()).toBeVisible()
 
   // Expand the collapsed "AI 规划配置" section to access plan generation
@@ -195,7 +196,7 @@ test("manual start sends scheduler-control request and disables button", async (
   const { projectId } = await createProject(page)
 
   await page.goto(`/projects/${projectId}/operations`)
-  await expect(page.getByRole("tab", { name: "调度" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "执行控制" })).toBeVisible()
   await expect(page.getByText("轮次")).toBeVisible()
 
   // The "开始" button should be enabled for an idle project
