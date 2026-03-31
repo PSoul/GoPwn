@@ -126,7 +126,7 @@ describe("ProjectSchedulerRuntimePanel", () => {
     render(
       <ProjectSchedulerRuntimePanel
         projectId="proj-runtime"
-        projectStatus={"待处理" satisfies ProjectStatus}
+        projectStatus={"待启动" satisfies ProjectStatus}
         closureStatus={runningClosureStatus}
         initialControl={{ ...initialControl, lifecycle: "idle", paused: false, autoReplan: true, maxRounds: 6, currentRound: 0 }}
         initialTasks={schedulerTasks}
@@ -343,7 +343,7 @@ describe("ProjectSchedulerRuntimePanel", () => {
       state: "completed",
       label: "已完成当前轮次",
       tone: "success",
-      summary: "当前轮次已经自动收束，报告与最终结论都已稳定落库。",
+      summary: "当前轮次已经自动收尾，报告与最终结论都已稳定落库。",
       blockers: [],
       reportExported: true,
       finalConclusionGenerated: true,

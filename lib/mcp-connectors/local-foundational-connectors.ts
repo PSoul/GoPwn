@@ -195,7 +195,7 @@ const localReportExporterConnector: McpConnector = {
     const reportDigest = [
       `种子目标 ${priorOutputs.normalizedTargets?.length ?? 0} 个`,
       `域名与入口 ${(await listStoredAssets(project.id)).length} 条`,
-      `证据锚点 ${(await listStoredEvidence(project.id)).length} 条`,
+      `证据记录 ${(await listStoredEvidence(project.id)).length} 条`,
       `漏洞与发现 ${(await listStoredProjectFindings(project.id)).length} 条`,
     ]
 

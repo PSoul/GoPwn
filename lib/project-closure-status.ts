@@ -21,8 +21,8 @@ type BuildProjectClosureStatusInput = {
 const stateLabelMap: Record<ProjectClosureState, string> = {
   waiting_start: "等待启动",
   running: "运行中",
-  blocked: "存在收束阻塞",
-  settling: "等待自动收束",
+  blocked: "存在收尾阻塞",
+  settling: "等待自动收尾",
   completed: "已完成当前轮次",
   stopped: "已停止",
 }
@@ -57,7 +57,7 @@ export function buildProjectClosureStatus(input: BuildProjectClosureStatusInput)
   if (input.projectStatus === "已停止" || input.lifecycle === "stopped") {
     return buildStateRecord(
       "stopped",
-      "项目已经被研究员停止，当前不会再继续派发新的 LLM 编排或 MCP 调度动作。",
+      "项目已经被研究员停止，当前不会再继续派发新的 AI 规划或 MCP 执行动作。",
       [
         {
           title: "项目已进入终止态",
@@ -80,14 +80,14 @@ export function buildProjectClosureStatus(input: BuildProjectClosureStatusInput)
     return buildStateRecord(
       "completed",
       input.finalConclusionGenerated
-        ? "当前轮次已经自动收束，报告与最终结论都已稳定落库。"
+        ? "当前轮次已经自动收尾，报告与最终结论都已稳定落库。"
         : "项目已经处于终态，当前不再继续派发新的调度动作。",
       [],
       input,
     )
   }
 
-  if (input.projectStatus === "待处理" || input.lifecycle === "idle") {
+  if (input.projectStatus === "待启动" || input.lifecycle === "idle") {
     return buildStateRecord(
       "waiting_start",
       "项目尚未启动，LLM 与调度器尚未接管目标。",
@@ -117,7 +117,7 @@ export function buildProjectClosureStatus(input: BuildProjectClosureStatusInput)
   if (hasApprovalBlocker) {
     blockers.push({
       title: "待审批动作尚未清理",
-      detail: `当前仍有 ${Math.max(input.pendingApprovals, input.waitingApprovalTaskCount)} 个审批阻塞项，清理后才能继续自动收束。`,
+      detail: `当前仍有 ${Math.max(input.pendingApprovals, input.waitingApprovalTaskCount)} 个审批阻塞项，清理后才能继续自动收尾。`,
       tone: "danger",
     })
   }
@@ -125,7 +125,7 @@ export function buildProjectClosureStatus(input: BuildProjectClosureStatusInput)
   if (input.runningTaskCount > 0) {
     blockers.push({
       title: "仍有任务正在执行",
-      detail: `当前有 ${input.runningTaskCount} 个运行中的任务，项目会在这些动作完成后继续判断是否可以收束。`,
+      detail: `当前有 ${input.runningTaskCount} 个运行中的任务，项目会在这些动作完成后继续判断是否可以收尾。`,
       tone: "info",
     })
   }
@@ -142,8 +142,8 @@ export function buildProjectClosureStatus(input: BuildProjectClosureStatusInput)
     return buildStateRecord(
       "blocked",
       paused
-        ? "项目当前已被人工暂停，恢复运行后系统才会继续自动收束。"
-        : "项目当前仍存在审批阻塞，相关动作清理后才会继续自动收束。",
+        ? "项目当前已被人工暂停，恢复运行后系统才会继续自动收尾。"
+        : "项目当前仍存在审批阻塞，相关动作清理后才会继续自动收尾。",
       blockers,
       input,
     )
@@ -152,7 +152,7 @@ export function buildProjectClosureStatus(input: BuildProjectClosureStatusInput)
   if (input.runningTaskCount > 0 || input.queuedTaskCount > 0) {
     return buildStateRecord(
       "running",
-      "当前仍有任务在执行或排队，项目会在队列跑空后再进入自动收束。",
+      "当前仍有任务在执行或排队，项目会在队列跑空后再进入自动收尾。",
       blockers,
       input,
     )
@@ -175,7 +175,7 @@ export function buildProjectClosureStatus(input: BuildProjectClosureStatusInput)
 
   return buildStateRecord(
     "settling",
-    "报告已经导出，系统正在等待最终结论生成并把项目收束到完成态。",
+    "报告已经导出，系统正在等待最终结论生成并把项目收尾到完成态。",
     [
       {
         title: "等待最终结论生成",

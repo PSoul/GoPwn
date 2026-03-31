@@ -85,7 +85,7 @@ export function ProjectOperationsPanel({
       {/* Closure status — one line */}
       <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800">
         <div className="flex items-center justify-between">
-          <p className="text-sm text-slate-700 dark:text-slate-200">收束状态</p>
+          <p className="text-sm text-slate-700 dark:text-slate-200">自动收尾状态</p>
           <StatusBadge tone={detail.closureStatus.tone}>{detail.closureStatus.label}</StatusBadge>
         </div>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{detail.closureStatus.summary}</p>

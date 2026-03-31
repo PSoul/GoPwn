@@ -29,7 +29,7 @@ export function ProjectSummary({
   const [isStarting, setIsStarting] = useState(false)
   const [, startTransition] = useTransition()
 
-  const isIdle = project.status === "待处理"
+  const isIdle = project.status === "待启动"
   const isRunning = project.status === "运行中"
   const isCompleted = project.status === "已完成"
   const isStopped = project.status === "已停止"
@@ -89,7 +89,7 @@ export function ProjectSummary({
             项目已就绪，{project.targets.length} 个目标已录入
           </p>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            点击开始后，LLM 将自动分析目标并调度 MCP 工具进行多轮探测
+            点击开始后，LLM 将自动分析目标并调度探测工具进行多轮探测
           </p>
           <Button
             onClick={handleStartProject}
@@ -200,10 +200,10 @@ export function ProjectSummary({
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {detail.resultMetrics.map((metric) => {
           const hrefMap: Record<string, string> = {
-            "已纳入域名": `/projects/${project.id}/results/domains`,
+            "域名": `/projects/${project.id}/results/domains`,
+            "站点": `/projects/${project.id}/results/sites`,
             "开放端口": `/projects/${project.id}/results/network`,
             "漏洞线索": `/projects/${project.id}/results/findings`,
-            "证据锚点": `/projects/${project.id}/context`,
           }
           const href = hrefMap[metric.label]
           return (

@@ -114,7 +114,7 @@ export const projects: ProjectRecord[] = [
     owner: "研究员席位 A",
     priority: "高",
     stage: "审批前排队",
-    status: "已阻塞",
+    status: "等待审批",
     pendingApprovals: 3,
     openTasks: 5,
     assetCount: 26,
@@ -159,7 +159,7 @@ const projectKnowledge = {
   huayaoServices: [
     {
       title: "443/tcp · admin.huayao.com",
-      detail: "nginx 1.22 + Next.js 前端入口，已纳入主路径推进。",
+      detail: "nginx 1.22 + Next.js 前端入口，已确认主路径推进。",
       meta: "服务画像",
       tone: "info",
     },
@@ -519,22 +519,22 @@ const allProjectTasks: TaskRecord[] = [
 
 const projectResultMetrics = {
   huayao: [
-    { label: "已纳入域名", value: "3", note: "主域、后台子域、静态资源域", tone: "success" },
+    { label: "域名", value: "3", note: "主域、后台子域、静态资源域", tone: "success" },
+    { label: "站点", value: "2", note: "后台入口和静态资源站", tone: "info" },
     { label: "开放端口", value: "4", note: "80/443 为主，采集到 2 个历史端口", tone: "info" },
     { label: "漏洞线索", value: "3", note: "1 个登录链路，2 个资产暴露候选", tone: "warning" },
-    { label: "证据锚点", value: "12", note: "截图、响应头、跳转链路已归档", tone: "neutral" },
   ] satisfies ProjectResultMetric[],
   xingtu: [
-    { label: "已纳入域名", value: "2", note: "门户域名与运维子域", tone: "success" },
+    { label: "域名", value: "2", note: "门户域名与运维子域", tone: "success" },
+    { label: "站点", value: "1", note: "门户 Web 入口", tone: "info" },
     { label: "开放端口", value: "3", note: "Web、GraphQL、SSH 暴露面", tone: "info" },
     { label: "漏洞线索", value: "2", note: "GraphQL 与 SSH 版本信息", tone: "warning" },
-    { label: "证据锚点", value: "6", note: "Banner、入口识别、夜间窗口记录", tone: "neutral" },
   ] satisfies ProjectResultMetric[],
   yunlan: [
-    { label: "已纳入域名", value: "2", note: "开放 API 域名与文档入口", tone: "success" },
+    { label: "域名", value: "2", note: "开放 API 域名与文档入口", tone: "success" },
+    { label: "站点", value: "3", note: "API 文档入口和匿名端点", tone: "info" },
     { label: "开放端口", value: "5", note: "HTTPS 入口和匿名 API 路径", tone: "info" },
     { label: "漏洞线索", value: "3", note: "文档暴露、trace id、权限缺失候选", tone: "danger" },
-    { label: "证据锚点", value: "9", note: "OpenAPI 片段与错误响应已归档", tone: "neutral" },
   ] satisfies ProjectResultMetric[],
 }
 
@@ -545,9 +545,9 @@ const projectAssetGroups = {
       description: "先看本项目已经落地的可用入口和归属状态。",
       count: "3 条",
       items: [
-        { primary: "huayao.com", secondary: "主域名，作为归属锚点", meta: "根域", status: "已纳入", tone: "success" },
-        { primary: "admin.huayao.com/login", secondary: "统一管理平台登录入口，可匿名到达", meta: "后台入口", status: "已纳入", tone: "success" },
-        { primary: "assets.huayao.com/static", secondary: "静态资源目录结构可见，疑似附件出口", meta: "资源域名", status: "待复核", tone: "warning" },
+        { primary: "huayao.com", secondary: "主域名，作为归属锚点", meta: "根域", status: "已确认", tone: "success" },
+        { primary: "admin.huayao.com/login", secondary: "统一管理平台登录入口，可匿名到达", meta: "后台入口", status: "已确认", tone: "success" },
+        { primary: "assets.huayao.com/static", secondary: "静态资源目录结构可见，疑似附件出口", meta: "资源域名", status: "需人工判断", tone: "warning" },
       ],
     },
     {
@@ -557,7 +557,7 @@ const projectAssetGroups = {
       items: [
         { primary: "47.98.21.34:443", secondary: "nginx 1.22 -> Next.js 前端入口", meta: "admin.huayao.com", status: "开放", tone: "info" },
         { primary: "47.98.21.34:80", secondary: "HTTP 跳转到 HTTPS，保留明文入口线索", meta: "重定向", status: "开放", tone: "info" },
-        { primary: "47.98.21.35:443", secondary: "静态资源 CDN 出口，归属仍在确认", meta: "assets.huayao.com", status: "待复核", tone: "warning" },
+        { primary: "47.98.21.35:443", secondary: "静态资源 CDN 出口，归属仍在确认", meta: "assets.huayao.com", status: "需人工判断", tone: "warning" },
       ],
     },
     {
@@ -587,7 +587,7 @@ const projectAssetGroups = {
       description: "主站与开放接口入口当前已经收集到的结果。",
       count: "2 条",
       items: [
-        { primary: "portal.xingtuedu.cn", secondary: "门户站点主入口，已完成低风险画像", meta: "主域", status: "已纳入", tone: "success" },
+        { primary: "portal.xingtuedu.cn", secondary: "门户站点主入口，已完成低风险画像", meta: "主域", status: "已确认", tone: "success" },
         { primary: "portal.xingtuedu.cn/graphql", secondary: "GraphQL 入口已确认可达", meta: "接口入口", status: "待验证", tone: "warning" },
       ],
     },
@@ -626,7 +626,7 @@ const projectAssetGroups = {
       description: "优先展示已经确认与项目相关的匿名 API 结果面。",
       count: "3 条",
       items: [
-        { primary: "api.yunlanmed.com/v1", secondary: "开放 API 基础路径，归属已基本确认", meta: "主 API", status: "待确认", tone: "warning" },
+        { primary: "api.yunlanmed.com/v1", secondary: "开放 API 基础路径，归属已基本确认", meta: "主 API", status: "待验证", tone: "warning" },
         { primary: "GET /v1/openapi.json", secondary: "OpenAPI 文档匿名可访问", meta: "文档入口", status: "已确认", tone: "danger" },
         { primary: "swagger-ui", secondary: "文档可视化页面已抓到截图", meta: "可视入口", status: "已归档", tone: "info" },
       ],
@@ -719,7 +719,7 @@ const projectFindings = {
     {
       id: "finding-x-02",
       projectId: "proj-xingtu",
-      severity: "情报",
+      severity: "信息",
       status: "待复核",
       title: "SSH Banner 直接暴露版本信息",
       summary: "公网开放的 SSH Banner 暴露 OpenSSH 8.4 版本线索，但需先确认归属后再继续判断风险。",
@@ -951,7 +951,7 @@ export const projectDetails: ProjectDetailRecord[] = [
       finalConclusionGenerated: false,
       lifecycle: "running",
       pendingApprovals: 3,
-      projectStatus: "已阻塞",
+      projectStatus: "等待审批",
       queuedTaskCount: 1,
       reportExported: false,
       runningTaskCount: 0,
@@ -1047,7 +1047,7 @@ export const assets: AssetRecord[] = [
     type: "service",
     label: "443/tcp",
     profile: "nginx 1.22 + Next.js 前端入口",
-    scopeStatus: "已纳入",
+    scopeStatus: "已确认",
     lastSeen: "今天 11:52",
     host: "admin.huayao.com",
     ownership: "华曜科技管理后台入口",
@@ -1057,9 +1057,9 @@ export const assets: AssetRecord[] = [
     linkedTaskTitle: "认证绕过验证候选单生成",
     issueLead: "疑似旧版统一认证组件暴露管理端能力。",
     relations: [
-      { id: "asset-rel-001", label: "huayao.com", type: "domain", relation: "父域名", scopeStatus: "已纳入" },
-      { id: "asset-rel-002", label: "admin.huayao.com/login", type: "entry", relation: "登录入口", scopeStatus: "已纳入" },
-      { id: "asset-rel-003", label: "EV-20260326-009", type: "evidence", relation: "关联证据", scopeStatus: "已纳入" },
+      { id: "asset-rel-001", label: "huayao.com", type: "domain", relation: "父域名", scopeStatus: "已确认" },
+      { id: "asset-rel-002", label: "admin.huayao.com/login", type: "entry", relation: "登录入口", scopeStatus: "已确认" },
+      { id: "asset-rel-003", label: "EV-20260326-009", type: "evidence", relation: "关联证据", scopeStatus: "已确认" },
     ],
   },
   {
@@ -1069,7 +1069,7 @@ export const assets: AssetRecord[] = [
     type: "port",
     label: "22/tcp",
     profile: "OpenSSH 8.4 版本线索",
-    scopeStatus: "已纳入",
+    scopeStatus: "已确认",
     lastSeen: "今天 09:14",
     host: "ops.xingtuedu.cn",
     ownership: "运维跳板机候选入口",
@@ -1079,8 +1079,8 @@ export const assets: AssetRecord[] = [
     linkedTaskTitle: "SSH 暴露面版本复核",
     issueLead: "需确认是否属于供应商运维节点，避免误入范围外目标。",
     relations: [
-      { id: "asset-rel-004", label: "portal.xingtuedu.cn", type: "subdomain", relation: "同项目关联域名", scopeStatus: "已纳入" },
-      { id: "asset-rel-005", label: "EV-20260326-011", type: "evidence", relation: "Banner 采样证据", scopeStatus: "已纳入" },
+      { id: "asset-rel-004", label: "portal.xingtuedu.cn", type: "subdomain", relation: "同项目关联域名", scopeStatus: "已确认" },
+      { id: "asset-rel-005", label: "EV-20260326-011", type: "evidence", relation: "Banner 采样证据", scopeStatus: "已确认" },
     ],
   },
   {
@@ -1090,7 +1090,7 @@ export const assets: AssetRecord[] = [
     type: "api",
     label: "api.yunlanmed.com/v1",
     profile: "REST API，疑似使用 Spring Boot",
-    scopeStatus: "待确认",
+    scopeStatus: "待验证",
     lastSeen: "昨天 17:08",
     host: "api.yunlanmed.com",
     ownership: "云岚医械开放接口集群",
@@ -1100,8 +1100,8 @@ export const assets: AssetRecord[] = [
     linkedTaskTitle: "敏感接口权限校验",
     issueLead: "疑似存在匿名可访问只读接口，需审批后验证。",
     relations: [
-      { id: "asset-rel-006", label: "swagger-ui", type: "entry", relation: "文档入口", scopeStatus: "待确认" },
-      { id: "asset-rel-007", label: "APR-20260326-015", type: "approval", relation: "待审批动作", scopeStatus: "待确认" },
+      { id: "asset-rel-006", label: "swagger-ui", type: "entry", relation: "文档入口", scopeStatus: "待验证" },
+      { id: "asset-rel-007", label: "APR-20260326-015", type: "approval", relation: "待审批动作", scopeStatus: "待验证" },
     ],
   },
   {
@@ -1111,7 +1111,7 @@ export const assets: AssetRecord[] = [
     type: "service",
     label: "assets.huayao.com",
     profile: "静态资源分发域名，疑似共用对象存储出口",
-    scopeStatus: "待复核",
+    scopeStatus: "需人工判断",
     lastSeen: "今天 12:18",
     host: "assets.huayao.com",
     ownership: "静态资源与附件出口",
@@ -1121,8 +1121,8 @@ export const assets: AssetRecord[] = [
     linkedTaskTitle: "新增子域归属与范围判定",
     issueLead: "若确认纳入，需要追加采集对象存储与附件访问控制。",
     relations: [
-      { id: "asset-rel-008", label: "admin.huayao.com", type: "subdomain", relation: "同源关联", scopeStatus: "待复核" },
-      { id: "asset-rel-009", label: "对象存储桶", type: "storage", relation: "疑似后端依赖", scopeStatus: "待复核" },
+      { id: "asset-rel-008", label: "admin.huayao.com", type: "subdomain", relation: "同源关联", scopeStatus: "需人工判断" },
+      { id: "asset-rel-009", label: "对象存储桶", type: "storage", relation: "疑似后端依赖", scopeStatus: "需人工判断" },
     ],
   },
 ]
@@ -1466,7 +1466,7 @@ export const mcpBoundaryRules: McpBoundaryRule[] = [
     type: "外部目标交互",
   },
   {
-    title: "平台内部编排与结果归一化不强制抽象成 MCP",
+    title: "平台内部规划与结果归一化不强制抽象成 MCP",
     description: "任务规划、证据归一化、结果聚合、状态推进等内部处理动作可以留在平台内部完成，避免错误抽象。",
     type: "平台内部处理",
   },
@@ -1624,16 +1624,16 @@ export const scopeRules: PolicyRecord[] = [
 
 export const settingsSections: SettingsSectionRecord[] = [
   {
-    title: "MCP 工具管理",
+    title: "探测工具管理",
     href: "/settings/mcp-tools",
-    description: "查看能力分类、风险等级、启停状态与工具健康，确认哪些 MCP 正在参与当前平台执行。",
+    description: "查看能力分类、风险等级、启停状态与工具健康，确认哪些探测工具正在参与当前平台执行。",
     metric: `${mcpTools.length} 个工具`,
     tone: "info",
   },
   {
     title: "LLM 设置",
     href: "/settings/llm",
-    description: "管理编排模型、审阅模型、上下文预算、默认推理强度和失败回退策略。",
+    description: "管理规划模型、审阅模型、上下文预算、默认推理强度和失败回退策略。",
     metric: "3 套模型配置",
     tone: "success",
   },
@@ -1677,9 +1677,9 @@ export const globalApprovalControl: ApprovalControl = {
 
 export const llmSettings: LlmSettingRecord[] = [
   {
-    title: "主编排模型",
+    title: "主规划模型",
     value: "GPT-5.4 Orchestrator",
-    description: "负责拆解目标、调度 MCP 工具调用顺序，并决定何时需要人工审批或追加采集。",
+    description: "负责拆解目标、调度探测工具调用顺序，并决定何时需要人工审批或追加采集。",
     owner: "平台默认",
   },
   {
@@ -1786,7 +1786,7 @@ export const systemStatusCards: SystemStatusRecord[] = [
     tone: "danger",
   },
   {
-    title: "调度队列",
+    title: "执行队列",
     value: "18 条待执行",
     description: "低风险队列继续流转，高风险动作等待审批或窗口确认。",
     tone: "info",

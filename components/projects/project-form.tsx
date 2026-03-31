@@ -91,7 +91,7 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
       <div className="space-y-5">
         <SectionCard
           title="项目基础信息"
-          description="新建和编辑项目只保留最小输入：项目名称、目标、项目说明。并发、审批、超时和重试统一回到 MCP 工具与系统设置管理。"
+          description="新建和编辑项目只保留最小输入：项目名称、目标、项目说明。并发、审批、超时和重试统一回到探测工具与系统设置管理。"
         >
           <div className="grid gap-5">
             <FormField
@@ -156,7 +156,7 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
                       </select>
                     </FormControl>
                     <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-                      选择&ldquo;全自动&rdquo;后，该项目的所有 MCP 工具调用将直接执行，不再进入审批队列。
+                      选择&ldquo;全自动&rdquo;后，该项目的所有探测工具调用将直接执行，不再进入审批队列。
                     </p>
                     <FormMessage />
                   </FormItem>
@@ -209,7 +209,7 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
                 <ListTree className="h-4 w-4 text-slate-500" />
                 <p className="text-sm font-semibold text-slate-950 dark:text-white">目标拆分预览</p>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">{normalizedTargets.length} 个目标将进入编排队列</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{normalizedTargets.length} 个目标将进入规划队列</p>
               <div className="mt-3 space-y-2">
                 {normalizedTargets.length > 0 ? (
                   normalizedTargets.slice(0, 6).map((target) => (
@@ -235,7 +235,7 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
               </div>
               <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
                 {watchedValues.approvalMode === "auto"
-                  ? "全自动执行：所有 MCP 工具调用将直接运行，不进入审批队列。"
+                  ? "全自动执行：所有探测工具调用将直接运行，不进入审批队列。"
                   : "默认审批策略：高风险操作需要人工审批后才能执行。"}
               </p>
             </div>
@@ -246,7 +246,7 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
                 <p className="text-sm font-semibold text-slate-950 dark:text-white">工作台提示</p>
               </div>
               <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
-                当前平台为单用户模式，负责人固定为 {SINGLE_USER_LABEL}。并发、超时和重试在 MCP 工具配置与系统设置中统一生效。
+                当前平台为单用户模式，负责人固定为 {SINGLE_USER_LABEL}。并发、超时和重试在探测工具配置与系统设置中统一生效。
               </p>
             </div>
           </div>

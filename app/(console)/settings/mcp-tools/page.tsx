@@ -10,8 +10,8 @@ export default async function McpToolsSettingsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="MCP 工具管理"
-        description="集中管理 MCP 工具注册信息、能力族、启停状态、默认限制与接入规范，先把网关骨架立起来。"
+        title="探测工具管理"
+        description="集中管理探测工具注册信息、能力族、启停状态、默认限制与接入规范，先把网关骨架立起来。"
       />
 
       <SettingsSubnav currentHref="/settings/mcp-tools" />

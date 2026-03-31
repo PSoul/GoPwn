@@ -7,11 +7,11 @@ import type {
 function getLifecycleNote(lifecycle: ProjectSchedulerLifecycle) {
   switch (lifecycle) {
     case "idle":
-      return "等待启动后交给 LLM 编排与调度。"
+      return "等待启动后交给 LLM 规划与执行控制。"
     case "running":
       return "项目正在运行，LLM 会继续规划低风险动作并驱动 MCP 调度。"
     case "paused":
-      return "项目已暂停，平台不会继续推进新的 LLM 编排或调度认领。"
+      return "项目已暂停，平台不会继续推进新的 AI 规划或任务认领。"
     case "stopped":
       return "项目已停止，后续不会再重新开始。"
   }
@@ -48,7 +48,7 @@ export function inferProjectSchedulerLifecycle(input: {
     return "paused"
   }
 
-  if (input.projectStatus === "运行中" || input.projectStatus === "已阻塞") {
+  if (input.projectStatus === "运行中" || input.projectStatus === "等待审批") {
     return "running"
   }
 

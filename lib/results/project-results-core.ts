@@ -51,19 +51,23 @@ const stageOrder: ProjectStage[] = [
 ]
 
 function isDomainAsset(asset: AssetRecord) {
-  return ["domain", "subdomain", "entry", "web", "api"].includes(asset.type)
+  return ["domain", "subdomain"].includes(asset.type)
+}
+
+function isSiteAsset(asset: AssetRecord) {
+  return ["entry", "web", "api"].includes(asset.type)
 }
 
 function isNetworkAsset(asset: AssetRecord) {
-  return ["ip", "port", "service"].includes(asset.type)
+  return ["host", "ip", "port", "service"].includes(asset.type)
 }
 
 function scopeTone(scopeStatus: AssetRecord["scopeStatus"]): Tone {
-  if (scopeStatus === "已纳入") {
+  if (scopeStatus === "已确认") {
     return "success"
   }
 
-  if (scopeStatus === "待确认") {
+  if (scopeStatus === "待验证") {
     return "warning"
   }
 
@@ -87,15 +91,15 @@ function statusTone(status: string): Tone {
 }
 
 function buildAssetGroups(assets: AssetRecord[]): ProjectInventoryGroup[] {
-  const domainAssets = assets.filter(isDomainAsset)
+  const domainAndSiteAssets = assets.filter((a) => isDomainAsset(a) || isSiteAsset(a))
   const networkAssets = assets.filter(isNetworkAsset)
 
   return [
     {
       title: "域名 / Web 入口",
-      description: "域名、后台入口、路径入口和 API/Web 暴露面统一放在这里，适合直接横向查看当前结果面。",
-      count: toDisplayCount(domainAssets.length),
-      items: domainAssets.map((asset) => ({
+      description: "域名、子域名、后台入口和 API/Web 暴露面统一放在这里，适合直接横向查看当前结果面。",
+      count: toDisplayCount(domainAndSiteAssets.length),
+      items: domainAndSiteAssets.map((asset) => ({
         primary: asset.label,
         secondary: `${asset.profile}。${asset.exposure}`,
         meta: asset.type === "api" ? "API / Web" : asset.type,
@@ -120,24 +124,30 @@ function buildAssetGroups(assets: AssetRecord[]): ProjectInventoryGroup[] {
 
 function buildResultMetrics(
   domainAssets: AssetRecord[],
+  siteAssets: AssetRecord[],
   networkAssets: AssetRecord[],
   findings: ProjectFindingRecord[],
-  evidenceCount: number,
 ): ProjectResultMetric[] {
   const openPortCount = networkAssets.filter((asset) => asset.type === "port").length
   const highRiskCount = findings.filter((finding) => finding.severity === "高危").length
 
   return [
     {
-      label: "已纳入域名",
+      label: "域名",
       value: String(domainAssets.length),
-      note: domainAssets.length > 0 ? "域名、Web 入口和 API 面已同步到独立结果表。" : "等待识别",
+      note: domainAssets.length > 0 ? "已发现域名和子域名资产。" : "等待识别",
       tone: domainAssets.length > 0 ? "success" : "neutral",
+    },
+    {
+      label: "站点",
+      value: String(siteAssets.length),
+      note: siteAssets.length > 0 ? "已发现 Web 入口和 API 暴露面。" : "等待识别",
+      tone: siteAssets.length > 0 ? "info" : "neutral",
     },
     {
       label: "开放端口",
       value: String(openPortCount),
-      note: openPortCount > 0 ? "网络侧开放端口与服务画像已入库。" : "等待识别",
+      note: openPortCount > 0 ? "已发现开放端口和运行服务。" : "等待识别",
       tone: openPortCount > 0 ? "info" : "neutral",
     },
     {
@@ -145,12 +155,6 @@ function buildResultMetrics(
       value: String(findings.length),
       note: findings.length > 0 ? `${highRiskCount} 条高危或待复核结果已形成列表。` : "等待验证",
       tone: findings.length > 0 ? "warning" : "neutral",
-    },
-    {
-      label: "证据锚点",
-      value: String(evidenceCount),
-      note: evidenceCount > 0 ? "证据摘要与原始输出可继续在上下文页复核。" : "等待采样",
-      tone: evidenceCount > 0 ? "info" : "neutral",
     },
   ]
 }
@@ -207,7 +211,7 @@ function buildDerivedKnowledge(
     }))
 
   const derivedEntries: ProjectKnowledgeItem[] = assets
-    .filter(isDomainAsset)
+    .filter((a) => isDomainAsset(a) || isSiteAsset(a))
     .slice(0, 4)
     .map((asset) => ({
       title: asset.label,
@@ -435,7 +439,7 @@ export async function refreshStoredProjectResults(projectId: string) {
   const latestConclusion = conclusionRow ? toProjectConclusionRecord(conclusionRow) : null
   const projectWorkLogs = workLogRows.map(toLogRecord)
 
-  const schedulerLifecycle = (schedulerControlRow?.lifecycle ?? (project.status === "待处理" ? "idle" : "running")) as ProjectSchedulerLifecycle
+  const schedulerLifecycle = (schedulerControlRow?.lifecycle ?? (project.status === "待启动" ? "idle" : "running")) as ProjectSchedulerLifecycle
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const waitingApprovalTaskCount = projectSchedulerTasks.filter((t: any) => t.status === "waiting_approval").length
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -444,6 +448,7 @@ export async function refreshStoredProjectResults(projectId: string) {
   const queuedTaskCount = projectSchedulerTasks.filter((t: any) => ["ready", "retry_scheduled", "delayed"].includes(t.status)).length
   const reportExported = projectRuns.some((run) => run.toolName === "report-exporter" && run.status === "已执行")
   const domainAssets = projectAssets.filter(isDomainAsset)
+  const siteAssets = projectAssets.filter(isSiteAsset)
   const networkAssets = projectAssets.filter(isNetworkAsset)
   const pendingApprovals = projectApprovals.filter((approval) => approval.status === "待处理").length
 
@@ -482,7 +487,7 @@ export async function refreshStoredProjectResults(projectId: string) {
       : project.status === "已完成" ? "已完成"
       : project.status === "已停止" ? "已停止"
       : project.status === "已暂停" ? "已暂停"
-      : pendingApprovals > 0 ? "已阻塞"
+      : pendingApprovals > 0 ? "等待审批"
       : projectAssets.length > 0 || projectEvidence.length > 0 ? "运行中"
       : project.status
 
@@ -531,11 +536,11 @@ export async function refreshStoredProjectResults(projectId: string) {
     : projectFindings.length > 0
       ? "优先在漏洞与发现页复核当前问题，同时补齐关联证据与受影响资产。"
       : domainAssets.length > 0
-        ? "继续围绕 Web 入口、网络面和证据锚点补厚当前项目结果。"
+        ? "继续围绕域名、站点和网络面补厚当前项目结果。"
         : "继续推进被动情报采集和入口识别。"
 
   const currentFocus = latestConclusion
-    ? "当前项目已收束，重点转为复核最终结论、报告摘要和导出结果。"
+    ? "当前项目已自动收尾，重点转为复核最终结论、报告摘要和导出结果。"
     : projectFindings.length > 0
       ? "先围绕已出现的漏洞与发现补厚证据，再决定是否扩展验证。"
       : pendingApprovals > 0
@@ -547,7 +552,7 @@ export async function refreshStoredProjectResults(projectId: string) {
     nextStep,
     currentFocus,
     timeline: buildTimeline(currentStage, latestConclusion ? false : pendingApprovals > 0) as unknown as Prisma.InputJsonArray,
-    resultMetrics: buildResultMetrics(domainAssets, networkAssets, projectFindings, projectEvidence.length) as unknown as Prisma.InputJsonArray,
+    resultMetrics: buildResultMetrics(domainAssets, siteAssets, networkAssets, projectFindings) as unknown as Prisma.InputJsonArray,
     assetGroups: buildAssetGroups(projectAssets) as unknown as Prisma.InputJsonArray,
     closureStatus: closureStatus as unknown as Prisma.InputJsonObject,
     finalConclusion: latestConclusion as unknown as Prisma.InputJsonObject ?? undefined,

@@ -37,7 +37,7 @@ export function DashboardAssetPreview({ views }: { views: AssetCollectionView[] 
     )
   }
 
-  const pendingCount = selectedView.items.filter((asset) => asset.scopeStatus !== "已纳入").length
+  const pendingCount = selectedView.items.filter((asset) => asset.scopeStatus !== "已确认").length
 
   return (
     <section className="rounded-hero border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
@@ -55,7 +55,7 @@ export function DashboardAssetPreview({ views }: { views: AssetCollectionView[] 
 
           <div className="flex items-center gap-2">
             <StatusBadge tone={pendingCount > 0 ? "warning" : "success"}>
-              {pendingCount > 0 ? `${pendingCount} 条待确认线索` : "当前视图已全部纳入"}
+              {pendingCount > 0 ? `${pendingCount} 条待验证线索` : "当前视图已全部确认"}
             </StatusBadge>
             <Link
               href={`/assets?view=${selectedView.key}`}

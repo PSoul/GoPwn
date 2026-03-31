@@ -22,7 +22,7 @@ const severityTone = {
   高危: "danger",
   中危: "warning",
   低危: "info",
-  情报: "neutral",
+  信息: "neutral",
 } as const
 
 const statusTone = {
@@ -72,7 +72,7 @@ export default function VulnCenterPage() {
     { label: "漏洞总数", value: data.total, icon: Shield, tone: "neutral" as const },
     { label: "高危", value: data.bySeverity["高危"] ?? 0, icon: ShieldAlert, tone: "danger" as const, sub: `${data.pendingVerification} 待验证` },
     { label: "中危", value: data.bySeverity["中危"] ?? 0, icon: AlertTriangle, tone: "warning" as const },
-    { label: "低危/情报", value: (data.bySeverity["低危"] ?? 0) + (data.bySeverity["情报"] ?? 0), icon: FileCheck2, tone: "info" as const },
+    { label: "低危/信息", value: (data.bySeverity["低危"] ?? 0) + (data.bySeverity["信息"] ?? 0), icon: FileCheck2, tone: "info" as const },
   ]
 
   function toggleRow(id: string) {
@@ -135,7 +135,7 @@ export default function VulnCenterPage() {
             <SelectItem value="高危">高危</SelectItem>
             <SelectItem value="中危">中危</SelectItem>
             <SelectItem value="低危">低危</SelectItem>
-            <SelectItem value="情报">情报</SelectItem>
+            <SelectItem value="信息">信息</SelectItem>
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>

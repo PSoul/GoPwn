@@ -173,7 +173,7 @@ describe("project orchestrator api routes", () => {
     await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture({
       targetInput: "http://127.0.0.1:3000",
-      description: "审批恢复后需要继续把项目收束到最终结论。",
+      description: "审批恢复后需要继续把项目收尾到最终结论。",
     })
     setLocalLabCatalogTestAdapters({ fetch: global.fetch })
     const validationResponse = await postLocalValidation(

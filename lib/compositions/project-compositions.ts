@@ -84,9 +84,9 @@ export function buildAssetViews(
     },
     {
       key: "pending-review",
-      label: "待确认 / 待复核",
-      description: "尚未最终纳入范围或仍需复核的对象。",
-      match: (asset) => asset.scopeStatus !== "已纳入",
+      label: "待验证 / 需人工判断",
+      description: "尚未最终确认范围或仍需人工判断的对象。",
+      match: (asset) => asset.scopeStatus !== "已确认",
     },
   ]
 

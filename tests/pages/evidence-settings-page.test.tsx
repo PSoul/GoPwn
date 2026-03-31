@@ -38,14 +38,14 @@ describe("Evidence and settings pages", () => {
   it("renders the settings hub", async () => {
     render(await SettingsPage())
     expect(screen.getByRole("heading", { name: "设置分类" })).toBeInTheDocument()
-    expect(screen.getAllByText("MCP 工具管理").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("探测工具管理").length).toBeGreaterThan(0)
     expect(screen.getAllByText("LLM 设置").length).toBeGreaterThan(0)
     expect(screen.getAllByText("工作日志").length).toBeGreaterThan(0)
   })
 
   it("renders the split settings subpages", async () => {
     render(await McpToolsSettingsPage())
-    expect(screen.getAllByText("MCP 工具管理").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("探测工具管理").length).toBeGreaterThan(0)
     // "校验并注册 MCP" button is inside a collapsed Accordion section; assert the trigger instead
     expect(screen.getByText("MCP 契约注册")).toBeInTheDocument()
     cleanup()

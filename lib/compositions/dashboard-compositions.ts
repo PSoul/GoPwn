@@ -53,7 +53,7 @@ async function buildDashboardMetrics(projects: ProjectRecord[], approvalTotal: n
       return {
         ...metric,
         value: String(assets.length),
-        delta: assets.length > 0 ? `${assets.filter((asset) => asset.scopeStatus !== "已纳入").length} 个待确认` : "等待真实资产数据",
+        delta: assets.length > 0 ? `${assets.filter((asset) => asset.scopeStatus !== "已确认").length} 个待验证` : "等待真实资产数据",
       }
     }
 
@@ -94,9 +94,9 @@ function buildDashboardPriorities({
 
   const priorities: Array<{ title: string; detail: string; tone: Tone }> = []
   const pendingApprovals = approvals.filter((approval) => approval.status === "待处理")
-  const pendingAssets = assets.filter((asset) => asset.scopeStatus !== "已纳入")
+  const pendingAssets = assets.filter((asset) => asset.scopeStatus !== "已确认")
   const abnormalTools = mcpTools.filter((tool) => tool.status === "异常")
-  const blockedProjects = projects.filter((project) => project.status === "已阻塞")
+  const blockedProjects = projects.filter((project) => project.status === "等待审批")
 
   if (pendingApprovals.length > 0) {
     priorities.push({
@@ -108,15 +108,15 @@ function buildDashboardPriorities({
 
   if (pendingAssets.length > 0) {
     priorities.push({
-      title: "待确认资产需要处理",
-      detail: `${pendingAssets.length} 个对象仍待确认或复核，建议先补归属再推进下一步验证。`,
+      title: "待验证资产需要处理",
+      detail: `${pendingAssets.length} 个对象仍待验证或需人工判断，建议先补归属再推进下一步验证。`,
       tone: "warning",
     })
   }
 
   if (abnormalTools.length > 0) {
     priorities.push({
-      title: "MCP 工具健康待处理",
+      title: "探测工具健康待处理",
       detail: `${abnormalTools.length} 个工具处于异常状态，继续前请先完成巡检与恢复。`,
       tone: "info",
     })
@@ -189,7 +189,7 @@ function buildDashboardRecentResults({
       meta: `${asset.type} · ${asset.lastSeen}`,
       href: `/assets/${asset.id}`,
       status: asset.scopeStatus,
-      tone: asset.scopeStatus === "已纳入" ? ("success" as const) : ("warning" as const),
+      tone: asset.scopeStatus === "已确认" ? ("success" as const) : ("warning" as const),
       sortAt: asset.lastSeen,
     })),
     ...approvals.map((approval) => ({
@@ -209,7 +209,7 @@ function buildDashboardRecentResults({
       meta: `最近更新 ${project.lastUpdated}`,
       href: `/projects/${project.id}`,
       status: project.status,
-      tone: project.status === "已阻塞" ? ("danger" as const) : ("neutral" as const),
+      tone: project.status === "等待审批" ? ("danger" as const) : ("neutral" as const),
       sortAt: project.lastUpdated,
     })),
   ]
@@ -255,21 +255,21 @@ async function buildDashboardSystemOverview({
 
   return [
     {
-      title: "MCP 工具",
+      title: "探测工具",
       value: `${mcpTools.filter((tool) => tool.status === "启用").length} / ${mcpTools.length}`,
-      detail: "当前已启用 MCP 工具数量。",
+      detail: "当前已启用探测工具数量。",
       href: "/settings/mcp-tools",
       tone: mcpTools.some((tool) => tool.status === "异常") ? "warning" : "success",
     },
     {
       title: "LLM 模型",
       value: [...new Set(enabledModels.map((profile) => profile.model))].join(" / ") || "未配置",
-      detail: "当前参与编排的模型配置。",
+      detail: "当前参与规划的模型配置。",
       href: "/settings/llm",
       tone: enabledModels.length > 0 ? "info" : "warning",
     },
     {
-      title: "调度队列",
+      title: "执行队列",
       value: `${activeTaskCount} 条`,
       detail: `${projects.filter((project) => project.status === "运行中").length} 个运行中项目 / ${pendingApprovalCount} 个待审批动作`,
       href: "/settings/system-status",
@@ -308,12 +308,12 @@ async function buildSystemStatusPayloadFromTools(tools: McpToolRecord[]): Promis
             ? "当前还没有注册任何 MCP server 或工具契约。"
             : abnormalTools.length > 0
             ? `${abnormalTools.map((tool) => tool.toolName).join("、")} 当前异常，已影响对应链路。`
-            : "所有已注册 MCP 工具当前均处于健康状态。",
+            : "所有已注册探测工具当前均处于健康状态。",
         tone: tools.length === 0 ? "neutral" : abnormalTools.length > 0 ? "danger" : "success",
       }
     }
 
-    if (card.title === "调度队列") {
+    if (card.title === "执行队列") {
       return {
         ...card,
         value: `${activeTasks.length} 条`,

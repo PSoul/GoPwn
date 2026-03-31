@@ -43,7 +43,7 @@ describe("ProjectReportExportPanel", () => {
             findingCount: 1,
             conclusionGeneratedAt: "2026-03-27 20:31",
             conclusionSource: "reviewer",
-            conclusionSummary: "最终结论：当前项目已完成首轮收束。",
+            conclusionSummary: "最终结论：当前项目已完成首轮自动收尾。",
           },
           totalExports: 1,
           finalConclusion: {
@@ -51,7 +51,7 @@ describe("ProjectReportExportPanel", () => {
             projectId: "proj-report",
             generatedAt: "2026-03-27 20:31",
             source: "reviewer",
-            summary: "最终结论：当前项目已完成首轮收束。",
+            summary: "最终结论：当前项目已完成首轮自动收尾。",
             keyPoints: ["资产 5 条", "证据 3 条", "漏洞 1 条"],
             nextActions: ["整理修复建议并归档结果。"],
             assetCount: 5,
@@ -77,7 +77,7 @@ describe("ProjectReportExportPanel", () => {
       expect(screen.getByText("资产 5 条")).toBeInTheDocument()
       expect(screen.getByText("证据 3 条")).toBeInTheDocument()
       expect(screen.getByText("漏洞 1 条")).toBeInTheDocument()
-      expect(screen.getByText("最终结论：当前项目已完成首轮收束。")).toBeInTheDocument()
+      expect(screen.getByText("最终结论：当前项目已完成首轮自动收尾。")).toBeInTheDocument()
     })
   })
 })

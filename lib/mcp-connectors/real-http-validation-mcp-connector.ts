@@ -23,7 +23,7 @@ type HttpValidationStructuredContent = {
   responseSignals?: string[]
   finding?: {
     affectedSurface: string
-    severity: "高危" | "中危" | "低危" | "情报"
+    severity: "高危" | "中危" | "低危" | "信息"
     status: "待验证" | "已确认" | "待复核" | "已缓解"
     summary: string
     title: string

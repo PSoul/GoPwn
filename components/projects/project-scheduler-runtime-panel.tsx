@@ -202,7 +202,7 @@ export function ProjectSchedulerRuntimePanel({
             className="flex w-full items-center justify-between px-5 py-3 text-left"
             onClick={() => setExpandedRounds(!expandedRounds)}
           >
-            <span className="text-sm font-medium text-slate-950 dark:text-white">编排轮次 ({rounds.length})</span>
+            <span className="text-sm font-medium text-slate-950 dark:text-white">AI 规划轮次 ({rounds.length})</span>
             <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${expandedRounds ? "rotate-180" : ""}`} />
           </button>
           {expandedRounds && (
@@ -237,7 +237,7 @@ export function ProjectSchedulerRuntimePanel({
             ) : (
               <div className="border-t border-slate-100 px-5 py-2.5 dark:border-slate-800">
                 <span className="text-xs text-slate-500 dark:text-slate-400">
-                  已达到最大轮次限制 ({control.maxRounds})，正在收束...
+                  已达到最大轮次限制 ({control.maxRounds})，正在自动收尾...
                 </span>
               </div>
             )
@@ -316,7 +316,7 @@ export function ProjectSchedulerRuntimePanel({
           <AlertDialogHeader>
             <AlertDialogTitle>确认停止项目</AlertDialogTitle>
             <AlertDialogDescription>
-              停止后项目调度器将不再执行新任务，已完成的任务结果会保留。此操作需要谨慎评估。
+              停止后项目执行引擎将不再执行新任务，已完成的任务结果会保留。此操作需要谨慎评估。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

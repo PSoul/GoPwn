@@ -51,7 +51,7 @@ export default async function DashboardPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {leadProject ? <StatusBadge tone={leadProject.status === "已阻塞" ? "danger" : "info"}>{leadProject.status}</StatusBadge> : null}
+            {leadProject ? <StatusBadge tone={leadProject.status === "等待审批" ? "danger" : "info"}>{leadProject.status}</StatusBadge> : null}
             <Button asChild className="rounded-full bg-slate-950 px-5 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-200">
               <Link href="/projects/new">新建项目</Link>
             </Button>

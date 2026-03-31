@@ -104,10 +104,10 @@ export async function settleProjectLifecycleClosure(projectId: string, note?: st
     upsertStoredWorkLogs([
       {
         id: `work-project-closure-${projectId}-${Date.now()}`,
-        category: "项目收束",
+        category: "项目收尾",
         summary: note
-          ? `${note} 项目已进入最终结论阶段并完成当前轮次收束。`
-          : "项目已进入最终结论阶段并完成当前轮次收束。",
+          ? `${note} 项目已进入最终结论阶段并完成当前轮次自动收尾。`
+          : "项目已进入最终结论阶段并完成当前轮次自动收尾。",
         projectName: project.name,
         actor: conclusion.source === "reviewer" ? "reviewer-provider" : "reviewer-fallback",
         timestamp: formatTimestamp(),
@@ -313,7 +313,7 @@ export async function shouldContinueAutoReplan(
 
   // Stop condition 3: Execution blocked by approval
   if (lastExecution.status === "waiting_approval") {
-    return { shouldContinue: false, reason: "有未处理的高风险审批，暂停自动编排" }
+    return { shouldContinue: false, reason: "有未处理的高风险审批，暂停自动规划" }
   }
 
   // Stop condition 4: All executions failed

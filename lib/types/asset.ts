@@ -10,7 +10,7 @@ export interface AssetRelation {
   label: string
   type: string
   relation: string
-  scopeStatus: "已纳入" | "待确认" | "待复核"
+  scopeStatus: "已确认" | "待验证" | "需人工判断"
 }
 
 export interface AssetRecord {
@@ -20,7 +20,7 @@ export interface AssetRecord {
   type: string
   label: string
   profile: string
-  scopeStatus: "已纳入" | "待确认" | "待复核"
+  scopeStatus: "已确认" | "待验证" | "需人工判断"
   lastSeen: string
   host: string
   ownership: string

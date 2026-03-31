@@ -1,8 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
-import ProjectContextPage from "@/app/(console)/projects/[projectId]/context/page"
-import ProjectFlowPage from "@/app/(console)/projects/[projectId]/flow/page"
 import ProjectOperationsPage from "@/app/(console)/projects/[projectId]/operations/page"
 import ProjectDetailPage from "@/app/(console)/projects/[projectId]/page"
 import ProjectFindingsResultsPage from "@/app/(console)/projects/[projectId]/results/findings/page"
@@ -30,38 +28,33 @@ describe("ProjectDetailPage", () => {
 
     // New summary shows state-aware content and result links
     expect(screen.getByText("最近动态")).toBeInTheDocument()
-    // Results hub has link entries for the 3 result sections
-    expect(screen.getByText("域名 / Web")).toBeInTheDocument()
-    expect(screen.getByText("IP / 端口 / 服务")).toBeInTheDocument()
-    expect(screen.getByText("漏洞与发现")).toBeInTheDocument()
+    // Results hub has link entries for the 4 result sections
+    expect(screen.getAllByText("域名").length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText("站点").length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText("端口").length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText("漏洞").length).toBeGreaterThanOrEqual(1)
   })
 
-  it("renders dedicated result pages plus flow, operations, and context", async () => {
+  it("renders dedicated result pages plus operations", async () => {
     const fixture = await createApprovedWorkflowFixture()
 
     render(await ProjectDomainsResultsPage({ params: Promise.resolve({ projectId: fixture.project.id }) }))
 
-    expect(screen.getByRole("heading", { level: 2, name: "域名 / Web 入口" })).toBeInTheDocument()
-    expect(screen.getByText("对象 / 入口")).toBeInTheDocument()
+    expect(screen.getByRole("heading", { level: 2, name: "域名列表" })).toBeInTheDocument()
+    expect(screen.getByText("解析 IP")).toBeInTheDocument()
     cleanup()
 
     render(await ProjectNetworkResultsPage({ params: Promise.resolve({ projectId: fixture.project.id }) }))
 
-    expect(screen.getByRole("heading", { level: 2, name: "IP / 端口 / 服务" })).toBeInTheDocument()
-    // Network results may show the Empty component when no items exist
-    expect(screen.getByText("暂无 IP / 端口 / 服务")).toBeInTheDocument()
+    expect(screen.getByRole("heading", { level: 2, name: "扫描结果" })).toBeInTheDocument()
+    // May show empty or table depending on fixture data
+    expect(screen.getByText("端口")).toBeInTheDocument()
     cleanup()
 
     render(await ProjectFindingsResultsPage({ params: Promise.resolve({ projectId: fixture.project.id }) }))
 
     expect(screen.getByRole("heading", { level: 2, name: "漏洞与发现" })).toBeInTheDocument()
     expect(screen.getByText("影响面")).toBeInTheDocument()
-    cleanup()
-
-    render(await ProjectFlowPage({ params: Promise.resolve({ projectId: fixture.project.id }) }))
-
-    expect(screen.getByText("阶段流转详情")).toBeInTheDocument()
-    expect(screen.getByText("阶段提示")).toBeInTheDocument()
     cleanup()
 
     render(await ProjectOperationsPage({ params: Promise.resolve({ projectId: fixture.project.id }) }))
@@ -71,9 +64,5 @@ describe("ProjectDetailPage", () => {
     expect(screen.getByText("报告导出")).toBeInTheDocument()
     cleanup()
 
-    render(await ProjectContextPage({ params: Promise.resolve({ projectId: fixture.project.id }) }))
-
-    expect(screen.getByText("证据与上下文")).toBeInTheDocument()
-    expect(screen.getByText("项目证据与上下文")).toBeInTheDocument()
   })
 })

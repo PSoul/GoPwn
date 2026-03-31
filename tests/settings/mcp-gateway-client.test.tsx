@@ -104,7 +104,7 @@ describe("McpGatewayClient", () => {
     )
 
     fireEvent.click(screen.getByRole("button", { name: "禁用" }))
-    fireEvent.change(screen.getByRole("textbox", { name: "MCP 工具备注" }), {
+    fireEvent.change(screen.getByRole("textbox", { name: "探测工具备注" }), {
       target: { value: "测试备注" },
     })
     fireEvent.click(screen.getByRole("button", { name: "保存工具配置" }))
@@ -119,7 +119,7 @@ describe("McpGatewayClient", () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText(`MCP 工具 ${mcpTools[0].toolName} 已保存。`)).toBeInTheDocument()
+      expect(screen.getByText(`探测工具 ${mcpTools[0].toolName} 已保存。`)).toBeInTheDocument()
     })
   })
 

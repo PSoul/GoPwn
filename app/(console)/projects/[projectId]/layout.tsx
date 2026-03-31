@@ -21,13 +21,13 @@ export default async function ProjectWorkspaceLayout({
   }
 
   const statusTone =
-    project.status === "已阻塞"
+    project.status === "等待审批"
       ? "danger"
       : project.status === "已完成"
         ? "success"
         : project.status === "已停止"
           ? "neutral"
-          : project.status === "已暂停" || project.status === "待处理"
+          : project.status === "已暂停" || project.status === "待启动"
             ? "warning"
             : "info"
 

@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
   title: "授权外网安全评估平台",
-  description: "基于 LLM 编排内核的授权外网安全评估平台前端原型",
+  description: "基于 AI 规划内核的授权外网安全评估平台前端原型",
 }
 
 export default function RootLayout({

@@ -33,8 +33,8 @@ export function AssetCenterClient({
     return [...deduped.values()]
   }, [views])
 
-  const inScopeCount = uniqueAssets.filter((asset) => asset.scopeStatus === "已纳入").length
-  const pendingCount = uniqueAssets.filter((asset) => asset.scopeStatus !== "已纳入").length
+  const inScopeCount = uniqueAssets.filter((asset) => asset.scopeStatus === "已确认").length
+  const pendingCount = uniqueAssets.filter((asset) => asset.scopeStatus !== "已确认").length
   const projectCount = new Set(uniqueAssets.map((asset) => asset.projectId)).size
 
   const summaryCards = [
@@ -45,13 +45,13 @@ export function AssetCenterClient({
       icon: Boxes,
     },
     {
-      label: "已纳入范围",
+      label: "已确认范围",
       value: String(inScopeCount),
       detail: "已确认可继续推进验证与证据沉淀的对象。",
       icon: ShieldCheck,
     },
     {
-      label: "待确认 / 待复核",
+      label: "待验证 / 需人工判断",
       value: String(pendingCount),
       detail: "仍需继续判断归属、授权或技术真实性的对象。",
       icon: AlertTriangle,

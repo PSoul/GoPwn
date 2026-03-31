@@ -3,11 +3,11 @@ import { SectionCard } from "@/components/shared/section-card"
 import type { AssetRecord } from "@/lib/prototype-types"
 
 function getScopeTone(scopeStatus: AssetRecord["scopeStatus"]) {
-  if (scopeStatus === "已纳入") {
+  if (scopeStatus === "已确认") {
     return "success" as const
   }
 
-  if (scopeStatus === "待确认") {
+  if (scopeStatus === "待验证") {
     return "warning" as const
   }
 

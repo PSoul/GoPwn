@@ -325,7 +325,7 @@ export async function dispatchStoredMcpRun(projectId: string, input: McpDispatch
     await prisma.mcpRun.create({ data: fromMcpRunRecord(blockedRun) })
     await prisma.project.updateMany({
       where: { id: projectId },
-      data: { status: "已阻塞", lastActor: "MCP 网关 · 阻塞" },
+      data: { status: "等待审批", lastActor: "MCP 网关 · 阻塞" },
     })
     await pushActivityPrisma(`${input.requestedAction} 已阻塞`, blockedRun.summaryLines[1], "danger")
     const auditLog = createAuditLog(`MCP 调度阻塞：${project.name} -> ${input.requestedAction}`, "已阻塞", project.name)
@@ -370,7 +370,7 @@ export async function dispatchStoredMcpRun(projectId: string, input: McpDispatch
     const pendingCount = reordered.filter((a) => a.projectId === projectId && a.status === "待处理").length
     await prisma.project.updateMany({
       where: { id: projectId },
-      data: { status: "已阻塞", pendingApprovals: pendingCount, lastActor: "MCP 网关 · 待审批" },
+      data: { status: "等待审批", pendingApprovals: pendingCount, lastActor: "MCP 网关 · 待审批" },
     })
     await pushActivityPrisma(
       `${input.requestedAction} 已进入审批`,

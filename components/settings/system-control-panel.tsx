@@ -222,7 +222,7 @@ export function SystemControlPanel({
             </div>
           </div>
           <p className="mt-4 text-sm leading-7 text-slate-700 dark:text-slate-200">
-            当 MCP 工具健康异常、目标环境波动明显或授权语境发生变化时，研究员需要能一键切断高风险动作调度，但不必影响正常的工作日志和被动结果采集。
+            当探测工具健康异常、目标环境波动明显或授权语境发生变化时，研究员需要能一键切断高风险动作调度，但不必影响正常的工作日志和被动结果采集。
           </p>
           <div className="mt-6 space-y-3">
             {[

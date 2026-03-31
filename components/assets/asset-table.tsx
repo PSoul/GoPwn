@@ -39,17 +39,17 @@ type AssetColumn = {
 
 const scopeFilterOptions: Array<{ label: string; value: ScopeFilter }> = [
   { label: "全部状态", value: "all" },
-  { label: "已纳入", value: "已纳入" },
-  { label: "待确认", value: "待确认" },
-  { label: "待复核", value: "待复核" },
+  { label: "已确认", value: "已确认" },
+  { label: "待验证", value: "待验证" },
+  { label: "需人工判断", value: "需人工判断" },
 ]
 
 function getScopeTone(scopeStatus: AssetRecord["scopeStatus"]) {
-  if (scopeStatus === "已纳入") {
+  if (scopeStatus === "已确认") {
     return "success" as const
   }
 
-  if (scopeStatus === "待确认") {
+  if (scopeStatus === "待验证") {
     return "warning" as const
   }
 
@@ -323,7 +323,7 @@ function getColumnsForView(viewKey: AssetCollectionView["key"]): AssetColumn[] {
   return [
     {
       key: "asset",
-      header: "待确认对象",
+      header: "待验证对象",
       className: "min-w-[260px]",
       render: (asset) => (
         <div className="space-y-1.5">
@@ -433,7 +433,7 @@ export function AssetTable({
   }, [filteredRecords, maxRows, page])
 
   const columns = getColumnsForView(view.key)
-  const pendingCount = view.items.filter((asset) => asset.scopeStatus !== "已纳入").length
+  const pendingCount = view.items.filter((asset) => asset.scopeStatus !== "已确认").length
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -446,7 +446,7 @@ export function AssetTable({
             </div>
             <div className="flex items-center gap-2">
               <StatusBadge tone={pendingCount > 0 ? "warning" : "success"}>
-                {pendingCount > 0 ? `${pendingCount} 个待确认 / 待复核` : "当前全部已纳入"}
+                {pendingCount > 0 ? `${pendingCount} 个待验证 / 需人工判断` : "当前全部已确认"}
               </StatusBadge>
               <StatusBadge tone="neutral">{`${filteredRecords.length} / ${view.items.length}`}</StatusBadge>
             </div>

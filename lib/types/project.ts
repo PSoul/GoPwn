@@ -13,7 +13,7 @@ export type ProjectStage =
   | "风险聚合与项目结论"
   | "报告与回归验证"
 
-export type ProjectStatus = "运行中" | "待处理" | "已暂停" | "已停止" | "已阻塞" | "已完成"
+export type ProjectStatus = "运行中" | "待启动" | "已暂停" | "已停止" | "等待审批" | "已完成"
 
 export type ProjectSchedulerLifecycle = "idle" | "running" | "paused" | "stopped"
 
@@ -114,7 +114,7 @@ export interface ProjectInventoryGroup {
 export interface ProjectFindingRecord {
   id: string
   projectId: string
-  severity: "高危" | "中危" | "低危" | "情报"
+  severity: "高危" | "中危" | "低危" | "信息"
   status: "待验证" | "已确认" | "待复核" | "已缓解"
   title: string
   summary: string

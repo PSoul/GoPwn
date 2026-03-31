@@ -178,7 +178,7 @@ export const mcpBoundaryRules: McpBoundaryRule[] = [
     type: "外部目标交互",
   },
   {
-    title: "平台内部编排与结果归一化不强制抽象成 MCP",
+    title: "平台内部规划与结果归一化不强制抽象成 MCP",
     description: "任务规划、证据归一化、结果聚合、状态推进等内部处理动作可以留在平台内部完成，避免错误抽象。",
     type: "平台内部处理",
   },
@@ -231,16 +231,16 @@ export const systemControlOverview: ControlSetting[] = [
 
 export const settingsSections: SettingsSectionRecord[] = [
   {
-    title: "MCP 工具管理",
+    title: "探测工具管理",
     href: "/settings/mcp-tools",
-    description: "查看能力分类、风险等级、启停状态与工具健康，确认哪些 MCP 正在参与当前平台执行。",
+    description: "查看能力分类、风险等级、启停状态与工具健康，确认哪些探测工具正在参与当前平台执行。",
     metric: "等待注册",
     tone: "info",
   },
   {
     title: "LLM 设置",
     href: "/settings/llm",
-    description: "管理编排模型、审阅模型、上下文预算、默认推理强度和失败回退策略。",
+    description: "管理规划模型、审阅模型、上下文预算、默认推理强度和失败回退策略。",
     metric: "3 套角色配置",
     tone: "success",
   },
@@ -268,7 +268,7 @@ export const settingsSections: SettingsSectionRecord[] = [
   {
     title: "系统状态",
     href: "/settings/system-status",
-    description: "集中查看调度队列、浏览器池、日志存储、截图链路和 MCP 网关的当前健康状态。",
+    description: "集中查看执行队列、浏览器池、日志存储、截图链路和 MCP 网关的当前健康状态。",
     metric: "按实时数据刷新",
     tone: "info",
   },
@@ -297,9 +297,9 @@ export const systemStatusCards: SystemStatusRecord[] = [
     tone: "neutral",
   },
   {
-    title: "调度队列",
+    title: "执行队列",
     value: "0 条",
-    description: "等待真实任务进入调度与审批链路。",
+    description: "等待真实任务进入执行与审批链路。",
     tone: "info",
   },
   {

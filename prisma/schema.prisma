@@ -174,7 +174,7 @@ model Asset {
   type              String
   label             String
   profile           String   @default("")
-  scopeStatus       String   @default("待确认")
+  scopeStatus       String   @default("待验证")
   lastSeen          String   @default("")
   host              String   @default("")
   ownership         String   @default("")

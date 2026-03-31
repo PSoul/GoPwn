@@ -9,7 +9,7 @@ import { apiFetch } from "@/lib/api-client"
 import type { LlmCallLogRecord, LlmCallRole } from "@/lib/prototype-types"
 
 const roleLabels: Record<LlmCallRole, string> = {
-  orchestrator: "编排",
+  orchestrator: "规划",
   reviewer: "审阅",
   extractor: "提取",
 }

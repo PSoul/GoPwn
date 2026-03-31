@@ -146,7 +146,7 @@ export async function runProjectLifecycleKickoff(projectId: string, input: Proje
 
   // Update current round
   await updateStoredProjectSchedulerControl(projectId, {
-    note: `第${startRound}轮编排已开始`,
+    note: `第${startRound}轮 AI 规划已开始`,
   })
 
   const automaticItems = planPayload.plan.items.filter((item) => item.riskLevel !== "高")
@@ -155,11 +155,11 @@ export async function runProjectLifecycleKickoff(projectId: string, input: Proje
   upsertStoredWorkLogs([
     {
       id: `work-project-lifecycle-${projectId}-${Date.now()}`,
-      category: "LLM 编排",
+      category: "AI 规划",
       summary:
         input.controlCommand === "resume"
-          ? `项目恢复后已重新生成 ${planPayload.plan.items.length} 条编排动作（第${startRound}轮），其中 ${automaticItems.length} 条低风险自动推进，${highRiskItems.length} 条高风险转入审批。`
-          : `项目开始后已生成 ${planPayload.plan.items.length} 条首轮编排动作（第${startRound}轮），其中 ${automaticItems.length} 条低风险自动进入调度，${highRiskItems.length} 条高风险转入审批。`,
+          ? `项目恢复后已重新生成 ${planPayload.plan.items.length} 条规划动作（第${startRound}轮），其中 ${automaticItems.length} 条低风险自动推进，${highRiskItems.length} 条高风险转入审批。`
+          : `项目开始后已生成 ${planPayload.plan.items.length} 条首轮规划动作（第${startRound}轮），其中 ${automaticItems.length} 条低风险自动进入执行，${highRiskItems.length} 条高风险转入审批。`,
       projectName: project.name,
       actor: planPayload.provider.enabled ? "orchestrator-provider" : "orchestrator-fallback",
       timestamp: formatTimestamp(),
@@ -197,7 +197,7 @@ export async function runProjectLifecycleKickoff(projectId: string, input: Proje
         upsertStoredWorkLogs([
           {
             id: `work-auto-replan-stop-${projectId}-${Date.now()}`,
-            category: "LLM 编排",
+            category: "AI 规划",
             summary: `自动续跑在第${currentRound}轮后停止: ${continueCheck.reason}`,
             projectName: project.name,
             actor: "orchestrator-auto-replan",
@@ -213,8 +213,8 @@ export async function runProjectLifecycleKickoff(projectId: string, input: Proje
       upsertStoredWorkLogs([
         {
           id: `work-auto-replan-${projectId}-${Date.now()}-r${currentRound}`,
-          category: "LLM 编排",
-          summary: `自动续跑：开始第${currentRound}轮编排`,
+          category: "AI 规划",
+          summary: `自动续跑：开始第${currentRound}轮 AI 规划`,
           projectName: project.name,
           actor: "orchestrator-auto-replan",
           timestamp: formatTimestamp(),
@@ -228,8 +228,8 @@ export async function runProjectLifecycleKickoff(projectId: string, input: Proje
         upsertStoredWorkLogs([
           {
             id: `work-auto-replan-empty-${projectId}-${Date.now()}`,
-            category: "LLM 编排",
-            summary: `第${currentRound}轮 LLM 返回空计划，自动收束`,
+            category: "AI 规划",
+            summary: `第${currentRound}轮 LLM 返回空计划，自动收尾`,
             projectName: project.name,
             actor: "orchestrator-auto-replan",
             timestamp: formatTimestamp(),
@@ -263,7 +263,7 @@ export async function runProjectLifecycleKickoff(projectId: string, input: Proje
   if (execution.status === "completed") {
     await settleProjectLifecycleClosure(
       projectId,
-      `项目在第${currentRound}轮后完成所有编排计划。`,
+      `项目在第${currentRound}轮后完成所有 AI 规划。`,
     )
   }
 
@@ -360,7 +360,7 @@ export async function executeProjectLocalValidation(
   upsertStoredWorkLogs([
     {
       id: `work-orchestrator-plan-${projectId}-${Date.now()}`,
-      category: "LLM 编排",
+      category: "AI 规划",
       summary: `${localLab.name} 本地验证计划已生成，共 ${planPayload.plan.items.length} 条动作。${localLab.statusNote ? ` ${localLab.statusNote}` : ""}`,
       projectName: project.name,
       actor: planPayload.provider.enabled ? "orchestrator-provider" : "orchestrator-fallback",

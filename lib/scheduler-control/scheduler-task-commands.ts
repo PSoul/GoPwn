@@ -151,7 +151,7 @@ export async function cancelStoredSchedulerTask(projectId: string, taskId: strin
   const nextDetail = pushProjectActivity(
     detail,
     isRunningTask ? "运行任务已记录停止请求" : "调度任务已取消",
-    isRunningTask ? `${task.toolName} -> ${task.target} 已停止后续推进并等待当前执行自然收束。` : `${task.toolName} -> ${task.target} 已从运行队列移除。`,
+    isRunningTask ? `${task.toolName} -> ${task.target} 已停止后续推进并等待当前执行自然收尾。` : `${task.toolName} -> ${task.target} 已从运行队列移除。`,
     "warning",
   )
   const auditLog = createAuditLog(

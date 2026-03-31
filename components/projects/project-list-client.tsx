@@ -72,7 +72,7 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
 
     // Sort: running/blocked first, then by update time
     return filtered.sort((a, b) => {
-      const priorityOrder: Record<string, number> = { 运行中: 0, 已阻塞: 1, 待处理: 2, 已暂停: 3, 已完成: 4, 已停止: 5 }
+      const priorityOrder: Record<string, number> = { 运行中: 0, 等待审批: 1, 待启动: 2, 已暂停: 3, 已完成: 4, 已停止: 5 }
       const pa = priorityOrder[a.status] ?? 9
       const pb = priorityOrder[b.status] ?? 9
       if (pa !== pb) return pa - pb
@@ -84,7 +84,7 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
     { label: "筛选结果", value: `${filteredProjects.length}`, note: "当前可见项目" },
     {
       label: "阻塞项目",
-      value: `${filteredProjects.filter((project) => project.status === "已阻塞").length}`,
+      value: `${filteredProjects.filter((project) => project.status === "等待审批").length}`,
       note: "需要优先清障",
     },
     {
@@ -164,10 +164,10 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
             <SelectContent>
               <SelectItem value="全部状态">全部状态</SelectItem>
               <SelectItem value="运行中">运行中</SelectItem>
-              <SelectItem value="待处理">待处理</SelectItem>
+              <SelectItem value="待启动">待启动</SelectItem>
               <SelectItem value="已暂停">已暂停</SelectItem>
               <SelectItem value="已停止">已停止</SelectItem>
-              <SelectItem value="已阻塞">已阻塞</SelectItem>
+              <SelectItem value="等待审批">等待审批</SelectItem>
               <SelectItem value="已完成">已完成</SelectItem>
             </SelectContent>
           </Select>

@@ -275,7 +275,7 @@ function migrateSimplifiedProjectModel(store: PrototypeStore): PrototypeStore {
       return detail
     }
 
-    const lifecycle = store.projectSchedulerControls[project.id]?.lifecycle ?? (project.status === "待处理" ? "idle" : "running")
+    const lifecycle = store.projectSchedulerControls[project.id]?.lifecycle ?? (project.status === "待启动" ? "idle" : "running")
     const projectRuns = store.mcpRuns.filter((run) => run.projectId === project.id)
     const projectApprovals = store.approvals.filter((approval) => approval.projectId === project.id)
     const projectSchedulerTasks = store.schedulerTasks.filter((task) => task.projectId === project.id)

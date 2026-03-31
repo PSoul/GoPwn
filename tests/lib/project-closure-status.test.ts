@@ -8,7 +8,7 @@ describe("project closure status", () => {
       finalConclusionGenerated: false,
       lifecycle: "idle",
       pendingApprovals: 0,
-      projectStatus: "待处理",
+      projectStatus: "待启动",
       queuedTaskCount: 0,
       reportExported: false,
       runningTaskCount: 0,
@@ -29,7 +29,7 @@ describe("project closure status", () => {
       finalConclusionGenerated: false,
       lifecycle: "running",
       pendingApprovals: 2,
-      projectStatus: "已阻塞",
+      projectStatus: "等待审批",
       queuedTaskCount: 1,
       reportExported: false,
       runningTaskCount: 1,
@@ -37,7 +37,7 @@ describe("project closure status", () => {
     })
 
     expect(status.state).toBe("blocked")
-    expect(status.label).toBe("存在收束阻塞")
+    expect(status.label).toBe("存在收尾阻塞")
     expect(status.blockers.map((item) => item.title)).toEqual(
       expect.arrayContaining(["待审批动作尚未清理", "仍有任务正在执行", "队列中仍有待运行任务"]),
     )
@@ -56,7 +56,7 @@ describe("project closure status", () => {
     })
 
     expect(status.state).toBe("settling")
-    expect(status.label).toBe("等待自动收束")
+    expect(status.label).toBe("等待自动收尾")
     expect(status.blockers).toEqual([
       expect.objectContaining({
         title: "等待报告导出",

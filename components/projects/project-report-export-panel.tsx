@@ -15,7 +15,7 @@ function buildDispatchMessage(payload: ProjectReportExportActionPayload) {
   }
 
   if (payload.dispatch.run.status === "已阻塞") {
-    return payload.dispatch.run.summaryLines.at(-1) ?? "报告导出被阻塞，请先恢复相关 MCP 工具。"
+    return payload.dispatch.run.summaryLines.at(-1) ?? "报告导出被阻塞，请先恢复相关探测工具。"
   }
 
   return "报告导出已完成，最新结果已同步。"

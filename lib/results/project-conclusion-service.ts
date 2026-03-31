@@ -18,7 +18,7 @@ function normalizeConclusionSummary(summary: string, fallback: string) {
   const trimmed = summary.trim() || fallback.trim()
 
   if (!trimmed) {
-    return "最终结论：当前项目已收束，但还没有足够结果可供展示。"
+    return "最终结论：当前项目已自动收尾，但还没有足够结果可供展示。"
   }
 
   return trimmed.startsWith("最终结论：") ? trimmed : `最终结论：${trimmed}`
@@ -50,8 +50,8 @@ function buildFallbackConclusionRecord(input: {
         : ["复核当前资产与证据", "确认是否需要补充更深一轮验证", "导出并归档当前报告"],
     projectId: input.projectId,
     summary: normalizeConclusionSummary(
-      `本轮项目已完成首轮收束，已沉淀 ${input.assetCount} 条资产、${input.evidenceCount} 条证据和 ${input.findingCount} 条漏洞/发现。 ${findingLead}`,
-      "本轮项目已完成首轮收束。",
+      `本轮项目已完成首轮自动收尾，已沉淀 ${input.assetCount} 条资产、${input.evidenceCount} 条证据和 ${input.findingCount} 条漏洞/发现。 ${findingLead}`,
+      "本轮项目已完成首轮自动收尾。",
     ),
   }
 }

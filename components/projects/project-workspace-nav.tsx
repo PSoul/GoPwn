@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Globe, Network, ShieldAlert, FileText, GitBranch, Settings2, BrainCircuit } from "lucide-react"
+import { Globe, Network, ShieldAlert, Settings2, BrainCircuit } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -12,12 +12,11 @@ type ProjectWorkspaceNavProps = {
 
 const tabs = [
   { href: "", label: "概览", icon: null },
-  { href: "/results/domains", label: "域名/Web", icon: Globe },
-  { href: "/results/network", label: "端口/服务", icon: Network },
+  { href: "/results/domains", label: "域名", icon: Globe },
+  { href: "/results/sites", label: "站点", icon: Globe },
+  { href: "/results/network", label: "端口", icon: Network },
   { href: "/results/findings", label: "漏洞", icon: ShieldAlert },
-  { href: "/context", label: "上下文", icon: FileText },
-  { href: "/flow", label: "阶段", icon: GitBranch },
-  { href: "/operations", label: "调度", icon: Settings2 },
+  { href: "/operations", label: "执行控制", icon: Settings2 },
   { href: "/ai-logs", label: "AI 日志", icon: BrainCircuit },
 ]
 

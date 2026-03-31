@@ -193,7 +193,7 @@ export function ProjectMcpRunsPanel({
           <div className="rounded-panel border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
             <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
               <Bot className="h-4 w-4" />
-              <p className="text-sm font-semibold">编排输入</p>
+              <p className="text-sm font-semibold">规划输入</p>
             </div>
             <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
               这里不是直接选具体工具，而是先声明所需能力，再让网关决定具体由哪个 MCP 承接。
@@ -203,7 +203,7 @@ export function ProjectMcpRunsPanel({
           <div className="rounded-panel border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70">
             <p className="text-sm font-semibold text-slate-950 dark:text-white">基础流程自检</p>
             <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              用几类最基础的 MCP 工具把整条链路串一遍，验证“自动执行”和“审批阻塞”两种主路径都能被平台正确处理。
+              用几类最基础的探测工具把整条链路串一遍，验证”自动执行”和”审批阻塞”两种主路径都能被平台正确处理。
             </p>
             {readOnlyReason ? (
               <div className="mt-4 rounded-item border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">

@@ -44,11 +44,11 @@ export default async function ProjectOperationsPage({
         <div className="flex items-start gap-3 rounded-card border border-amber-200/80 bg-amber-50/80 px-5 py-4 dark:border-amber-900/60 dark:bg-amber-950/30">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
           <div>
-            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">主编排模型未配置</p>
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">主规划模型未配置</p>
             <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
-              LLM 编排器未启用或未配置模型，项目将使用有限的回退策略（无 AI 日志）。请先
+              AI 规划器未启用或未配置模型，项目将使用有限的回退策略（无 AI 日志）。请先
               <Link href="/settings/llm" className="mx-0.5 font-medium underline hover:text-amber-900 dark:hover:text-amber-100">配置 LLM 模型</Link>
-              以获得完整的智能编排能力。
+              以获得完整的智能规划能力。
             </p>
           </div>
         </div>
@@ -71,7 +71,7 @@ export default async function ProjectOperationsPage({
       </div>
 
       {/* Advanced sections — for power users */}
-      <OperationsCollapsibleSection title="LLM 编排配置" defaultOpen={false}>
+      <OperationsCollapsibleSection title="AI 规划配置" defaultOpen={false}>
         <ProjectOrchestratorPanel
           projectId={project.id}
           initialPayload={orchestrator}

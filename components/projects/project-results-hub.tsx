@@ -1,39 +1,67 @@
 import Link from "next/link"
 import { ArrowRight, Globe, Network, ShieldAlert } from "lucide-react"
 
-import type { ProjectDetailRecord, ProjectRecord } from "@/lib/prototype-types"
+import type { AssetRecord, ProjectDetailRecord, ProjectRecord } from "@/lib/prototype-types"
 
 const resultSections = [
-  { key: "domains" as const, title: "域名 / Web", icon: Globe, groupTitle: "域名 / Web 入口" },
-  { key: "network" as const, title: "IP / 端口 / 服务", icon: Network, groupTitle: "IP / 端口 / 服务" },
-  { key: "findings" as const, title: "漏洞与发现", icon: ShieldAlert, groupTitle: null },
+  {
+    key: "domains" as const,
+    title: "域名",
+    icon: Globe,
+    types: ["domain", "subdomain"],
+  },
+  {
+    key: "sites" as const,
+    title: "站点",
+    icon: Globe,
+    types: ["entry", "web", "api"],
+  },
+  {
+    key: "network" as const,
+    title: "端口",
+    icon: Network,
+    types: ["host", "ip", "port", "service"],
+  },
+  {
+    key: "findings" as const,
+    title: "漏洞",
+    icon: ShieldAlert,
+    types: null,
+  },
 ]
+
+const hrefMap: Record<string, string> = {
+  domains: "domains",
+  sites: "sites",
+  network: "network",
+  findings: "findings",
+}
 
 export function ProjectResultsHub({
   project,
   detail,
+  assets,
 }: {
   project: ProjectRecord
   detail: ProjectDetailRecord
+  assets: AssetRecord[]
 }) {
-  const domainsGroup = detail.assetGroups.find((g) => g.title === "域名 / Web 入口")
-  const networkGroup = detail.assetGroups.find((g) => g.title === "IP / 端口 / 服务")
-
   const counts: Record<string, number> = {
-    domains: domainsGroup ? parseInt(domainsGroup.count) || 0 : 0,
-    network: networkGroup ? parseInt(networkGroup.count) || 0 : 0,
+    domains: assets.filter((a) => ["domain", "subdomain"].includes(a.type)).length,
+    sites: assets.filter((a) => ["entry", "web", "api"].includes(a.type)).length,
+    network: assets.filter((a) => ["host", "ip", "port", "service"].includes(a.type)).length,
     findings: detail.findings.length,
   }
 
   return (
-    <div className="grid gap-3 md:grid-cols-3">
+    <div className="grid gap-3 md:grid-cols-4">
       {resultSections.map((section) => {
         const count = counts[section.key]
         const Icon = section.icon
         return (
           <Link
             key={section.key}
-            href={`/projects/${project.id}/results/${section.key}`}
+            href={`/projects/${project.id}/results/${hrefMap[section.key]}`}
             className="group flex items-center justify-between rounded-xl border border-slate-200/80 bg-white p-4 transition-colors hover:border-slate-300 hover:bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700 dark:hover:bg-slate-900/60"
           >
             <div className="flex items-center gap-3">

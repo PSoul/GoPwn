@@ -72,7 +72,7 @@ function getLifecycleStatus(nextLifecycle: ProjectSchedulerLifecycle, currentPro
 
   switch (nextLifecycle) {
     case "idle":
-      return "待处理" as const
+      return "待启动" as const
     case "running":
       return "运行中" as const
     case "paused":
@@ -107,7 +107,7 @@ function getLifecycleMeta(nextLifecycle: ProjectSchedulerLifecycle) {
         actor: "调度暂停",
         auditStatus: "已暂停",
         auditSummary: "暂停运行",
-        detailText: "平台已暂停新的 LLM 编排和调度认领，等待研究员恢复。",
+        detailText: "平台已暂停新的 AI 规划和任务认领，等待研究员恢复。",
         title: "项目已暂停",
         tone: "warning" as const,
       }

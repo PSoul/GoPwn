@@ -60,7 +60,7 @@ test("vuln center page loads and shows stats cards", async ({ page }) => {
   await expect(page.getByText("漏洞总数")).toBeVisible({ timeout: 10_000 })
   await expect(page.getByText("高危").first()).toBeVisible()
   await expect(page.getByText("中危").first()).toBeVisible()
-  await expect(page.getByText("低危/情报").first()).toBeVisible()
+  await expect(page.getByText("低危/信息").first()).toBeVisible()
 
   // Filters should be visible
   await expect(page.getByPlaceholder("搜索漏洞标题、影响面、项目...")).toBeVisible()

@@ -101,7 +101,7 @@ export async function buildCompressedRoundHistory(projectId: string): Promise<st
   const rounds = dbRounds.map(toOrchestratorRoundRecord)
 
   if (rounds.length === 0) {
-    return "尚未执行过任何编排轮次。"
+    return "尚未执行过任何 AI 规划轮次。"
   }
 
   const lines: string[] = []
@@ -303,7 +303,7 @@ export function buildMultiRoundBrainPrompt(input: {
     : input.targetInput.trim() || "- (empty)"
 
   return [
-    `当前是第 ${input.currentRound} 轮编排（共最多 ${input.maxRounds} 轮）。请基于已有结果决定下一步。`,
+    `当前是第 ${input.currentRound} 轮 AI 规划（共最多 ${input.maxRounds} 轮）。请基于已有结果决定下一步。`,
     "",
     `项目名称：${input.projectName}`,
     `当前阶段：${input.currentStage}`,

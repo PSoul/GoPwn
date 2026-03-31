@@ -77,7 +77,7 @@ function buildProjectRecord(input: ProjectMutationInput, existingProjects: Proje
     targets,
     description: input.description,
     stage: "种子目标接收",
-    status: "待处理",
+    status: "待启动",
     pendingApprovals: 0,
     openTasks: 1,
     assetCount: 0,
@@ -120,7 +120,7 @@ function buildProjectDetail(project: ProjectRecord, approvalMode?: string): Proj
         projectId: project.id,
         title: "等待研究员开始项目后生成首批任务",
         status: "pending",
-        reason: "当前仅保存了目标与项目说明，还没有将目标发送给 LLM 进行真实编排。",
+        reason: "当前仅保存了目标与项目说明，还没有将目标发送给 LLM 进行真实规划。",
         priority: "P1",
         owner: SINGLE_USER_LABEL,
         updatedAt: project.lastUpdated,
@@ -161,10 +161,10 @@ function buildProjectDetail(project: ProjectRecord, approvalMode?: string): Proj
       },
     ],
     resultMetrics: [
-      { label: "已发现资产", value: "0", note: "等待资产数据", tone: "neutral" },
-      { label: "已发现漏洞", value: "0", note: "等待结果沉淀", tone: "neutral" },
-      { label: "证据锚点", value: "0", note: "等待证据归档", tone: "neutral" },
-      { label: "待审批动作", value: "0", note: "等待风险动作产生", tone: "neutral" },
+      { label: "域名", value: "0", note: "等待识别", tone: "neutral" },
+      { label: "站点", value: "0", note: "等待识别", tone: "neutral" },
+      { label: "开放端口", value: "0", note: "等待识别", tone: "neutral" },
+      { label: "漏洞线索", value: "0", note: "等待验证", tone: "neutral" },
     ],
     assetGroups: [
       {
@@ -183,7 +183,7 @@ function buildProjectDetail(project: ProjectRecord, approvalMode?: string): Proj
     findings: [],
     currentStage: {
       title: "种子目标接收",
-      summary: "等待启动后根据输入目标展开真实编排。",
+      summary: "等待启动后根据输入目标展开真实规划。",
       blocker: "尚未开始，因此还没有任何真实资产、证据或漏洞结果。",
       owner: SINGLE_USER_LABEL,
       updatedAt: project.lastUpdated,
@@ -254,7 +254,7 @@ function mergeProjectFormPreset(preset: ProjectFormPreset, patch: ProjectPatchIn
 
 function updateProjectDetail(detail: ProjectDetailRecord, project: ProjectRecord): ProjectDetailRecord {
   const nextDiscoveredInfo = detail.discoveredInfo.filter((item) => item.title !== "项目说明" && item.title !== "目标录入完成")
-  const waitingToStart = project.status === "待处理"
+  const waitingToStart = project.status === "待启动"
   const closureStatus = buildProjectClosureStatus({
     finalConclusionGenerated: detail.finalConclusion !== null || detail.closureStatus.finalConclusionGenerated,
     lifecycle: waitingToStart ? "idle" : "running",

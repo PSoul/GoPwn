@@ -12,12 +12,12 @@ export default async function LlmSettingsPage() {
     <div className="space-y-6">
       <PageHeader
         title="LLM 设置"
-        description="这里维护真实的模型接入配置，不把 LLM 当首页聊天入口，而是把它作为后端编排、审阅和提取能力来参数化管理。"
+        description="这里维护真实的模型接入配置，不把 LLM 当首页聊天入口，而是把它作为后端规划、审阅和提取能力来参数化管理。"
       />
 
       <SettingsSubnav currentHref="/settings/llm" />
 
-      <SectionCard title="模型接入与角色分工" description="把主编排、结果审阅和轻量提取拆开配置，并允许每个角色单独维护真实模型参数。">
+      <SectionCard title="模型接入与角色分工" description="把主规划、结果审阅和轻量提取拆开配置，并允许每个角色单独维护真实模型参数。">
         <LlmSettingsPanel initialProfiles={payload.profiles} />
       </SectionCard>
     </div>

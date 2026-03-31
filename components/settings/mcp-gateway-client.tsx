@@ -172,15 +172,15 @@ export function McpGatewayClient({
       const payload = (await response.json()) as { tool?: McpToolRecord; error?: string }
 
       if (!response.ok || !payload.tool) {
-        setErrorMessage(payload.error ?? "MCP 工具配置保存失败，请稍后再试。")
+        setErrorMessage(payload.error ?? "探测工具配置保存失败，请稍后再试。")
         return
       }
 
       setTools((current) => current.map((tool) => (tool.id === payload.tool?.id ? payload.tool : tool)))
       setDraft(payload.tool)
-      setMessage(`MCP 工具 ${payload.tool.toolName} 已保存。`)
+      setMessage(`探测工具 ${payload.tool.toolName} 已保存。`)
     } catch {
-      setErrorMessage("MCP 工具配置保存失败，请稍后再试。")
+      setErrorMessage("探测工具配置保存失败，请稍后再试。")
     } finally {
       setIsSaving(false)
     }
@@ -378,7 +378,7 @@ export function McpGatewayClient({
       </Accordion>
 
       <div className="grid gap-6 xl:grid-cols-[1.18fr_0.82fr]">
-        <SectionCard title="已注册 MCP 工具" description="工具是具体接入位，平台调度时真正依赖的是能力族和注册契约。">
+        <SectionCard title="已注册探测工具" description="工具是具体接入位，平台调度时真正依赖的是能力族和注册契约。">
           <div className="space-y-5">
             <Input
               value={query}
@@ -483,7 +483,7 @@ export function McpGatewayClient({
                 </div>
 
                 <Textarea
-                  aria-label="MCP 工具备注"
+                  aria-label="探测工具备注"
                   value={draft.notes}
                   onChange={(event) => setDraft((current) => (current ? { ...current, notes: event.target.value } : current))}
                   className="min-h-28 rounded-3xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
@@ -513,7 +513,7 @@ export function McpGatewayClient({
             </div>
           ) : (
             <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50/80 px-6 py-12 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
-              当前筛选条件下没有可编辑的 MCP 工具。
+              当前筛选条件下没有可编辑的探测工具。
             </div>
           )}
         </SectionCard>

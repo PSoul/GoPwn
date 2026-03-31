@@ -12,7 +12,7 @@ import type { LlmProfileRecord } from "@/lib/prototype-types"
 
 const roleMeta = {
   orchestrator: {
-    title: "主编排模型",
+    title: "主规划模型",
     description: "负责任务规划、能力拆解和下一步调度建议，是整个平台的“脑”。",
     icon: Workflow,
   },

@@ -48,7 +48,7 @@ describe("project mutation api routes", () => {
     expect(createResponse.status).toBe(201)
     expect(createPayload.project.id).toMatch(PROJECT_ID_PATTERN)
     expect(createPayload.project.name).toBe(baseProjectInput.name)
-    expect(createPayload.project.status).toBe("待处理")
+    expect(createPayload.project.status).toBe("待启动")
 
     const listResponse = await getProjects(
       new Request("http://localhost/api/projects"),

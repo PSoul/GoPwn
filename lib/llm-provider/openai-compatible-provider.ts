@@ -81,7 +81,7 @@ export function buildOpenAiCompatibleStatus(config?: Partial<OpenAiCompatibleCon
     baseUrl: orchestrator?.baseUrl ?? reviewer?.baseUrl ?? "",
     orchestratorModel: orchestrator?.model ?? "",
     reviewerModel: reviewer?.model ?? orchestrator?.model ?? "",
-    note: enabled ? "OpenAI-compatible provider 已配置，可用于真实编排请求。" : "OpenAI-compatible provider 未配置，当前仅可使用本地回退策略。",
+    note: enabled ? "OpenAI-compatible provider 已配置，可用于真实规划请求。" : "OpenAI-compatible provider 未配置，当前仅可使用本地回退策略。",
   }
 }
 

@@ -11,7 +11,7 @@ export default async function SystemStatusSettingsPage() {
     <div className="space-y-6">
       <PageHeader
         title="系统状态"
-        description="系统状态页单独呈现 MCP 网关、调度队列、浏览器池和日志存储，让研究员不用在设置大页里来回找健康信息。"
+        description="系统状态页单独呈现 MCP 网关、执行队列、浏览器池和日志存储，让研究员不用在设置大页里来回找健康信息。"
       />
 
       <SettingsSubnav currentHref="/settings/system-status" />

@@ -2,12 +2,28 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Network } from "lucide-react"
 
-import { ProjectInventoryTable } from "@/components/projects/project-inventory-table"
 import { ProjectWorkspaceIntro } from "@/components/projects/project-workspace-intro"
 import { SectionCard } from "@/components/shared/section-card"
+import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
-import { getStoredProjectById, getStoredProjectDetailById } from "@/lib/project-repository"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { listStoredAssetsByTypes } from "@/lib/asset-repository"
+import { getStoredProjectById } from "@/lib/project-repository"
+import type { AssetRecord } from "@/lib/prototype-types"
+
+const scopeTone = {
+  "已确认": "success",
+  "待验证": "warning",
+  "需人工判断": "info",
+} as const
 
 export default async function ProjectNetworkResultsPage({
   params,
@@ -16,18 +32,18 @@ export default async function ProjectNetworkResultsPage({
 }) {
   const { projectId } = await params
   const project = await getStoredProjectById(projectId)
-  const detail = await getStoredProjectDetailById(projectId)
-  const group = detail?.assetGroups.find((item) => item.title === "IP / 端口 / 服务")
 
-  if (!project || !group || !detail) {
+  if (!project) {
     notFound()
   }
+
+  const assets = await listStoredAssetsByTypes(projectId, ["host", "ip", "port", "service"])
 
   return (
     <div className="space-y-5">
       <ProjectWorkspaceIntro
-        title="IP / 端口 / 服务"
-        description="网络面结果独立成整页表格，后续出现大量开放端口和服务画像时依然能稳定承载。"
+        title="端口"
+        description="目标 IP 的开放端口、运行协议和服务识别结果。"
         actions={
           <Button asChild variant="outline" className="rounded-full px-5">
             <Link href={`/projects/${project.id}`}>返回项目详情</Link>
@@ -35,21 +51,99 @@ export default async function ProjectNetworkResultsPage({
         }
       />
 
-      <SectionCard title="结果表" description={group.description}>
-        {group.items.length === 0 ? (
+      <SectionCard title="扫描结果" description="Nmap 风格的端口与服务一览表。">
+        {assets.length === 0 ? (
           <Empty>
             <EmptyHeader>
               <EmptyMedia>
                 <Network className="h-8 w-8 text-slate-400 dark:text-slate-500" />
               </EmptyMedia>
-              <EmptyTitle>暂无 IP / 端口 / 服务</EmptyTitle>
-              <EmptyDescription>项目执行后，发现的 IP 地址、开放端口和运行服务会出现在这里。</EmptyDescription>
+              <EmptyTitle>暂未发现开放端口</EmptyTitle>
+              <EmptyDescription>暂未发现开放端口。项目启动后，探测工具会自动扫描目标端口。</EmptyDescription>
             </EmptyHeader>
           </Empty>
         ) : (
-          <ProjectInventoryTable group={group} />
+          <div className="overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader className="bg-slate-50/80 dark:bg-slate-900/70">
+                  <TableRow>
+                    <TableHead>IP</TableHead>
+                    <TableHead>端口</TableHead>
+                    <TableHead>协议</TableHead>
+                    <TableHead>服务</TableHead>
+                    <TableHead>产品/版本</TableHead>
+                    <TableHead>状态</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {assets.map((asset) => (
+                    <TableRow key={asset.id} className="bg-white/90 dark:bg-slate-950/70">
+                      <TableCell className="font-mono text-sm text-slate-950 dark:text-white">
+                        {asset.host || asset.label}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {extractPort(asset)}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {extractProtocol(asset.exposure)}
+                      </TableCell>
+                      <TableCell className="text-sm text-slate-700 dark:text-slate-300">
+                        {extractService(asset.profile, asset.exposure)}
+                      </TableCell>
+                      <TableCell className="max-w-[280px] truncate text-sm text-slate-600 dark:text-slate-400">
+                        {extractProduct(asset.profile)}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge tone={scopeTone[asset.scopeStatus]}>
+                          {asset.scopeStatus}
+                        </StatusBadge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
         )}
       </SectionCard>
     </div>
   )
+}
+
+/* ---------------------------------------------------------------------------
+ * Helper functions
+ * ------------------------------------------------------------------------- */
+
+function extractPort(asset: AssetRecord): string {
+  if (asset.type === "port") {
+    return asset.label
+  }
+  const match = asset.label.match(/:(\d+)$/)
+  return match ? match[1] : "-"
+}
+
+function extractProtocol(exposure: string): string {
+  if (!exposure) return "TCP"
+  return exposure.toUpperCase().includes("UDP") ? "UDP" : "TCP"
+}
+
+function extractService(profile: string, exposure: string): string {
+  const combined = `${profile} ${exposure}`.toLowerCase()
+  const knownServices = [
+    "ssh", "http", "https", "ftp", "smtp", "dns", "mysql",
+    "postgresql", "mongodb", "redis", "telnet", "rdp", "smb",
+    "pop3", "imap", "snmp", "ldap", "vnc", "mssql", "oracle",
+  ]
+  for (const svc of knownServices) {
+    if (combined.includes(svc)) {
+      return svc
+    }
+  }
+  return "-"
+}
+
+function extractProduct(profile: string): string {
+  if (!profile) return "-"
+  return profile.length > 60 ? profile.slice(0, 60) + "..." : profile
 }

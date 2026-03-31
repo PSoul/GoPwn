@@ -10,7 +10,7 @@ import { apiFetch } from "@/lib/api-client"
 import type { LlmCallLogRecord, LlmCallRole } from "@/lib/prototype-types"
 
 const roleLabels: Record<LlmCallRole, string> = {
-  orchestrator: "编排推理",
+  orchestrator: "AI 规划推理",
   reviewer: "结论审阅",
   extractor: "数据提取",
 }
@@ -215,7 +215,7 @@ export function ProjectLlmLogPanel({
 
   const roles: Array<{ key: LlmCallRole | "all"; label: string }> = [
     { key: "all", label: "全部" },
-    { key: "orchestrator", label: "编排推理" },
+    { key: "orchestrator", label: "AI 规划推理" },
     { key: "reviewer", label: "结论审阅" },
     { key: "extractor", label: "数据提取" },
   ]
@@ -265,7 +265,7 @@ export function ProjectLlmLogPanel({
         </div>
       ) : logs.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/80 px-6 py-12 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
-          还没有 AI 调用记录。项目开始运行后，LLM 的编排推理和审阅过程会实时记录到这里。
+          还没有 AI 调用记录。项目开始运行后，LLM 的规划推理和审阅过程会实时记录到这里。
         </div>
       ) : (
         <div className="space-y-3">

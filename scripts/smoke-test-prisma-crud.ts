@@ -131,7 +131,7 @@ async function main() {
       type: "域名",
       label: "smoke.example.com",
       profile: "",
-      scopeStatus: "已纳入",
+      scopeStatus: "已确认",
       lastSeen: "",
       host: "smoke.example.com",
       ownership: "",

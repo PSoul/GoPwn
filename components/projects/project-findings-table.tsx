@@ -29,7 +29,7 @@ const severityTone = {
   高危: "danger",
   中危: "warning",
   低危: "info",
-  情报: "neutral",
+  信息: "neutral",
 } as const
 
 const statusTone = {
@@ -82,7 +82,7 @@ export function ProjectFindingsTable({
             <ShieldAlert className="h-8 w-8 text-slate-400 dark:text-slate-500" />
           </EmptyMedia>
           <EmptyTitle>暂无漏洞与发现</EmptyTitle>
-          <EmptyDescription>项目执行后，LLM 和 MCP 工具发现的安全问题会出现在这里。</EmptyDescription>
+          <EmptyDescription>项目执行后，LLM 和探测工具发现的安全问题会出现在这里。</EmptyDescription>
         </EmptyHeader>
       </Empty>
     )

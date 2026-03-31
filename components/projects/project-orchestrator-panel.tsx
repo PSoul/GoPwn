@@ -69,7 +69,7 @@ export function ProjectOrchestratorPanel({
       const payload = (await response.json()) as (OrchestratorPlanPayload & { error?: string }) | { error?: string }
 
       if (!response.ok || !("plan" in payload)) {
-        setErrorMessage(payload.error ?? "编排计划生成失败，请稍后再试。")
+        setErrorMessage(payload.error ?? "AI 规划生成失败，请稍后再试。")
         return
       }
 
@@ -78,9 +78,9 @@ export function ProjectOrchestratorPanel({
         provider: payload.provider,
         lastPlan: payload.plan,
       }))
-      setMessage(`已为 ${lab.name} 刷新本地编排计划。`)
+      setMessage(`已为 ${lab.name} 刷新本地 AI 规划。`)
     } catch {
-      setErrorMessage("编排计划生成失败，请稍后再试。")
+      setErrorMessage("AI 规划生成失败，请稍后再试。")
     } finally {
       setBusyLabId(null)
     }
@@ -137,14 +137,14 @@ export function ProjectOrchestratorPanel({
   return (
     <div className="grid gap-5 xl:grid-cols-[0.92fr_1.08fr]">
       <SectionCard
-        title="LLM 编排与本地闭环"
+        title="AI 规划与本地闭环"
         description="这里专门验证“LLM 先规划、MCP 再落地”的主路径，并用本地靶场演练审批暂停与恢复。"
       >
         <div className="space-y-4">
           <div className="rounded-panel border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
             <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
               <Bot className="h-4 w-4" />
-              <p className="text-sm font-semibold">编排提供方</p>
+              <p className="text-sm font-semibold">AI 规划提供方</p>
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <StubBadge mode={panel.provider.enabled ? "real" : "local"} />
@@ -156,7 +156,7 @@ export function ProjectOrchestratorPanel({
             <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{panel.provider.note}</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div className="rounded-item border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/70">
-                <p className="text-xs text-slate-500 dark:text-slate-400">编排模型</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">规划模型</p>
                 <p className="mt-1 text-sm font-medium text-slate-950 dark:text-white">
                   {panel.provider.orchestratorModel || "未配置"}
                 </p>
@@ -265,7 +265,7 @@ export function ProjectOrchestratorPanel({
       </SectionCard>
 
       <SectionCard
-        title="最近一次编排计划"
+        title="最近一次 AI 规划"
         description="计划只决定下一组能力和顺序，不直接触目标。真正的外部动作仍然交给 MCP 与审批策略处理。"
       >
         {panel.lastPlan ? (
@@ -304,7 +304,7 @@ export function ProjectOrchestratorPanel({
                     <div className="rounded-item border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
                       <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
                         <ShieldCheck className="h-4 w-4" />
-                        <p className="text-sm font-semibold">编排理由</p>
+                        <p className="text-sm font-semibold">规划理由</p>
                       </div>
                       <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{item.rationale}</p>
                     </div>
@@ -330,7 +330,7 @@ export function ProjectOrchestratorPanel({
           </div>
         ) : (
           <div className="rounded-panel border border-dashed border-slate-300 bg-slate-50/80 px-6 py-12 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
-            还没有生成本地编排计划，可以先选择一个靶场做计划生成或闭环验证。
+            还没有生成本地 AI 规划，可以先选择一个靶场做计划生成或闭环验证。
           </div>
         )}
       </SectionCard>

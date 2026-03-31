@@ -142,9 +142,9 @@ test("settings hub leads into dedicated settings subpages", async ({ page }) => 
 
   await Promise.all([
     page.waitForURL(/\/settings\/mcp-tools$/, { timeout: 15_000 }),
-    page.getByRole("link", { name: /MCP 工具管理/ }).first().click(),
+    page.getByRole("link", { name: /探测工具管理/ }).first().click(),
   ])
-  await expect(page.getByRole("heading", { name: "MCP 工具管理" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "探测工具管理" })).toBeVisible()
 })
 
 test("project operations page can generate a local orchestrator plan", async ({ page }) => {
@@ -157,8 +157,8 @@ test("project operations page can generate a local orchestrator plan", async ({ 
   await expect(page.getByRole("tab", { name: "调度" })).toBeVisible()
   await expect(page.getByRole("button", { name: "开始" }).first()).toBeVisible()
 
-  // Expand the collapsed "LLM 编排配置" section to access plan generation
-  await page.getByRole("button", { name: "LLM 编排配置" }).click()
+  // Expand the collapsed "AI 规划配置" section to access plan generation
+  await page.getByRole("button", { name: "AI 规划配置" }).click()
 
   const planResponsePromise = page.waitForResponse(
     (response) =>
@@ -172,8 +172,8 @@ test("project operations page can generate a local orchestrator plan", async ({ 
   const planResponse = await planResponsePromise
   expect(planResponse.ok()).toBe(true)
 
-  await expect(page.getByText(/已为 .* 刷新本地编排计划。/)).toBeVisible({ timeout: 30_000 })
-  await expect(page.getByText("最近一次编排计划")).toBeVisible()
+  await expect(page.getByText(/已为 .* 刷新本地 AI 规划。/)).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText("最近一次 AI 规划")).toBeVisible()
 
   const exportResponsePromise = page.waitForResponse(
     (response) =>

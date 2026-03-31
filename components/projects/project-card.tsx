@@ -10,9 +10,9 @@ import type { ProjectRecord } from "@/lib/prototype-types"
 
 const statusConfig = {
   运行中: { border: "border-l-sky-500", tone: "info" as const, pulse: true },
-  待处理: { border: "border-l-slate-400", tone: "warning" as const, pulse: false },
+  待启动: { border: "border-l-slate-400", tone: "warning" as const, pulse: false },
   已完成: { border: "border-l-emerald-500", tone: "success" as const, pulse: false },
-  已阻塞: { border: "border-l-rose-500", tone: "danger" as const, pulse: false },
+  等待审批: { border: "border-l-rose-500", tone: "danger" as const, pulse: false },
   已暂停: { border: "border-l-amber-500", tone: "warning" as const, pulse: false },
   已停止: { border: "border-l-slate-400", tone: "neutral" as const, pulse: false },
 } as const
@@ -24,7 +24,7 @@ export function ProjectCard({
   project: ProjectRecord
   onArchive?: (project: ProjectRecord) => void
 }) {
-  const config = statusConfig[project.status] ?? statusConfig["待处理"]
+  const config = statusConfig[project.status] ?? statusConfig["待启动"]
 
   return (
     <div
