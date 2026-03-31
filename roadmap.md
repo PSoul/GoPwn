@@ -670,6 +670,28 @@
 - [x] 零功能变更 — 所有行为完全保留
 - [x] Design spec: `docs/superpowers/specs/2026-03-30-architecture-refactoring-design.md`
 
+## Phase 20: Continued Refactoring — 二级模块拆分
+
+- Status: Completed on `2026-03-31`
+- Branch: `feat/phase20-continued-refactoring` (待合并至 main)
+- Goal: 对 5 个 460-790 行大文件做二级拆分，每个文件 < 400 行，原文件变为 barrel re-export，零 import 站点变更。
+
+### 交付清单
+
+1. **Split `api-compositions.ts`** (780 行 → 4 行 barrel) — 拆为 `lib/compositions/` 下 4 个子模块（dashboard/project/settings/control）
+2. **Split `project-results-repository.ts`** (790 行 → 3 行 barrel) — 拆为 `lib/results/` 下 3 个子模块（core/conclusion-service/report-repository），循环依赖通过将结论查询放入 core 解决
+3. **Split `mcp-gateway-repository.ts`** (486 行 → 2 行 barrel) — 拆为 `lib/gateway/` 下 2 个子模块（run-repository/dispatch-service）
+4. **Split `project-scheduler-control-repository.ts`** (533 行 → 2 行 barrel) — 拆为 `lib/scheduler-control/` 下 3 个子模块（helpers/core/task-commands）
+5. **Split `project-repository.ts`** (460 行 → 2 行 barrel) — 拆为 `lib/project/` 下 2 个子模块（read-repository/mutation-repository）
+
+### 验收标准
+
+- [x] 5 个大文件拆分为 14 个 < 400 行子模块
+- [x] 零 import 站点变更（barrel re-export 模式）
+- [x] 178/178 单元测试通过，33 跳过
+- [x] 14/14 E2E 测试通过
+- [x] 零功能变更 — 所有行为完全保留
+
 ## Recommended Next Phase
 
 - Name: `Phase 18 - 真实渗透测试闭环验证 (Real Pentest Closure)`

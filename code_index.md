@@ -1,7 +1,7 @@
 # 代码索引 (Code Index)
 
 > 本文件是项目代码的完整索引，帮助开发者和 LLM 快速了解每个文件的用途。
-> 最后更新: 2026-03-30
+> 最后更新: 2026-03-31
 
 ## 项目概览
 
@@ -127,7 +127,7 @@
 | `lib/prisma-transforms.ts` | Prisma DB 模型 ↔ TypeScript 接口双向转换（20+ 模型类型：Project/Finding/Evidence/McpRun/Approval 等） |
 | `lib/prototype-store.ts` | 遗留文件系统数据存储（仅保留类型定义和 `getDefaultProjectFormPreset`，运行时不再使用文件 I/O） |
 | `lib/prototype-types.ts` | 类型再导出桶文件（~10 行），从 `lib/types/` 目录重新导出所有类型 |
-| `lib/api-compositions.ts` | 页面级数据组合层（~580 行）— 8 个组合函数 + buildAssetViews + getSystemStatusPayload；替代已删除的 `prototype-api.ts` |
+| `lib/api-compositions.ts` | 组合层桶文件（~4 行），重新导出 `lib/compositions/` 下 4 个子模块 |
 | `lib/prototype-data.ts` | 初始化种子数据 |
 
 ### 类型定义 (lib/types/)
@@ -196,8 +196,8 @@
 
 | 文件 | 用途 |
 |------|------|
-| `lib/project-repository.ts` | 项目 CRUD（Prisma） |
-| `lib/project-results-repository.ts` | 项目结果：发现/结论/报告（Prisma） |
+| `lib/project-repository.ts` | 项目仓库桶文件，重新导出 `lib/project/` 下 2 个子模块 |
+| `lib/project-results-repository.ts` | 项目结果桶文件，重新导出 `lib/results/` 下 3 个子模块 |
 | `lib/approval-repository.ts` | 审批数据访问（Prisma） |
 | `lib/asset-repository.ts` | 资产数据访问（Prisma） |
 | `lib/evidence-repository.ts` | 证据数据访问（Prisma） |
@@ -351,3 +351,41 @@
 - 新增 `lib/orchestrator-plan-builder.ts` — 计划生成、规范化、回退模板
 - 新增 `lib/orchestrator-execution.ts` — 计划执行、轮次记录、多轮循环
 - 新增 `lib/orchestrator-local-lab.ts` — 本地靶场验证计划构建
+
+### Phase 20: Continued Refactoring — 二级模块拆分 (2026-03-31)
+
+5 个 460-790 行大文件拆分为 14 个 < 400 行子模块，原文件变为 barrel re-export（零 import 站点变更）：
+
+**`lib/compositions/`** — 从 `api-compositions.ts` (780 行) 拆出：
+| 文件 | 用途 |
+|------|------|
+| `dashboard-compositions.ts` | 仪表盘聚合（getDashboardPayload + getSystemStatusPayload + 全部 private helpers） |
+| `project-compositions.ts` | 项目查询组合（buildAssetViews, getProjectOperationsPayload, getProjectContextPayload） |
+| `settings-compositions.ts` | 设置聚合（getSettingsSectionsPayload, getMcpSettingsPayload） |
+| `control-compositions.ts` | 审批/调度控制动作（updateApprovalDecisionPayload 等） |
+
+**`lib/results/`** — 从 `project-results-repository.ts` (790 行) 拆出：
+| 文件 | 用途 |
+|------|------|
+| `project-results-core.ts` | 刷新 + 发现 + 结论查询（refreshStoredProjectResults 等） |
+| `project-conclusion-service.ts` | AI 结论生成（generateStoredProjectFinalConclusion） |
+| `project-report-repository.ts` | 报告导出（listStoredProjectReportExports 等） |
+
+**`lib/gateway/`** — 从 `mcp-gateway-repository.ts` (486 行) 拆出：
+| 文件 | 用途 |
+|------|------|
+| `mcp-run-repository.ts` | MCP Run CRUD（list/get/update） |
+| `mcp-dispatch-service.ts` | 调度分发 + 审批（dispatchStoredMcpRun, syncStoredMcpRunsAfterApprovalDecision） |
+
+**`lib/scheduler-control/`** — 从 `project-scheduler-control-repository.ts` (533 行) 拆出：
+| 文件 | 用途 |
+|------|------|
+| `scheduler-control-helpers.ts` | 共享审计日志 helpers（内部模块，不在 barrel 中） |
+| `scheduler-control-core.ts` | 调度状态读写（getStoredProjectSchedulerControl, updateStoredProjectSchedulerControl） |
+| `scheduler-task-commands.ts` | 任务停止/取消/重试命令 |
+
+**`lib/project/`** — 从 `project-repository.ts` (460 行) 拆出：
+| 文件 | 用途 |
+|------|------|
+| `project-read-repository.ts` | 只读查询（listStoredProjects, getStoredProjectById 等） |
+| `project-mutation-repository.ts` | 创建/更新/归档（createStoredProject, updateStoredProject, archiveStoredProject） |
