@@ -18,18 +18,14 @@ import {
   normalizePlanItems,
   normalizePlanRecord,
   persistProjectOrchestratorPlan,
-  findCapabilityByKeywords,
 } from "@/lib/orchestrator-plan-builder"
 import { filterPlanItemsToProjectScope } from "@/lib/orchestrator-target-scope"
 import type {
   ApprovalRecord,
-  LlmProviderStatus,
   McpRunRecord,
   OrchestratorPlanItem,
   OrchestratorPlanPayload,
-  OrchestratorPlanRecord,
   OrchestratorRoundRecord,
-  ProjectRecord,
 } from "@/lib/prototype-types"
 
 export type DispatchPlanResult = {

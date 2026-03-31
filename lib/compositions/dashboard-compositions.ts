@@ -24,7 +24,6 @@ import type {
   DashboardPayload,
   DashboardRecentResultRecord,
   DashboardSystemRecord,
-  LlmProfileRecord,
   McpToolRecord,
   ProjectRecord,
   SystemStatusPayload,

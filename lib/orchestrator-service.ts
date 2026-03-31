@@ -4,7 +4,6 @@ import { buildLocalLabPlanSummary, getLocalLabById, listLocalLabs } from "@/lib/
 import { listStoredAssets } from "@/lib/asset-repository"
 import { listStoredEvidence } from "@/lib/evidence-repository"
 import { listStoredProjectApprovals } from "@/lib/approval-repository"
-import { dispatchProjectMcpRunAndDrain } from "@/lib/project-mcp-dispatch-service"
 import { formatTimestamp } from "@/lib/prototype-record-utils"
 import { getStoredProjectById } from "@/lib/project-repository"
 import { listStoredProjectFindings } from "@/lib/project-results-repository"

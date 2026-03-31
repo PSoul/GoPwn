@@ -1,5 +1,5 @@
 import { findStoredEnabledMcpServerByToolBinding } from "@/lib/mcp-server-repository"
-import { isWebGoatBaseUrl, normalizeUrlTarget, parseTcpTarget } from "@/lib/orchestrator-target-scope"
+import { isWebGoatBaseUrl, normalizeUrlTarget } from "@/lib/orchestrator-target-scope"
 import {
   appendUniquePlanItem,
   buildTcpLabFallbackPlanItems,

@@ -125,7 +125,6 @@ function isTargetWithinProjectScope(project: ProjectRecord, candidateTarget: str
   }
 
   const candidateHost = extractComparableHost(candidate)
-  const candidateType = classifyTarget(candidateHost)
 
   return project.targets.some((projectTarget) => {
     const normalizedProjectTarget = projectTarget.trim()

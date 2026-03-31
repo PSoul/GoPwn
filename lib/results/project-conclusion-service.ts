@@ -3,7 +3,6 @@ import { resolveLlmProvider } from "@/lib/llm-provider/registry"
 import { prisma } from "@/lib/prisma"
 import {
   toProjectRecord,
-  toProjectConclusionRecord,
   fromProjectConclusionRecord,
   toLogRecord,
 } from "@/lib/prisma-transforms"
