@@ -177,7 +177,7 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
           {summaryCards.map((card) => (
             <div
               key={card.label}
-              className="rounded-[22px] border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60"
+              className="rounded-item border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60"
             >
               <p className="text-xs text-slate-500 dark:text-slate-400">{card.label}</p>
               <div className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">{card.value}</div>
@@ -187,13 +187,13 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
         </div>
 
         {lastArchivedProject ? (
-          <div className="rounded-[22px] border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/80 dark:bg-amber-950/30 dark:text-amber-100">
+          <div className="rounded-item border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/80 dark:bg-amber-950/30 dark:text-amber-100">
             {lastArchivedProject} 已归档，并已写入本地持久化存储与审计日志。
           </div>
         ) : null}
 
         {archiveError ? (
-          <div className="rounded-[22px] border border-rose-200 bg-rose-50/90 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100">
+          <div className="rounded-item border border-rose-200 bg-rose-50/90 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100">
             {archiveError}
           </div>
         ) : null}
@@ -222,7 +222,7 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
       </div>
 
       <AlertDialog open={Boolean(pendingArchive)} onOpenChange={(open) => !open && setPendingArchive(null)}>
-        <AlertDialogContent className="rounded-[28px] border-slate-200 dark:border-slate-800">
+        <AlertDialogContent className="rounded-card border-slate-200 dark:border-slate-800">
           <AlertDialogHeader>
             <AlertDialogTitle>确认关闭项目</AlertDialogTitle>
             <AlertDialogDescription>

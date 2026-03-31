@@ -1,6 +1,5 @@
 import { ProjectForm } from "@/components/projects/project-form"
 import { PageHeader } from "@/components/shared/page-header"
-import { getStoredProjectFormPreset } from "@/lib/project-repository"
 import { getDefaultProjectFormPreset } from "@/lib/prototype-store"
 
 export default async function NewProjectPage() {

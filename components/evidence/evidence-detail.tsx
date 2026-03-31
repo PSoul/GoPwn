@@ -60,8 +60,8 @@ export function EvidenceDetail({
           </SectionCard>
 
           <SectionCard title="截图" eyebrow="Screenshot" description="截图不是装饰，而是帮助研究员快速确认页面上下文与肉眼可见线索。">
-            <div className="rounded-[28px] border border-slate-200/80 bg-[linear-gradient(135deg,_rgba(14,165,233,0.16),_rgba(15,23,42,0.03))] p-6 dark:border-slate-800 dark:bg-[linear-gradient(135deg,_rgba(14,165,233,0.2),_rgba(2,6,23,0.5))]">
-              <div className="rounded-[24px] border border-white/70 bg-white/80 p-5 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.4)] dark:border-slate-700 dark:bg-slate-900/80">
+            <div className="rounded-card border border-slate-200/80 bg-[linear-gradient(135deg,_rgba(14,165,233,0.16),_rgba(15,23,42,0.03))] p-6 dark:border-slate-800 dark:bg-[linear-gradient(135deg,_rgba(14,165,233,0.2),_rgba(2,6,23,0.5))]">
+              <div className="rounded-panel border border-white/70 bg-white/80 p-5 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.4)] dark:border-slate-700 dark:bg-slate-900/80">
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-2">
                     <div className="h-2.5 w-2.5 rounded-full bg-rose-400" />

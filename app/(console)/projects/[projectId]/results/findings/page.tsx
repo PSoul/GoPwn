@@ -35,7 +35,7 @@ export default async function ProjectFindingsResultsPage({
       />
 
       <SectionCard title="结果表" description="问题结果按表格呈现，方便后续扩展排序、筛选和批量处理。">
-        <ProjectFindingsTable findings={findings} projectId={project.id} projectStatus={project.status} />
+        <ProjectFindingsTable findings={findings} projectId={project.id} />
       </SectionCard>
     </div>
   )

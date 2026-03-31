@@ -144,7 +144,7 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
           description="保存后会进入项目工作台，优先查看结果表、阶段流转和任务调度。"
         >
           {errorMessage ? (
-            <div className="mb-4 rounded-[22px] border border-rose-200 bg-rose-50/90 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100">
+            <div className="mb-4 rounded-item border border-rose-200 bg-rose-50/90 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100">
               {errorMessage}
             </div>
           ) : null}
@@ -169,7 +169,7 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
       <div className="space-y-5">
         <SectionCard title="项目预览" description="右侧预览帮助研究员确认当前项目输入会如何进入工作台。">
           <div className="space-y-4">
-            <div className="rounded-[22px] border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
+            <div className="rounded-item border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
               <div className="mb-2 flex items-center gap-2">
                 <FolderKanban className="h-4 w-4 text-slate-500" />
                 <p className="text-sm font-semibold text-slate-950 dark:text-white">{watchedValues.name || "未命名项目"}</p>
@@ -177,7 +177,7 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
               <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{watchedValues.description || "还没有填写项目说明。"}</p>
             </div>
 
-            <div className="rounded-[22px] border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/70">
+            <div className="rounded-item border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/70">
               <div className="mb-2 flex items-center gap-2">
                 <ListTree className="h-4 w-4 text-slate-500" />
                 <p className="text-sm font-semibold text-slate-950 dark:text-white">目标拆分预览</p>
@@ -201,7 +201,7 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
               </div>
             </div>
 
-            <div className="rounded-[22px] border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/70">
+            <div className="rounded-item border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/70">
               <div className="mb-2 flex items-center gap-2">
                 <ScanSearch className="h-4 w-4 text-slate-500" />
                 <p className="text-sm font-semibold text-slate-950 dark:text-white">工作台提示</p>

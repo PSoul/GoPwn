@@ -67,7 +67,7 @@ export function ProjectReportExportPanel({
       description="这里提供可见的闭环出口。触发后会走 MCP 调度链路，并把最新导出摘要回写到项目操作页。"
     >
       <div className="grid gap-4 xl:grid-cols-[0.76fr_1.24fr]">
-        <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
+        <div className="rounded-panel border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
           <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
             <Download className="h-4 w-4" />
             <p className="text-sm font-semibold">闭环导出入口</p>
@@ -75,7 +75,7 @@ export function ProjectReportExportPanel({
           <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
             在项目操作页直接触发一次报告导出，并查看最近一次导出的摘要、产物计数和结果要点。
           </p>
-          <div className="mt-4 flex items-center justify-between gap-3 rounded-[20px] border border-slate-200/80 bg-white/90 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/70">
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-item border border-slate-200/80 bg-white/90 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/70">
             <div className="space-y-1">
               <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">导出次数</p>
               <p className="text-lg font-semibold text-slate-950 dark:text-white">{payload.totalExports}</p>
@@ -90,18 +90,18 @@ export function ProjectReportExportPanel({
             </Button>
           </div>
           {message ? (
-            <div className="mt-4 rounded-[20px] border border-emerald-200/80 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100">
+            <div className="mt-4 rounded-item border border-emerald-200/80 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100">
               {message}
             </div>
           ) : null}
           {errorMessage ? (
-            <div className="mt-4 rounded-[20px] border border-rose-200/80 bg-rose-50/80 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100">
+            <div className="mt-4 rounded-item border border-rose-200/80 bg-rose-50/80 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100">
               {errorMessage}
             </div>
           ) : null}
         </div>
 
-        <div className="rounded-[24px] border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70">
+        <div className="rounded-panel border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
               <FileText className="h-4 w-4" />
@@ -114,26 +114,26 @@ export function ProjectReportExportPanel({
 
           {latest ? (
             <div className="mt-4 space-y-4">
-              <div className="rounded-[20px] border border-slate-200/80 bg-slate-50/80 p-4 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
+              <div className="rounded-item border border-slate-200/80 bg-slate-50/80 p-4 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
                 {latest.summary}
               </div>
 
               <div className="grid gap-3 md:grid-cols-3">
-                <div className="rounded-[18px] border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/70">
+                <div className="rounded-item border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/70">
                   <p className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">资产</p>
                   <p className="mt-1 text-xl font-semibold text-slate-950 dark:text-white">{latest.assetCount}</p>
                 </div>
-                <div className="rounded-[18px] border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/70">
+                <div className="rounded-item border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/70">
                   <p className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">证据</p>
                   <p className="mt-1 text-xl font-semibold text-slate-950 dark:text-white">{latest.evidenceCount}</p>
                 </div>
-                <div className="rounded-[18px] border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/70">
+                <div className="rounded-item border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/70">
                   <p className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">漏洞与发现</p>
                   <p className="mt-1 text-xl font-semibold text-slate-950 dark:text-white">{latest.findingCount}</p>
                 </div>
               </div>
 
-              <div className="rounded-[20px] border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
+              <div className="rounded-item border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
                 <p className="text-sm font-semibold text-slate-950 dark:text-white">导出摘要</p>
                 <div className="mt-2 space-y-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
                   {latest.digestLines.length > 0 ? (
@@ -146,7 +146,7 @@ export function ProjectReportExportPanel({
               </div>
 
               {finalConclusion ? (
-                <div className="rounded-[20px] border border-emerald-200/80 bg-emerald-50/80 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+                <div className="rounded-item border border-emerald-200/80 bg-emerald-50/80 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/30">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-semibold text-slate-950 dark:text-white">最终结论</p>
                     <StatusBadge tone={finalConclusion.source === "reviewer" ? "success" : "info"}>
@@ -157,13 +157,13 @@ export function ProjectReportExportPanel({
                   <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">生成时间：{finalConclusion.generatedAt}</p>
                 </div>
               ) : latest.conclusionSummary ? (
-                <div className="rounded-[20px] border border-emerald-200/80 bg-emerald-50/80 p-4 text-sm leading-6 text-slate-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-slate-200">
+                <div className="rounded-item border border-emerald-200/80 bg-emerald-50/80 p-4 text-sm leading-6 text-slate-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-slate-200">
                   {latest.conclusionSummary}
                 </div>
               ) : null}
             </div>
           ) : (
-            <div className="mt-4 rounded-[20px] border border-dashed border-slate-300 bg-slate-50/80 px-6 py-10 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
+            <div className="mt-4 rounded-item border border-dashed border-slate-300 bg-slate-50/80 px-6 py-10 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
               当前项目还没有导出记录。点击“导出项目报告”后，这里会展示最新闭环结果。
             </div>
           )}

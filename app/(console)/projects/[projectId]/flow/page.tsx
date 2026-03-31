@@ -50,15 +50,15 @@ export default async function ProjectFlowPage({
 
       <SectionCard title="当前阶段摘要" description={detail.target}>
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
+          <div className="rounded-panel border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
             <p className="text-xs text-slate-500 dark:text-slate-400">当前阶段</p>
             <p className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">{detail.currentStage.title}</p>
           </div>
-          <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
+          <div className="rounded-panel border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
             <p className="text-xs text-slate-500 dark:text-slate-400">阶段负责人</p>
             <p className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">{detail.currentStage.owner}</p>
           </div>
-          <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
+          <div className="rounded-panel border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
             <p className="text-xs text-slate-500 dark:text-slate-400">最近更新</p>
             <p className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">{detail.currentStage.updatedAt}</p>
           </div>

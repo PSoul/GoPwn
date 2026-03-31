@@ -22,12 +22,12 @@ export function DashboardAssetPreview({ views }: { views: AssetCollectionView[] 
 
   if (!selectedView) {
     return (
-      <section className="rounded-[32px] border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
+      <section className="rounded-hero border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
         <div className="flex items-center gap-2 text-[15px] font-semibold text-slate-950 dark:text-white">
           <Boxes className="h-4 w-4" />
           全局资产预览
         </div>
-        <div className="mt-5 rounded-[28px] border border-dashed border-slate-300 bg-slate-50/85 px-6 py-14 text-center dark:border-slate-700 dark:bg-slate-900/60">
+        <div className="mt-5 rounded-card border border-dashed border-slate-300 bg-slate-50/85 px-6 py-14 text-center dark:border-slate-700 dark:bg-slate-900/60">
           <p className="text-sm font-medium text-slate-950 dark:text-white">当前还没有真实资产回流</p>
           <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
             创建项目并开始执行后，域名、IP、端口、服务与指纹会自动沉淀到这里。
@@ -40,7 +40,7 @@ export function DashboardAssetPreview({ views }: { views: AssetCollectionView[] 
   const pendingCount = selectedView.items.filter((asset) => asset.scopeStatus !== "已纳入").length
 
   return (
-    <section className="rounded-[32px] border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
+    <section className="rounded-hero border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
       <div className="flex flex-col gap-4 border-b border-slate-200/80 pb-4 dark:border-slate-800">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -68,7 +68,7 @@ export function DashboardAssetPreview({ views }: { views: AssetCollectionView[] 
         </div>
 
         <Tabs value={selectedView.key} onValueChange={(value) => setSelectedKey(value as AssetCollectionView["key"])}>
-          <TabsList className="h-auto w-full justify-start gap-2 overflow-x-auto rounded-[24px] bg-slate-100/85 p-2 dark:bg-slate-900/80">
+          <TabsList className="h-auto w-full justify-start gap-2 overflow-x-auto rounded-panel bg-slate-100/85 p-2 dark:bg-slate-900/80">
             {views.map((view) => (
               <TabsTrigger
                 key={view.key}

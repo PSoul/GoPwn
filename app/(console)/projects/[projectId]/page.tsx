@@ -17,8 +17,6 @@ export default async function ProjectDetailPage({
     notFound()
   }
 
-  const data = { project, detail }
-
   return (
     <div className="space-y-4">
       <ProjectSummary project={project} detail={detail} />

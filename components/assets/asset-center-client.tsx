@@ -78,7 +78,7 @@ export function AssetCenterClient({
         {summaryCards.map((card) => (
           <div
             key={card.label}
-            className="rounded-[28px] border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-950"
+            className="rounded-card border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-950"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -94,7 +94,7 @@ export function AssetCenterClient({
         ))}
       </div>
 
-      <section className="rounded-[32px] border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
+      <section className="rounded-hero border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
         <div className="flex flex-col gap-4 border-b border-slate-200/80 pb-4 dark:border-slate-800">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -121,7 +121,7 @@ export function AssetCenterClient({
           </div>
 
           <Tabs value={selectedView.key} onValueChange={handleViewChange}>
-            <TabsList className="h-auto w-full justify-start gap-2 overflow-x-auto rounded-[24px] bg-slate-100/85 p-2 dark:bg-slate-900/80">
+            <TabsList className="h-auto w-full justify-start gap-2 overflow-x-auto rounded-panel bg-slate-100/85 p-2 dark:bg-slate-900/80">
               {views.map((view) => (
                 <TabsTrigger
                   key={view.key}

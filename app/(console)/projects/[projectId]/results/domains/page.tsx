@@ -1,10 +1,12 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { Globe } from "lucide-react"
 
 import { ProjectInventoryTable } from "@/components/projects/project-inventory-table"
 import { ProjectWorkspaceIntro } from "@/components/projects/project-workspace-intro"
 import { SectionCard } from "@/components/shared/section-card"
 import { Button } from "@/components/ui/button"
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
 import { getStoredProjectById, getStoredProjectDetailById } from "@/lib/project-repository"
 
 export default async function ProjectDomainsResultsPage({
@@ -34,7 +36,19 @@ export default async function ProjectDomainsResultsPage({
       />
 
       <SectionCard title="结果表" description={group.description}>
-        <ProjectInventoryTable group={group} />
+        {group.items.length === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia>
+                <Globe className="h-8 w-8 text-slate-400 dark:text-slate-500" />
+              </EmptyMedia>
+              <EmptyTitle>暂无域名 / Web 入口</EmptyTitle>
+              <EmptyDescription>项目执行后，发现的域名和 Web 入口会出现在这里。</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <ProjectInventoryTable group={group} />
+        )}
       </SectionCard>
     </div>
   )

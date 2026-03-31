@@ -141,7 +141,7 @@ export function ProjectOrchestratorPanel({
         description="这里专门验证“LLM 先规划、MCP 再落地”的主路径，并用本地靶场演练审批暂停与恢复。"
       >
         <div className="space-y-4">
-          <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
+          <div className="rounded-panel border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
             <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
               <Bot className="h-4 w-4" />
               <p className="text-sm font-semibold">编排提供方</p>
@@ -155,13 +155,13 @@ export function ProjectOrchestratorPanel({
             </div>
             <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{panel.provider.note}</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-[20px] border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/70">
+              <div className="rounded-item border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/70">
                 <p className="text-xs text-slate-500 dark:text-slate-400">编排模型</p>
                 <p className="mt-1 text-sm font-medium text-slate-950 dark:text-white">
                   {panel.provider.orchestratorModel || "未配置"}
                 </p>
               </div>
-              <div className="rounded-[20px] border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/70">
+              <div className="rounded-item border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/70">
                 <p className="text-xs text-slate-500 dark:text-slate-400">Base URL</p>
                 <p className="mt-1 text-sm font-medium text-slate-950 dark:text-white">
                   {panel.provider.baseUrl || "未配置"}
@@ -170,7 +170,7 @@ export function ProjectOrchestratorPanel({
             </div>
           </div>
 
-          <label className="flex cursor-pointer items-center justify-between gap-4 rounded-[24px] border border-slate-200/80 bg-white/90 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/70">
+          <label className="flex cursor-pointer items-center justify-between gap-4 rounded-panel border border-slate-200/80 bg-white/90 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/70">
             <div>
               <span className="text-sm font-semibold text-slate-950 dark:text-white">审批演练开关</span>
               <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
@@ -185,19 +185,19 @@ export function ProjectOrchestratorPanel({
           </label>
 
           {readOnlyReason ? (
-            <div className="rounded-[20px] border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+            <div className="rounded-item border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
               {readOnlyReason}
             </div>
           ) : null}
 
           {message ? (
-            <div className="rounded-[20px] border border-emerald-200/80 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100">
+            <div className="rounded-item border border-emerald-200/80 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100">
               {message}
             </div>
           ) : null}
 
           {errorMessage ? (
-            <div className="rounded-[20px] border border-rose-200/80 bg-rose-50/80 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100">
+            <div className="rounded-item border border-rose-200/80 bg-rose-50/80 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100">
               {errorMessage}
             </div>
           ) : null}
@@ -209,7 +209,7 @@ export function ProjectOrchestratorPanel({
               return (
                 <div
                   key={lab.id}
-                  className="rounded-[24px] border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70"
+                  className="rounded-panel border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -226,11 +226,11 @@ export function ProjectOrchestratorPanel({
                   </div>
 
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <div className="rounded-[20px] border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
+                    <div className="rounded-item border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
                       <p className="text-xs text-slate-500 dark:text-slate-400">入口</p>
                       <p className="mt-1 text-sm font-medium text-slate-950 dark:text-white">{lab.baseUrl}</p>
                     </div>
-                    <div className="rounded-[20px] border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
+                    <div className="rounded-item border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
                       <p className="text-xs text-slate-500 dark:text-slate-400">端口映射</p>
                       <p className="mt-1 text-sm font-medium text-slate-950 dark:text-white">{lab.ports.join(" / ")}</p>
                     </div>
@@ -270,7 +270,7 @@ export function ProjectOrchestratorPanel({
       >
         {panel.lastPlan ? (
           <div className="space-y-4">
-            <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
+            <div className="rounded-panel border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
               <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge tone="info">{panel.lastPlan.provider}</StatusBadge>
                 <StatusBadge tone="neutral">{panel.lastPlan.generatedAt}</StatusBadge>
@@ -282,7 +282,7 @@ export function ProjectOrchestratorPanel({
               {(planExpanded ? panel.lastPlan.items : panel.lastPlan.items.slice(0, 3)).map((item, index) => (
                 <div
                   key={`${item.capability}-${item.target}-${index}`}
-                  className="rounded-[24px] border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70"
+                  className="rounded-panel border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -297,11 +297,11 @@ export function ProjectOrchestratorPanel({
                     </StatusBadge>
                   </div>
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <div className="rounded-[20px] border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
+                    <div className="rounded-item border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
                       <p className="text-xs text-slate-500 dark:text-slate-400">目标</p>
                       <p className="mt-1 text-sm font-medium text-slate-950 dark:text-white">{item.target}</p>
                     </div>
-                    <div className="rounded-[20px] border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
+                    <div className="rounded-item border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
                       <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
                         <ShieldCheck className="h-4 w-4" />
                         <p className="text-sm font-semibold">编排理由</p>
@@ -329,7 +329,7 @@ export function ProjectOrchestratorPanel({
             </div>
           </div>
         ) : (
-          <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50/80 px-6 py-12 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
+          <div className="rounded-panel border border-dashed border-slate-300 bg-slate-50/80 px-6 py-12 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
             还没有生成本地编排计划，可以先选择一个靶场做计划生成或闭环验证。
           </div>
         )}

@@ -68,6 +68,10 @@ const config: Config = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        hero: "36px",
+        card: "28px",
+        panel: "24px",
+        item: "22px",
       },
       keyframes: {
         "accordion-down": {

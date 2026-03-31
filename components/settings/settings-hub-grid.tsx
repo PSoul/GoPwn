@@ -11,7 +11,7 @@ export function SettingsHubGrid({ sections }: { sections: SettingsSectionRecord[
         <Link
           key={section.href}
           href={section.href}
-          className="group rounded-[28px] border border-slate-200/80 bg-white/90 p-5 transition-transform hover:-translate-y-0.5 dark:border-slate-800 dark:bg-slate-950/70"
+          className="group rounded-card border border-slate-200/80 bg-white/90 p-5 transition-transform hover:-translate-y-0.5 dark:border-slate-800 dark:bg-slate-950/70"
         >
           <div className="flex items-start justify-between gap-3">
             <div>

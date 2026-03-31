@@ -438,7 +438,7 @@ export function AssetTable({
   return (
     <div className={cn("space-y-4", className)}>
       {showControls ? (
-        <div className="flex flex-col gap-3 rounded-[28px] border border-slate-200/80 bg-slate-50/85 p-4 dark:border-slate-800 dark:bg-slate-900/70">
+        <div className="flex flex-col gap-3 rounded-card border border-slate-200/80 bg-slate-50/85 p-4 dark:border-slate-800 dark:bg-slate-900/70">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-sm font-medium text-slate-950 dark:text-white">{view.label}</p>
@@ -479,7 +479,7 @@ export function AssetTable({
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-950">
+      <div className="overflow-hidden rounded-card border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-950">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-slate-50/85 dark:bg-slate-900/80">

@@ -36,7 +36,7 @@ export function ProjectKnowledgeTabs({
 
         <TabsContent value="证据与日志" className="space-y-3">
           {evidence.map((record) => (
-            <div key={record.id} className="rounded-[22px] border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
+            <div key={record.id} className="rounded-item border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <Link href={`/evidence/${record.id}`} className="text-sm font-semibold text-slate-950 hover:text-slate-700 dark:text-white dark:hover:text-slate-200">
@@ -55,7 +55,7 @@ export function ProjectKnowledgeTabs({
 
         <TabsContent value="审批记录" className="space-y-3">
           {approvals.map((approval) => (
-            <div key={approval.id} className="rounded-[22px] border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
+            <div key={approval.id} className="rounded-item border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-slate-950 dark:text-white">{approval.actionType}</p>
@@ -80,7 +80,7 @@ export function ProjectKnowledgeTabs({
 
         <TabsContent value="资产中心条目" className="space-y-3">
           {assets.map((asset) => (
-            <div key={asset.id} className="rounded-[22px] border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
+            <div key={asset.id} className="rounded-item border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <Link href={`/assets/${asset.id}`} className="text-sm font-semibold text-slate-950 hover:text-slate-700 dark:text-white dark:hover:text-slate-200">
@@ -121,7 +121,7 @@ function CardItem({
   tone: "neutral" | "info" | "success" | "warning" | "danger"
 }) {
   return (
-    <div className="rounded-[22px] border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
+    <div className="rounded-item border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-slate-950 dark:text-white">{title}</p>

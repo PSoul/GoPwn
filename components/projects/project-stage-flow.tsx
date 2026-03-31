@@ -24,7 +24,7 @@ export function ProjectStageFlow({ detail }: { detail: ProjectDetailRecord }) {
                 </div>
                 {index < detail.timeline.length - 1 ? <ArrowRight className="hidden h-4 w-4 text-slate-400 md:block" /> : null}
               </div>
-              <div className="rounded-[22px] border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
+              <div className="rounded-item border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <p className="font-medium text-slate-950 dark:text-white">{stage.title}</p>
                   <StatusBadge tone={toneMap[stage.state]}>{stage.state}</StatusBadge>
@@ -36,17 +36,17 @@ export function ProjectStageFlow({ detail }: { detail: ProjectDetailRecord }) {
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-[22px] border border-rose-200 bg-rose-50/80 p-5 dark:border-rose-900/80 dark:bg-rose-950/40">
+          <div className="rounded-item border border-rose-200 bg-rose-50/80 p-5 dark:border-rose-900/80 dark:bg-rose-950/40">
             <p className="text-sm font-semibold text-rose-700 dark:text-rose-200">当前阻塞</p>
             <p className="mt-2 text-sm leading-6 text-rose-800/90 dark:text-rose-100/90">{detail.blockingReason}</p>
           </div>
 
-          <div className="rounded-[22px] border border-sky-200 bg-sky-50/80 p-5 dark:border-sky-900/80 dark:bg-sky-950/40">
+          <div className="rounded-item border border-sky-200 bg-sky-50/80 p-5 dark:border-sky-900/80 dark:bg-sky-950/40">
             <p className="text-sm font-semibold text-sky-700 dark:text-sky-200">下一步建议</p>
             <p className="mt-2 text-sm leading-6 text-sky-800/90 dark:text-sky-100/90">{detail.nextStep}</p>
           </div>
 
-          <div className="rounded-[22px] border border-amber-200 bg-amber-50/80 p-5 dark:border-amber-900/80 dark:bg-amber-950/40">
+          <div className="rounded-item border border-amber-200 bg-amber-50/80 p-5 dark:border-amber-900/80 dark:bg-amber-950/40">
             <div className="mb-2 flex items-center gap-2">
               <GitBranch className="h-4 w-4 text-amber-700 dark:text-amber-200" />
               <p className="text-sm font-semibold text-amber-700 dark:text-amber-200">回流提示</p>

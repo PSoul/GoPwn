@@ -136,7 +136,7 @@ export function ApprovalDetailSheet({
       </div>
 
       <AlertDialog open={Boolean(pendingDecision)} onOpenChange={(open) => { if (!open) setPendingDecision(null) }}>
-        <AlertDialogContent className="rounded-[28px] border-slate-200 dark:border-slate-800">
+        <AlertDialogContent className="rounded-card border-slate-200 dark:border-slate-800">
           <AlertDialogHeader>
             <AlertDialogTitle>
               {pendingDecision === "已拒绝" ? "确认拒绝动作" : "确认批准并进入调度"}

@@ -292,7 +292,7 @@ export function ProjectSchedulerRuntimePanel({
       )}
 
       <AlertDialog open={pendingStop} onOpenChange={(open) => { if (!open) setPendingStop(false) }}>
-        <AlertDialogContent className="rounded-[28px] border-slate-200 dark:border-slate-800">
+        <AlertDialogContent className="rounded-card border-slate-200 dark:border-slate-800">
           <AlertDialogHeader>
             <AlertDialogTitle>确认停止项目</AlertDialogTitle>
             <AlertDialogDescription>
@@ -312,7 +312,7 @@ export function ProjectSchedulerRuntimePanel({
       </AlertDialog>
 
       <AlertDialog open={Boolean(pendingCancel)} onOpenChange={(open) => { if (!open) setPendingCancel(null) }}>
-        <AlertDialogContent className="rounded-[28px] border-slate-200 dark:border-slate-800">
+        <AlertDialogContent className="rounded-card border-slate-200 dark:border-slate-800">
           <AlertDialogHeader>
             <AlertDialogTitle>
               {pendingCancel?.status === "running" ? "确认停止运行中的任务" : "确认取消排队任务"}

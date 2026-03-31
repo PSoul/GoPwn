@@ -14,7 +14,7 @@ export function ProjectWorkspaceIntro({
   return (
     <section
       className={cn(
-        "flex flex-col gap-4 rounded-[28px] border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-950 lg:flex-row lg:items-start lg:justify-between",
+        "flex flex-col gap-4 rounded-card border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-950 lg:flex-row lg:items-start lg:justify-between",
         className,
       )}
     >

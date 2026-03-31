@@ -83,7 +83,7 @@ export function LlmSettingsPanel({ initialProfiles }: { initialProfiles: LlmProf
           return (
             <div
               key={profile.id}
-              className="rounded-[30px] border border-slate-200/80 bg-white/90 p-5 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-950/70"
+              className="rounded-card border border-slate-200/80 bg-white/90 p-5 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-950/70"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>

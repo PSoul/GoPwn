@@ -190,7 +190,7 @@ export function ProjectMcpRunsPanel({
         description="LLM 负责决定下一步要什么能力，MCP 网关负责挑选工具、套用边界、判断是否需要审批。"
       >
         <div className="space-y-4">
-          <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
+          <div className="rounded-panel border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
             <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
               <Bot className="h-4 w-4" />
               <p className="text-sm font-semibold">编排输入</p>
@@ -200,13 +200,13 @@ export function ProjectMcpRunsPanel({
             </p>
           </div>
 
-          <div className="rounded-[24px] border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70">
+          <div className="rounded-panel border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70">
             <p className="text-sm font-semibold text-slate-950 dark:text-white">基础流程自检</p>
             <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
               用几类最基础的 MCP 工具把整条链路串一遍，验证“自动执行”和“审批阻塞”两种主路径都能被平台正确处理。
             </p>
             {readOnlyReason ? (
-              <div className="mt-4 rounded-[20px] border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              <div className="mt-4 rounded-item border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
                 {readOnlyReason}
               </div>
             ) : null}
@@ -276,19 +276,19 @@ export function ProjectMcpRunsPanel({
           </div>
 
           {message ? (
-            <div className="rounded-[20px] border border-emerald-200/80 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100">
+            <div className="rounded-item border border-emerald-200/80 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100">
               {message}
             </div>
           ) : null}
 
           {errorMessage ? (
-            <div className="rounded-[20px] border border-rose-200/80 bg-rose-50/80 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100">
+            <div className="rounded-item border border-rose-200/80 bg-rose-50/80 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100">
               {errorMessage}
             </div>
           ) : null}
 
           {workflowSummary ? (
-            <div className="rounded-[20px] border border-slate-200/80 bg-white/90 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/70">
+            <div className="rounded-item border border-slate-200/80 bg-white/90 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/70">
               <p className="text-sm font-semibold text-slate-950 dark:text-white">最近一次流程摘要</p>
               <div className="mt-2 space-y-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
                 {workflowSummary.map((item) => (
@@ -298,7 +298,7 @@ export function ProjectMcpRunsPanel({
             </div>
           ) : null}
 
-          <div className="flex items-center justify-between gap-3 rounded-[24px] border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/70">
+          <div className="flex items-center justify-between gap-3 rounded-panel border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/70">
             <div>
               <p className="text-sm font-semibold text-slate-950 dark:text-white">网关策略提示</p>
               <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
@@ -321,7 +321,7 @@ export function ProjectMcpRunsPanel({
             (expanded ? runs : runs.slice(0, 3)).map((run) => (
               <div
                 key={run.id}
-                className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60"
+                className="rounded-panel border border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -340,7 +340,7 @@ export function ProjectMcpRunsPanel({
                 </div>
 
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <div className="rounded-[20px] border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/70">
+                  <div className="rounded-item border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/70">
                     <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
                       <ShieldCheck className="h-4 w-4" />
                       <p className="text-sm font-semibold">执行承载</p>
@@ -354,7 +354,7 @@ export function ProjectMcpRunsPanel({
                     ) : null}
                   </div>
 
-                  <div className="rounded-[20px] border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/70">
+                  <div className="rounded-item border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/70">
                     <p className="text-sm font-semibold text-slate-950 dark:text-white">结果摘要</p>
                     <div className="mt-2 space-y-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
                       {run.summaryLines.map((line) => (
@@ -366,7 +366,7 @@ export function ProjectMcpRunsPanel({
               </div>
             ))
           ) : (
-            <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50/80 px-6 py-12 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
+            <div className="rounded-panel border border-dashed border-slate-300 bg-slate-50/80 px-6 py-12 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
               当前项目还没有 MCP 运行记录，可以先发起一次低风险补采或结果刷新。
             </div>
           )}

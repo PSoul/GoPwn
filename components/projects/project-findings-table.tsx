@@ -3,10 +3,10 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { ArrowLeft, ShieldAlert } from "lucide-react"
+import { ShieldAlert } from "lucide-react"
 
 import { StatusBadge } from "@/components/shared/status-badge"
-import { Button } from "@/components/ui/button"
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
 import {
   Select,
   SelectContent,
@@ -48,11 +48,9 @@ function getTraceHref(record: ProjectFindingRecord) {
 export function ProjectFindingsTable({
   findings: initialFindings,
   projectId,
-  projectStatus,
 }: {
   findings: ProjectFindingRecord[]
   projectId: string
-  projectStatus?: string
 }) {
   const router = useRouter()
   const [findings, setFindings] = useState(initialFindings)
@@ -77,27 +75,16 @@ export function ProjectFindingsTable({
   }
 
   if (findings.length === 0) {
-    const isIdle = projectStatus === "待处理"
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 py-16 dark:border-slate-700">
-        <ShieldAlert className="h-8 w-8 text-slate-300 dark:text-slate-600" />
-        <p className="mt-3 text-sm font-medium text-slate-600 dark:text-slate-300">
-          {isIdle ? "尚未开始测试" : "暂未发现漏洞"}
-        </p>
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-          {isIdle
-            ? "返回概览页点击「开始自动化测试」启动扫描流程"
-            : "测试完成后发现的漏洞和安全问题将显示在此处"}
-        </p>
-        {isIdle && (
-          <Button asChild size="sm" className="mt-4 rounded-full" variant="outline">
-            <Link href={`/projects/${projectId}`}>
-              <ArrowLeft className="mr-2 h-3.5 w-3.5" />
-              返回概览
-            </Link>
-          </Button>
-        )}
-      </div>
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia>
+            <ShieldAlert className="h-8 w-8 text-slate-400 dark:text-slate-500" />
+          </EmptyMedia>
+          <EmptyTitle>暂无漏洞与发现</EmptyTitle>
+          <EmptyDescription>项目执行后，LLM 和 MCP 工具发现的安全问题会出现在这里。</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     )
   }
 
