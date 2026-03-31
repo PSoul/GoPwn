@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation"
 
+import { OperationsCollapsibleSection } from "@/components/projects/operations-collapsible-section"
 import { ProjectMcpRunsPanel } from "@/components/projects/project-mcp-runs-panel"
 import { ProjectOrchestratorPanel } from "@/components/projects/project-orchestrator-panel"
 import { ProjectOperationsPanel } from "@/components/projects/project-operations-panel"
@@ -47,19 +48,23 @@ export default async function ProjectOperationsPage({
       </div>
 
       {/* Advanced sections — for power users */}
-      <ProjectOrchestratorPanel
-        projectId={project.id}
-        initialPayload={orchestrator}
-        readOnlyReason={projectReadOnlyReason}
-      />
+      <OperationsCollapsibleSection title="LLM 编排配置" defaultOpen={false}>
+        <ProjectOrchestratorPanel
+          projectId={project.id}
+          initialPayload={orchestrator}
+          readOnlyReason={projectReadOnlyReason}
+        />
+      </OperationsCollapsibleSection>
 
-      <ProjectMcpRunsPanel
-        projectId={project.id}
-        defaultTarget={getProjectPrimaryTarget(project)}
-        capabilities={mcpCapabilityRecords.map((item) => item.name)}
-        initialRuns={mcpRuns}
-        readOnlyReason={projectReadOnlyReason}
-      />
+      <OperationsCollapsibleSection title="MCP 调度记录" defaultOpen={false}>
+        <ProjectMcpRunsPanel
+          projectId={project.id}
+          defaultTarget={getProjectPrimaryTarget(project)}
+          capabilities={mcpCapabilityRecords.map((item) => item.name)}
+          initialRuns={mcpRuns}
+          readOnlyReason={projectReadOnlyReason}
+        />
+      </OperationsCollapsibleSection>
     </div>
   )
 }
