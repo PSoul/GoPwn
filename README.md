@@ -12,7 +12,7 @@ MCP = 四肢     接触目标、调用外部工具、采集证据、回传结构
 
 ## 当前状态
 
-- 版本: `v0.4.5`
+- 版本: `v0.5.0`
 - 数据层: PostgreSQL via Prisma 7.x (`@prisma/adapter-pg`)，唯一数据层
 - 测试: 178 单元测试 + 14 E2E 测试
 - MCP: 14 个本地 MCP Server（36+ 工具）
