@@ -1,7 +1,14 @@
 "use client"
 
+import { useState } from "react"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { cn } from "@/lib/utils"
 import type { ApprovalRecord } from "@/lib/prototype-types"
 
 function getRiskTone(riskLevel: ApprovalRecord["riskLevel"]) {
@@ -41,6 +48,8 @@ export function ApprovalDetailSheet({
   isSubmitting: boolean
   onDecision: (decision: ApprovalRecord["status"]) => void
 }) {
+  const [pendingDecision, setPendingDecision] = useState<ApprovalRecord["status"] | null>(null)
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -112,7 +121,7 @@ export function ApprovalDetailSheet({
           variant="destructive"
           disabled={isSubmitting}
           className="rounded-full bg-rose-600 text-white hover:bg-rose-700"
-          onClick={() => onDecision("已拒绝")}
+          onClick={() => setPendingDecision("已拒绝")}
         >
           {isSubmitting ? "处理中..." : "拒绝动作"}
         </Button>
@@ -120,11 +129,43 @@ export function ApprovalDetailSheet({
           type="button"
           disabled={isSubmitting}
           className="rounded-full bg-slate-950 text-white hover:bg-slate-800 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
-          onClick={() => onDecision("已批准")}
+          onClick={() => setPendingDecision("已批准")}
         >
           {isSubmitting ? "处理中..." : "批准并进入调度"}
         </Button>
       </div>
+
+      <AlertDialog open={Boolean(pendingDecision)} onOpenChange={(open) => { if (!open) setPendingDecision(null) }}>
+        <AlertDialogContent className="rounded-[28px] border-slate-200 dark:border-slate-800">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingDecision === "已拒绝" ? "确认拒绝动作" : "确认批准并进入调度"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDecision === "已拒绝"
+                ? "拒绝后该动作将不会被执行，关联的项目路径可能被阻塞。"
+                : "批准后该动作将进入 MCP 调度队列，请确认风险评估和停止条件已检查。"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">返回</AlertDialogCancel>
+            <AlertDialogAction
+              className={cn(
+                "rounded-xl",
+                pendingDecision === "已拒绝"
+                  ? "bg-rose-600 text-white hover:bg-rose-700"
+                  : "bg-slate-950 text-white hover:bg-slate-800 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400",
+              )}
+              onClick={() => {
+                if (pendingDecision) onDecision(pendingDecision)
+                setPendingDecision(null)
+              }}
+            >
+              {pendingDecision === "已拒绝" ? "确认拒绝" : "确认批准"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

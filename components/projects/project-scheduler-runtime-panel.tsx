@@ -4,6 +4,11 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { ChevronDown, Loader2, PauseCircle, PlayCircle, Square } from "lucide-react"
 
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { StubBadge } from "@/components/ui/stub-badge"
 import { Button } from "@/components/ui/button"
@@ -66,6 +71,8 @@ export function ProjectSchedulerRuntimePanel({
   const [message, setMessage] = useState<string | null>(null)
   const [expandedRounds, setExpandedRounds] = useState(false)
   const [expandedTasks, setExpandedTasks] = useState(false)
+  const [pendingCancel, setPendingCancel] = useState<McpSchedulerTaskRecord | null>(null)
+  const [pendingStop, setPendingStop] = useState(false)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const isTerminal = projectStatus === "已完成" || projectStatus === "已停止" || ["completed", "stopped"].includes(closureStatus.state)
@@ -177,7 +184,7 @@ export function ProjectSchedulerRuntimePanel({
               </Button>
             )}
             {canStop && (
-              <Button variant="outline" size="sm" className="rounded-full text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30" disabled={Boolean(activeAction) || isRouting} onClick={() => runLifecycleAction("stopped")}>
+              <Button variant="outline" size="sm" className="rounded-full text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30" disabled={Boolean(activeAction) || isRouting} onClick={() => setPendingStop(true)}>
                 <Square className="mr-1 h-3.5 w-3.5" /> 停止
               </Button>
             )}
@@ -261,7 +268,7 @@ export function ProjectSchedulerRuntimePanel({
                         {canCancel && (
                           <Button variant="ghost" size="sm" className="h-7 rounded-full text-xs" disabled={isBusy}
                             aria-label={task.status === "running" ? `请求停止任务 ${task.target}` : `取消任务 ${task.target}`}
-                            onClick={() => runTaskAction(task, "cancel")}
+                            onClick={() => setPendingCancel(task)}
                           >
                             {task.status === "running" ? "停止" : "取消"}
                           </Button>
@@ -283,6 +290,48 @@ export function ProjectSchedulerRuntimePanel({
           )}
         </div>
       )}
+
+      <AlertDialog open={pendingStop} onOpenChange={(open) => { if (!open) setPendingStop(false) }}>
+        <AlertDialogContent className="rounded-[28px] border-slate-200 dark:border-slate-800">
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认停止项目</AlertDialogTitle>
+            <AlertDialogDescription>
+              停止后项目调度器将不再执行新任务，已完成的任务结果会保留。此操作需要谨慎评估。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">取消</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-xl bg-rose-600 text-white hover:bg-rose-700"
+              onClick={() => { void runLifecycleAction("stopped"); setPendingStop(false) }}
+            >
+              确认停止
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={Boolean(pendingCancel)} onOpenChange={(open) => { if (!open) setPendingCancel(null) }}>
+        <AlertDialogContent className="rounded-[28px] border-slate-200 dark:border-slate-800">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingCancel?.status === "running" ? "确认停止运行中的任务" : "确认取消排队任务"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              即将{pendingCancel?.status === "running" ? "停止" : "取消"}任务 {pendingCancel?.toolName}（目标：{pendingCancel?.target}）。此操作不可撤回。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">返回</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-xl bg-rose-600 text-white hover:bg-rose-700"
+              onClick={() => { if (pendingCancel) void runTaskAction(pendingCancel, "cancel"); setPendingCancel(null) }}
+            >
+              确认{pendingCancel?.status === "running" ? "停止" : "取消"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
