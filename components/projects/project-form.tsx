@@ -3,16 +3,26 @@
 import { useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
 import { FolderKanban, ListTree, ScanSearch } from "lucide-react"
 
 import { SectionCard } from "@/components/shared/section-card"
 import { Button } from "@/components/ui/button"
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { normalizeProjectTargets, SINGLE_USER_LABEL } from "@/lib/project-targets"
-import type { ProjectFormPreset, ProjectMutationInput, ProjectRecord } from "@/lib/prototype-types"
+import type { ProjectFormPreset, ProjectRecord } from "@/lib/prototype-types"
 import { apiFetch } from "@/lib/api-client"
+
+const projectSchema = z.object({
+  name: z.string().min(1, "项目名称不能为空").max(100, "项目名称最多 100 个字符"),
+  targetInput: z.string().min(1, "请至少填写一个目标"),
+  description: z.string().optional(),
+})
+type ProjectFormValues = z.infer<typeof projectSchema>
 
 type ProjectFormProps = {
   mode: "create" | "edit"
@@ -24,25 +34,22 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
   const isEdit = mode === "edit"
   const router = useRouter()
   const [isRouting, startTransition] = useTransition()
-  const [formData, setFormData] = useState<ProjectMutationInput>({
-    name: preset.name,
-    targetInput: preset.targetInput,
-    description: preset.description,
+  const form = useForm<ProjectFormValues>({
+    resolver: zodResolver(projectSchema),
+    defaultValues: {
+      name: preset.name ?? "",
+      targetInput: preset.targetInput ?? "",
+      description: preset.description ?? "",
+    },
   })
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
   const isBusy = isSaving || isRouting
-  const normalizedTargets = normalizeProjectTargets(formData.targetInput)
+  const watchedValues = form.watch()
+  const normalizedTargets = normalizeProjectTargets(watchedValues.targetInput)
 
-  function updateField<Key extends keyof ProjectMutationInput>(field: Key, value: ProjectMutationInput[Key]) {
-    setFormData((current) => ({
-      ...current,
-      [field]: value,
-    }))
-  }
-
-  async function submitProject() {
+  async function onSubmit(values: ProjectFormValues) {
     setErrorMessage(null)
     setIsSaving(true)
 
@@ -55,7 +62,7 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
         headers: {
           "content-type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(values),
       })
 
       const payload = (await response.json()) as { error?: string; project?: { id: string } }
@@ -76,51 +83,59 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
     }
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    void submitProject()
-  }
-
   return (
-    <form onSubmit={handleSubmit} className="grid gap-5 xl:grid-cols-[1.18fr_0.82fr]">
+    <Form {...form}>
+    <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-5 xl:grid-cols-[1.18fr_0.82fr]">
       <div className="space-y-5">
         <SectionCard
           title="项目基础信息"
           description="新建和编辑项目只保留最小输入：项目名称、目标、项目说明。并发、审批、超时和重试统一回到 MCP 工具与系统设置管理。"
         >
           <div className="grid gap-5">
-            <div className="grid gap-2">
-              <Label htmlFor="project-name">项目名称</Label>
-              <Input
-                id="project-name"
-                value={formData.name}
-                onChange={(event) => updateField("name", event.target.value)}
-                className="h-12 rounded-2xl"
-              />
-            </div>
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>项目名称</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="例如：某公司年度渗透测试" className="h-12 rounded-2xl" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-            <div className="grid gap-2">
-              <Label htmlFor="target-input">目标</Label>
-              <Textarea
-                id="target-input"
-                value={formData.targetInput}
-                onChange={(event) => updateField("targetInput", event.target.value)}
-                className="min-h-40 rounded-2xl font-mono text-sm"
-              />
-              <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-                可输入域名、IP、IP 段，LLM 收到信息后会自动进行任务整理和分发。不同目标一行一个。
-              </p>
-            </div>
+            <FormField
+              control={form.control}
+              name="targetInput"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>目标</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} className="min-h-40 rounded-2xl font-mono text-sm" />
+                  </FormControl>
+                  <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                    可输入域名、IP、IP 段，LLM 收到信息后会自动进行任务整理和分发。不同目标一行一个。
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-            <div className="grid gap-2">
-              <Label htmlFor="project-description">项目说明</Label>
-              <Textarea
-                id="project-description"
-                value={formData.description}
-                onChange={(event) => updateField("description", event.target.value)}
-                className="min-h-32 rounded-2xl"
-              />
-            </div>
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>项目说明</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} className="min-h-32 rounded-2xl" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
         </SectionCard>
 
@@ -157,9 +172,9 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
             <div className="rounded-[22px] border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
               <div className="mb-2 flex items-center gap-2">
                 <FolderKanban className="h-4 w-4 text-slate-500" />
-                <p className="text-sm font-semibold text-slate-950 dark:text-white">{formData.name || "未命名项目"}</p>
+                <p className="text-sm font-semibold text-slate-950 dark:text-white">{watchedValues.name || "未命名项目"}</p>
               </div>
-              <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{formData.description || "还没有填写项目说明。"}</p>
+              <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{watchedValues.description || "还没有填写项目说明。"}</p>
             </div>
 
             <div className="rounded-[22px] border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/70">
@@ -199,5 +214,6 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
         </SectionCard>
       </div>
     </form>
+    </Form>
   )
 }
