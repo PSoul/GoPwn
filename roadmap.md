@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-03-31`
-- Current focus: Phase 21 完成 — UI/UX 全站审查修复（loading 骨架屏 12 个、确认对话框、页面过渡动画、折叠面板、字段级验证、圆角 token 统一、空状态差异化），分支 `feat/phase21-ui-ux-fixes` 待合并。
+- Current focus: Phase 21 Debug 完成 — 修复 6 个真实使用 bug（LLM 上下文窗口设置 / 模型未配置警告 / 阻塞原因显示 / AI 日志空提示 / 用户名显示 / subfinder 对象提取），分支 `fix/phase21-debug-0331`。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
 
 ## Phase 17a: Prisma 数据层迁移 (Prisma Data Layer Migration)
@@ -732,6 +732,28 @@
 - [x] 三个结果页各自图标和文案不同
 - [x] `npx next lint` 无报错
 - [x] 8 次独立 commit，每个 Sprint 并行开发
+
+## Phase 21 Debug: 真实使用 Bug 修复
+
+- Status: Completed on `2026-03-31`
+- Branch: `fix/phase21-debug-0331`
+- Goal: 修复用户真实使用中发现的 6 个 bug，确保平台基本可用。
+
+### 交付清单
+
+1. **LLM 上下文窗口设置** — Prisma schema 新增 `contextWindowSize` 字段（默认 65536）、类型/zod/UI/repository 全链路支持
+2. **模型未配置警告** — Operations 和 AI Logs 页面显示 amber 警告横幅，链接至 LLM 设置页
+3. **阻塞原因显示** — 任务队列中 `waiting_approval` 状态显示原因说明 + "前往审批中心" 链接
+4. **AI 日志空提示** — AI Logs 页面检测 LLM 编排器未启用时显示配置提示
+5. **用户名显示** — 从 session cookie 读取真实用户名/角色，替代硬编码 "研究员席位"
+6. **Subfinder 结果提取** — 修复 `mcp-execution-service.ts` 中 `String(domainObject)` 产生 `[object Object]` 的问题
+
+### 验收标准
+
+- [x] 178/178 单元测试通过
+- [x] `npx next lint` 无报错
+- [x] Prisma schema 同步（`db push` 成功）
+- [x] 14 个文件变更
 
 ## Recommended Next Phase
 
