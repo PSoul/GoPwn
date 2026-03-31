@@ -155,7 +155,10 @@ test("project operations page can generate a local orchestrator plan", async ({ 
 
   // Operations page uses the "调度" tab in project workspace
   await expect(page.getByRole("tab", { name: "调度" })).toBeVisible()
-  await expect(page.getByRole("heading", { name: "LLM 编排与本地闭环" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "开始" }).first()).toBeVisible()
+
+  // Expand the collapsed "LLM 编排配置" section to access plan generation
+  await page.getByRole("button", { name: "LLM 编排配置" }).click()
 
   const planResponsePromise = page.waitForResponse(
     (response) =>
@@ -193,7 +196,7 @@ test("manual start sends scheduler-control request and disables button", async (
 
   await page.goto(`/projects/${projectId}/operations`)
   await expect(page.getByRole("tab", { name: "调度" })).toBeVisible()
-  await expect(page.getByRole("heading", { name: "LLM 编排与本地闭环" })).toBeVisible()
+  await expect(page.getByText("轮次")).toBeVisible()
 
   // The "开始" button should be enabled for an idle project
   const startButton = page.getByRole("button", { name: "开始" }).first()
