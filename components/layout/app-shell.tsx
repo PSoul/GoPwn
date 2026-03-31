@@ -21,7 +21,7 @@ export function AppShell({
       <AppSidebar pathname={pathname ?? ""} />
       <SidebarInset>
         <AppHeader pathname={pathname ?? ""} title={title} />
-        <div className="min-h-[calc(100svh-64px)] bg-slate-50 px-4 py-6 dark:bg-slate-950 md:px-6">
+        <div key={pathname} className="min-h-[calc(100svh-64px)] animate-fade-in bg-slate-50 px-4 py-6 dark:bg-slate-950 md:px-6">
           {children}
         </div>
       </SidebarInset>
