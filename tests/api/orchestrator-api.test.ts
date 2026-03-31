@@ -13,6 +13,7 @@ import { POST as postOrchestratorPlan } from "@/app/api/projects/[projectId]/orc
 import { GET as getProjectOperations } from "@/app/api/projects/[projectId]/operations/route"
 import { resetLocalLabCatalogTestAdapters, setLocalLabCatalogTestAdapters } from "@/lib/local-lab-catalog"
 import { registerStoredMcpServer } from "@/lib/mcp-server-repository"
+import { flushPendingKickoff } from "@/lib/compositions/control-compositions"
 import { createStoredProjectFixture, seedWorkflowReadyMcpTools } from "@/tests/helpers/project-fixtures"
 
 const buildProjectContext = (projectId: string) => ({
@@ -205,6 +206,7 @@ describe("project orchestrator api routes", () => {
     )
 
     expect(approvalResponse.status).toBe(200)
+    await flushPendingKickoff()
 
     const operationsResponse = await getProjectOperations(
       new Request(`http://localhost/api/projects/${fixture.project.id}/operations`),
@@ -322,6 +324,7 @@ describe("project orchestrator api routes", () => {
         buildProjectContext(fixture.project.id),
       )
       const validationPayload = await validationResponse.json()
+      await flushPendingKickoff()
 
       expect(validationResponse.status).toBe(202)
       expect(validationPayload.provider.enabled).toBe(true)

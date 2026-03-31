@@ -96,7 +96,10 @@ export function AiChatWidget() {
         const event = JSON.parse(evt.data) as { type: string; log?: LlmCallLogRecord; logId?: string; chunk?: string }
         if (event.type === "created" && event.log) {
           setLogs((prev) => [event.log!, ...prev].slice(0, 50))
-          if (!expanded) setHasNew(true)
+          if (!expanded) {
+            setExpanded(true)
+            setHasNew(false)
+          }
         } else if (event.type === "updated" && event.logId && event.chunk) {
           setLogs((prev) =>
             prev.map((l) =>

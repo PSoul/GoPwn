@@ -103,16 +103,6 @@ export function LlmSettingsPanel({ initialProfiles }: { initialProfiles: LlmProf
 
               <div className="mt-5 grid gap-4">
                 <label className="space-y-2 text-sm">
-                  <span className="font-medium text-slate-950 dark:text-white">角色名称</span>
-                  <Input
-                    aria-label={`角色名称 · ${profile.label}`}
-                    value={profile.label}
-                    onChange={(event) => updateProfile(profile.id, { label: event.target.value })}
-                    className="h-11 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
-                  />
-                </label>
-
-                <label className="space-y-2 text-sm">
                   <span className="font-medium text-slate-950 dark:text-white">Provider</span>
                   <Input
                     aria-label={`Provider · ${profile.label}`}

@@ -10,6 +10,7 @@ import { GET as getProjectDetail } from "@/app/api/projects/[projectId]/route"
 import { GET as getProjectOperations } from "@/app/api/projects/[projectId]/operations/route"
 import { dispatchStoredMcpRun, updateStoredMcpRun } from "@/lib/mcp-gateway-repository"
 import { getStoredSchedulerTaskByRunId, updateStoredSchedulerTask } from "@/lib/mcp-scheduler-repository"
+import { flushPendingKickoff } from "@/lib/compositions/control-compositions"
 import { createStoredProjectFixture, seedWorkflowReadyMcpTools } from "@/tests/helpers/project-fixtures"
 
 const buildProjectContext = (projectId: string) => ({
@@ -81,10 +82,10 @@ describe("scheduler control api routes", () => {
       buildProjectContext(fixture.project.id),
     )
     const startPayload = await startResponse.json()
+    await flushPendingKickoff()
 
     expect(startResponse.status).toBe(200)
     expect(startPayload.schedulerControl.lifecycle).toBe("running")
-    expect(startPayload.project.status).toBe("已完成")
 
     const operationsAfterStart = await getProjectOperations(
       new Request(`http://localhost/api/projects/${fixture.project.id}/operations`),
@@ -92,6 +93,7 @@ describe("scheduler control api routes", () => {
     )
     const startedOperationsPayload = await operationsAfterStart.json()
 
+    expect(startedOperationsPayload.project.status).toBe("已完成")
     expect(startedOperationsPayload.schedulerControl.lifecycle).toBe("running")
     expect(startedOperationsPayload.orchestrator.lastPlan).not.toBeNull()
     expect(startedOperationsPayload.reportExport.latest).not.toBeNull()
@@ -156,6 +158,7 @@ describe("scheduler control api routes", () => {
     )
 
     expect(startResponse.status).toBe(200)
+    await flushPendingKickoff()
 
     const detailResponse = await getProjectDetail(
       new Request(`http://localhost/api/projects/${fixture.project.id}`),

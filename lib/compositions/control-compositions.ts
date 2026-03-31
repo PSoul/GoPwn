@@ -29,6 +29,10 @@ import type {
   ApprovalPolicyPayload,
 } from "@/lib/prototype-types"
 
+// Exposed for tests to await background lifecycle kickoff
+let _pendingKickoff: Promise<void> | null = null
+export function flushPendingKickoff() { const p = _pendingKickoff; _pendingKickoff = null; return p }
+
 // ──────────────────────────────────────────────
 // Exported
 // ──────────────────────────────────────────────
@@ -55,10 +59,11 @@ export async function updateApprovalDecisionPayload(approvalId: string, input: A
     const schedulerControl = await getStoredProjectSchedulerControl(approval.projectId)
 
     if (schedulerControl?.lifecycle === "running") {
-      await runProjectLifecycleKickoff(approval.projectId, {
+      _pendingKickoff = runProjectLifecycleKickoff(approval.projectId, {
         controlCommand: "resume",
         note: "审批通过后，继续根据当前结果推进项目后续动作并判断是否可以收束。",
-      })
+      }).catch((err) => console.error(`[lifecycle] resume failed for ${approval.projectId}:`, err))
+      void _pendingKickoff
     }
   }
 
@@ -85,10 +90,13 @@ export async function updateProjectSchedulerControlPayload(
 
   if (payload.transition.changedLifecycle) {
     if (payload.transition.nextLifecycle === "running") {
-      await runProjectLifecycleKickoff(projectId, {
+      // Fire-and-forget: lifecycle kickoff runs in background to avoid API timeout.
+      // The client polls scheduler-control status to track progress.
+      _pendingKickoff = runProjectLifecycleKickoff(projectId, {
         controlCommand: payload.transition.previousLifecycle === "paused" ? "resume" : "start",
         note: payload.schedulerControl.note,
-      })
+      }).catch((err) => console.error(`[lifecycle] kickoff failed for ${projectId}:`, err))
+      void _pendingKickoff
     }
 
     if (payload.transition.nextLifecycle === "stopped") {

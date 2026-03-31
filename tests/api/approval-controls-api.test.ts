@@ -9,6 +9,7 @@ import { PATCH as patchProjectApprovalControl } from "@/app/api/projects/[projec
 import { GET as getProjectDetail } from "@/app/api/projects/[projectId]/route"
 import { GET as getApprovalPolicy, PATCH as patchApprovalPolicy } from "@/app/api/settings/approval-policy/route"
 import { GET as getAuditLogs } from "@/app/api/settings/audit-logs/route"
+import { flushPendingKickoff } from "@/lib/compositions/control-compositions"
 import { createStoredProjectFixture, createWorkflowFixture } from "@/tests/helpers/project-fixtures"
 
 const buildApprovalContext = (approvalId: string) => ({
@@ -47,6 +48,7 @@ describe("approval and control api routes", () => {
 
     expect(response.status).toBe(200)
     expect(payload.approval.status).toBe("已批准")
+    await flushPendingKickoff()
 
     const projectResponse = await getProjectDetail(
       new Request(`http://localhost/api/projects/${fixture.project.id}`),
