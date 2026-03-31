@@ -27,6 +27,7 @@ export async function updateStoredLlmProfile(profile: LlmProfileRecord) {
       timeoutMs: profile.timeoutMs,
       temperature: profile.temperature,
       enabled: profile.enabled,
+      contextWindowSize: profile.contextWindowSize,
     },
   })
 

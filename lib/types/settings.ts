@@ -12,6 +12,7 @@ export interface LlmProfileRecord {
   timeoutMs: number
   temperature: number
   enabled: boolean
+  contextWindowSize: number
 }
 
 export interface LlmSettingsPayload {

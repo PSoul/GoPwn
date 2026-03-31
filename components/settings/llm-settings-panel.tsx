@@ -152,6 +152,22 @@ export function LlmSettingsPanel({ initialProfiles }: { initialProfiles: LlmProf
                   />
                 </label>
 
+                <label className="space-y-2 text-sm">
+                  <span className="font-medium text-slate-950 dark:text-white">上下文窗口 (tokens)</span>
+                  <Input
+                    aria-label={`Context Window · ${profile.label}`}
+                    type="number"
+                    value={String(profile.contextWindowSize)}
+                    onChange={(event) =>
+                      updateProfile(profile.id, {
+                        contextWindowSize: Number.isFinite(Number(event.target.value)) ? Number(event.target.value) : profile.contextWindowSize,
+                      })
+                    }
+                    className="h-11 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
+                  />
+                  <p className="text-xs text-slate-500 dark:text-slate-400">模型上下文窗口大小，超过 70% 时自动压缩历史对话。</p>
+                </label>
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="space-y-2 text-sm">
                     <span className="font-medium text-slate-950 dark:text-white">超时 (ms)</span>

@@ -9,9 +9,11 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 
 export function AppShell({
   title,
+  user,
   children,
 }: {
   title?: string
+  user?: { displayName: string; role: string }
   children: React.ReactNode
 }) {
   const pathname = usePathname()
@@ -20,7 +22,7 @@ export function AppShell({
     <SidebarProvider>
       <AppSidebar pathname={pathname ?? ""} />
       <SidebarInset>
-        <AppHeader pathname={pathname ?? ""} title={title} />
+        <AppHeader pathname={pathname ?? ""} title={title} user={user} />
         <div key={pathname} className="min-h-[calc(100svh-64px)] animate-fade-in bg-slate-50 px-4 py-6 dark:bg-slate-950 md:px-6">
           {children}
         </div>

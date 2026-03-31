@@ -60,6 +60,7 @@ describe("llm settings api route", () => {
           timeoutMs: 22000,
           temperature: 0.15,
           enabled: true,
+          contextWindowSize: 65536,
         }),
       }),
       { params: Promise.resolve({}) },

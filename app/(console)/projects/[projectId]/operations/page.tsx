@@ -1,4 +1,6 @@
+import Link from "next/link"
 import { notFound } from "next/navigation"
+import { AlertTriangle } from "lucide-react"
 
 import { OperationsCollapsibleSection } from "@/components/projects/operations-collapsible-section"
 import { ProjectMcpRunsPanel } from "@/components/projects/project-mcp-runs-panel"
@@ -9,6 +11,7 @@ import { ProjectSchedulerRuntimePanel } from "@/components/projects/project-sche
 import { mcpCapabilityRecords } from "@/lib/platform-config"
 import { getProjectOperationsPayload } from "@/lib/api-compositions"
 import { getProjectPrimaryTarget } from "@/lib/project-targets"
+import { listStoredLlmProfiles } from "@/lib/llm-settings-repository"
 
 export default async function ProjectOperationsPage({
   params,
@@ -22,6 +25,12 @@ export default async function ProjectOperationsPage({
     notFound()
   }
   const { approvals, detail, mcpRuns, orchestrator, orchestratorRounds, project, reportExport, schedulerControl, schedulerTasks } = payload
+
+  // Check LLM configuration status
+  const llmProfiles = await listStoredLlmProfiles()
+  const orchestratorProfile = llmProfiles.find((p) => p.id === "orchestrator")
+  const llmNotConfigured = !orchestratorProfile?.enabled || !orchestratorProfile?.model
+
   const projectReadOnlyReason =
     project.status === "已完成"
       ? "当前项目已完成，如需继续测试请新建项目。"
@@ -31,6 +40,20 @@ export default async function ProjectOperationsPage({
 
   return (
     <div className="space-y-4">
+      {llmNotConfigured && (
+        <div className="flex items-start gap-3 rounded-card border border-amber-200/80 bg-amber-50/80 px-5 py-4 dark:border-amber-900/60 dark:bg-amber-950/30">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div>
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">主编排模型未配置</p>
+            <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
+              LLM 编排器未启用或未配置模型，项目将使用有限的回退策略（无 AI 日志）。请先
+              <Link href="/settings/llm" className="mx-0.5 font-medium underline hover:text-amber-900 dark:hover:text-amber-100">配置 LLM 模型</Link>
+              以获得完整的智能编排能力。
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Primary: lifecycle controls + round progress + task queue */}
       <ProjectSchedulerRuntimePanel
         projectId={project.id}

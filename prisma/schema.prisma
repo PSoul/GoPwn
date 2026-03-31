@@ -406,15 +406,16 @@ model OrchestratorRound {
 // ──────────────────────────────────────────────
 
 model LlmProfile {
-  id          String  @id // orchestrator | reviewer | extractor
-  provider    String  @default("openai-compatible")
-  label       String  @default("")
-  apiKey      String  @default("")
-  baseUrl     String  @default("")
-  model       String  @default("")
-  timeoutMs   Int     @default(15000)
-  temperature Float   @default(0.2)
-  enabled     Boolean @default(false)
+  id               String  @id // orchestrator | reviewer | extractor
+  provider         String  @default("openai-compatible")
+  label            String  @default("")
+  apiKey           String  @default("")
+  baseUrl          String  @default("")
+  model            String  @default("")
+  timeoutMs        Int     @default(15000)
+  temperature      Float   @default(0.2)
+  enabled          Boolean @default(false)
+  contextWindowSize Int    @default(65536)
 
   @@map("llm_profiles")
 }

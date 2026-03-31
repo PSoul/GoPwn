@@ -769,7 +769,7 @@ function normalizeStdioMcpArtifacts(
   // Extract domain/subdomain assets
   if (Array.isArray(sc.domains)) {
     for (const domain of sc.domains as string[]) {
-      const host = typeof domain === "string" ? domain : String(domain)
+      const host = typeof domain === "string" ? domain : (typeof domain === "object" && domain !== null && "host" in domain ? String((domain as Record<string, unknown>).host) : JSON.stringify(domain))
       const assetId = buildStableRecordId("asset", context.project.id, "domain", host)
       const existing = existingAssets.get(assetId)
       assets.push({

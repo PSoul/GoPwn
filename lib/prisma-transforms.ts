@@ -512,6 +512,7 @@ export function toLlmProfileRecord(db: any): LlmProfileRecord {
     timeoutMs: db.timeoutMs ?? 15000,
     temperature: db.temperature ?? 0.2,
     enabled: db.enabled ?? false,
+    contextWindowSize: db.contextWindowSize ?? 65536,
   }
 }
 
@@ -526,6 +527,7 @@ export function fromLlmProfileRecord(record: LlmProfileRecord): any {
     timeoutMs: record.timeoutMs,
     temperature: record.temperature,
     enabled: record.enabled,
+    contextWindowSize: record.contextWindowSize,
   }
 }
 

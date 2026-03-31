@@ -9,7 +9,13 @@ import { Button } from "@/components/ui/button"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { getNavigationTitle, getNavigationTrail } from "@/lib/navigation"
 
-export function AppHeader({ pathname, title }: { pathname: string; title?: string }) {
+const roleLabels: Record<string, string> = {
+  admin: "管理员",
+  researcher: "研究员",
+  approver: "审批员",
+}
+
+export function AppHeader({ pathname, title, user }: { pathname: string; title?: string; user?: { displayName: string; role: string } }) {
   const pageTitle = title ?? getNavigationTitle(pathname)
   const trail = getNavigationTrail(pathname)
 
@@ -47,12 +53,12 @@ export function AppHeader({ pathname, title }: { pathname: string; title?: strin
           <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 dark:border-slate-800 dark:bg-slate-950 sm:flex">
             <Avatar className="h-7 w-7 border border-slate-200 dark:border-slate-700">
               <AvatarFallback className="bg-slate-100 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                研
+                {user?.displayName?.charAt(0) ?? "用"}
               </AvatarFallback>
             </Avatar>
             <div className="leading-tight">
-              <p className="text-xs font-medium text-slate-900 dark:text-white">研究员席位</p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">审计中</p>
+              <p className="text-xs font-medium text-slate-900 dark:text-white">{user?.displayName ?? "未登录"}</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">{roleLabels[user?.role ?? ""] ?? user?.role ?? ""}</p>
             </div>
           </div>
           <form action="/api/auth/logout" method="post">
