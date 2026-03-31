@@ -217,6 +217,10 @@ describe("ProjectSchedulerRuntimePanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /停止/ }))
 
+    // Confirm in the AlertDialog
+    const confirmStopBtn = await screen.findByRole("button", { name: "确认停止" })
+    fireEvent.click(confirmStopBtn)
+
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
         "/api/projects/proj-runtime/scheduler-control",
@@ -247,8 +251,12 @@ describe("ProjectSchedulerRuntimePanel", () => {
     // Expand task queue first
     fireEvent.click(screen.getByText(/任务队列/))
 
-    // Cancel the ready task
+    // Cancel the ready task (opens AlertDialog)
     fireEvent.click(screen.getByRole("button", { name: "取消任务 api.example.test" }))
+
+    // Confirm in the AlertDialog
+    const confirmCancelBtn = await screen.findByRole("button", { name: "确认取消" })
+    fireEvent.click(confirmCancelBtn)
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
@@ -281,6 +289,10 @@ describe("ProjectSchedulerRuntimePanel", () => {
     fireEvent.click(screen.getByText(/任务队列/))
 
     fireEvent.click(screen.getByRole("button", { name: "请求停止任务 https://portal.example.test/dashboard" }))
+
+    // Confirm in the AlertDialog (running task shows "确认停止")
+    const confirmStopTaskBtn = await screen.findByRole("button", { name: "确认停止" })
+    fireEvent.click(confirmStopTaskBtn)
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(

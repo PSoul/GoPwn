@@ -28,6 +28,9 @@ describe("ApprovalCenterClient", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "批准并进入调度" }))
 
+    // AlertDialog confirmation step — approve/reject now require explicit confirmation
+    fireEvent.click(screen.getByRole("button", { name: "确认批准" }))
+
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
         `/api/approvals/${approvals[0].id}`,

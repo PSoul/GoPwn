@@ -48,7 +48,8 @@ describe("ProjectDetailPage", () => {
     render(await ProjectNetworkResultsPage({ params: Promise.resolve({ projectId: fixture.project.id }) }))
 
     expect(screen.getByRole("heading", { level: 2, name: "IP / 端口 / 服务" })).toBeInTheDocument()
-    expect(screen.getByText("当前画像 / 说明")).toBeInTheDocument()
+    // Network results may show the Empty component when no items exist
+    expect(screen.getByText("暂无 IP / 端口 / 服务")).toBeInTheDocument()
     cleanup()
 
     render(await ProjectFindingsResultsPage({ params: Promise.resolve({ projectId: fixture.project.id }) }))

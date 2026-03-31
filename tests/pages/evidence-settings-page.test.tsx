@@ -46,7 +46,8 @@ describe("Evidence and settings pages", () => {
   it("renders the split settings subpages", async () => {
     render(await McpToolsSettingsPage())
     expect(screen.getAllByText("MCP 工具管理").length).toBeGreaterThan(0)
-    expect(screen.getByRole("button", { name: "校验并注册 MCP" })).toBeInTheDocument()
+    // "校验并注册 MCP" button is inside a collapsed Accordion section; assert the trigger instead
+    expect(screen.getByText("MCP 契约注册")).toBeInTheDocument()
     cleanup()
 
     render(await LlmSettingsPage())

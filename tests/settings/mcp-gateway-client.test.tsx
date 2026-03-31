@@ -180,6 +180,9 @@ describe("McpGatewayClient", () => {
       />,
     )
 
+    // Expand the "已连接 MCP 服务器" accordion section
+    fireEvent.click(screen.getByRole("button", { name: "已连接 MCP 服务器" }))
+
     expect(screen.getByText("已连接 MCP 服务器")).toBeInTheDocument()
     expect(screen.getAllByText("web-surface-stdio").length).toBeGreaterThan(0)
     expect(screen.getByText("probe_web_surface")).toBeInTheDocument()
@@ -198,6 +201,9 @@ describe("McpGatewayClient", () => {
         initialToolContracts={toolContractFixtures}
       />,
     )
+
+    // Expand the "MCP 契约注册" accordion section
+    fireEvent.click(screen.getByRole("button", { name: "MCP 契约注册" }))
 
     expect(screen.getByText(/D:\\dev\\llmpentest-mcp-template/)).toBeInTheDocument()
     expect(screen.getByText(/并非所有模板能力都已完成运行时桥接/)).toBeInTheDocument()
@@ -252,6 +258,9 @@ describe("McpGatewayClient", () => {
         initialToolContracts={[]}
       />,
     )
+
+    // Expand the "MCP 契约注册" accordion section
+    fireEvent.click(screen.getByRole("button", { name: "MCP 契约注册" }))
 
     fireEvent.change(screen.getByRole("textbox", { name: "MCP 注册 JSON" }), {
       target: {

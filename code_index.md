@@ -1,15 +1,13 @@
 # 代码索引 (Code Index)
 
 > 本文件是项目代码的完整索引，帮助开发者和 LLM 快速了解每个文件的用途。
-> 最后更新: 2026-03-31
+> 最后更新: 2026-03-31 | 项目版本: v0.4.1 (Phase 21)
 
 ## 项目概览
 
-授权外网安全评估平台 — 一个基于 Next.js 15 + TypeScript 的漏洞扫描驾驶舱，集成 LLM 编排、MCP 工具执行、审批工作流和项目生命周期管理。
+**授权外网安全评估平台** — 基于 Next.js 15 + TypeScript 的漏洞扫描驾驶舱，集成 LLM 编排、MCP 工具执行、审批工作流和项目生命周期管理。
 
-**技术栈**: Next.js 15 (App Router) · TypeScript · Tailwind CSS · shadcn/ui · Prisma 7.x (`@prisma/adapter-pg`) · Vitest · Playwright
-
-**数据层架构**: PostgreSQL via Prisma 7.x (`@prisma/adapter-pg`) 为唯一数据层。所有 13 个仓库函数均为 async 并直接调用 Prisma ORM，文件系统 JSON 存储已移除。
+**技术栈**: Next.js 15 (App Router) · TypeScript 5 · PostgreSQL 16 via Prisma 7.x · Tailwind CSS 3.4 · shadcn/ui · Radix UI · Vitest 3.0 · Playwright 1.58
 
 ---
 
@@ -17,375 +15,153 @@
 
 | 文件 | 用途 |
 |------|------|
-| `.env.example` | 环境变量配置模板（数据库、认证、LLM、初始管理员等） |
-| `middleware.ts` | Next.js 中间件，处理身份验证、CSRF 双重提交 Cookie 防护、滑动窗口速率限制；E2E_TEST_MODE 下跳过 CSRF |
-| `app/global-error.tsx` | 全局错误边界，捕获应用级 React 渲染错误 |
-| `tailwind.config.ts` | Tailwind CSS 主题和样式配置 |
-| `vitest.config.mts` | Vitest 单元测试配置 |
-| `playwright.config.ts` | Playwright E2E 测试配置 |
-| `prisma.config.ts` | Prisma ORM 配置 |
+| `package.json` | 依赖声明、脚本命令 |
+| `tsconfig.json` | TypeScript 编译器配置 |
 | `next.config.mjs` | Next.js 框架配置 |
+| `tailwind.config.ts` | Tailwind 主题（语义圆角 token: hero/card/panel/item）、深色模式、动画（fade-in） |
+| `middleware.ts` | 身份认证检查、CSRF 双重提交 Cookie、滑动窗口速率限制 |
+| `Dockerfile` | 容器镜像构建 |
+| `.env.example` | 环境变量模板 |
 
-## 2. App 目录 (页面与 API 路由)
-
-### 页面路由
-
-> 21 个 `app/(console)/**/page.tsx` 文件已改为 async Server Component 模式，await 数据获取。
-
-| 路由 | 文件 | 用途 |
-|------|------|------|
-| `/login` | `app/login/page.tsx` | 用户登录页面 |
-| `/dashboard` | `app/(console)/dashboard/page.tsx` | 主仪表盘，显示关键指标和概览 |
-| `/projects` | `app/(console)/projects/page.tsx` | 项目列表（卡片网格布局） |
-| `/projects/new` | `app/(console)/projects/new/page.tsx` | 新建项目表单 |
-| `/projects/[id]` | `app/(console)/projects/[projectId]/page.tsx` | 项目详情概览 |
-| `/projects/[id]/context` | `app/(console)/projects/[projectId]/context/page.tsx` | 项目上下文（证据与范围） |
-| `/projects/[id]/results/domains` | `app/(console)/projects/[projectId]/results/domains/page.tsx` | 域名识别结果 |
-| `/projects/[id]/results/network` | `app/(console)/projects/[projectId]/results/network/page.tsx` | 网络扫描结果 |
-| `/projects/[id]/results/findings` | `app/(console)/projects/[projectId]/results/findings/page.tsx` | 安全发现列表 |
-| `/projects/[id]/flow` | `app/(console)/projects/[projectId]/flow/page.tsx` | 项目阶段流程 |
-| `/projects/[id]/operations` | `app/(console)/projects/[projectId]/operations/page.tsx` | 调度与操作面板 |
-| `/projects/[id]/ai-logs` | `app/(console)/projects/[projectId]/ai-logs/page.tsx` | AI 执行日志查看 |
-| `/vuln-center` | `app/(console)/vuln-center/page.tsx` | 漏洞中心（跨项目漏洞总览） |
-| `/evidence` | `app/(console)/evidence/page.tsx` | 重定向到 /vuln-center |
-| `/assets` | `app/(console)/assets/page.tsx` | 资产中心 |
-| `/approvals` | `app/(console)/approvals/page.tsx` | 审批任务中心 |
-| `/settings` | `app/(console)/settings/page.tsx` | 系统设置主页 |
-| `/settings/llm` | `app/(console)/settings/llm/page.tsx` | LLM 提供商配置 |
-| `/settings/mcp-tools` | `app/(console)/settings/mcp-tools/page.tsx` | MCP 工具管理 |
-| `/settings/users` | `app/(console)/settings/users/page.tsx` | 用户管理（多角色 RBAC） |
-
-### API 路由
-
-> 48 个 `app/api/**/route.ts` 文件已添加 await 以适配 async 仓库调用。
-
-| 端点 | 文件 | 用途 |
-|------|------|------|
-| `POST /api/auth/login` | `app/api/auth/login/route.ts` | 用户登录 |
-| `POST /api/auth/logout` | `app/api/auth/logout/route.ts` | 用户登出 |
-| `GET /api/dashboard` | `app/api/dashboard/route.ts` | 仪表盘数据聚合 |
-| `GET/POST /api/projects` | `app/api/projects/route.ts` | 项目列表与创建 |
-| `GET/PATCH /api/projects/[id]` | `app/api/projects/[projectId]/route.ts` | 项目详情与更新 |
-| `PATCH /api/projects/[id]/scheduler-control` | `app/api/projects/[projectId]/scheduler-control/route.ts` | 调度器生命周期控制 |
-| `POST /api/projects/[id]/orchestrator/plan` | `app/api/projects/[projectId]/orchestrator/plan/route.ts` | LLM 编排计划生成 |
-| `POST /api/projects/[id]/orchestrator/local-validation` | `app/api/projects/[projectId]/orchestrator/local-validation/route.ts` | 本地靶场闭环验证 |
-| `GET/PATCH /api/settings/agent-config` | `app/api/settings/agent-config/route.ts` | AI Agent 配置读取与部分更新 |
-| `GET /api/projects/[id]/llm-logs` | `app/api/projects/[projectId]/llm-logs/route.ts` | 项目 LLM 调用日志列表 |
-| `GET /api/projects/[id]/llm-logs/[logId]` | `app/api/projects/[projectId]/llm-logs/[logId]/route.ts` | 单条 LLM 调用详情 |
-| `GET /api/llm-logs/recent` | `app/api/llm-logs/recent/route.ts` | 全局最近 LLM 日志 |
-| `GET /api/llm-logs/stream` | `app/api/llm-logs/stream/route.ts` | SSE 实时日志流端点 |
-| `GET /api/vuln-center/summary` | `app/api/vuln-center/summary/route.ts` | 漏洞中心统计汇总 |
-| `GET /api/auth/captcha` | `app/api/auth/captcha/route.ts` | 验证码生成 |
-| `GET/POST /api/users` | `app/api/users/route.ts` | 用户列表与创建（管理员） |
-| `GET/PATCH /api/users/[id]` | `app/api/users/[userId]/route.ts` | 用户详情与更新（角色/状态/密码） |
-| `GET /api/health` | `app/api/health/route.ts` | 健康检查端点 |
-
-## 3. Components 目录 (UI 组件)
-
-### 布局组件
-
-| 文件 | 用途 |
-|------|------|
-| `components/layout/app-shell.tsx` | 应用外壳（侧边栏 + 顶栏 + AI 悬浮窗） |
-| `components/layout/app-header.tsx` | 顶部导航栏 |
-| `components/layout/app-sidebar.tsx` | 侧边栏导航（总览/发现/系统分组） |
-| `components/layout/ai-chat-widget.tsx` | 全局 AI 思考日志悬浮窗（SSE 实时推送 + 项目筛选 + URL 感知 + 轮询降级） |
-
-### 项目组件
-
-| 文件 | 用途 |
-|------|------|
-| `components/projects/project-card.tsx` | 项目卡片（状态色带 + 指标标签） |
-| `components/projects/project-list-client.tsx` | 项目列表（搜索/筛选/卡片网格/归档） |
-| `components/projects/project-workspace-nav.tsx` | 项目工作区标签导航（8 个标签） |
-| `components/projects/project-llm-log-panel.tsx` | AI 日志面板（SSE 实时推送 + 角色筛选/展开详情） |
-| `components/projects/project-orchestrator-panel.tsx` | LLM 编排与本地闭环面板 |
-| `components/projects/project-scheduler-runtime-panel.tsx` | 调度器运行时控制面板 |
-| `components/projects/project-mcp-runs-panel.tsx` | MCP 执行运行管理面板 |
-| `components/projects/project-summary.tsx` | 项目概览摘要 |
-| `components/projects/project-findings-table.tsx` | 漏洞发现表格 |
-| `components/projects/project-form.tsx` | 项目创建/编辑表单 |
-| `components/projects/project-report-export-panel.tsx` | 报告导出面板 |
-
-### 共享组件
-
-| 文件 | 用途 |
-|------|------|
-| `components/shared/page-header.tsx` | 页面标题头部 |
-| `components/shared/section-card.tsx` | 内容分组卡片 |
-| `components/shared/status-badge.tsx` | 状态徽章（danger/warning/success/info/neutral） |
-| `components/shared/pagination.tsx` | 分页控制 |
-| `components/ui/stub-badge.tsx` | 本地模拟/已接入指示器 |
-
-## 4. Lib 目录 (业务逻辑与服务)
-
-### 数据存储与类型
-
-| 文件 | 用途 |
-|------|------|
-| `lib/prisma.ts` | PrismaClient 单例（使用 `@prisma/adapter-pg` PrismaPg 适配器，globalThis 缓存防热重载泄漏） |
-| `lib/prisma-transforms.ts` | Prisma DB 模型 ↔ TypeScript 接口双向转换（20+ 模型类型：Project/Finding/Evidence/McpRun/Approval 等） |
-| `lib/prototype-store.ts` | 遗留文件系统数据存储（仅保留类型定义和 `getDefaultProjectFormPreset`，运行时不再使用文件 I/O） |
-| `lib/prototype-types.ts` | 类型再导出桶文件（~10 行），从 `lib/types/` 目录重新导出所有类型 |
-| `lib/api-compositions.ts` | 组合层桶文件（~4 行），重新导出 `lib/compositions/` 下 4 个子模块 |
-| `lib/prototype-data.ts` | 初始化种子数据 |
-
-### 类型定义 (lib/types/)
-
-> Phase 19 从 `prototype-types.ts` 拆分为 10 个领域文件，原文件保留为再导出桶。
-
-| 文件 | 用途 |
-|------|------|
-| `lib/types/project.ts` | ProjectRecord, ProjectDetailRecord, ProjectFormPreset, stages, statuses 等 |
-| `lib/types/approval.ts` | ApprovalRecord, ApprovalControl, ApprovalDecisionInput 等 |
-| `lib/types/mcp.ts` | McpToolRecord, McpServerRecord, McpRunRecord 等 |
-| `lib/types/scheduler.ts` | ProjectSchedulerControl, McpSchedulerTaskRecord, OrchestratorRoundRecord |
-| `lib/types/asset.ts` | AssetRecord, AssetRelation, AssetCollectionView |
-| `lib/types/evidence.ts` | EvidenceRecord |
-| `lib/types/settings.ts` | LlmProfileRecord, LocalLabRecord, SettingsSectionRecord 等 |
-| `lib/types/llm-log.ts` | LlmCallLogRecord, LlmCallRole 等 |
-| `lib/types/user.ts` | UserRecord, UserRole, UserStatus |
-| `lib/types/payloads.ts` | 所有 *Payload, *Input 类型（~30 个类型） |
-
-### 身份认证与安全
-
-| 文件 | 用途 |
-|------|------|
-| `lib/auth-session.ts` | HMAC 签名会话 Cookie 管理和验证 |
-| `lib/auth-repository.ts` | 多用户认证仓库（用户 CRUD + bcrypt 密码验证 + 角色管理 + 验证码 + 审计日志 + 环境变量管理员自动种子） |
-| `lib/csrf.ts` | CSRF 双重提交 Cookie 防护（ensureCsrfCookie / verifyCsrfToken） |
-| `lib/rate-limit.ts` | 滑动窗口速率限制（登录5次/分钟 + API 60次/分钟） |
-| `lib/api-client.ts` | 前端 fetch 封装（自动附带 CSRF header） |
-
-### LLM 集成
-
-| 文件 | 用途 |
-|------|------|
-| `lib/llm-provider/openai-compatible-provider.ts` | OpenAI 兼容 LLM 提供商（支持流式输出 + 日志记录） |
-| `lib/llm-provider/types.ts` | LLM 提供商接口定义 |
-| `lib/llm-provider/registry.ts` | LLM 提供商注册表 |
-| `lib/llm-call-logger.ts` | LLM 调用日志服务（创建/追加/完成/失败 + EventEmitter SSE 广播） |
-| `lib/llm-brain-prompt.ts` | LLM 系统提示和编排提示模板 |
-
-### AI Agent 核心
-
-| 文件 | 用途 |
-|------|------|
-| `lib/agent-config.ts` | AI Agent 配置系统（30+ 参数，5 大分类：model/context/execution/safety/behavior），参考 Claude Code/Codex/Aider 设计 |
-| `lib/env-detector.ts` | 平台环境检测（OS/Shell/Node/可用系统工具），为 LLM 大脑提供运行时感知 |
-| `lib/tool-output-summarizer.ts` | 工具输出结构化压缩（15+ 工具专用提取器），按 token 预算压缩 |
-| `lib/failure-analyzer.ts` | 工具失败智能分析（9 类错误分类 + 重试建议 + 替代工具推荐） |
-
-### MCP 编排
-
-| 文件 | 用途 |
-|------|------|
-| `lib/orchestrator-service.ts` | 编排器主服务入口（~350 行，5 个公共函数）— Phase 19 拆分后仅保留顶层协调 |
-| `lib/orchestrator-target-scope.ts` | 编排器目标分类与范围验证（TCP 解析、目标分类） |
-| `lib/orchestrator-plan-builder.ts` | 编排器计划生成（规范化、回退模板） |
-| `lib/orchestrator-execution.ts` | 编排器计划执行（轮次记录、多轮循环） |
-| `lib/orchestrator-local-lab.ts` | 本地靶场验证计划构建 |
-| `lib/orchestrator-context-builder.ts` | 编排器上下文构建（资产快照 + token 预算压缩 + 失败分析 + 输出摘要） |
-| `lib/mcp-execution-service.ts` | MCP 工具执行引擎 |
-| `lib/mcp-scheduler-service.ts` | MCP 任务调度 |
-| `lib/mcp-workflow-service.ts` | MCP 工作流编排 |
-
-### 数据访问层（Prisma ORM）
-
-> 所有 13 个 `*-repository.ts` 文件均为 async 函数，直接调用 Prisma ORM 操作 PostgreSQL。文件存储双路径已移除。
-
-| 文件 | 用途 |
-|------|------|
-| `lib/project-repository.ts` | 项目仓库桶文件，重新导出 `lib/project/` 下 2 个子模块 |
-| `lib/project-results-repository.ts` | 项目结果桶文件，重新导出 `lib/results/` 下 3 个子模块 |
-| `lib/approval-repository.ts` | 审批数据访问（Prisma） |
-| `lib/asset-repository.ts` | 资产数据访问（Prisma） |
-| `lib/evidence-repository.ts` | 证据数据访问（Prisma） |
-| `lib/auth-repository.ts` | 多用户认证仓库（Prisma） |
-| `lib/llm-call-logger.ts` | LLM 调用日志（Prisma） |
-| `lib/mcp-scheduler-service.ts` | MCP 任务调度（async 传播） |
-| `lib/orchestrator-service.ts` | 编排器主服务入口（async 传播，Phase 19 拆分后 ~350 行） |
-| `lib/navigation.ts` | 侧边栏导航定义（总览/发现/系统） |
-
-### MCP 连接器
-
-| 文件 | 用途 |
-|------|------|
-| `lib/mcp-connectors/registry.ts` | 连接器注册表 |
-| `lib/mcp-connectors/local-foundational-connectors.ts` | 本地基础连接器 |
-| `lib/mcp-connectors/stdio-mcp-connector.ts` | 标准 I/O MCP 连接器 |
-| `lib/mcp-connectors/real-evidence-capture-mcp-connector.ts` | 证据采集连接器 |
-| `lib/mcp-connectors/real-http-structure-mcp-connector.ts` | HTTP 结构扫描连接器 |
-| `lib/mcp-connectors/real-http-validation-mcp-connector.ts` | HTTP 验证连接器 |
-| `lib/mcp-connectors/real-web-surface-mcp-connector.ts` | 网络表面扫描连接器 |
-| `lib/mcp-connectors/real-dns-intelligence-connector.ts` | DNS 情报收集连接器 |
-
-## 5. Tests 目录
-
-### 测试基础设施（Phase 17c/17d Prisma 适配）
-
-| 文件 | 用途 |
-|------|------|
-| `tests/setup.ts` | 全局 beforeEach/afterEach — 数据库 TRUNCATE CASCADE 清理 + 用户种子 + MCP 执行中断；条件加载 jsdom/node 环境模块 |
-| `tests/helpers/prisma-test-utils.ts` | cleanDatabase()（24 表 TRUNCATE）+ seedTestUsers()（3 用户 + LLM profiles） |
-| `tests/helpers/project-fixtures.ts` | createStoredProjectFixture / createWorkflowFixture — Prisma 数据库 fixture |
-| `vitest.config.mts` | `fileParallelism: false` 防止数据库竞争，`pool: "forks"` |
-| `scripts/e2e-seed-database.mjs` | E2E 专用数据库种子脚本 — 直接 pg 连接 TRUNCATE 24 表 + 种子用户/LLM profiles |
-| `scripts/run-playwright.mjs` | Playwright 运行入口 — 端口清理 + 数据库种子 + NO_PROXY 代理绕过 |
-
-**测试统计**: 55 files passed, 8 skipped | 178 tests passed, 33 skipped | 14 E2E tests passed
-
-**MCP 集成测试**: 8 个文件默认跳过（`SKIP_MCP_INTEGRATION=1`），需 `// @vitest-environment node` 指令运行于 Node.js 环境（StdioClientTransport 与 jsdom 不兼容）
-
-### API 测试
-- `tests/api/vuln-center-api.test.ts` — 漏洞中心 API 测试
-- `tests/api/llm-logs-api.test.ts` — LLM 日志 API 测试（7 个用例）
-- `tests/api/orchestrator-api.test.ts` — 编排器 API 测试
-- `tests/api/scheduler-controls-api.test.ts` — 调度器控制 API 测试
-- `tests/api/users-api.test.ts` — 用户管理 API 测试（6 个用例：CRUD + 角色权限 + 禁用登录）
-- `tests/api/project-mutations-api.test.ts` — 项目创建/更新/归档测试
-- `tests/api/approval-controls-api.test.ts` — 审批控制工作流测试
-- `tests/api/mcp-registration-api.test.ts` — MCP 服务器注册 API 测试
-
-### 单元测试
-- `tests/lib/llm-call-logger.test.ts` — LLM 调用日志服务测试（7 个用例）
-- `tests/lib/rate-limit.test.ts` — 速率限制测试
-- `tests/lib/prototype-store.test.ts` — 数据存储测试（已跳过，文件存储已移除）
-- `tests/lib/mcp-scheduler-repository.test.ts` — 调度器仓库测试（认领/心跳/过期回收）
-- `tests/lib/mcp-scheduler-service.test.ts` — 调度服务测试
-- `tests/lib/scheduler-operator-controls.test.ts` — 调度器操作控制测试
-
-### 集成测试（默认跳过，需 SKIP_MCP_INTEGRATION=0）
-- `tests/integration/docker-lab-mcp.test.ts` — Docker 靶场 MCP 集成测试（需 ENABLE_DOCKER_LAB_TESTS=1 + Docker 靶场运行），13 个用例
-- `tests/integration/script-mcp-server.test.ts` — Script MCP Server 集成测试（LLM 自主脚本能力验证），7 个用例
-- `tests/lib/real-web-surface-mcp-connector.test.ts` — 真实 Web 页面探测 MCP 连接器测试
-- `tests/lib/real-http-validation-mcp-connector.test.ts` — 真实 HTTP 受控验证 MCP 连接器测试
-- `tests/lib/real-evidence-capture-mcp-connector.test.ts` — 真实截图证据采集 MCP 连接器测试
-
-### E2E 测试（14 tests, Playwright + Chromium）
-- `e2e/prototype-smoke.spec.ts` — 基础功能烟雾测试（8 tests：登录、仪表盘、资产中心、项目、设置、编排、调度）
-- `e2e/vuln-cockpit.spec.ts` — 漏洞驾驶舱 E2E 测试（6 tests：侧边栏、漏洞中心、重定向、项目卡片、AI 日志、聊天窗）
-- `playwright.config.ts` — 端口 4500、NO_PROXY 代理绕过、`--no-proxy-server` Chromium 参数
-
-### 验证脚本
-- `scripts/e2e-docker-validation.ts` — Docker 靶场端到端编排验证（创建项目 → 编排 → 执行 → 报告）
-
-## 6. Prisma 数据库
-
-`prisma/schema.prisma` — 25+ 模型（已修复 User.role 默认值，新增 OrchestratorRound.reflection 字段）：
-- **LlmCallLog** — LLM 调用日志（prompt/response/状态/耗时/token 用量）
-- **Project** — 项目主记录
-- **Finding** — 漏洞发现（支持跨项目聚合）
-- **Evidence** — 执行证据
-- **McpRun** — MCP 工具执行记录
-- **OrchestratorRound** — 编排轮次记录（含 reflection 字段）
-- **SchedulerTask** — 调度任务
-- **Approval** — 审批记录
-- **User** — 用户（role 默认值已修正）
-
-`prisma/seed.ts` — 数据迁移脚本，从 JSON 文件存储迁移至 PostgreSQL（一次性使用）
-
-## 7. MCP 服务器 (mcps/ 目录)
-
-独立的 MCP 工具服务器，每个有自己的 package.json：
-- `mcps/afrog-mcp-server/` — Afrog 漏洞扫描
-- `mcps/curl-mcp-server/` — HTTP 请求工具
-- `mcps/dirsearch-mcp-server/` — 目录爆破
-- `mcps/httpx-mcp-server/` — HTTP 探测
-- `mcps/subfinder-mcp-server/` — 子域名发现
-- `mcps/fofa-mcp-server/` — FOFA 资产搜索
-- `mcps/fscan-mcp-server/` — 内网扫描
-- `mcps/netcat-mcp-server/` — TCP/UDP 连接工具
-- `mcps/whois-mcp-server/` — WHOIS/ICP 查询
-- `mcps/wafw00f-mcp-server/` — WAF 检测
-- `mcps/encode-mcp-server/` — 编解码与哈希计算
-- `mcps/github-recon-mcp-server/` — GitHub 代码/仓库搜索
-- `mcps/script-mcp-server/` — **LLM 自主脚本执行**（核心能力）：execute_code（Node.js 代码执行）、execute_command（Shell 命令）、read_file / write_file（文件 I/O）
-
-## 8. Docker 基础设施
-
-### PostgreSQL 开发数据库
-
-`docker/postgres/compose.yaml` — PostgreSQL 16-alpine 容器，平台唯一数据层
-
-### Docker 靶场 (docker/local-labs/)
-
-`docker/local-labs/compose.yaml` — 12 个靶场服务：
-
-| 靶场 | 端口 | 协议 | 漏洞类型 |
-|------|------|------|----------|
-| Juice Shop | 3000 | HTTP | Web/API 漏洞 |
-| WebGoat | 18080 | HTTP | 教学型漏洞 |
-| DVWA | 8081 | HTTP | SQL注入/XSS/命令注入 |
-| WordPress | 8082 | HTTP | CMS 默认配置 |
-| phpMyAdmin | 8083 | HTTP | 管理面板暴露 |
-| Tomcat (弱口令) | 8888 | HTTP | tomcat/tomcat 默认密码 |
-| Elasticsearch (无认证) | 9200 | HTTP | 集群信息泄露 |
-| MySQL (弱口令) | 13307 | TCP | root/123456 |
-| Redis (无认证) | 6379 | TCP | 未授权访问 |
-| SSH (弱口令) | 2222 | TCP | root/root |
-| MongoDB (无认证) | 27017 | TCP | 未授权访问 |
-
-`lib/local-lab-catalog.ts` — 靶场目录与探测（HTTP + TCP 双协议支持）
-
-## 9. 架构演进记录
-
-### Phase 19: Architecture Refactoring (2026-03-30)
-
-> 设计文档: `docs/superpowers/specs/2026-03-30-architecture-refactoring-design.md`
-
-三步架构重构，消除单体文件、门面层和上帝模块：
-
-**Step 1 — 类型拆分**
-- `lib/prototype-types.ts` 从单体类型文件（400+ 行）缩减为再导出桶文件（~10 行）
-- 新增 `lib/types/` 目录，包含 10 个领域文件：`project.ts`, `approval.ts`, `mcp.ts`, `scheduler.ts`, `asset.ts`, `evidence.ts`, `settings.ts`, `llm-log.ts`, `user.ts`, `payloads.ts`
-
-**Step 2 — API 门面消除**
-- 删除 `lib/prototype-api.ts`（~20 个透传函数）
-- 新增 `lib/api-compositions.ts`（~580 行）— 8 个组合函数 + buildAssetViews + getSystemStatusPayload
-- 所有 API 路由和页面改为直接从 repositories/services 导入，不再经过门面层
-
-**Step 3 — 编排器拆分**
-- `lib/orchestrator-service.ts` 从 1,536 行缩减至 ~350 行（5 个公共函数）
-- 新增 `lib/orchestrator-target-scope.ts` — 目标分类、范围验证、TCP 解析
-- 新增 `lib/orchestrator-plan-builder.ts` — 计划生成、规范化、回退模板
-- 新增 `lib/orchestrator-execution.ts` — 计划执行、轮次记录、多轮循环
-- 新增 `lib/orchestrator-local-lab.ts` — 本地靶场验证计划构建
-
-### Phase 20: Continued Refactoring — 二级模块拆分 (2026-03-31)
-
-5 个 460-790 行大文件拆分为 14 个 < 400 行子模块，原文件变为 barrel re-export（零 import 站点变更）：
-
-**`lib/compositions/`** — 从 `api-compositions.ts` (780 行) 拆出：
-| 文件 | 用途 |
-|------|------|
-| `dashboard-compositions.ts` | 仪表盘聚合（getDashboardPayload + getSystemStatusPayload + 全部 private helpers） |
-| `project-compositions.ts` | 项目查询组合（buildAssetViews, getProjectOperationsPayload, getProjectContextPayload） |
-| `settings-compositions.ts` | 设置聚合（getSettingsSectionsPayload, getMcpSettingsPayload） |
-| `control-compositions.ts` | 审批/调度控制动作（updateApprovalDecisionPayload 等） |
-
-**`lib/results/`** — 从 `project-results-repository.ts` (790 行) 拆出：
-| 文件 | 用途 |
-|------|------|
-| `project-results-core.ts` | 刷新 + 发现 + 结论查询（refreshStoredProjectResults 等） |
-| `project-conclusion-service.ts` | AI 结论生成（generateStoredProjectFinalConclusion） |
-| `project-report-repository.ts` | 报告导出（listStoredProjectReportExports 等） |
-
-**`lib/gateway/`** — 从 `mcp-gateway-repository.ts` (486 行) 拆出：
-| 文件 | 用途 |
-|------|------|
-| `mcp-run-repository.ts` | MCP Run CRUD（list/get/update） |
-| `mcp-dispatch-service.ts` | 调度分发 + 审批（dispatchStoredMcpRun, syncStoredMcpRunsAfterApprovalDecision） |
-
-**`lib/scheduler-control/`** — 从 `project-scheduler-control-repository.ts` (533 行) 拆出：
-| 文件 | 用途 |
-|------|------|
-| `scheduler-control-helpers.ts` | 共享审计日志 helpers（内部模块，不在 barrel 中） |
-| `scheduler-control-core.ts` | 调度状态读写（getStoredProjectSchedulerControl, updateStoredProjectSchedulerControl） |
-| `scheduler-task-commands.ts` | 任务停止/取消/重试命令 |
-
-**`lib/project/`** — 从 `project-repository.ts` (460 行) 拆出：
-| 文件 | 用途 |
-|------|------|
-| `project-read-repository.ts` | 只读查询（listStoredProjects, getStoredProjectById 等） |
-| `project-mutation-repository.ts` | 创建/更新/归档（createStoredProject, updateStoredProject, archiveStoredProject） |
+---
+
+## 2. App 目录：页面与 API
+
+### 2.1 控制台页面 (21 页)
+
+所有 `app/(console)/**/page.tsx` 均为 async Server Component。
+
+**仪表盘**: `/dashboard` — 关键指标、系统概览、资产预览、空平台引导
+
+**项目管理 (8 页)**:
+- `/projects` — 项目列表（卡片网格、搜索、归档确认）
+- `/projects/new` — 新建项目（react-hook-form + zod 字段级验证）
+- `/projects/[id]` — 项目概览 | `/projects/[id]/edit` — 编辑
+- `/projects/[id]/context` — 上下文 | `/projects/[id]/flow` — 阶段流程
+- `/projects/[id]/operations` — 调度面板（折叠式高级面板 + 确认对话框）
+- `/projects/[id]/ai-logs` — AI 日志（SSE 实时流）
+
+**结果 (3 页)** — 各自独立空状态:
+- `/projects/[id]/results/domains` — 域名（Globe 图标）
+- `/projects/[id]/results/network` — 端口/服务（Network 图标）
+- `/projects/[id]/results/findings` — 漏洞（ShieldAlert 图标）
+
+**资产与证据**: `/assets` `/assets/[id]` `/evidence` `/evidence/[id]`
+**系统功能**: `/approvals` — 审批（确认对话框） | `/vuln-center` — 漏洞中心
+**设置 (8 页)**: `/settings` (hub) + `llm` `mcp-tools`(Accordion 折叠) `users` `approval-policy` `audit-logs` `work-logs` `system-status`
+
+**Loading/Error 体系**:
+- 每个路由组都有专属 `loading.tsx`（Settings 共享 `SettingsSubPageSkeleton`）
+- 控制台 + 项目工作区各有 `error.tsx` 错误边界
+- 页面切换有 CSS fade-in 过渡动画（`app-shell.tsx` + `key={pathname}`）
+
+### 2.2 API 路由 (47 端点)
+
+**认证**: `/api/auth/login` `logout` `captcha` | **用户**: `/api/users` `[userId]`
+**仪表盘**: `/api/dashboard` `/api/health`
+**项目**: `/api/projects` `[projectId]` `archive` `context` `flow` `results/*` `report-export`
+**编排**: `/api/projects/[id]/orchestrator/plan` `local-validation`
+**调度**: `/api/projects/[id]/scheduler-control` `scheduler-tasks/[taskId]`
+**MCP**: `/api/projects/[id]/mcp-runs` `mcp-workflow/smoke-run`
+**审批**: `/api/approvals` `[approvalId]` `/api/projects/[id]/approval-control`
+**资产/证据**: `/api/assets` `[assetId]` `/api/evidence` `[evidenceId]`
+**LLM**: `/api/llm-logs/recent` `stream` `/api/projects/[id]/llm-logs` `[logId]`
+**设置**: `/api/settings/llm` `mcp-tools` `[toolId]` `mcp-servers/register` `agent-config` `approval-policy` `audit-logs` `work-logs` `system-status` `sections`
+
+---
+
+## 3. Components (116 文件)
+
+### 布局 (4)
+`layout/app-shell.tsx` — SidebarProvider + 路由动画 | `app-header.tsx` — 面包屑 + 用户菜单
+`app-sidebar.tsx` — 三分组导航 + 动态 badge | `ai-chat-widget.tsx` — SSE 实时 AI 日志
+
+### 项目 (16)
+`project-list-client.tsx` — 卡片网格 + 归档确认 AlertDialog
+`project-form.tsx` — react-hook-form + zod 字段级验证
+`project-workspace-nav.tsx` — 8 标签页导航
+`project-scheduler-runtime-panel.tsx` — 调度控制 + 停止/取消确认
+`project-orchestrator-panel.tsx` — LLM 编排 | `project-mcp-runs-panel.tsx` — MCP 记录
+`project-findings-table.tsx` — 漏洞表格 + 空状态 | `project-inventory-table.tsx` — 资产清单
+`operations-collapsible-section.tsx` — 可折叠面板容器
+其他: summary, workspace-intro, card, knowledge-tabs, stage-flow, task-board, report-export-panel, llm-log-panel
+
+### 审批 (3): `approval-center-client.tsx` `approval-list.tsx` `approval-detail-sheet.tsx`（含确认对话框）
+### 资产/证据/仪表盘 (7): asset-center-client, asset-table, asset-profile-panel, asset-relations, evidence-table, evidence-detail, dashboard-asset-preview
+### 设置 (9): settings-hub-grid, settings-subnav, settings-sub-page-skeleton, llm-settings-panel, mcp-gateway-client(Accordion), mcp-tool-table, system-control-panel, system-status-grid, settings-log-table
+### 共享 (5): page-header, section-card, status-badge, stat-card, pagination
+### shadcn/ui 基础库 (61): 表单输入、弹窗层、布局容器、文本显示、导航、工具类
+
+---
+
+## 4. Lib 目录：业务逻辑
+
+### 数据层
+`prisma.ts` — PrismaClient 单例 | `prisma-transforms.ts` — DB ↔ TypeScript 转换（20+ 模型）
+
+### 类型 (lib/types/, 10 文件)
+`project.ts` `approval.ts` `mcp.ts` `scheduler.ts` `asset.ts` `evidence.ts` `settings.ts` `llm-log.ts` `user.ts` `payloads.ts`
+桶文件: `prototype-types.ts`
+
+### 认证安全 (5): `auth-session.ts` `auth-repository.ts` `csrf.ts` `rate-limit.ts` `api-client.ts`
+
+### LLM 集成 (7)
+`llm-provider/openai-compatible-provider.ts` `types.ts` `registry.ts`
+`llm-call-logger.ts` `llm-brain-prompt.ts` `llm-settings-repository.ts` `llm-settings-write-schema.ts`
+
+### AI Agent (4): `agent-config.ts` `env-detector.ts` `tool-output-summarizer.ts` `failure-analyzer.ts`
+
+### 编排器 (6 文件)
+`orchestrator-service.ts` — 主入口 | `orchestrator-target-scope.ts` — 目标分类
+`orchestrator-plan-builder.ts` — 计划生成 | `orchestrator-execution.ts` — 多轮执行
+`orchestrator-local-lab.ts` — 靶场验证 | `orchestrator-context-builder.ts` — 上下文构建
+
+### Repository 层
+桶文件: `project-repository.ts` `project-results-repository.ts` `mcp-gateway-repository.ts` `project-scheduler-control-repository.ts`
+子模块: `lib/project/` (2) · `lib/results/` (3) · `lib/gateway/` (2) · `lib/scheduler-control/` (3)
+其他: `approval-repository.ts` `asset-repository.ts` `evidence-repository.ts` `work-log-repository.ts`
+
+### 组合层 (lib/compositions/, 4): dashboard, project, settings, control
+### MCP 调度 (4): scheduler-service, execution-service, workflow-service, scheduler-repository
+### MCP 连接器 (9): registry, types + 7 连接器
+
+---
+
+## 5. MCP 服务器 (mcps/, 13 个独立项目)
+
+| 服务器 | 用途 | 关键工具 |
+|--------|------|----------|
+| `curl-mcp-server` | HTTP 请求 | request, raw_request, batch |
+| `netcat-mcp-server` | TCP/UDP | tcp_connect, banner_grab |
+| `encode-mcp-server` | 编解码 | encode_decode, hash_compute |
+| `subfinder-mcp-server` | 子域名 | enum, verify |
+| `whois-mcp-server` | WHOIS/ICP | whois_query, icp_query |
+| `fofa-mcp-server` | FOFA 搜索 | search, host |
+| `github-recon-mcp-server` | GitHub 侦察 | code_search, repo_search |
+| `afrog-mcp-server` | 漏洞扫描 | scan, list_pocs |
+| `fscan-mcp-server` | 内网扫描 | full_scan, port_scan |
+| `dirsearch-mcp-server` | 目录爆破 | scan, recursive |
+| `httpx-mcp-server` | HTTP 探测 | probe, tech_detect |
+| `wafw00f-mcp-server` | WAF 检测 | detect, list |
+| `script-mcp-server` | LLM 脚本 | execute_code, execute_command |
+
+---
+
+## 6. Tests (60+ 文件, 178+ 用例)
+
+API (15+) · 单元 (12+) · UI (8+) · E2E Playwright (14) · 集成 (10+, 默认跳过)
+
+---
+
+## 7. Docker
+
+`docker/postgres/compose.yaml` — PostgreSQL 16
+`docker/local-labs/compose.yaml` — 12 个靶场
+
+---
+
+## 8. 架构演进
+
+- **Phase 19** (2026-03-30): 类型拆分 + 门面消除 + 编排器分解
+- **Phase 20** (2026-03-31): 5 个大文件拆为 14 个子模块
+- **Phase 21** (2026-03-31): UI/UX 全站审查修复（loading/确认对话框/过渡动画/折叠面板/字段验证/圆角统一/空状态差异化）

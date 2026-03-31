@@ -2,8 +2,8 @@
 
 ## Project Snapshot
 
-- Date: `2026-03-30`
-- Current focus: Phase 17d 完成 — E2E 测试 Prisma 适配（14/14 通过）、分支合并至 main（17a-17d）、MCP 集成测试代码修复（`// @vitest-environment node` + async await）、工程清理（worktree + 分支清理）。
+- Date: `2026-03-31`
+- Current focus: Phase 21 完成 — UI/UX 全站审查修复（loading 骨架屏 12 个、确认对话框、页面过渡动画、折叠面板、字段级验证、圆角 token 统一、空状态差异化），分支 `feat/phase21-ui-ux-fixes` 待合并。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
 
 ## Phase 17a: Prisma 数据层迁移 (Prisma Data Layer Migration)
@@ -692,15 +692,57 @@
 - [x] 14/14 E2E 测试通过
 - [x] 零功能变更 — 所有行为完全保留
 
+## Phase 21: UI/UX 全站审查修复 (UI/UX Full-Site Review Fix)
+
+- Status: Completed on `2026-03-31`
+- Branch: `feat/phase21-ui-ux-fixes` (待合并至 main)
+- Goal: 基于 Playwright 自动截图审查（56 张截图 × 27 页面），修复全站 8 个 P1 体验问题和 3 个优先 P2 打磨问题。
+
+### 审查方法
+
+- 使用 `scripts/ui-review-screenshots.mjs` 对 27 个页面 × 2 视口（Desktop 1280×800 + Mobile 390×844）+ 4 页深色模式自动截图
+- 审查报告保存在 `docs/ui-ux-review-report.md`，分 P0/P1/P2 三级
+
+### 交付清单
+
+**Sprint 1 — P1 核心体验：**
+1. **Loading 骨架屏覆盖** (12 个新文件) — `SettingsSubPageSkeleton` 共享组件 + 7 个设置子页面 + settings 主页 + vuln-center + assets + approvals 各有匹配布局的 `loading.tsx`
+2. **破坏性操作确认对话框** — 调度面板停止/取消任务添加 AlertDialog + 审批决策通过/拒绝添加 AlertDialog（延后处理保持直接调用）
+3. **页面切换过渡动画** — CSS `fade-in` keyframe (0.2s ease-out, translateY 4px) + `key={pathname}` 触发路由切换重挂载
+
+**Sprint 2 — P1 信息架构：**
+4. **Operations 页面折叠面板** — 创建 `OperationsCollapsibleSection` 组件，底部 LLM 编排和 MCP 调度面板默认折叠
+5. **MCP 工具页面 Accordion 折叠** — 用 Radix Accordion 包裹次要区块（契约注册/已连接服务端/能力边界规则），保留统计和工具列表始终可见
+6. **项目表单字段级验证** — 从 useState 迁移到 react-hook-form + zodResolver + FormField/FormMessage，zod schema 校验名称/目标/描述
+
+**Sprint 3 — P2 打磨：**
+7. **圆角 Token 统一** — 定义 4 个语义化圆角 token（`hero=36px` `card=28px` `panel=24px` `item=22px`），21 个文件批量替换 16 种自定义圆角值
+8. **Dashboard 空平台引导** — 所有指标为 0 时显示 sky 主题引导卡片 + "创建第一个项目" CTA
+9. **结果页空状态差异化** — domains(Globe)、network(Network)、findings(ShieldAlert) 使用不同图标和文案
+
+### 验收标准
+
+- [x] 12 个新 loading.tsx 文件，骨架屏与实际页面结构匹配
+- [x] 调度停止/取消 + 审批通过/拒绝均有 AlertDialog 确认
+- [x] 页面切换有微妙 fade-in 效果
+- [x] Operations 底部面板和 MCP 工具次要区块可折叠
+- [x] `/projects/new` 空提交显示字段下方红色错误提示
+- [x] `grep -rn "rounded-\[" --include="*.tsx"` 仅剩 login-form.tsx 和 chart.tsx 特殊值
+- [x] Dashboard 零数据时显示引导卡片
+- [x] 三个结果页各自图标和文案不同
+- [x] `npx next lint` 无报错
+- [x] 8 次独立 commit，每个 Sprint 并行开发
+
 ## Recommended Next Phase
 
-- Name: `Phase 18 - 真实渗透测试闭环验证 (Real Pentest Closure)`
-- Goal: 使用当前 Prisma 数据层对 Docker 靶场进行完整端到端渗透测试闭环验证；优化多目标项目的并行编排；加强 MCP 连接器错误恢复与结果标准化。
+- Name: `Phase 22 - 真实渗透测试闭环验证 (Real Pentest Closure Validation)`
+- Goal: 使用当前 Prisma 数据层 + 完善后的 UI 对 Docker 靶场进行完整端到端渗透测试闭环验证；优化多目标项目的并行编排；加强 MCP 连接器错误恢复与结果标准化。
 - Priorities:
   1. 对 DVWA/WebGoat/Juice Shop 各执行一次完整的 LLM 编排 → MCP 执行 → 发现 → 报告闭环
   2. 多目标项目编排：同一项目覆盖多个靶场目标，验证并行调度和作用域隔离
   3. MCP 连接器增强：超时/重试改进、结构化错误返回、执行日志可视化
   4. CI 就绪化：GitHub Actions 配置 PostgreSQL service + vitest + playwright
+  5. 剩余 UI/UX 问题：P1-5 审批策略页重构、P1-8 验证码交互改造、P2-2 深色模式补充截图
 
 ## Notes for Future LLM Sessions
 
