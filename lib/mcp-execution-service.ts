@@ -1144,6 +1144,59 @@ function normalizeStdioMcpArtifacts(
     }
   }
 
+  // Extract findings from execute_code script results (vulnerability field in JSON output)
+  if (typeof sc.vulnerability === "string" && sc.vulnerability) {
+    const sev = typeof sc.severity === "string" ? sc.severity : ""
+    const severity = (sev.includes("高") || sev.includes("high") || sev.includes("critical"))
+      ? "高危" as const
+      : (sev.includes("中") || sev.includes("medium"))
+        ? "中危" as const
+        : "低危" as const
+    findings.push({
+      id: buildStableRecordId("finding", context.project.id, context.run.target, sc.vulnerability as string),
+      projectId: context.project.id,
+      severity,
+      status: "待复核",
+      title: sc.vulnerability as string,
+      summary: (sc.detail as string) ?? `由 ${context.run.toolName} 自主脚本在 ${context.run.target} 发现。`,
+      affectedSurface: context.run.target,
+      evidenceId,
+      owner: context.run.toolName,
+      updatedAt: timestamp,
+    })
+  }
+
+  // Auto-detect vulnerability patterns in raw output (execute_code / execute_command)
+  if (context.run.toolName === "execute_code" || context.run.toolName === "execute_command") {
+    const rawText = typeof sc.body === "string" ? sc.body : typeof sc.output === "string" ? sc.output : ""
+    if (rawText) {
+      // SQL injection indicators
+      if (/SQL syntax|mysql_fetch|You have an error in your SQL|ORA-\d{5}|pg_query|SQLSTATE/i.test(rawText)) {
+        const title = "SQL 错误信息泄露（可能存在 SQL 注入）"
+        const id = buildStableRecordId("finding", context.project.id, context.run.target, title)
+        if (!findings.some((f) => f.id === id)) {
+          findings.push({ id, projectId: context.project.id, severity: "高危", status: "待复核", title, summary: `在 ${context.run.target} 的响应中检测到 SQL 错误信息，可能存在 SQL 注入漏洞。`, affectedSurface: context.run.target, evidenceId, owner: context.run.toolName, updatedAt: timestamp })
+        }
+      }
+      // Command injection indicators
+      if (/uid=\d+.*gid=\d+|root:x:0:0|www-data|daemon:x:/.test(rawText)) {
+        const title = "命令注入"
+        const id = buildStableRecordId("finding", context.project.id, context.run.target, title)
+        if (!findings.some((f) => f.id === id)) {
+          findings.push({ id, projectId: context.project.id, severity: "高危", status: "待复核", title, summary: `在 ${context.run.target} 的响应中检测到系统命令输出（uid/gid/passwd），存在命令注入漏洞。`, affectedSurface: context.run.target, evidenceId, owner: context.run.toolName, updatedAt: timestamp })
+        }
+      }
+      // XSS reflection indicators
+      if (/<script>alert\(1\)<\/script>/.test(rawText)) {
+        const title = "XSS（跨站脚本）反射"
+        const id = buildStableRecordId("finding", context.project.id, context.run.target, title)
+        if (!findings.some((f) => f.id === id)) {
+          findings.push({ id, projectId: context.project.id, severity: "中危", status: "待复核", title, summary: `在 ${context.run.target} 的响应中检测到 XSS payload 被原样反射，存在反射型 XSS 漏洞。`, affectedSurface: context.run.target, evidenceId, owner: context.run.toolName, updatedAt: timestamp })
+        }
+      }
+    }
+  }
+
   // Extract generic assets
   if (Array.isArray(sc.assets)) {
     for (const entry of sc.assets as Array<{ type?: string; label?: string; host?: string }>) {

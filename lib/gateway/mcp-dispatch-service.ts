@@ -1,6 +1,7 @@
 import { listBuiltInMcpTools } from "@/lib/built-in-mcp-tools"
 import { Prisma } from "@/lib/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
+import { setLlmCodeForRun } from "@/lib/mcp-connectors/stdio-mcp-connector"
 import {
   toMcpRunRecord,
   fromMcpRunRecord,
@@ -402,6 +403,10 @@ export async function dispatchStoredMcpRun(projectId: string, input: McpDispatch
   })
 
   await prisma.mcpRun.create({ data: fromMcpRunRecord(executedRun) })
+  // Store LLM-generated code for execute_code/execute_command tools
+  if (input.code && (resolvedEnabledTool.toolName === "execute_code" || resolvedEnabledTool.toolName === "execute_command")) {
+    setLlmCodeForRun(executedRun.id, input.code)
+  }
   await prisma.project.updateMany({
     where: { id: projectId },
     data: {

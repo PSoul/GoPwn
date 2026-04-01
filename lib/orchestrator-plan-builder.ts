@@ -152,6 +152,9 @@ function buildNormalizedPlanItem(
     ? rawItem.toolName
     : undefined
 
+  // Preserve LLM-generated code for execute_code/execute_command
+  const code = typeof rawItem.code === "string" && rawItem.code.trim() ? rawItem.code.trim() : undefined
+
   return {
     capability,
     requestedAction,
@@ -159,6 +162,7 @@ function buildNormalizedPlanItem(
     riskLevel,
     rationale,
     toolName,
+    code,
   }
 }
 

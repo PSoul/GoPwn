@@ -182,6 +182,8 @@ export interface McpDispatchInput {
   target: string
   riskLevel: "高" | "中" | "低"
   preferredToolName?: string
+  /** LLM 自主编写的 execute_code 脚本代码 */
+  code?: string
 }
 
 export interface McpDispatchPayload {
@@ -226,6 +228,8 @@ export interface OrchestratorPlanItem {
   riskLevel: "高" | "中" | "低"
   rationale: string
   toolName?: string
+  /** LLM 自主编写的 execute_code 脚本代码，优先于 fallback 脚本 */
+  code?: string
 }
 
 export interface OrchestratorPlanRecord {

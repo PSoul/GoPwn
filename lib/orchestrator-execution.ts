@@ -147,6 +147,7 @@ export async function executePlanItems(
           target: item.target,
           riskLevel: item.riskLevel,
           preferredToolName: item.toolName,
+          code: item.code,
         }, {
           ignoreProjectLifecycle: options?.ignoreProjectLifecycle,
         }),
