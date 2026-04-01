@@ -1,3 +1,5 @@
+import { ProxyAgent } from "undici"
+
 import {
   ORCHESTRATOR_BRAIN_SYSTEM_PROMPT,
   REVIEWER_BRAIN_SYSTEM_PROMPT,
@@ -26,6 +28,12 @@ type OpenAiCompatibleConfig = {
 
 function normalizeBaseUrl(baseUrl: string) {
   return baseUrl.replace(/\/+$/, "")
+}
+
+function getProxyDispatcher(): ProxyAgent | undefined {
+  const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy
+  if (!proxyUrl) return undefined
+  return new ProxyAgent(proxyUrl)
 }
 
 function extractJsonCandidate(content: string) {
@@ -117,6 +125,8 @@ export function createOpenAiCompatibleProvider(config: OpenAiCompatibleConfig): 
       try {
         const useStreaming = Boolean(input.projectId)
 
+        const dispatcher = getProxyDispatcher()
+
         const response = await fetch(`${normalizeBaseUrl(profile.baseUrl)}/chat/completions`, {
           method: "POST",
           headers: {
@@ -142,7 +152,8 @@ export function createOpenAiCompatibleProvider(config: OpenAiCompatibleConfig): 
             ...(useStreaming ? { stream: true } : {}),
           }),
           signal: controller.signal,
-        })
+          ...(dispatcher ? { dispatcher } : {}),
+        } as RequestInit)
 
         if (!response.ok) {
           throw new Error(`LLM provider request failed with status ${response.status}.`)
