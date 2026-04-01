@@ -66,6 +66,9 @@ const seedNormalizerConnector: McpConnector = {
   },
 }
 
+// 以下本地 connector 仅用于 smoke workflow 测试夹具，不参与真实编排器流程。
+// 真实编排器流程要求 LLM 已配置，且使用真实 MCP 工具（stdio connector）执行。
+
 const localDnsConnector: McpConnector = {
   key: "local-dns-census",
   mode: "local",

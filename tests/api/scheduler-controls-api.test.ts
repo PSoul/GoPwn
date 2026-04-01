@@ -93,11 +93,11 @@ describe("scheduler control api routes", () => {
     )
     const startedOperationsPayload = await operationsAfterStart.json()
 
-    expect(startedOperationsPayload.project.status).toBe("已完成")
+    // 无 LLM 配置时，项目启动后不会生成真实计划，状态保持"运行中"
+    // 只有配置了 LLM 才能完成完整的生命周期（计划 → 执行 → 结论 → 已完成）
     expect(startedOperationsPayload.schedulerControl.lifecycle).toBe("running")
     expect(startedOperationsPayload.orchestrator.lastPlan).not.toBeNull()
-    expect(startedOperationsPayload.reportExport.latest).not.toBeNull()
-    expect(startedOperationsPayload.detail.finalConclusion).not.toBeNull()
+    expect(startedOperationsPayload.orchestrator.lastPlan.summary).toContain("LLM 未配置")
 
     const stoppedFixture = await createStoredProjectFixture({
       targetInput: "https://staging.example.com/login",
@@ -138,7 +138,7 @@ describe("scheduler control api routes", () => {
     expect(restartPayload.error).toContain("stopped")
   })
 
-  it("skips DNS expansion for direct URL/IP targets and auto-settles into report export plus final conclusion", async () => {
+  it("skips DNS expansion for direct URL/IP targets when LLM is not configured", async () => {
     await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture({
       targetInput: "http://127.0.0.1:18080/WebGoat",
@@ -160,17 +160,6 @@ describe("scheduler control api routes", () => {
     expect(startResponse.status).toBe(200)
     await flushPendingKickoff()
 
-    const detailResponse = await getProjectDetail(
-      new Request(`http://localhost/api/projects/${fixture.project.id}`),
-      buildProjectContext(fixture.project.id),
-    )
-    const detailPayload = await detailResponse.json()
-
-    expect(detailResponse.status).toBe(200)
-    expect(detailPayload.project.status).toBe("已完成")
-    expect(detailPayload.detail.finalConclusion).not.toBeNull()
-    expect(detailPayload.detail.finalConclusion.summary).toContain("最终结论")
-
     const operationsResponse = await getProjectOperations(
       new Request(`http://localhost/api/projects/${fixture.project.id}/operations`),
       buildProjectContext(fixture.project.id),
@@ -178,16 +167,13 @@ describe("scheduler control api routes", () => {
     const operationsPayload = await operationsResponse.json()
 
     expect(operationsResponse.status).toBe(200)
-    expect(
-      operationsPayload.orchestrator.lastPlan.items.some(
-        (item: { capability: string }) => item.capability === "DNS / 子域 / 证书情报类",
-      ),
-    ).toBe(false)
+    // 无 LLM 配置时，空计划不包含任何 item（包括 DNS）
+    expect(operationsPayload.orchestrator.lastPlan.items.length).toBe(0)
+    expect(operationsPayload.orchestrator.lastPlan.summary).toContain("LLM 未配置")
+    // 没有 DNS 类 MCP runs
     expect(
       operationsPayload.mcpRuns.some((item: { capability: string }) => item.capability === "DNS / 子域 / 证书情报类"),
     ).toBe(false)
-    expect(operationsPayload.reportExport.latest).not.toBeNull()
-    expect(operationsPayload.reportExport.latest.conclusionSummary).toContain("最终结论")
   })
 
   it("cancels a queued scheduler task through the project api", async () => {

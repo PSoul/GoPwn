@@ -227,17 +227,8 @@ export function normalizePlanItems(
       ? normalizedItems.filter((item) => item.riskLevel !== "高")
       : normalizedItems
 
-  for (const fallbackItem of fallbackItems) {
-    if (
-      filteredItems.some(
-        (item) => item.capability === fallbackItem.capability && item.target === fallbackItem.target,
-      )
-    ) {
-      continue
-    }
-
-    filteredItems.push(fallbackItem)
-  }
+  // LLM 生成的计划是权威的，不再自动合并 fallback items
+  // fallbackItems 仅在 LLM 未配置时作为独立 fallback 使用（但那条路径现在会抛错）
 
   return filteredItems.filter((item, index, collection) => {
     const fingerprint = `${item.capability}::${item.target}::${item.requestedAction}`

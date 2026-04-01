@@ -59,22 +59,17 @@ export async function generateProjectLifecyclePlan(
   const recentContext = await buildProjectRecentContext(projectId)
 
   if (!provider) {
+    console.warn(`[orchestrator] LLM 未配置，项目 ${projectId} 无法生成真实计划。请在设置页面配置 LLM。`)
     const plan = await persistProjectOrchestratorPlan(
       projectId,
       normalizePlanRecord({
-        items: fallbackItems,
+        items: [],
         provider: providerStatus,
-        summary:
-          input.controlCommand === "resume"
-            ? `项目已恢复运行，使用本地回退策略生成 ${fallbackItems.length} 条续跑动作。`
-            : `项目已开始，使用本地回退策略生成 ${fallbackItems.length} 条首轮动作。`,
+        summary: "LLM 未配置或未启用，无法生成计划。请在设置 → LLM 配置中填写 API Key、Base URL 和 Model。",
       }),
     )
 
-    return {
-      plan,
-      provider: providerStatus,
-    }
+    return { plan, provider: providerStatus }
   }
 
   const providerResult = await provider.generatePlan({
@@ -294,6 +289,7 @@ export async function generateProjectOrchestratorPlan(
   )
 
   if (!provider) {
+    console.warn(`[orchestrator] LLM 未配置，项目 ${projectId} 本地靶场验证无法生成真实计划。`)
     const plan = await persistProjectOrchestratorPlan(
       projectId,
       normalizePlanRecord({
@@ -303,10 +299,7 @@ export async function generateProjectOrchestratorPlan(
       }),
     )
 
-    return {
-      provider: providerStatus,
-      plan,
-    }
+    return { provider: providerStatus, plan }
   }
 
   const providerResult = await provider.generatePlan({

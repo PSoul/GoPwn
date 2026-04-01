@@ -75,7 +75,7 @@ describe("project orchestrator api routes", () => {
     rmSync(tempDir, { force: true, recursive: true })
   })
 
-  it("generates a fallback orchestrator plan and exposes it on the operations payload", async () => {
+  it("generates a local-lab fallback plan without LLM and exposes it on the operations payload", async () => {
     await seedWorkflowReadyMcpTools()
     const fixture = await createStoredProjectFixture()
     const planResponse = await postOrchestratorPlan(
@@ -95,6 +95,7 @@ describe("project orchestrator api routes", () => {
 
     expect(planResponse.status).toBe(200)
     expect(planPayload.provider.enabled).toBe(false)
+    // 本地靶场验证路径保留 fallback（用于 smoke test），但项目生命周期路径不再使用 fallback
     expect(planPayload.plan.items.length).toBeGreaterThan(0)
 
     const operationsResponse = await getProjectOperations(
@@ -215,11 +216,13 @@ describe("project orchestrator api routes", () => {
     const operationsPayload = await operationsResponse.json()
 
     expect(operationsResponse.status).toBe(200)
-    expect(operationsPayload.project.status).toBe("已完成")
-    expect(operationsPayload.reportExport.latest).not.toBeNull()
-    expect(operationsPayload.reportExport.latest.conclusionSummary).toContain("最终结论")
-    expect(operationsPayload.detail.finalConclusion).not.toBeNull()
-    expect(operationsPayload.detail.finalConclusion.summary).toContain("最终结论")
+    // 无 LLM 配置时，审批通过后的 resume 生命周期产生空计划
+    // 验证审批决策已持久化，runs 中包含 auth-guard-check 执行记录
+    expect(
+      operationsPayload.mcpRuns.some(
+        (item: { capability: string; status: string }) => item.capability === "受控验证类" && item.status === "已执行",
+      ),
+    ).toBe(true)
   })
 
   it("normalizes real-provider plans with markdown-wrapped JSON and near-match capability labels", async () => {

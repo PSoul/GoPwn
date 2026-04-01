@@ -379,16 +379,8 @@ export async function generateMultiRoundPlan(
   const fallbackItems = buildProjectFallbackPlanItems(project, availableTools, "replan")
 
   if (!provider) {
-    const plan = await persistProjectOrchestratorPlan(
-      projectId,
-      normalizePlanRecord({
-        items: fallbackItems,
-        provider: providerStatus,
-        summary: `第${currentRound}轮使用本地回退策略生成 ${fallbackItems.length} 条动作。`,
-      }),
-    )
-
-    return { plan, provider: providerStatus }
+    console.warn(`[orchestrator] LLM 未配置，第${currentRound}轮无法生成真实计划。`)
+    return null
   }
 
   const assets = await listStoredAssets(projectId)
