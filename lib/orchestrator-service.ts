@@ -141,7 +141,7 @@ export async function runProjectLifecycleKickoff(projectId: string, input: Proje
   }
 
   const startRound = (control?.currentRound ?? 0) + 1
-  const maxRounds = control?.maxRounds ?? 10
+  const maxRounds = control?.maxRounds ?? 5
   const autoReplan = control?.autoReplan ?? true
 
   // Update current round

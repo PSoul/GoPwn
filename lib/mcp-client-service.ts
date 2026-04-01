@@ -102,12 +102,15 @@ export async function callMcpServerTool<TStructuredContent extends Record<string
   try {
     throwIfExecutionAborted(input.signal)
 
-    await withAbortSignal(() => withTimeout(client.connect(transport), timeoutMs), {
+    // Connect and listTools use a fixed 30s timeout — separate from tool execution timeout
+    const setupTimeoutMs = Math.min(timeoutMs, 30_000)
+
+    await withAbortSignal(() => withTimeout(client.connect(transport), setupTimeoutMs), {
       onAbort: () => closeClientQuietly(client, transport),
       signal: input.signal,
     })
 
-    const toolList = await withAbortSignal(() => withTimeout(client.listTools(), timeoutMs), {
+    const toolList = await withAbortSignal(() => withTimeout(client.listTools(), setupTimeoutMs), {
       onAbort: () => closeClientQuietly(client, transport),
       signal: input.signal,
     })

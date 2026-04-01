@@ -129,7 +129,7 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig = {
     toolTimeoutDefaultSeconds: 120,
     toolTimeoutMaxSeconds: 300,
     maxRetries: 2,
-    maxRounds: 10,
+    maxRounds: 5,
     autoReplan: true,
     noProgressStopRounds: 2,
   },

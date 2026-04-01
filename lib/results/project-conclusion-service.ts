@@ -30,10 +30,14 @@ function buildFallbackConclusionRecord(input: {
   findingCount: number
   projectId: string
 }): Omit<ProjectConclusionRecord, "generatedAt" | "id" | "source"> {
+  const insufficientCoverage = input.findingCount === 0 && input.evidenceCount === 0
+
   const findingLead =
     input.findingCount > 0
       ? `当前累计 ${input.findingCount} 条漏洞/发现，后续重点应围绕这些结果做复核与修复追踪。`
-      : "当前没有新增漏洞/发现，结论以资产面与证据面为主。"
+      : insufficientCoverage
+        ? "当前没有漏洞发现也没有证据记录，说明扫描覆盖不足或工具执行未能有效触达目标，不能据此判定目标安全。"
+        : "当前没有新增漏洞/发现，结论以资产面与证据面为主。"
 
   return {
     assetCount: input.assetCount,
@@ -43,15 +47,18 @@ function buildFallbackConclusionRecord(input: {
       `资产 ${input.assetCount} 条`,
       `证据 ${input.evidenceCount} 条`,
       `漏洞/发现 ${input.findingCount} 条`,
+      ...(insufficientCoverage ? ["⚠ 扫描覆盖不足，无法排除安全风险"] : []),
     ],
     nextActions:
       input.findingCount > 0
         ? ["复核高风险发现证据", "整理修复建议并回填报告", "视需要开启下一轮验证"]
-        : ["复核当前资产与证据", "确认是否需要补充更深一轮验证", "导出并归档当前报告"],
+        : insufficientCoverage
+          ? ["排查工具执行失败原因（DNS 解析/网络连通性/超时配置）", "使用可直达目标的地址重新测试", "手动验证目标是否可达"]
+          : ["复核当前资产与证据", "确认是否需要补充更深一轮验证", "导出并归档当前报告"],
     projectId: input.projectId,
     summary: normalizeConclusionSummary(
-      `本轮项目已完成首轮自动收尾，已沉淀 ${input.assetCount} 条资产、${input.evidenceCount} 条证据和 ${input.findingCount} 条漏洞/发现。 ${findingLead}`,
-      "本轮项目已完成首轮自动收尾。",
+      `本轮项目已完成自动收尾，已沉淀 ${input.assetCount} 条资产、${input.evidenceCount} 条证据和 ${input.findingCount} 条漏洞/发现。${findingLead}`,
+      "本轮项目已完成自动收尾。",
     ),
   }
 }

@@ -25,7 +25,7 @@ export function buildDefaultProjectSchedulerControl(
     lifecycle,
     paused: lifecycle === "paused" || lifecycle === "stopped",
     autoReplan: true,
-    maxRounds: 10,
+    maxRounds: 5,
     currentRound: 0,
     note: getLifecycleNote(lifecycle),
     updatedAt,

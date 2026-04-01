@@ -321,13 +321,25 @@ export async function shouldContinueAutoReplan(
     return { shouldContinue: false, reason: "本轮执行全部失败或阻塞" }
   }
 
-  // Stop condition 5: No progress (check last 2 rounds)
+  // Stop condition 5: High failure rate across all rounds
   const dbRounds = await prisma.orchestratorRound.findMany({
     where: { projectId },
     orderBy: { round: "asc" },
   })
   const rounds = dbRounds.map(toOrchestratorRoundRecord)
 
+  const totalPlanned = rounds.reduce((sum, r) => sum + r.planItemCount, 0)
+  if (totalPlanned > 0) {
+    const failedTasks = await prisma.schedulerTask.count({
+      where: { projectId, status: "failed" },
+    })
+    const failureRate = failedTasks / totalPlanned
+    if (failureRate > 0.6 && currentRound >= 3) {
+      return { shouldContinue: false, reason: `失败率过高 (${Math.round(failureRate * 100)}%)，已执行 ${currentRound} 轮，提前收敛` }
+    }
+  }
+
+  // Stop condition 6: No progress (check last 2 rounds)
   if (rounds.length >= 2) {
     const lastTwo = rounds.slice(-2)
     const noProgress = lastTwo.every(
@@ -390,7 +402,7 @@ export async function generateMultiRoundPlan(
     description: project.description,
     currentStage: project.stage,
     currentRound,
-    maxRounds: control?.maxRounds ?? 10,
+    maxRounds: control?.maxRounds ?? 5,
     autoReplan: control?.autoReplan ?? true,
     assetCount: assets.length,
     evidenceCount: evidence.length,

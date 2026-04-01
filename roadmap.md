@@ -2,8 +2,8 @@
 
 ## Project Snapshot
 
-- Date: `2026-03-31`
-- Current focus: Phase 22a 完成 — Tab 重构 + 术语清理 (8→7 tabs, scopeStatus/ProjectStatus 术语统一, 全站 DB 直查), 分支 `feat/phase22-tab-restructure`。下一步: Phase 22 真实渗透测试闭环验证。
+- Date: `2026-04-01`
+- Current focus: Phase 22 真实渗透测试闭环验证进行中 — DVWA 靶场初步验证完成，发现并修复 8 个核心问题（MCP 超时检测/maxRounds 优化/收敛策略/结论客观性/目标规范化），分支 `feat/phase22-real-pentest-validation`。下一步: 用修复后的代码重新验证 DVWA + TCP 服务靶场 + WebGoat。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
 
 ## Phase 17a: Prisma 数据层迁移 (Prisma Data Layer Migration)
@@ -115,7 +115,7 @@
 | `toolOutputMaxChars` | 30000 | 输出截断上限 |
 | `maxParallelTools` | 3 | 并行执行工具数 |
 | `maxRetries` | 2 | 工具重试次数 |
-| `maxRounds` | 10 | 最大编排轮数 |
+| `maxRounds` | 5 | 最大编排轮数 |
 | `approvalPolicy` | "cautious" | 审批策略（cautious/balanced/aggressive） |
 
 ### 验收标准
@@ -862,6 +862,42 @@
 - [x] 178/178 单元测试通过
 - [x] Tab 结构从 8 个精简为 7 个
 - [x] 所有结果页使用 DB 直查，不再依赖 assetGroups JSON
+
+## Phase 22: 真实渗透测试闭环验证 (Real Pentest Closure Validation)
+
+- Status: In progress on `2026-04-01`
+- Branch: `feat/phase22-real-pentest-validation`
+- Goal: 对 Docker 靶场进行完整端到端渗透测试闭环验证，修复验证中发现的核心问题。
+
+### 交付清单（已完成）
+
+1. **MCP 超时检测修复** — SDK 抛出英文 "Request timed out" 但代码只检查中文"超时"，添加英文消息匹配
+2. **maxRounds 全局统一 10→5** — `agent-config.ts`、`project-scheduler-lifecycle.ts`、`orchestrator-service.ts`、`project-summary.tsx` 四处统一
+3. **高失败率提前收敛** — `orchestrator-execution.ts` 新增停止条件：失败率 >60% 且 ≥3 轮时提前收敛
+4. **LLM 收敛原则引导** — `orchestrator-context-builder.ts` 注入收敛原则，防止 LLM 浪费轮次重复失败工具
+5. **MCP setup/tool 超时分离** — `mcp-client-service.ts` 将 connect+listTools 超时限制为 30s，不占用工具执行时间
+6. **Reviewer 结论客观性约束** — `llm-brain-prompt.ts` 添加 4 条客观性原则，防止 0 发现/0 证据时得出"安全"结论
+7. **host.docker.internal→localhost 目标规范化** — `stdio-mcp-connector.ts` 新增 `normalizeTargetForHost()`，使 MCP 工具能实际触达目标
+8. **覆盖不足检测** — `project-conclusion-service.ts` 当 findingCount=0 且 evidenceCount=0 时标记扫描覆盖不足
+
+### DVWA 初步验证结果
+
+- 首次验证：16/16 MCP 任务失败（超时检测 bug + host.docker.internal 不可达）
+- 修复后第二次验证：5 分钟内完成，LLM 主动返回 items:[] 收尾（收敛引导生效）
+- 问题：结论仍为"安全"（0 发现/0 证据，因 target 不可达）→ 触发 Fix 6-8
+
+### 验收标准
+
+- [x] MCP 超时检测覆盖中英文消息
+- [x] maxRounds 默认值全局统一为 5
+- [x] 高失败率提前收敛逻辑通过代码审查
+- [x] Reviewer prompt 包含客观性约束
+- [x] host.docker.internal 目标规范化为 localhost
+- [x] 178/178 单元测试通过
+- [x] TypeScript 编译零错误
+- [ ] DVWA 重新验证：MCP 工具实际触达目标并发现漏洞
+- [ ] TCP 服务靶场验证（Redis/SSH/MongoDB）
+- [ ] WebGoat 靶场验证
 
 ## Recommended Next Phase
 

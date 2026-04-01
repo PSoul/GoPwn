@@ -9,8 +9,15 @@ function isStdioMcpTool(toolName: string): boolean {
   return getServerKeyByToolName(toolName) !== null
 }
 
-function buildToolArguments(toolName: string, target: string): Record<string, unknown> {
+function normalizeTargetForHost(target: string): string {
+  // host.docker.internal is only resolvable inside Docker containers.
+  // MCP tools run on the host, so replace with localhost for connectivity.
+  return target.replace(/host\.docker\.internal/gi, "localhost")
+}
+
+function buildToolArguments(toolName: string, rawTarget: string): Record<string, unknown> {
   // Map platform requestedAction/target to MCP tool-specific parameters
+  const target = normalizeTargetForHost(rawTarget)
   const args: Record<string, unknown> = {}
 
   // DNS / subdomain tools
@@ -486,7 +493,7 @@ export const stdioMcpConnector: McpConnector = {
     } catch (error) {
       const message = error instanceof Error ? error.message : `${run.toolName} 执行失败`
 
-      if (message.includes("超时")) {
+      if (message.includes("超时") || message.includes("timed out") || message.includes("Timeout")) {
         return {
           status: "retryable_failure",
           connectorKey: "stdio-mcp-generic",

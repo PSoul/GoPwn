@@ -111,7 +111,7 @@ export function ProjectSummary({
         const failedCount = runningTasks.filter((t) => t.status === "failed").length
         const waitingApproval = runningTasks.filter((t) => t.status === "waiting_approval")
         const currentRound = schedulerControl?.currentRound ?? 0
-        const maxRounds = schedulerControl?.maxRounds ?? 10
+        const maxRounds = schedulerControl?.maxRounds ?? 5
         const lastRound = rounds.length > 0 ? rounds[rounds.length - 1] : null
 
         return (
