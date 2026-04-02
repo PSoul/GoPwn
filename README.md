@@ -12,7 +12,7 @@ MCP = 四肢     接触目标、调用外部工具、采集证据、回传结构
 
 ## 当前状态
 
-- 版本: `v0.6.0` (Phase 23c)
+- 版本: `v0.6.1` (Phase 24a)
 - 数据层: PostgreSQL via Prisma 7.x (`@prisma/adapter-pg`)，唯一数据层
 - 测试: 226 单元测试 + 14 E2E 测试
 - MCP: 14 个本地 MCP Server（36+ 工具）
@@ -244,6 +244,7 @@ LLM_REVIEWER_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
 | 23 | 反作弊重构 (移除端口硬编码 / WebGoat 分支 / 伪造数据) | 已完成 |
 | 23b | 调度器卡住修复 | 已完成 |
 | 23c | execute_code Pipeline 修复 (LLM POC 结果回收) | 已完成 |
+| 24a | fscan 端口扫描空结果修复 (中文解析 + fallback 提取) | 已完成 |
 
 ## 接手指南
 

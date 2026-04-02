@@ -25,6 +25,7 @@
 | 23 | Anti-Cheating Refactoring | Done | `f850631` |
 | 23b | Scheduler Stuck Task Fix | Done | `40a119a` |
 | 23c | execute_code Pipeline Fix | Done | `ce1c530` |
+| 24a | fscan Port Scan Empty Results Fix | Done | `c34fb20` |
 
 ---
 
@@ -195,6 +196,27 @@ The local `normalizeStdioMcpArtifacts` had three defects:
 - 3 findings extracted from LLM-generated scripts ("默认凭据登录成功", 高危)
 - Zero target-specific code: `git diff | grep -i dvwa/webgoat/admin/password/login.php` returns 0 matches
 - Unit tests: 58 passed / 1 pre-existing fail / 8 skipped (no regression)
+
+---
+
+## Phase 24a: fscan Port Scan Empty Results Fix -- COMPLETE
+
+**Goal**: Fix fscan_port_scan returning 0 results despite ports being open, and add a fallback extractor for robustness.
+
+### Root Causes Fixed
+
+| # | Problem | Fix | File |
+|---|---------|-----|------|
+| 1 | `-m portscan` flag doesn't work on Windows for localhost in fscan 2.0.1 | Removed the flag, use fscan default mode | `mcps/fscan-mcp-server/src/tools/port-scan.ts` |
+| 2 | fscan 2.0.1 outputs Chinese format (`[PORT] 目标:IP 状态:open 详情:port=N`) but parser only matched English | Added Chinese format patterns to `parsePlainTextOutput` | `mcps/fscan-mcp-server/src/parsers/json-parser.ts` |
+| 3 | No fallback when structured parsing misses data | Added IP:port regex fallback extractor in normalizer | `lib/mcp-execution-service.ts` |
+| 4 | Evidence not created when rawOutput exists but no structured assets | Relaxed gate: create evidence when rawOutput is non-empty | `lib/mcp-execution-service.ts` |
+
+### Verification
+
+- fscan now finds 5 open ports on localhost (8081, 3000, 8888, 2222, 13307)
+- Parser correctly handles both Chinese file output and English console output
+- Unit tests: 226 passed / 1 pre-existing fail / 0 regressions
 
 ---
 

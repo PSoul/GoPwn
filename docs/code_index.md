@@ -134,7 +134,7 @@ LLM-driven penetration testing platform. The LLM acts as the "brain" (planning, 
 | File | Description |
 |------|-------------|
 | `mcp-client-service.ts` | MCP client lifecycle management |
-| `mcp-execution-service.ts` | MCP tool execution orchestration. Contains the **actual** `normalizeExecutionArtifacts` + `normalizeStdioMcpArtifacts` (local copies, not imported). Handles execute_code stdout extraction from JSON wrapper, vulnerability JSON parsing, and evidence creation **(Phase 23b fix)** |
+| `mcp-execution-service.ts` | MCP tool execution orchestration. Contains the **actual** `normalizeExecutionArtifacts` + `normalizeStdioMcpArtifacts` (local copies, not imported). Handles execute_code stdout extraction from JSON wrapper, vulnerability JSON parsing, evidence creation, and fallback IP:port extraction from rawOutput **(Phase 23b/24a fix)** |
 | `mcp-execution-runtime.ts` | Runtime environment for MCP execution |
 | `mcp-execution-abort.ts` | Abort/cancel support for MCP runs |
 | `mcp-workflow-service.ts` | Workflow-level MCP coordination |
@@ -212,7 +212,7 @@ Each server follows a standard structure: `src/index.ts` (entry), `src/tools/` (
 
 | Server | Tools | Description |
 |--------|-------|-------------|
-| `fscan-mcp-server` | full-scan, host-discovery, port-scan, vuln-scan, web-scan, service-bruteforce | Network scanner (fscan wrapper) |
+| `fscan-mcp-server` | full-scan, host-discovery, port-scan, vuln-scan, web-scan, service-bruteforce | Network scanner (fscan wrapper). Parser supports both Chinese (2.0.1+) and English output formats. |
 | `curl-mcp-server` | request, raw-request, batch | HTTP client |
 | `httpx-mcp-server` | probe, tech-detect | HTTP probing and tech detection |
 | `dirsearch-mcp-server` | scan, recursive | Directory/path brute-force |
