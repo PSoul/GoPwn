@@ -164,23 +164,24 @@ export async function buildLastRoundDetail(projectId: string): Promise<string> {
       const analysis = analyzeFailure(run.toolName, run.target, errorMsg)
       lines.push(formatFailureForPrompt(analysis))
     } else {
-      // For execute_code/execute_command, include actual raw output so LLM can see results
-      const isCodeExecution = ["execute_code", "execute_command"].includes(run.toolName)
-      const dbRun = dbRuns.find(r => r.id === run.id)
-      const dbRawOutput = (dbRun?.rawOutput as string[] | undefined)?.join("\n") ?? ""
+      // Find related evidence for this run (evidence stores rawOutput)
+      const relatedEvidence = evidence.find(
+        (e) => e.linkedTaskTitle === run.requestedAction
+          || e.linkedTaskTitle?.includes(run.toolName)
+          || e.source?.includes(run.toolName),
+      )
+      const rawOutputText = relatedEvidence?.rawOutput?.join("\n") ?? ""
 
-      if (isCodeExecution && dbRawOutput.length > 0) {
-        const truncated = dbRawOutput.length > 2000 ? dbRawOutput.slice(0, 2000) + "\n...(truncated)" : dbRawOutput
-        const statusIcon = run.status === "已完成" ? "✓" : "⏳"
+      // For execute_code/execute_command, include actual raw output so LLM can see
+      // what the script produced and plan next steps accordingly
+      const isCodeExecution = ["execute_code", "execute_command"].includes(run.toolName)
+      if (isCodeExecution && rawOutputText.length > 0) {
+        const truncated = rawOutputText.length > 2000 ? rawOutputText.slice(0, 2000) + "\n...(truncated)" : rawOutputText
+        const statusIcon = run.status === "已执行" ? "✓" : "⏳"
         lines.push(`${statusIcon} ${run.toolName}(${run.target})\n  实际输出:\n${truncated}`)
       } else {
         // Other tools: use summarized output
-        const relatedEvidence = evidence.find(
-          (e) => e.linkedTaskTitle?.includes(run.toolName) || e.source?.includes(run.toolName),
-        )
-        const rawOutput = relatedEvidence?.rawOutput?.join("\n") ?? dbRawOutput
-        const summary = summarizeToolOutput(run.toolName, run.target, run.status, rawOutput)
-
+        const summary = summarizeToolOutput(run.toolName, run.target, run.status, rawOutputText)
         const statusIcon = summary.status === "成功" ? "✓" : "⏳"
         const findingsText = summary.keyFindings.length > 0
           ? summary.keyFindings.map(f => `  · ${f}`).join("\n")

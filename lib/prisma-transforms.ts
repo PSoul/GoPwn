@@ -412,6 +412,7 @@ export function toMcpRunRecord(db: any): McpRunRecord {
     connectorMode: db.connectorMode ?? undefined,
     linkedApprovalId: db.linkedApprovalId ?? undefined,
     summaryLines: db.summaryLines ?? [],
+    rawOutput: db.rawOutput ?? [],
   }
 }
 

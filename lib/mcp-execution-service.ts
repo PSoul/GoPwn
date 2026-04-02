@@ -755,8 +755,13 @@ async function normalizeExecutionArtifacts(
   }
 
   // Generic handler for real stdio MCP tools (httpx_probe, subfinder_enum, fscan_port_scan, etc.)
-  // Extract assets, evidence, and findings from structured content returned by MCP servers
-  if (rawResult.mode === "real" && rawResult.structuredContent && Object.keys(rawResult.structuredContent).length > 0) {
+  // Extract assets, evidence, and findings from structured content returned by MCP servers.
+  // Also route execute_code/execute_command here even if structuredContent only has
+  // {exitCode, stdout, stderr} — the script output needs parsing for vulnerability findings.
+  const hasStructuredContent = rawResult.structuredContent && Object.keys(rawResult.structuredContent).length > 0
+  const isScriptToolWithOutput = (context.run.toolName === "execute_code" || context.run.toolName === "execute_command")
+    && rawResult.rawOutput && rawResult.rawOutput.length > 0
+  if (rawResult.mode === "real" && (hasStructuredContent || isScriptToolWithOutput)) {
     return normalizeStdioMcpArtifacts(context, rawResult, { timestamp, evidenceId, linkedApprovalId, existingAssets, actor })
   }
 
@@ -794,6 +799,126 @@ function normalizeStdioMcpArtifacts(
   const sc = rawResult.structuredContent
   const assets: AssetRecord[] = []
   const findings: ProjectFindingRecord[] = []
+
+  // For execute_code/execute_command: structuredContent contains {exitCode, stdout, stderr, ...}
+  // where stdout is a string with the actual script output (often JSON vulnerability reports).
+  // Extract stdout and merge into sc so all downstream detectors can process it.
+  const isScriptTool = context.run.toolName === "execute_code" || context.run.toolName === "execute_command"
+  if (isScriptTool && typeof sc.stdout === "string" && (sc.stdout as string).trim()) {
+    const stdoutStr = sc.stdout as string
+    const stdoutLines = stdoutStr.split("\n").filter((l: string) => l.trim())
+
+    // Parse each stdout line as potential JSON vulnerability report
+    for (const line of stdoutLines) {
+      const trimmed = line.trim()
+      if (!trimmed.startsWith("{")) continue
+      try {
+        const parsed = JSON.parse(trimmed) as Record<string, unknown>
+        if (typeof parsed.vulnerability === "string" && parsed.vulnerability) {
+          const sev = typeof parsed.severity === "string" ? parsed.severity : ""
+          const severity = (sev.includes("高") || sev.includes("high") || sev.includes("critical"))
+            ? "高危" as const
+            : (sev.includes("中") || sev.includes("medium"))
+              ? "中危" as const
+              : "低危" as const
+          const findingId = buildStableRecordId("finding", context.project.id, context.run.target, parsed.vulnerability as string)
+          if (!findings.some((f) => f.id === findingId)) {
+            findings.push({
+              id: findingId,
+              projectId: context.project.id,
+              severity,
+              status: "待复核",
+              title: parsed.vulnerability as string,
+              summary: (parsed.detail as string) ?? (parsed.summary as string) ?? `由 ${context.run.toolName} 自主脚本在 ${context.run.target} 发现。`,
+              affectedSurface: (parsed.target as string) ?? context.run.target,
+              evidenceId,
+              owner: context.run.toolName,
+              updatedAt: timestamp,
+            })
+          }
+        } else if (Array.isArray(parsed.findings)) {
+          for (const f of parsed.findings as Array<Record<string, unknown>>) {
+            const title = (f.title as string) ?? (f.vulnerability as string) ?? `${context.run.toolName} 发现`
+            const findingId = buildStableRecordId("finding", context.project.id, context.run.target, title)
+            if (findings.some((existing) => existing.id === findingId)) continue
+            const sev = typeof f.severity === "string" ? f.severity : ""
+            const severity = (sev.includes("高") || sev.includes("high") || sev.includes("critical"))
+              ? "高危" as const
+              : (sev.includes("中") || sev.includes("medium"))
+                ? "中危" as const
+                : "低危" as const
+            findings.push({
+              id: findingId,
+              projectId: context.project.id,
+              severity,
+              status: "待复核",
+              title,
+              summary: (f.description as string) ?? (f.detail as string) ?? `由 ${context.run.toolName} 发现。`,
+              affectedSurface: (f.url as string) ?? (f.target as string) ?? context.run.target,
+              evidenceId,
+              owner: context.run.toolName,
+              updatedAt: timestamp,
+            })
+          }
+        }
+      } catch {
+        // Not valid JSON, skip
+      }
+    }
+
+    // Set output/body for downstream pattern detectors if not already set
+    if (!sc.output && !sc.body) {
+      sc.output = stdoutStr
+    }
+  }
+
+  // Also extract stdout from rawOutput wrapper (belt-and-suspenders)
+  if (isScriptTool && rawResult.rawOutput && rawResult.rawOutput.length > 0) {
+    for (const raw of rawResult.rawOutput) {
+      const trimmed = raw.trim()
+      if (!trimmed.startsWith("{")) continue
+      try {
+        const parsed = JSON.parse(trimmed) as Record<string, unknown>
+        if (typeof parsed.stdout === "string" && (parsed.stdout as string).trim()) {
+          const stdoutStr = parsed.stdout as string
+          if (!sc.output && !sc.body) {
+            sc.output = stdoutStr
+          }
+          // Parse stdout lines for vulnerability JSON
+          for (const line of stdoutStr.split("\n")) {
+            const lt = line.trim()
+            if (!lt.startsWith("{")) continue
+            try {
+              const inner = JSON.parse(lt) as Record<string, unknown>
+              if (typeof inner.vulnerability === "string" && inner.vulnerability) {
+                const sev = typeof inner.severity === "string" ? inner.severity : ""
+                const severity = (sev.includes("高") || sev.includes("high") || sev.includes("critical"))
+                  ? "高危" as const
+                  : (sev.includes("中") || sev.includes("medium"))
+                    ? "中危" as const
+                    : "低危" as const
+                const findingId = buildStableRecordId("finding", context.project.id, context.run.target, inner.vulnerability as string)
+                if (!findings.some((f) => f.id === findingId)) {
+                  findings.push({
+                    id: findingId,
+                    projectId: context.project.id,
+                    severity,
+                    status: "待复核",
+                    title: inner.vulnerability as string,
+                    summary: (inner.detail as string) ?? `由 ${context.run.toolName} 自主脚本在 ${context.run.target} 发现。`,
+                    affectedSurface: (inner.target as string) ?? context.run.target,
+                    evidenceId,
+                    owner: context.run.toolName,
+                    updatedAt: timestamp,
+                  })
+                }
+              }
+            } catch { /* not JSON */ }
+          }
+        }
+      } catch { /* not JSON wrapper */ }
+    }
+  }
 
   // Extract domain/subdomain assets
   if (Array.isArray(sc.domains)) {
@@ -1239,7 +1364,10 @@ function normalizeStdioMcpArtifacts(
   if (findings.length > 0) summaryParts.push(`发现 ${findings.length} 个漏洞/问题`)
   const summaryText = summaryParts.length > 0 ? summaryParts.join("，") : `${context.run.toolName} 已执行完成`
 
-  const evidence: EvidenceRecord[] = (assets.length > 0 || findings.length > 0)
+  // Always create evidence for script tools so rawOutput is preserved for
+  // LLM context in subsequent orchestrator rounds and for audit/debugging.
+  const shouldCreateEvidence = assets.length > 0 || findings.length > 0 || isScriptTool
+  const evidence: EvidenceRecord[] = shouldCreateEvidence
     ? [{
         id: evidenceId,
         projectId: context.project.id,
@@ -1406,7 +1534,9 @@ export async function executeStoredMcpRun(
     }
   }
 
+  console.info(`[mcp-execution] normalizing artifacts for ${run.toolName} run=${run.id} rawOutputLen=${rawResult.rawOutput?.length ?? 0}`)
   const artifacts = await normalizeExecutionArtifacts(executionContext, rawResult)
+  console.info(`[mcp-execution] normalized: ${artifacts.assets.length} assets, ${artifacts.evidence.length} evidence, ${artifacts.findings.length} findings`)
 
   await upsertStoredAssets(artifacts.assets)
   await upsertStoredEvidence(artifacts.evidence)

@@ -84,7 +84,11 @@ export async function normalizeExecutionArtifacts(
   }
 
   // Generic handler for real stdio MCP tools
-  if (rawResult.mode === "real" && rawResult.structuredContent && Object.keys(rawResult.structuredContent).length > 0) {
+  const hasStructuredContent = rawResult.structuredContent && Object.keys(rawResult.structuredContent).length > 0
+  const isScriptToolWithOutput = (context.run.toolName === "execute_code" || context.run.toolName === "execute_command")
+    && rawResult.rawOutput && rawResult.rawOutput.length > 0
+
+  if (rawResult.mode === "real" && (hasStructuredContent || isScriptToolWithOutput)) {
     return normalizeStdioMcpArtifacts(context, rawResult, { timestamp, evidenceId, linkedApprovalId, existingAssets, actor })
   }
 

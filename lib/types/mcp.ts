@@ -120,6 +120,7 @@ export interface McpRunRecord {
   connectorMode?: "local" | "real"
   linkedApprovalId?: string
   summaryLines: string[]
+  rawOutput?: string[]
 }
 
 export interface McpToolPatchInput {
