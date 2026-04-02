@@ -12,12 +12,13 @@ MCP = 四肢     接触目标、调用外部工具、采集证据、回传结构
 
 ## 当前状态
 
-- 版本: `v0.5.0`
+- 版本: `v0.6.0` (Phase 23c)
 - 数据层: PostgreSQL via Prisma 7.x (`@prisma/adapter-pg`)，唯一数据层
-- 测试: 178 单元测试 + 14 E2E 测试
+- 测试: 226 单元测试 + 14 E2E 测试
 - MCP: 14 个本地 MCP Server（36+ 工具）
 - 靶场: 13 个 Docker 容器（DVWA / Juice Shop / WebGoat / Redis / SSH / Tomcat / Elasticsearch / MongoDB 等）
 - 编排: 多轮 LLM 自动编排循环，支持自动续跑、并行执行、轮间自我反思
+- 通用化: 零靶场特定代码，LLM 自主编写 POC 脚本并正确回收结果
 
 ## 技术栈
 
@@ -203,9 +204,11 @@ LLM_REVIEWER_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
 
 以下靶场已通过完整的 `LLM 编排 -> MCP 执行 -> 发现 -> 报告` 闭环验证：
 
-- **DVWA** — 3 轮自动编排，发现 Apache 版本泄露 + 过时版本
+- **DVWA** — 多轮自动编排，LLM 自主编写 Node.js POC 发现默认凭据登录（高危）+ Apache 版本泄露 + 过时版本
 - **Juice Shop** — 真实 LLM 编排 + Web 探测 + 审批恢复 + 结果沉淀
-- **WebGoat** — 多次闭环验证，含 Actuator 匿名暴露发现 + 报告导出
+- **WebGoat** — 多次闭环验证，含结构发现 + 报告导出
+
+> **无作弊设计**: 平台不包含任何靶场特定逻辑。所有漏洞发现均由 LLM 自主规划 + 自主编写 POC 脚本 + MCP 执行 + 通用 pipeline 归一化完成。换一个全新靶场，平台仍然能工作。
 
 ## 文档索引
 
@@ -237,6 +240,10 @@ LLM_REVIEWER_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
 | 19 | 架构重构 (类型拆分 / facade 删除 / 模块分解) | 已完成 |
 | 20 | 架构持续精简 + 二级模块拆分 | 已完成 |
 | 21 | UI/UX 全站审查 + 5 轮真实使用 Debug | 已完成 |
+| 22 | 真实渗透测试验证 + LLM 代码直通 + 自动漏洞检测 | 已完成 |
+| 23 | 反作弊重构 (移除端口硬编码 / WebGoat 分支 / 伪造数据) | 已完成 |
+| 23b | 调度器卡住修复 | 已完成 |
+| 23c | execute_code Pipeline 修复 (LLM POC 结果回收) | 已完成 |
 
 ## 接手指南
 
