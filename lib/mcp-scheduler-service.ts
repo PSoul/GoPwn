@@ -226,6 +226,27 @@ export async function processStoredSchedulerTask(
     result = await withTaskHeartbeat(task.id, ownership, controller, () =>
       executeStoredMcpRun(run.id, priorOutputs, ownership, controller.signal),
     )
+  } catch (error) {
+    // Ensure task is moved to a final status even on unexpected exceptions
+    // (e.g. normalizeExecutionArtifacts throws, DB upsert fails, etc.)
+    const errorMessage = error instanceof Error ? error.message : "Unknown execution error"
+    await updateStoredSchedulerTask(task.id, {
+      ...buildLeaseClearingPatch(),
+      status: "failed",
+      lastError: errorMessage,
+      summaryLines: [...claimedTask.summaryLines, `执行异常: ${errorMessage.slice(0, 200)}`],
+    })
+    await updateStoredMcpRun(run.id, {
+      status: "已阻塞",
+      summaryLines: appendRunSummary(run, [`执行异常: ${errorMessage.slice(0, 200)}`]),
+    })
+
+    return {
+      status: "failed" as const,
+      run: await getStoredMcpRunById(run.id) ?? run,
+      task: await getStoredSchedulerTaskByRunId(run.id) ?? task,
+      outputs: priorOutputs,
+    }
   } finally {
     unregisterActiveExecution(run.id, controller)
   }
@@ -254,7 +275,7 @@ export async function processStoredSchedulerTask(
   if (result.status === "aborted") {
     const currentTask = await getStoredSchedulerTaskByRunId(run.id)
     const cancelledTask = taskMatchesOwnership(currentTask, ownership)
-      ? await updateStoredSchedulerTask(currentTask!.id, buildLeaseClearingPatch())
+      ? await updateStoredSchedulerTask(currentTask!.id, { ...buildLeaseClearingPatch(), status: "cancelled" })
       : currentTask
     const cancelledRun = await getStoredMcpRunById(run.id)
 
@@ -268,11 +289,16 @@ export async function processStoredSchedulerTask(
 
   if (result.status === "ownership_lost") {
     const currentTask = await getStoredSchedulerTaskByRunId(run.id)
+    // If the task is still in "running" but we lost ownership, mark it as failed
+    // so it doesn't block project closure indefinitely.
+    const recoveredTask = currentTask?.status === "running"
+      ? await updateStoredSchedulerTask(currentTask.id, { ...buildLeaseClearingPatch(), status: "failed", lastError: "ownership lost during execution" })
+      : currentTask
 
     return {
       status: "ownership_lost" as const,
       run: await getStoredMcpRunById(run.id) ?? run,
-      task: currentTask ?? task,
+      task: recoveredTask ?? task,
       outputs: priorOutputs,
     }
   }

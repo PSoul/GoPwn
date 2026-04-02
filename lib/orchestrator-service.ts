@@ -12,6 +12,7 @@ import {
 } from "@/lib/project-scheduler-control-repository"
 import { prisma } from "@/lib/prisma"
 import { discoverAndRegisterMcpServers } from "@/lib/mcp-auto-discovery"
+import { recoverExpiredStoredSchedulerTasks } from "@/lib/mcp-scheduler-repository"
 import { upsertStoredWorkLogs } from "@/lib/work-log-repository"
 import { filterPlanItemsToProjectScope } from "@/lib/orchestrator-target-scope"
 import {
@@ -115,7 +116,26 @@ export async function generateProjectLifecyclePlan(
   }
 }
 
+// Prevent concurrent lifecycle kickoffs for the same project.
+// Multiple approvals can trigger simultaneous kickoffs, causing round count to exceed maxRounds.
+const activeLifecycles = new Map<string, Promise<unknown>>()
+
 export async function runProjectLifecycleKickoff(projectId: string, input: ProjectLifecyclePlanInput) {
+  const existing = activeLifecycles.get(projectId)
+  if (existing) {
+    // Another lifecycle is already running for this project — skip this kickoff
+    console.info(`[lifecycle] skipping duplicate kickoff for ${projectId} (already running)`)
+    return existing
+  }
+
+  const promise = _runProjectLifecycleKickoffInner(projectId, input).finally(() => {
+    activeLifecycles.delete(projectId)
+  })
+  activeLifecycles.set(projectId, promise)
+  return promise
+}
+
+async function _runProjectLifecycleKickoffInner(projectId: string, input: ProjectLifecyclePlanInput) {
   // Auto-discover and register MCP tools on project start
   if (input.controlCommand === "start") {
     try {
@@ -253,6 +273,10 @@ export async function runProjectLifecycleKickoff(projectId: string, input: Proje
       }
     }
   }
+
+  // Recover any tasks that got stuck in "running" due to timeout or background execution.
+  // This ensures tasks whose MCP runs completed in the background are properly marked.
+  await recoverExpiredStoredSchedulerTasks({ projectId })
 
   // Final closure attempt
   if (execution.status === "completed") {

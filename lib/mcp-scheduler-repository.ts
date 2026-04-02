@@ -271,23 +271,28 @@ export async function recoverExpiredStoredSchedulerTasks(
   const results: McpSchedulerTaskRecord[] = []
   for (const row of expiredRows) {
     const task = toSchedulerTaskRecord(row)
+    // Check if the linked MCP run already completed — if so, mark task as completed
+    // instead of resetting to "ready" (which would re-execute an already-finished run).
+    const linkedRun = task.runId ? await prisma.mcpRun.findUnique({ where: { id: task.runId } }) : null
+    const runAlreadyCompleted = linkedRun && ["已执行", "已完成"].includes(linkedRun.status as string)
+    const nextStatus = runAlreadyCompleted ? "completed" : "ready"
+    const summaryNote = runAlreadyCompleted
+      ? "MCP run 已完成但任务状态未同步，已自动标记为完成。"
+      : task.leaseExpiresAt
+        ? "执行 worker 租约已过期，任务已恢复回待执行队列。"
+        : "任务缺少可用执行租约元数据，已恢复回待执行队列。"
     const updated = await prisma.schedulerTask.update({
       where: { id: task.id },
       data: {
-        status: "ready",
-        availableAt: nowDate,
+        status: nextStatus,
+        availableAt: runAlreadyCompleted ? undefined : nowDate,
         heartbeatAt: null,
         lastRecoveredAt: now,
         leaseExpiresAt: null,
         leaseStartedAt: null,
         leaseToken: null,
         recoveryCount: (row.recoveryCount ?? 0) + 1,
-        summaryLines: [
-          ...task.summaryLines,
-          task.leaseExpiresAt
-            ? "执行 worker 租约已过期，任务已恢复回待执行队列。"
-            : "任务缺少可用执行租约元数据，已恢复回待执行队列。",
-        ],
+        summaryLines: [...task.summaryLines, summaryNote],
         workerId: null,
       },
     })

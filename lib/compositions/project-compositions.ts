@@ -4,7 +4,7 @@ import { listStoredEvidence } from "@/lib/evidence-repository"
 import { listStoredMcpRuns } from "@/lib/mcp-gateway-repository"
 import { getProjectOrchestratorPanelPayload } from "@/lib/orchestrator-service"
 import { buildDefaultProjectSchedulerControl } from "@/lib/project-scheduler-lifecycle"
-import { listStoredSchedulerTasks } from "@/lib/mcp-scheduler-repository"
+import { listStoredSchedulerTasks, recoverExpiredStoredSchedulerTasks } from "@/lib/mcp-scheduler-repository"
 import {
   getStoredProjectSchedulerControl,
 } from "@/lib/project-scheduler-control-repository"
@@ -108,6 +108,9 @@ export function buildAssetViews(
 }
 
 export async function getProjectOperationsPayload(projectId: string): Promise<ProjectOperationsPayload | null> {
+  // Recover tasks stuck in "running" with expired leases before computing status.
+  await recoverExpiredStoredSchedulerTasks({ projectId })
+
   const base = await getProjectBase(projectId)
 
   if (!base) {
