@@ -15,7 +15,7 @@ export function registerPortScan(server: McpServer) {
       timeout: z.number().optional().default(3).describe('Timeout in seconds'),
     },
     async ({ target, ports, threads, timeout }) => {
-      const args = ['-h', target, '-m', 'portscan', '-t', String(threads), '-time', String(timeout), '-nobr', '-nopoc'];
+      const args = ['-h', target, '-t', String(threads), '-time', String(timeout), '-nobr', '-nopoc'];
       if (ports) args.push('-p', ports);
 
       const results = await runFscan({ args, timeoutMs: 3 * 60_000 });

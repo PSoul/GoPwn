@@ -3,11 +3,18 @@ import type { ScanResult } from '../mappers/types.js';
 /**
  * Parse fscan plain-text output into structured ScanResult objects.
  *
- * fscan writes plain text by default. Lines we care about:
- *   (icmp) Target 10.0.0.1   is alive
- *   10.0.0.1:80 open
- *   [*] WebTitle http://10.0.0.1:80  code:200  len:1234  title:Some Page
- *   [+] SSH 10.0.0.1:22  ...
+ * Supports TWO output formats:
+ *
+ * 1. Console output (English, fscan <= 1.x):
+ *    (icmp) Target 10.0.0.1   is alive
+ *    10.0.0.1:80 open
+ *    [*] WebTitle http://10.0.0.1:80  code:200  len:1234  title:Some Page
+ *    [+] SSH 10.0.0.1:22  ...
+ *
+ * 2. File output (Chinese, fscan 2.0.1+):
+ *    [2026-04-03 00:12:39] [PORT] 目标:127.0.0.1 状态:open 详情:port=8888
+ *    [2026-04-03 00:12:39] [SERVICE] 目标:127.0.0.1 状态:identified 详情:port=3000, service=http, title=...
+ *    [2026-04-03 00:12:39] [HOST] 目标:127.0.0.1 状态:alive 详情:...
  */
 function parsePlainTextOutput(raw: string): ScanResult[] {
   const lines = raw.split('\n').filter((l) => l.trim());
@@ -17,8 +24,73 @@ function parsePlainTextOutput(raw: string): ScanResult[] {
   for (const line of lines) {
     const trimmed = line.trim();
 
+    // === fscan 2.0.1+ file output format (Chinese) ===
+
+    // [timestamp] [PORT] 目标:IP 状态:open 详情:port=N
+    const cnPortMatch = trimmed.match(/\[PORT\]\s+目标:(\S+)\s+状态:(\S+)\s+详情:.*?port=(\d+)/);
+    if (cnPortMatch) {
+      results.push({
+        time: now,
+        type: 'PORT',
+        target: cnPortMatch[1],
+        status: cnPortMatch[2],
+        details: { port: Number(cnPortMatch[3]) },
+      });
+      continue;
+    }
+
+    // [timestamp] [HOST] 目标:IP 状态:alive
+    const cnHostMatch = trimmed.match(/\[HOST\]\s+目标:(\S+)\s+状态:(\S+)/);
+    if (cnHostMatch) {
+      results.push({
+        time: now,
+        type: 'HOST',
+        target: cnHostMatch[1],
+        status: cnHostMatch[2],
+        details: {},
+      });
+      continue;
+    }
+
+    // [timestamp] [SERVICE] 目标:IP 状态:identified 详情:...port=N...service=xxx...
+    const cnServiceMatch = trimmed.match(/\[SERVICE\]\s+目标:(\S+)\s+状态:(\S+)\s+详情:(.*)/);
+    if (cnServiceMatch) {
+      const detailStr = cnServiceMatch[3];
+      const portVal = detailStr.match(/port=(\d+)/);
+      const serviceVal = detailStr.match(/service=(\w+)/);
+      const titleVal = detailStr.match(/title=([^,]+?)(?:,\s|$)/);
+      const statusCodeVal = detailStr.match(/status_code=(\d+)/);
+      const details: Record<string, unknown> = {};
+      if (portVal) details.port = Number(portVal[1]);
+      if (serviceVal) details.service = serviceVal[1].toLowerCase();
+      if (titleVal) details.title = titleVal[1].trim();
+      if (statusCodeVal) details.statusCode = Number(statusCodeVal[1]);
+      results.push({
+        time: now,
+        type: 'SERVICE',
+        target: cnServiceMatch[1],
+        status: cnServiceMatch[2],
+        details,
+      });
+      continue;
+    }
+
+    // [timestamp] [VULN] 目标:IP 状态:... 详情:...
+    const cnVulnMatch = trimmed.match(/\[VULN\]\s+目标:(\S+)\s+状态:(\S+)\s+详情:(.*)/);
+    if (cnVulnMatch) {
+      results.push({
+        time: now,
+        type: 'VULN',
+        target: cnVulnMatch[1],
+        status: cnVulnMatch[2],
+        details: { raw: cnVulnMatch[3] },
+      });
+      continue;
+    }
+
+    // === Classic console output format (English) ===
+
     // Host alive: "(icmp) Target 10.0.0.1   is alive"
-    // Also matches: "(ping) Target 10.0.0.1   is alive"
     const aliveMatch = trimmed.match(/^\((?:icmp|ping)\)\s+Target\s+(\S+)\s+is\s+alive/i);
     if (aliveMatch) {
       results.push({
@@ -31,9 +103,9 @@ function parsePlainTextOutput(raw: string): ScanResult[] {
       continue;
     }
 
-    // Open port: "10.0.0.1:80 open"
-    const portMatch = trimmed.match(/^(\d+\.\d+\.\d+\.\d+):(\d+)\s+open/i);
-    if (portMatch) {
+    // Open port: "10.0.0.1:80 open" or "[*] 端口开放 10.0.0.1:80"
+    const portMatch = trimmed.match(/^(?:\[\*\]\s+端口开放\s+)?(\d+\.\d+\.\d+\.\d+):(\d+)\s*(?:open)?/i);
+    if (portMatch && (trimmed.includes('open') || trimmed.includes('端口开放'))) {
       results.push({
         time: now,
         type: 'PORT',
@@ -45,9 +117,10 @@ function parsePlainTextOutput(raw: string): ScanResult[] {
     }
 
     // WebTitle: "[*] WebTitle http://10.0.0.1:80  code:200  len:1234  title:DVWA"
-    const webMatch = trimmed.match(/^\[\*\]\s+WebTitle\s+https?:\/\/(\d+\.\d+\.\d+\.\d+):(\d+)\S*\s+code:(\d+)/i);
+    // Also: "[*] 网站标题 http://10.0.0.1:80  状态码:200  长度:1234  标题:..."
+    const webMatch = trimmed.match(/^\[\*\]\s+(?:WebTitle|网站标题)\s+https?:\/\/([^/:]+):(\d+)\S*\s+(?:code|状态码):(\d+)/i);
     if (webMatch) {
-      const titleMatch = trimmed.match(/title:(.+?)(?:\s{2,}|$)/);
+      const titleMatch = trimmed.match(/(?:title|标题):(.+?)(?:\s{2,}|$)/);
       results.push({
         time: now,
         type: 'SERVICE',

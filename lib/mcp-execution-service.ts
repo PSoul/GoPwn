@@ -1358,6 +1358,45 @@ function normalizeStdioMcpArtifacts(
     }
   }
 
+  // Fallback: if no assets were extracted from structured fields but rawOutput has content,
+  // try to extract IP:port patterns from the raw text. This catches cases where the MCP
+  // server's output format changed or the parser missed something.
+  if (assets.length === 0 && rawResult.rawOutput && rawResult.rawOutput.length > 0) {
+    const rawText = rawResult.rawOutput.join("\n")
+    const portPattern = /(\d+\.\d+\.\d+\.\d+):(\d+)\s*(?:open|开放|状态:open)/gi
+    const seenPorts = new Set<string>()
+    let match: RegExpExecArray | null
+    while ((match = portPattern.exec(rawText)) !== null) {
+      const host = match[1]
+      const port = Number(match[2])
+      const key = `${host}:${port}`
+      if (seenPorts.has(key)) continue
+      seenPorts.add(key)
+      const assetId = buildStableRecordId("asset", context.project.id, "port", key)
+      assets.push({
+        id: assetId,
+        projectId: context.project.id,
+        projectName: context.project.name,
+        type: "port",
+        label: key,
+        profile: `${context.run.toolName} fallback 提取`,
+        scopeStatus: "已确认",
+        lastSeen: timestamp,
+        host,
+        ownership: `${context.project.name} MCP 结果`,
+        confidence: "0.70",
+        exposure: `端口 ${port}（从工具原始输出中提取）`,
+        linkedEvidenceId: evidenceId,
+        linkedTaskTitle: context.run.requestedAction,
+        issueLead: "从原始输出 fallback 提取，可继续采集服务版本信息。",
+        relations: [],
+      })
+    }
+    if (seenPorts.size > 0) {
+      console.info(`[mcp-execution] fallback extracted ${seenPorts.size} port assets from rawOutput for ${context.run.toolName}`)
+    }
+  }
+
   // Build evidence record from raw output
   const summaryParts: string[] = []
   if (assets.length > 0) summaryParts.push(`发现 ${assets.length} 个资产`)
@@ -1366,7 +1405,10 @@ function normalizeStdioMcpArtifacts(
 
   // Always create evidence for script tools so rawOutput is preserved for
   // LLM context in subsequent orchestrator rounds and for audit/debugging.
-  const shouldCreateEvidence = assets.length > 0 || findings.length > 0 || isScriptTool
+  // Also create evidence when rawOutput is non-empty — preserves data for debugging
+  // even when the structured parser missed something.
+  const hasRawOutput = rawResult.rawOutput && rawResult.rawOutput.length > 0
+  const shouldCreateEvidence = assets.length > 0 || findings.length > 0 || isScriptTool || hasRawOutput
   const evidence: EvidenceRecord[] = shouldCreateEvidence
     ? [{
         id: evidenceId,
