@@ -164,18 +164,29 @@ export async function buildLastRoundDetail(projectId: string): Promise<string> {
       const analysis = analyzeFailure(run.toolName, run.target, errorMsg)
       lines.push(formatFailureForPrompt(analysis))
     } else {
-      // 成功/其他状态的 run: 使用输出摘要
-      const relatedEvidence = evidence.find(
-        (e) => e.linkedTaskTitle?.includes(run.toolName) || e.source?.includes(run.toolName),
-      )
-      const rawOutput = relatedEvidence?.rawOutput?.join("\n") ?? ""
-      const summary = summarizeToolOutput(run.toolName, run.target, run.status, rawOutput)
+      // For execute_code/execute_command, include actual raw output so LLM can see results
+      const isCodeExecution = ["execute_code", "execute_command"].includes(run.toolName)
+      const dbRun = dbRuns.find(r => r.id === run.id)
+      const dbRawOutput = (dbRun?.rawOutput as string[] | undefined)?.join("\n") ?? ""
 
-      const statusIcon = summary.status === "成功" ? "✓" : "⏳"
-      const findingsText = summary.keyFindings.length > 0
-        ? summary.keyFindings.map(f => `  · ${f}`).join("\n")
-        : "  · (无输出)"
-      lines.push(`${statusIcon} ${run.toolName}(${run.target})\n${findingsText}`)
+      if (isCodeExecution && dbRawOutput.length > 0) {
+        const truncated = dbRawOutput.length > 2000 ? dbRawOutput.slice(0, 2000) + "\n...(truncated)" : dbRawOutput
+        const statusIcon = run.status === "已完成" ? "✓" : "⏳"
+        lines.push(`${statusIcon} ${run.toolName}(${run.target})\n  实际输出:\n${truncated}`)
+      } else {
+        // Other tools: use summarized output
+        const relatedEvidence = evidence.find(
+          (e) => e.linkedTaskTitle?.includes(run.toolName) || e.source?.includes(run.toolName),
+        )
+        const rawOutput = relatedEvidence?.rawOutput?.join("\n") ?? dbRawOutput
+        const summary = summarizeToolOutput(run.toolName, run.target, run.status, rawOutput)
+
+        const statusIcon = summary.status === "成功" ? "✓" : "⏳"
+        const findingsText = summary.keyFindings.length > 0
+          ? summary.keyFindings.map(f => `  · ${f}`).join("\n")
+          : "  · (无输出)"
+        lines.push(`${statusIcon} ${run.toolName}(${run.target})\n${findingsText}`)
+      }
     }
   }
 

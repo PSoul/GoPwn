@@ -165,9 +165,9 @@ describe("project orchestrator api routes", () => {
     const approvedPayload = await contextAfterApproval.json()
 
     expect(contextAfterApproval.status).toBe(200)
-    expect(
-      approvedPayload.detail.findings.some((item: { title: string }) => item.title.includes("认证绕过")),
-    ).toBe(true)
+    // Smoke test connector no longer fabricates findings — just verify approval flow completed
+    // After approval, assets and evidence should still exist from earlier smoke steps
+    expect(approvedPayload.assets.length).toBeGreaterThan(0)
   })
 
   it("continues project closure after approval resumes and lands on report export plus final conclusion", async () => {

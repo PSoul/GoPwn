@@ -35,13 +35,7 @@ function isHttpTarget(target: string) {
   return /^https?:\/\//i.test(target)
 }
 
-function inferValidationProfile(context: McpConnectorExecutionContext) {
-  const text = `${context.run.requestedAction} ${context.run.target}`.toLowerCase()
-
-  if (text.includes("actuator")) {
-    return "spring-actuator-exposure"
-  }
-
+function inferValidationProfile(_context: McpConnectorExecutionContext) {
   return "generic-http-validation"
 }
 

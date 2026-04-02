@@ -70,7 +70,8 @@ describe("project surface api routes", () => {
     const findingsPayload = await findingsResponse.json()
 
     expect(findingsResponse.status).toBe(200)
-    expect(findingsPayload.findings.length).toBeGreaterThan(0)
+    // Smoke test connectors no longer fabricate findings — just verify API returns successfully
+    expect(Array.isArray(findingsPayload.findings)).toBe(true)
   })
 
   it("returns evidence-rich context payload", async () => {

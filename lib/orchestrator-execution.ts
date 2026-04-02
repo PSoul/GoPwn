@@ -131,13 +131,28 @@ export async function executePlanItems(
 
   const runs: McpRunRecord[] = []
 
-  // 分离需要审批的高风险项（必须串行）和低风险项（可并行）
+  // 分离需要审批的高风险项（必须串行）和低风险项
   const approvalItems = items.filter((i) => i.riskLevel === "高")
-  const parallelItems = items.filter((i) => i.riskLevel !== "高")
+  const nonApprovalItems = items.filter((i) => i.riskLevel !== "高")
 
-  // 1. 并行执行低/中风险项（按 maxParallel 分批）
-  for (let batchStart = 0; batchStart < parallelItems.length; batchStart += maxParallel) {
-    const batch = parallelItems.slice(batchStart, batchStart + maxParallel)
+  // Group non-approval items: execute_code items on the same target run sequentially
+  // (login→test dependency chains), different targets can run in parallel
+  const sequentialCodeChains = new Map<string, OrchestratorPlanItem[]>()
+  const trulyParallelItems: OrchestratorPlanItem[] = []
+
+  for (const item of nonApprovalItems) {
+    if (item.toolName === "execute_code" || item.toolName === "execute_command") {
+      const key = item.target
+      if (!sequentialCodeChains.has(key)) sequentialCodeChains.set(key, [])
+      sequentialCodeChains.get(key)!.push(item)
+    } else {
+      trulyParallelItems.push(item)
+    }
+  }
+
+  // 1a. Execute truly parallel items (non-code tools) in batches
+  for (let batchStart = 0; batchStart < trulyParallelItems.length; batchStart += maxParallel) {
+    const batch = trulyParallelItems.slice(batchStart, batchStart + maxParallel)
 
     const results = await Promise.allSettled(
       batch.map((item) =>
@@ -157,7 +172,6 @@ export async function executePlanItems(
     for (const result of results) {
       if (result.status === "fulfilled" && result.value) {
         runs.push(result.value.run)
-        // Parallel items shouldn't trigger approval, but handle edge cases
         if (result.value.approval) {
           return {
             approval: result.value.approval,
@@ -166,7 +180,32 @@ export async function executePlanItems(
           }
         }
       }
-      // rejected promises are silently tolerated (tool failure)
+    }
+  }
+
+  // 1b. Execute code chains: different targets in parallel, same target sequentially
+  const chainPromises = Array.from(sequentialCodeChains.entries()).map(async ([, chainItems]) => {
+    const chainRuns: McpRunRecord[] = []
+    for (const item of chainItems) {
+      const payload = await dispatchProjectMcpRunAndDrain(projectId, {
+        capability: item.capability,
+        requestedAction: item.requestedAction,
+        target: item.target,
+        riskLevel: item.riskLevel,
+        preferredToolName: item.toolName,
+        code: item.code,
+      }, {
+        ignoreProjectLifecycle: options?.ignoreProjectLifecycle,
+      })
+      if (payload) chainRuns.push(payload.run)
+    }
+    return chainRuns
+  })
+
+  const chainResults = await Promise.allSettled(chainPromises)
+  for (const result of chainResults) {
+    if (result.status === "fulfilled") {
+      runs.push(...result.value)
     }
   }
 
@@ -178,6 +217,7 @@ export async function executePlanItems(
       target: item.target,
       riskLevel: item.riskLevel,
       preferredToolName: item.toolName,
+      code: item.code,
     }, {
       ignoreProjectLifecycle: options?.ignoreProjectLifecycle,
     })

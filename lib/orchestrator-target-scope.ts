@@ -4,10 +4,6 @@ import type { OrchestratorPlanItem, ProjectRecord } from "@/lib/prototype-types"
 // Target classification & normalisation
 // ---------------------------------------------------------------------------
 
-export function isWebGoatBaseUrl(baseUrl: string) {
-  return /\/webgoat\/?$/i.test(baseUrl)
-}
-
 export function normalizeUrlTarget(target: string) {
   return target.trim().replace(/\/+$/, "")
 }
@@ -67,7 +63,7 @@ export function toWebTarget(target: string) {
 }
 
 export function isLocalHost(value: string) {
-  return ["localhost", "127.0.0.1"].includes(value.trim().toLowerCase())
+  return ["localhost", "127.0.0.1", "host.docker.internal", "0.0.0.0", "::1"].includes(value.trim().toLowerCase())
 }
 
 // ---------------------------------------------------------------------------
