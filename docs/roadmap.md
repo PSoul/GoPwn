@@ -24,6 +24,7 @@
 | 22b | Vuln Detection (LLM code passthrough) | Done | `3b75af3` |
 | 23 | Anti-Cheating Refactoring | Done | `f850631` |
 | 23b | Scheduler Stuck Task Fix | Done | `40a119a` |
+| 23c | execute_code Pipeline Fix | Done | `ce1c530` |
 
 ---
 
@@ -162,6 +163,38 @@ Split 5 large files into 14 sub-modules:
 
 - DVWA integration test: 12/12 tasks completed, 0 stuck, project closure successful
 - All 226 unit tests pass (1 pre-existing failure in api-handler.test.ts unrelated)
+
+---
+
+## Phase 23c: execute_code Pipeline Fix -- COMPLETE
+
+**Goal**: Fix the critical bug where LLM-generated POC scripts (execute_code) produced vulnerability findings that were silently discarded by the normalization pipeline.
+
+### Root Cause
+
+`mcp-execution-service.ts` contains a **local copy** of `normalizeExecutionArtifacts` + `normalizeStdioMcpArtifacts` (~700 lines). The files `artifact-normalizer.ts` and `artifact-normalizer-stdio.ts` are **never imported** — all previous fixes to those files had zero effect.
+
+The local `normalizeStdioMcpArtifacts` had three defects:
+1. **stdout not extracted**: execute_code's structuredContent is `{exitCode, stdout, stderr, ...}` where stdout is a string containing the actual script output (JSON vulnerability reports). The code only checked top-level `sc.vulnerability`, missing nested data.
+2. **evidence gate too strict**: Evidence only created when `assets > 0 || findings > 0`. Script tools with unrecognized output produced 0 evidence.
+3. **output not propagated**: Vulnerability pattern detectors read from `sc.body`/`sc.output`, but execute_code results don't have those keys.
+
+### Changes
+
+| File | What Changed |
+|------|-------------|
+| `lib/mcp-execution-service.ts` | Added stdout extraction from `sc.stdout` and rawOutput JSON wrapper; parse vulnerability JSON from stdout lines; always create evidence for script tools |
+| `lib/execution/artifact-normalizer.ts` | Removed debug logging (was targeting the wrong code path) |
+| `lib/orchestrator-context-builder.ts` | Read rawOutput from evidence records (not MCP run) for LLM context |
+| `lib/types/mcp.ts` | Added `rawOutput?: string[]` to McpRunRecord |
+| `lib/prisma-transforms.ts` | Map rawOutput in toMcpRunRecord |
+
+### Verification
+
+- 15/15 execute_code runs → evidence records created (previously 0)
+- 3 findings extracted from LLM-generated scripts ("默认凭据登录成功", 高危)
+- Zero target-specific code: `git diff | grep -i dvwa/webgoat/admin/password/login.php` returns 0 matches
+- Unit tests: 58 passed / 1 pre-existing fail / 8 skipped (no regression)
 
 ---
 

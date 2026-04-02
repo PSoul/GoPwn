@@ -1,7 +1,7 @@
 # Code Index
 
 > This document describes all code directories and key files so another LLM can quickly understand the project.
-> Last updated: 2026-04-02 (Phase 23: Anti-Cheating Refactoring)
+> Last updated: 2026-04-02 (Phase 23b: execute_code pipeline fix)
 
 ---
 
@@ -124,8 +124,8 @@ LLM-driven penetration testing platform. The LLM acts as the "brain" (planning, 
 
 | File | Description |
 |------|-------------|
-| `execution/artifact-normalizer.ts` | Normalizes raw tool output into structured assets/findings/network records; header-based asset classification instead of URL-path matching **(Phase 23)** |
-| `execution/artifact-normalizer-stdio.ts` | Artifact normalization for stdio MCP output |
+| `execution/artifact-normalizer.ts` | Normalizes raw tool output into structured assets/findings/network records; header-based asset classification instead of URL-path matching **(Phase 23)**. NOTE: currently unused — the actual normalizer lives inside `mcp-execution-service.ts` |
+| `execution/artifact-normalizer-stdio.ts` | Artifact normalization for stdio MCP output. NOTE: currently unused — the actual normalizer lives inside `mcp-execution-service.ts` |
 | `execution/execution-runner.ts` | Low-level tool execution runner |
 | `execution/execution-helpers.ts` | Execution utility functions |
 
@@ -134,7 +134,7 @@ LLM-driven penetration testing platform. The LLM acts as the "brain" (planning, 
 | File | Description |
 |------|-------------|
 | `mcp-client-service.ts` | MCP client lifecycle management |
-| `mcp-execution-service.ts` | MCP tool execution orchestration |
+| `mcp-execution-service.ts` | MCP tool execution orchestration. Contains the **actual** `normalizeExecutionArtifacts` + `normalizeStdioMcpArtifacts` (local copies, not imported). Handles execute_code stdout extraction from JSON wrapper, vulnerability JSON parsing, and evidence creation **(Phase 23b fix)** |
 | `mcp-execution-runtime.ts` | Runtime environment for MCP execution |
 | `mcp-execution-abort.ts` | Abort/cancel support for MCP runs |
 | `mcp-workflow-service.ts` | Workflow-level MCP coordination |
