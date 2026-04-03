@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-04-03`
-- Current focus: Phase 22b LLM Writeback 已完成 — 用 LLM 语义分析替代全部工具特定解析器（~900 行），`mcp-execution-service.ts` 精简至 ~330 行。下一步: 配置真实 LLM 进行 DVWA/WebGoat 端到端验证，确认 writeback 管线在实战中的效果。
+- Current focus: Phase 23 深度架构演进已完成 — 死代码清理（~4000+ 行）、MCP 连接器简化（净减 ~250+ 行）、lib/ 领域化重组（54 文件 → 9 子目录）。下一步: 配置真实 LLM 进行 DVWA/WebGoat 端到端验证，确认 writeback 管线在实战中的效果。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
 
 ## Phase 17a: Prisma 数据层迁移 (Prisma Data Layer Migration)
@@ -933,6 +933,59 @@
 - [x] extractor→analyzer 全站重命名完成
 - [x] TypeScript 编译零错误
 - [ ] DVWA 靶场端到端验证（需真实 LLM 配合）
+
+## Phase 23: 深度架构演进 (Deep Architecture Evolution)
+
+- Status: Completed on `2026-04-03`
+- Branch: main
+- Goal: 通过三阶段深度架构演进（死代码清理、MCP 连接器简化、lib/ 领域化重组），大幅降低代码库复杂度，为后续功能开发提供更清晰的代码组织基础。
+
+### Phase 1: 死代码清理
+
+- 删除 ~4000+ 行死代码，涉及 22+ 个文件
+- 测试 fixture 从外部文件迁移为内联数据
+
+### Phase 2: MCP 连接器简化
+
+- 创建 base factory（基础工厂模式），统一连接器创建流程
+- 重写 4 个真实连接器（基于 base factory）
+- 移除端口硬编码探测逻辑
+- 移除 WebGoat 特定逻辑
+- 扩展 `isLocalHost()` 覆盖更多本地地址格式
+- 净减代码 ~250+ 行
+
+### Phase 3: lib/ 领域化重组
+
+- 将 54 个文件从扁平 `lib/` 目录重组到 9 个领域子目录：
+  - `lib/orchestration/` — 编排引擎相关
+  - `lib/mcp/` — MCP 连接器与网关
+  - `lib/llm/` — LLM provider 与 prompt
+  - `lib/project/` — 项目管理与调度
+  - `lib/auth/` — 认证与会话
+  - `lib/settings/` — 配置管理
+  - `lib/infra/` — 基础设施（日志、环境检测等）
+  - `lib/analysis/` — 分析服务（writeback、结论等）
+  - `lib/data/` — 数据层（repository、transforms）
+- 所有 import 路径已全量迁移，无 barrel re-export 兼容层
+
+### 关键指标
+
+- 净代码减少：Phase 2 ~250+ 行
+- 死代码清理：Phase 1 ~4000+ 行（22+ 文件）
+- 文件重组：54 个文件 → 9 个子目录
+- TypeScript 编译零错误
+- 206 个测试全部通过
+- 无 barrel re-export 兼容层（所有 import 直接指向新路径）
+
+### 验收标准
+
+- [x] 死代码清理完成，~4000+ 行已删除
+- [x] 4 个 MCP 连接器基于 base factory 重写
+- [x] 54 个文件按领域重组到 9 个子目录
+- [x] 所有 import 路径迁移完成
+- [x] `tsc --noEmit` 零错误
+- [x] 206 个测试全部通过
+- [x] 无 barrel re-export 兼容层
 
 ## Recommended Next Phase
 
