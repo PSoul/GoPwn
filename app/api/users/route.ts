@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server"
 
-import { withApiHandler, ApiError } from "@/lib/api-handler"
-import { listUsers, createUser } from "@/lib/auth-repository"
-import { readSessionFromCookieHeader } from "@/lib/auth-session"
+import { withApiHandler, ApiError } from "@/lib/infra/api-handler"
+import { listUsers, createUser } from "@/lib/auth/auth-repository"
+import { readSessionFromCookieHeader } from "@/lib/auth/auth-session"
 import type { UserRole } from "@/lib/prototype-types"
 
 export const GET = withApiHandler(async (request) => {

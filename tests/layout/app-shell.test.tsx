@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { AppShell } from "@/components/layout/app-shell"
-import { prototypeNavigation } from "@/lib/navigation"
+import { prototypeNavigation } from "@/lib/infra/navigation"
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/dashboard",

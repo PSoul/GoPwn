@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
 import { NextRequest } from "next/server"
 
-import { createSessionToken } from "@/lib/auth-session"
-import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from "@/lib/csrf"
+import { createSessionToken } from "@/lib/auth/auth-session"
+import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from "@/lib/auth/csrf"
 import { middleware } from "@/middleware"
 
 async function makeAuthCookie() {

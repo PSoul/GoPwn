@@ -11,8 +11,8 @@ import { GET as getProjectContext } from "@/app/api/projects/[projectId]/context
 import { POST as postLocalValidation } from "@/app/api/projects/[projectId]/orchestrator/local-validation/route"
 import { POST as postOrchestratorPlan } from "@/app/api/projects/[projectId]/orchestrator/plan/route"
 import { GET as getProjectOperations } from "@/app/api/projects/[projectId]/operations/route"
-import { resetLocalLabCatalogTestAdapters, setLocalLabCatalogTestAdapters } from "@/lib/local-lab-catalog"
-import { registerStoredMcpServer } from "@/lib/mcp-server-repository"
+import { resetLocalLabCatalogTestAdapters, setLocalLabCatalogTestAdapters } from "@/lib/infra/local-lab-catalog"
+import { registerStoredMcpServer } from "@/lib/mcp/mcp-server-repository"
 import { flushPendingKickoff } from "@/lib/compositions/control-compositions"
 import { createStoredProjectFixture, seedWorkflowReadyMcpTools } from "@/tests/helpers/project-fixtures"
 

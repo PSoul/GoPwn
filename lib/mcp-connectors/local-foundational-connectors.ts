@@ -1,8 +1,8 @@
-import { listStoredAssets } from "@/lib/asset-repository"
-import { listStoredEvidence } from "@/lib/evidence-repository"
-import { throwIfExecutionAborted } from "@/lib/mcp-execution-abort"
-import { getProjectPrimaryTarget } from "@/lib/project-targets"
-import { listStoredProjectFindings } from "@/lib/project-results-repository"
+import { listStoredAssets } from "@/lib/data/asset-repository"
+import { listStoredEvidence } from "@/lib/data/evidence-repository"
+import { throwIfExecutionAborted } from "@/lib/mcp/mcp-execution-abort"
+import { getProjectPrimaryTarget } from "@/lib/project/project-targets"
+import { listStoredProjectFindings } from "@/lib/project/project-results-repository"
 
 import type { McpConnector } from "@/lib/mcp-connectors/types"
 

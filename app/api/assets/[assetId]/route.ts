@@ -1,5 +1,5 @@
-import { getStoredAssetById } from "@/lib/asset-repository"
-import { withApiHandler } from "@/lib/api-handler"
+import { getStoredAssetById } from "@/lib/data/asset-repository"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const GET = withApiHandler(async (_request, { params }) => {
   const { assetId } = await params

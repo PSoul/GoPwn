@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { GET as getLlmLogs } from "@/app/api/projects/[projectId]/llm-logs/route"
 import { GET as getLlmLogDetail } from "@/app/api/projects/[projectId]/llm-logs/[logId]/route"
 import { GET as getRecentLlmLogs } from "@/app/api/llm-logs/recent/route"
-import { createLlmCallLog, completeLlmCallLog, failLlmCallLog } from "@/lib/llm-call-logger"
+import { createLlmCallLog, completeLlmCallLog, failLlmCallLog } from "@/lib/llm/llm-call-logger"
 import { createStoredProjectFixture } from "@/tests/helpers/project-fixtures"
 
 const buildProjectContext = (projectId: string) => ({

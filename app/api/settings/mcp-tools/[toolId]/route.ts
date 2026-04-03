@@ -1,6 +1,6 @@
-import { mcpToolPatchSchema } from "@/lib/mcp-write-schema"
-import { getStoredMcpToolById, updateStoredMcpTool } from "@/lib/mcp-repository"
-import { withApiHandler } from "@/lib/api-handler"
+import { mcpToolPatchSchema } from "@/lib/mcp/mcp-write-schema"
+import { getStoredMcpToolById, updateStoredMcpTool } from "@/lib/mcp/mcp-repository"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const GET = withApiHandler(async (_request, { params }) => {
   const { toolId } = await params

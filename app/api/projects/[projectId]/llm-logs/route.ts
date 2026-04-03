@@ -1,5 +1,5 @@
-import { listLlmCallLogs } from "@/lib/llm-call-logger"
-import { withApiHandler } from "@/lib/api-handler"
+import { listLlmCallLogs } from "@/lib/llm/llm-call-logger"
+import { withApiHandler } from "@/lib/infra/api-handler"
 import type { LlmCallRole } from "@/lib/prototype-types"
 
 export const GET = withApiHandler(async (request, context) => {

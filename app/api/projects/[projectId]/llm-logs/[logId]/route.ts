@@ -1,5 +1,5 @@
-import { getLlmCallLogById } from "@/lib/llm-call-logger"
-import { withApiHandler } from "@/lib/api-handler"
+import { getLlmCallLogById } from "@/lib/llm/llm-call-logger"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const GET = withApiHandler(async (_request, context) => {
   const { logId } = (await context.params) as { projectId: string; logId: string }

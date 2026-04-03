@@ -1,5 +1,5 @@
 import { ApprovalCenterClient } from "@/components/approvals/approval-center-client"
-import { listStoredApprovals } from "@/lib/approval-repository"
+import { listStoredApprovals } from "@/lib/data/approval-repository"
 
 export default async function ApprovalsPage() {
   const items = await listStoredApprovals()

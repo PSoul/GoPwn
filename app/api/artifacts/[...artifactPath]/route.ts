@@ -1,8 +1,8 @@
 import { open } from "node:fs/promises"
 
-import { readSessionFromCookieHeader } from "@/lib/auth-session"
-import { getArtifactContentType, resolveRuntimeArtifactPath } from "@/lib/runtime-artifacts"
-import { withApiHandler } from "@/lib/api-handler"
+import { readSessionFromCookieHeader } from "@/lib/auth/auth-session"
+import { getArtifactContentType, resolveRuntimeArtifactPath } from "@/lib/data/runtime-artifacts"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const GET = withApiHandler(async (request, { params }) => {
   const session = await readSessionFromCookieHeader(request.headers.get("cookie"))

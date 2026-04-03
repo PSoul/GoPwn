@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest"
 
-import { createExecutionAbortError } from "@/lib/mcp-execution-abort"
+import { createExecutionAbortError } from "@/lib/mcp/mcp-execution-abort"
 import { resolveMcpConnector } from "@/lib/mcp-connectors/registry"
 import {
   realDnsIntelligenceConnector,

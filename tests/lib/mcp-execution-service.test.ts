@@ -4,13 +4,13 @@ import type { AddressInfo } from "node:net"
 
 import { afterEach, describe, expect, it } from "vitest"
 
-import { listStoredAssets } from "@/lib/asset-repository"
-import { listStoredEvidence } from "@/lib/evidence-repository"
-import { executeStoredMcpRun } from "@/lib/mcp-execution-service"
-import { dispatchStoredMcpRun, getStoredMcpRunById } from "@/lib/mcp-gateway-repository"
-import { registerStoredMcpServer } from "@/lib/mcp-server-repository"
-import { getStoredSchedulerTaskByRunId, updateStoredSchedulerTask } from "@/lib/mcp-scheduler-repository"
-import { listStoredProjectFindings } from "@/lib/project-results-repository"
+import { listStoredAssets } from "@/lib/data/asset-repository"
+import { listStoredEvidence } from "@/lib/data/evidence-repository"
+import { executeStoredMcpRun } from "@/lib/mcp/mcp-execution-service"
+import { dispatchStoredMcpRun, getStoredMcpRunById } from "@/lib/mcp/mcp-gateway-repository"
+import { registerStoredMcpServer } from "@/lib/mcp/mcp-server-repository"
+import { getStoredSchedulerTaskByRunId, updateStoredSchedulerTask } from "@/lib/mcp/mcp-scheduler-repository"
+import { listStoredProjectFindings } from "@/lib/project/project-results-repository"
 import { createStoredProjectFixture, seedWorkflowReadyMcpTools } from "@/tests/helpers/project-fixtures"
 
 describe("MCP execution service cancellation guard", () => {

@@ -7,7 +7,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { getNavigationTitle, getNavigationTrail } from "@/lib/navigation"
+import { getNavigationTitle, getNavigationTrail } from "@/lib/infra/navigation"
 
 const roleLabels: Record<string, string> = {
   admin: "管理员",

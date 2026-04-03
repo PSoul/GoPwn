@@ -1,23 +1,23 @@
-import { listStoredProjectApprovals } from "@/lib/approval-repository"
-import { listStoredAssets } from "@/lib/asset-repository"
-import { listStoredEvidence } from "@/lib/evidence-repository"
-import { listStoredMcpRuns } from "@/lib/mcp-gateway-repository"
-import { getProjectOrchestratorPanelPayload } from "@/lib/orchestrator-service"
-import { buildDefaultProjectSchedulerControl } from "@/lib/project-scheduler-lifecycle"
-import { listStoredSchedulerTasks } from "@/lib/mcp-scheduler-repository"
+import { listStoredProjectApprovals } from "@/lib/data/approval-repository"
+import { listStoredAssets } from "@/lib/data/asset-repository"
+import { listStoredEvidence } from "@/lib/data/evidence-repository"
+import { listStoredMcpRuns } from "@/lib/mcp/mcp-gateway-repository"
+import { getProjectOrchestratorPanelPayload } from "@/lib/orchestration/orchestrator-service"
+import { buildDefaultProjectSchedulerControl } from "@/lib/project/project-scheduler-lifecycle"
+import { listStoredSchedulerTasks } from "@/lib/mcp/mcp-scheduler-repository"
 import {
   getStoredProjectSchedulerControl,
-} from "@/lib/project-scheduler-control-repository"
+} from "@/lib/project/project-scheduler-control-repository"
 import {
   getStoredProjectReportExportPayload,
   listStoredProjectFindings,
-} from "@/lib/project-results-repository"
+} from "@/lib/project/project-results-repository"
 import {
   getStoredProjectById,
   getStoredProjectDetailById,
-} from "@/lib/project-repository"
-import { prisma } from "@/lib/prisma"
-import { toOrchestratorRoundRecord } from "@/lib/prisma-transforms"
+} from "@/lib/project/project-repository"
+import { prisma } from "@/lib/infra/prisma"
+import { toOrchestratorRoundRecord } from "@/lib/infra/prisma-transforms"
 import type {
   AssetCollectionView,
   ProjectContextPayload,

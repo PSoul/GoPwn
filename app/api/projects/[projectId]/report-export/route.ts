@@ -1,7 +1,7 @@
-import { getStoredProjectById } from "@/lib/project-repository"
-import { getStoredProjectReportExportPayload } from "@/lib/project-results-repository"
-import { dispatchProjectMcpRunAndDrain } from "@/lib/project-mcp-dispatch-service"
-import { withApiHandler } from "@/lib/api-handler"
+import { getStoredProjectById } from "@/lib/project/project-repository"
+import { getStoredProjectReportExportPayload } from "@/lib/project/project-results-repository"
+import { dispatchProjectMcpRunAndDrain } from "@/lib/project/project-mcp-dispatch-service"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const GET = withApiHandler(async (_request, { params }) => {
   const { projectId } = await params

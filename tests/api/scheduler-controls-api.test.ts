@@ -8,8 +8,8 @@ import { PATCH as patchProjectSchedulerControl } from "@/app/api/projects/[proje
 import { PATCH as patchProjectSchedulerTask } from "@/app/api/projects/[projectId]/scheduler-tasks/[taskId]/route"
 import { GET as getProjectDetail } from "@/app/api/projects/[projectId]/route"
 import { GET as getProjectOperations } from "@/app/api/projects/[projectId]/operations/route"
-import { dispatchStoredMcpRun, updateStoredMcpRun } from "@/lib/mcp-gateway-repository"
-import { getStoredSchedulerTaskByRunId, updateStoredSchedulerTask } from "@/lib/mcp-scheduler-repository"
+import { dispatchStoredMcpRun, updateStoredMcpRun } from "@/lib/mcp/mcp-gateway-repository"
+import { getStoredSchedulerTaskByRunId, updateStoredSchedulerTask } from "@/lib/mcp/mcp-scheduler-repository"
 import { flushPendingKickoff } from "@/lib/compositions/control-compositions"
 import { createStoredProjectFixture, seedWorkflowReadyMcpTools } from "@/tests/helpers/project-fixtures"
 

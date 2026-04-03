@@ -1,0 +1,211 @@
+- generic [ref=e2]:
+  - generic [ref=e6]:
+    - link "平台控制台 授权外网安全评估平台" [ref=e8] [cursor=pointer]:
+      - /url: /dashboard
+      - img [ref=e10]
+      - generic [ref=e13]:
+        - paragraph [ref=e14]: 平台控制台
+        - paragraph [ref=e15]: 授权外网安全评估平台
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]: 总览
+        - list [ref=e20]:
+          - listitem [ref=e21]:
+            - link "仪表盘" [ref=e22] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e23]
+              - generic [ref=e26]: 仪表盘
+          - listitem [ref=e27]:
+            - link "项目管理" [ref=e28] [cursor=pointer]:
+              - /url: /projects
+              - img [ref=e29]
+              - generic [ref=e31]: 项目管理
+          - listitem [ref=e32]:
+            - link "审批中心" [ref=e33] [cursor=pointer]:
+              - /url: /approvals
+              - img [ref=e34]
+              - generic [ref=e38]: 审批中心
+      - generic [ref=e39]:
+        - generic [ref=e40]: 发现
+        - list [ref=e42]:
+          - listitem [ref=e43]:
+            - link "资产中心" [ref=e44] [cursor=pointer]:
+              - /url: /assets
+              - img [ref=e45]
+              - generic [ref=e50]: 资产中心
+          - listitem [ref=e51]:
+            - link "漏洞中心" [ref=e52] [cursor=pointer]:
+              - /url: /vuln-center
+              - img [ref=e53]
+              - generic [ref=e57]: 漏洞中心
+      - generic [ref=e58]:
+        - generic [ref=e59]: 系统
+        - list [ref=e61]:
+          - listitem [ref=e62]:
+            - link "系统设置" [ref=e63] [cursor=pointer]:
+              - /url: /settings
+              - img [ref=e64]
+              - generic [ref=e67]: 系统设置
+  - main [ref=e68]:
+    - generic [ref=e70]:
+      - navigation [ref=e72]:
+        - link "平台控制台" [ref=e74] [cursor=pointer]:
+          - /url: /dashboard
+        - generic [ref=e75]:
+          - img [ref=e76]
+          - generic [ref=e78]: 仪表盘
+      - generic [ref=e79]:
+        - button "查看通知" [ref=e80] [cursor=pointer]:
+          - img
+          - generic [ref=e81]: 查看通知
+        - generic [ref=e83]:
+          - generic [ref=e85]: 研
+          - generic [ref=e86]:
+            - paragraph [ref=e87]: 研究员席位 A
+            - paragraph [ref=e88]: 研究员
+        - button "退出" [ref=e90] [cursor=pointer]
+    - generic [ref=e92]:
+      - generic [ref=e93]:
+        - generic [ref=e94]:
+          - generic [ref=e95]:
+            - paragraph [ref=e96]: 控制台概览
+            - heading "平台仪表盘" [level=1] [ref=e97]
+            - paragraph [ref=e98]: 项目总览、资产、漏洞与审批压力一目了然
+          - generic [ref=e99]:
+            - generic [ref=e100]: 运行中
+            - link "新建项目" [ref=e101] [cursor=pointer]:
+              - /url: /projects/new
+            - link "MCP 配置" [ref=e102] [cursor=pointer]:
+              - /url: /settings/mcp-tools
+        - generic [ref=e103]:
+          - link "项目总数 1 1 个运行中" [ref=e104] [cursor=pointer]:
+            - /url: /projects
+            - generic [ref=e105]:
+              - generic [ref=e106]:
+                - paragraph [ref=e107]: 项目总数
+                - paragraph [ref=e108]: "1"
+              - img [ref=e110]
+            - generic [ref=e112]:
+              - paragraph [ref=e113]: 1 个运行中
+              - img [ref=e114]
+          - link "已发现资产 0 等待真实资产数据" [ref=e116] [cursor=pointer]:
+            - /url: /assets
+            - generic [ref=e117]:
+              - generic [ref=e118]:
+                - paragraph [ref=e119]: 已发现资产
+                - paragraph [ref=e120]: "0"
+              - img [ref=e122]
+            - generic [ref=e127]:
+              - paragraph [ref=e128]: 等待真实资产数据
+              - img [ref=e129]
+          - link "已发现漏洞 0 等待真实发现沉淀" [ref=e131] [cursor=pointer]:
+            - /url: /projects
+            - generic [ref=e132]:
+              - generic [ref=e133]:
+                - paragraph [ref=e134]: 已发现漏洞
+                - paragraph [ref=e135]: "0"
+              - img [ref=e137]
+            - generic [ref=e139]:
+              - paragraph [ref=e140]: 等待真实发现沉淀
+              - img [ref=e141]
+          - link "待审批动作 0 当前无审批阻塞" [ref=e143] [cursor=pointer]:
+            - /url: /approvals
+            - generic [ref=e144]:
+              - generic [ref=e145]:
+                - paragraph [ref=e146]: 待审批动作
+                - paragraph [ref=e147]: "0"
+              - img [ref=e149]
+            - generic [ref=e153]:
+              - paragraph [ref=e154]: 当前无审批阻塞
+              - img [ref=e155]
+      - generic [ref=e157]:
+        - link "探测工具 0 / 0 正常 当前已启用探测工具数量。" [ref=e158] [cursor=pointer]:
+          - /url: /settings/mcp-tools
+          - generic [ref=e159]:
+            - generic [ref=e160]:
+              - paragraph [ref=e161]: 探测工具
+              - paragraph [ref=e162]: 0 / 0
+            - generic [ref=e163]: 正常
+          - paragraph [ref=e164]: 当前已启用探测工具数量。
+        - link "LLM 模型 Pro/deepseek-ai/DeepSeek-V3 信息 当前参与规划的模型配置。" [ref=e165] [cursor=pointer]:
+          - /url: /settings/llm
+          - generic [ref=e166]:
+            - generic [ref=e167]:
+              - paragraph [ref=e168]: LLM 模型
+              - paragraph [ref=e169]: Pro/deepseek-ai/DeepSeek-V3
+            - generic [ref=e170]: 信息
+          - paragraph [ref=e171]: 当前参与规划的模型配置。
+        - link "执行队列 1 条 信息 1 个运行中项目 / 0 个待审批动作" [ref=e172] [cursor=pointer]:
+          - /url: /settings/system-status
+          - generic [ref=e173]:
+            - generic [ref=e174]:
+              - paragraph [ref=e175]: 执行队列
+              - paragraph [ref=e176]: 1 条
+            - generic [ref=e177]: 信息
+          - paragraph [ref=e178]: 1 个运行中项目 / 0 个待审批动作
+        - link "运行状态 Heap 471/503 MB 信息 1m load 0.00，用于快速感知当前本地运行压力。" [ref=e179] [cursor=pointer]:
+          - /url: /settings/system-status
+          - generic [ref=e180]:
+            - generic [ref=e181]:
+              - paragraph [ref=e182]: 运行状态
+              - paragraph [ref=e183]: Heap 471/503 MB
+            - generic [ref=e184]: 信息
+          - paragraph [ref=e185]: 1m load 0.00，用于快速感知当前本地运行压力。
+      - generic [ref=e186]:
+        - generic [ref=e187]:
+          - generic [ref=e188]:
+            - img [ref=e189]
+            - text: 最近结果更新
+          - link "测试项目 报告与回归验证 最近更新 2026-04-01 12:10 运行中" [ref=e192] [cursor=pointer]:
+            - /url: /projects/proj-20260401-14fe27c4
+            - generic [ref=e193]:
+              - generic [ref=e194]:
+                - paragraph [ref=e195]: 测试项目
+                - paragraph [ref=e196]: 报告与回归验证
+                - paragraph [ref=e197]: 最近更新 2026-04-01 12:10
+              - generic [ref=e198]: 运行中
+        - generic [ref=e199]:
+          - generic [ref=e200]:
+            - generic [ref=e201]:
+              - generic [ref=e202]:
+                - generic [ref=e203]:
+                  - img [ref=e204]
+                  - text: 全局资产预览
+                - paragraph [ref=e214]: 仪表盘只保留四类核心结果视图，让研究员先判断已经拿到了什么，而不是先被控制逻辑打断。
+              - generic [ref=e215]:
+                - generic [ref=e216]: 当前视图已全部确认
+                - link "打开完整视图" [ref=e217] [cursor=pointer]:
+                  - /url: /assets?view=domains-web
+                  - text: 打开完整视图
+                  - img [ref=e218]
+            - tablist [ref=e221]:
+              - tab "域名 / Web 0" [selected] [ref=e222] [cursor=pointer]:
+                - generic [ref=e223]: 域名 / Web
+                - generic [ref=e224]: "0"
+              - tab "IP / 主机 0" [ref=e225] [cursor=pointer]:
+                - generic [ref=e226]: IP / 主机
+                - generic [ref=e227]: "0"
+              - tab "端口 / 服务 0" [ref=e228] [cursor=pointer]:
+                - generic [ref=e229]: 端口 / 服务
+                - generic [ref=e230]: "0"
+              - tab "指纹 / 技术栈 0" [ref=e231] [cursor=pointer]:
+                - generic [ref=e232]: 指纹 / 技术栈
+                - generic [ref=e233]: "0"
+          - table [ref=e239]:
+            - rowgroup [ref=e240]:
+              - row "域名 / Web 入口 所属项目 画像 / 线索 归属 / 置信度 范围状态 最近发现 详情" [ref=e241]:
+                - columnheader "域名 / Web 入口" [ref=e242]
+                - columnheader "所属项目" [ref=e243]
+                - columnheader "画像 / 线索" [ref=e244]
+                - columnheader "归属 / 置信度" [ref=e245]
+                - columnheader "范围状态" [ref=e246]
+                - columnheader "最近发现" [ref=e247]
+                - columnheader "详情" [ref=e248]
+            - rowgroup [ref=e249]:
+              - row "当前视图还没有匹配结果 等真实任务执行后，这里会自动出现对应的资产对象。" [ref=e250]:
+                - cell "当前视图还没有匹配结果 等真实任务执行后，这里会自动出现对应的资产对象。" [ref=e251]:
+                  - generic [ref=e252]:
+                    - paragraph [ref=e253]: 当前视图还没有匹配结果
+                    - paragraph [ref=e254]: 等真实任务执行后，这里会自动出现对应的资产对象。
+  - button "打开 AI 对话日志" [ref=e255] [cursor=pointer]:
+    - img [ref=e256]

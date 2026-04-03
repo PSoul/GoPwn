@@ -5,7 +5,7 @@ import {
   registerActiveExecution,
   resetActiveExecutionRegistry,
   unregisterActiveExecution,
-} from "@/lib/mcp-execution-runtime"
+} from "@/lib/mcp/mcp-execution-runtime"
 
 describe("MCP execution runtime registry", () => {
   afterEach(() => {

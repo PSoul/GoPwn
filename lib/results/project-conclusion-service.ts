@@ -1,13 +1,13 @@
-import { buildProjectReviewerPrompt } from "@/lib/llm-brain-prompt"
+import { buildProjectReviewerPrompt } from "@/lib/llm/llm-brain-prompt"
 import { resolveLlmProvider } from "@/lib/llm-provider/registry"
-import { prisma } from "@/lib/prisma"
+import { prisma } from "@/lib/infra/prisma"
 import {
   toProjectRecord,
   fromProjectConclusionRecord,
   toLogRecord,
-} from "@/lib/prisma-transforms"
+} from "@/lib/infra/prisma-transforms"
 import { formatTimestamp } from "@/lib/prototype-record-utils"
-import { upsertStoredWorkLogs } from "@/lib/work-log-repository"
+import { upsertStoredWorkLogs } from "@/lib/data/work-log-repository"
 import { getStoredProjectLatestConclusion, refreshStoredProjectResults } from "./project-results-core"
 import { listStoredProjectReportExports } from "./project-report-repository"
 import type {

@@ -7,8 +7,8 @@
  * 需要 Docker 靶场运行 + 环境变量 ENABLE_DOCKER_LAB_TESTS=1
  */
 import { describe, it, expect, beforeAll } from "vitest"
-import { callMcpServerTool } from "@/lib/mcp-client-service"
-import { getDiscoveredMcpServerConfig, getServerKeyByToolName } from "@/lib/mcp-auto-discovery"
+import { callMcpServerTool } from "@/lib/mcp/mcp-client-service"
+import { getDiscoveredMcpServerConfig, getServerKeyByToolName } from "@/lib/mcp/mcp-auto-discovery"
 import type { McpServerRecord } from "@/lib/prototype-types"
 
 const ENABLED = process.env.ENABLE_DOCKER_LAB_TESTS === "1"
@@ -228,7 +228,7 @@ describeIf("Docker Lab MCP Integration", () => {
 
   describe("full pipeline: lab catalog → orchestrator", () => {
     it("local lab catalog lists all configured labs", async () => {
-      const { listLocalLabs } = await import("@/lib/local-lab-catalog")
+      const { listLocalLabs } = await import("@/lib/infra/local-lab-catalog")
       const labs = await listLocalLabs()
       expect(labs.length).toBeGreaterThanOrEqual(11)
 
@@ -242,7 +242,7 @@ describeIf("Docker Lab MCP Integration", () => {
     })
 
     it("local lab catalog probes and finds online labs", async () => {
-      const { listLocalLabs } = await import("@/lib/local-lab-catalog")
+      const { listLocalLabs } = await import("@/lib/infra/local-lab-catalog")
       const labs = await listLocalLabs({ probe: true })
       const onlineLabs = labs.filter((lab) => lab.status === "online")
       // At least some labs should be online if Docker is running

@@ -7,7 +7,7 @@ import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
-import { apiFetch } from "@/lib/api-client"
+import { apiFetch } from "@/lib/infra/api-client"
 import type { ApprovalControl, ControlSetting, PolicyRecord } from "@/lib/prototype-types"
 
 const overviewIcons = [Gauge, ShieldCheck, Gauge, AlertTriangle]

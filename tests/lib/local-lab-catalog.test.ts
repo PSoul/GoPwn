@@ -4,7 +4,7 @@ import {
   getLocalLabById,
   resetLocalLabCatalogTestAdapters,
   setLocalLabCatalogTestAdapters,
-} from "@/lib/local-lab-catalog"
+} from "@/lib/infra/local-lab-catalog"
 
 describe("local lab catalog", () => {
   const originalWebGoatHostPort = process.env.WEBGOAT_HOST_PORT

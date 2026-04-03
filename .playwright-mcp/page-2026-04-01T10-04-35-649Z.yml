@@ -1,0 +1,63 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - generic [ref=e9]:
+          - generic [ref=e10]:
+            - img [ref=e11]
+            - text: 平台账号登录
+          - generic [ref=e14]:
+            - heading "进入授权外网安全评估平台" [level=1] [ref=e15]
+            - paragraph [ref=e16]: 通过标准后台入口进入研究员工作台。所有高风险动作均保留审批与审计链路，登录行为会进入平台审计日志。
+        - generic [ref=e17]:
+          - generic [ref=e18]:
+            - generic [ref=e19]: 账号
+            - textbox "账号" [ref=e20]:
+              - /placeholder: researcher@company.local
+              - text: researcher@company.local
+          - generic [ref=e21]:
+            - generic [ref=e22]:
+              - generic [ref=e23]: 密码
+              - link "忘记密码" [ref=e24] [cursor=pointer]:
+                - /url: "#"
+            - textbox "密码" [ref=e25]: Prototype@2026
+          - generic [ref=e26]:
+            - generic [ref=e27]: 验证码
+            - generic [ref=e28]:
+              - textbox "验证码" [ref=e29]:
+                - /placeholder: 请输入验证码
+              - button "E59C" [ref=e82] [cursor=pointer]:
+                - text: E59C
+                - img [ref=e31]
+          - generic [ref=e83]: 验证码不正确或已过期，请刷新后重新输入。
+          - generic [ref=e36]:
+            - paragraph [ref=e37]: 原型演示账号
+            - paragraph [ref=e38]: 账号 researcher@company.local
+            - paragraph [ref=e39]: 密码 Prototype@2026
+            - paragraph [ref=e40]: 验证码由右侧动态生成，直接输入即可
+      - generic [ref=e41]:
+        - button "登录平台" [ref=e42] [cursor=pointer]
+        - generic [ref=e43]:
+          - generic [ref=e44]: 默认入口受平台审计与异常登录告警保护。
+          - link "联系管理员" [ref=e45] [cursor=pointer]:
+            - /url: "#"
+    - generic [ref=e48]:
+      - generic [ref=e49]:
+        - paragraph [ref=e50]: 审计可追溯
+        - heading "登录不是入口页装饰，而是进入流程控制、证据归档和审批约束的第一道关口。" [level=2] [ref=e51]
+      - generic [ref=e52]:
+        - generic [ref=e53]:
+          - generic [ref=e54]:
+            - img [ref=e55]
+            - generic [ref=e59]:
+              - paragraph [ref=e60]: 研究员入口校验
+              - paragraph [ref=e61]: 账号、密码、验证码三层校验
+          - paragraph [ref=e62]: 进入控制台后将保留审批、任务调度、人工接管和证据链访问轨迹，便于后续审计复盘。
+        - generic [ref=e63]:
+          - generic [ref=e64]:
+            - img [ref=e65]
+            - generic [ref=e70]: 登录后提醒
+          - paragraph [ref=e71]: 本平台仅用于授权外网安全评估。高风险动作必须逐项审批，越权目标不会进入受控验证链路。
+  - button "Open Next.js Dev Tools" [ref=e77] [cursor=pointer]:
+    - img [ref=e78]
+  - alert [ref=e81]

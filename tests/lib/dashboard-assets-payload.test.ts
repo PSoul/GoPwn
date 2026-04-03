@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest"
 
-import { getDashboardPayload, buildAssetViews } from "@/lib/api-compositions"
-import { listStoredAssets, upsertStoredAssets } from "@/lib/asset-repository"
-import { createStoredProject } from "@/lib/project-repository"
-import { upsertStoredEvidence } from "@/lib/evidence-repository"
-import { upsertStoredProjectFindings } from "@/lib/project-results-repository"
-import { prisma } from "@/lib/prisma"
+import { getDashboardPayload, buildAssetViews } from "@/lib/infra/api-compositions"
+import { listStoredAssets, upsertStoredAssets } from "@/lib/data/asset-repository"
+import { createStoredProject } from "@/lib/project/project-repository"
+import { upsertStoredEvidence } from "@/lib/data/evidence-repository"
+import { upsertStoredProjectFindings } from "@/lib/project/project-results-repository"
+import { prisma } from "@/lib/infra/prisma"
 
 describe("dashboard and asset payload regrouping", () => {
   it("exposes four KPI cards, recent result updates, and typed asset previews on the dashboard", async () => {

@@ -1,0 +1,299 @@
+- generic:
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - link:
+              - /url: /dashboard
+              - generic:
+                - img
+              - generic:
+                - paragraph: 平台控制台
+                - paragraph: 授权外网安全评估平台
+          - generic:
+            - generic:
+              - generic: 总览
+              - generic:
+                - list:
+                  - listitem:
+                    - link:
+                      - /url: /dashboard
+                      - img
+                      - generic: 仪表盘
+                  - listitem:
+                    - link:
+                      - /url: /projects
+                      - img
+                      - generic: 项目管理
+                    - generic: "2"
+                  - listitem:
+                    - link:
+                      - /url: /approvals
+                      - img
+                      - generic: 审批中心
+            - generic:
+              - generic: 发现
+              - generic:
+                - list:
+                  - listitem:
+                    - link:
+                      - /url: /assets
+                      - img
+                      - generic: 资产中心
+                  - listitem:
+                    - link:
+                      - /url: /vuln-center
+                      - img
+                      - generic: 漏洞中心
+            - generic:
+              - generic: 系统
+              - generic:
+                - list:
+                  - listitem:
+                    - link:
+                      - /url: /settings
+                      - img
+                      - generic: 系统设置
+    - main:
+      - generic:
+        - generic:
+          - generic:
+            - navigation:
+              - generic:
+                - link:
+                  - /url: /dashboard
+                  - text: 平台控制台
+              - generic:
+                - img
+                - generic: 项目管理
+          - generic:
+            - button:
+              - img
+              - generic: 查看通知
+            - generic:
+              - button:
+                - img
+                - generic: Toggle theme
+            - generic:
+              - generic:
+                - generic: 研
+              - generic:
+                - paragraph: 研究员席位 A
+                - paragraph: 研究员
+            - generic:
+              - button: 退出
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - heading [level=1]: DVWA-v3-修复验证
+                - generic: 已停止
+              - generic:
+                - generic:
+                  - generic:
+                    - text: 资产
+                    - strong: "4"
+                  - generic:
+                    - text: 证据
+                    - strong: "1"
+                  - generic:
+                    - text: 审批
+                    - strong: "0"
+                - link:
+                  - /url: /projects/proj-20260401-9fbe08e7/edit
+                  - text: 编辑
+            - generic:
+              - generic: http://localhost:8081
+          - tablist:
+            - tab: 概览
+            - tab:
+              - img
+              - text: 域名
+            - tab:
+              - img
+              - text: 站点
+            - tab:
+              - img
+              - text: 端口
+            - tab:
+              - img
+              - text: 漏洞
+            - tab [selected]:
+              - img
+              - text: 执行控制
+            - tab:
+              - img
+              - text: AI 日志
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - generic: 运行中
+                    - generic: 轮次 1/5
+                    - generic:
+                      - img
+                      - text: 1 个任务执行中
+                - paragraph: 已停止
+              - generic:
+                - button:
+                  - generic: AI 规划轮次 (1)
+                  - img
+              - generic:
+                - button:
+                  - generic: 任务队列 (9)
+                  - img
+            - generic:
+              - generic:
+                - paragraph: 审批与项目状态
+                - generic:
+                  - generic:
+                    - generic:
+                      - text: 高风险动作需审批
+                      - paragraph: 该项目已设置为全自动执行，所有工具调用将直接运行，不进入审批队列。
+                    - switch
+                  - generic:
+                    - generic: 低风险自动放行
+                    - switch [checked]
+                  - generic:
+                    - button: 保存
+                - generic:
+                  - generic:
+                    - paragraph: 自动收尾状态
+                    - generic: 运行中
+                  - paragraph: 当前仍有任务在执行或排队，项目会在队列跑空后再进入自动收尾。
+                  - generic:
+                    - generic: 报告待导出
+                    - generic: 结论待生成
+                - generic:
+                  - generic:
+                    - paragraph: "0"
+                    - paragraph: 待审批
+                  - generic:
+                    - paragraph: "2"
+                    - paragraph: 开放任务
+              - generic:
+                - generic:
+                  - heading [level=2]: 报告导出
+                  - paragraph: 这里提供可见的闭环出口。触发后会走 MCP 调度链路，并把最新导出摘要回写到项目操作页。
+                - generic:
+                  - generic:
+                    - generic:
+                      - img
+                      - paragraph: 闭环导出入口
+                    - paragraph: 在项目操作页直接触发一次报告导出，并查看最近一次导出的摘要、产物计数和结果要点。
+                    - generic:
+                      - generic:
+                        - paragraph: 导出次数
+                        - paragraph: "0"
+                      - button: 导出项目报告
+                  - generic:
+                    - generic:
+                      - generic:
+                        - img
+                        - paragraph: 最近一次导出结果
+                      - generic: 暂无导出
+                    - generic: 当前项目还没有导出记录。点击“导出项目报告”后，这里会展示最新闭环结果。
+            - generic:
+              - button:
+                - generic: AI 规划配置
+                - img
+            - generic:
+              - button:
+                - generic: MCP 调度记录
+                - img
+    - generic:
+      - generic:
+        - generic:
+          - img
+          - generic: AI 思考日志
+        - generic:
+          - button:
+            - img
+      - generic:
+        - button: 全部
+        - button: 规划
+        - button: 审阅
+        - button: 提取
+        - generic:
+          - button:
+            - generic: DVWA-v3-修复验证
+            - img
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic: 规划
+              - generic: 12:51:00
+            - generic:
+              - generic:
+                - paragraph: Initial reconnaissance for DVWA-v3 repair verification. Focus on basic connectivity checks and web service identification before proceeding to vulnerability scanning.
+                - generic:
+                  - generic: "1."
+                  - generic:
+                    - text: Perform HTTP probe to verify web service availability
+                    - generic: "[httpx_probe]"
+                    - generic: → http://localhost:8081
+                - generic:
+                  - generic: "2."
+                  - generic:
+                    - text: Detect web application technologies in use
+                    - generic: "[httpx_tech_detect]"
+                    - generic: → http://localhost:8081
+                - generic:
+                  - generic: "3."
+                  - generic:
+                    - text: Perform basic directory scanning for common paths
+                    - generic: "[dirsearch_scan]"
+                    - generic: → http://localhost:8081
+                - generic:
+                  - generic: "4."
+                  - generic:
+                    - text: Detect if any WAF is present protecting the application
+                    - generic: "[wafw00f_detect]"
+                    - generic: → http://localhost:8081
+            - paragraph: Pro/deepseek-ai/DeepSeek-V3 · 28.7s
+          - generic:
+            - generic:
+              - generic: 规划
+              - generic: 12:53:00
+            - generic:
+              - generic:
+                - paragraph: 当前阶段为修复验证，已确认目标 http://localhost:8081 可访问，并发现 Apache 版本过旧和服务器版本泄露两个问题。由于上一轮工具执行均无输出，建议进行更深层次的探测以验证修复情况。
+                - generic:
+                  - generic: "1."
+                  - generic:
+                    - text: 发送 GET 请求到根路径，获取响应头和内容
+                    - generic: "[http_request]"
+                    - generic: → http://localhost:8081
+                - generic:
+                  - generic: "2."
+                  - generic:
+                    - text: 递归扫描目标以发现隐藏的目录和文件
+                    - generic: "[dirsearch_recursive]"
+                    - generic: → http://localhost:8081
+                - generic:
+                  - generic: "3."
+                  - generic:
+                    - text: 使用 afrog 扫描目标以验证已知漏洞
+                    - generic: "[afrog_scan]"
+                    - generic: → http://localhost:8081
+                - generic:
+                  - generic: "4."
+                  - generic:
+                    - text: 获取目标的 TCP banner 信息
+                    - generic: "[tcp_banner_grab]"
+                    - generic: → localhost:8081
+            - paragraph: Pro/deepseek-ai/DeepSeek-V3 · 32.5s
+  - button [ref=e358] [cursor=pointer]:
+    - img [ref=e354]
+  - alert
+  - alertdialog "确认停止项目" [ref=e360]:
+    - generic [ref=e361]:
+      - heading "确认停止项目" [level=2] [ref=e362]
+      - paragraph [ref=e363]: 停止后项目执行引擎将不再执行新任务，已完成的任务结果会保留。此操作需要谨慎评估。
+    - generic [ref=e364]:
+      - button "取消" [ref=e365] [cursor=pointer]
+      - button "确认停止" [active] [ref=e366] [cursor=pointer]

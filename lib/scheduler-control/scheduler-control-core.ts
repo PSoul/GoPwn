@@ -1,5 +1,5 @@
 import { formatTimestamp } from "@/lib/prototype-record-utils"
-import { prisma } from "@/lib/prisma"
+import { prisma } from "@/lib/infra/prisma"
 import {
   fromLogRecord,
   fromProjectDetailRecord,
@@ -8,12 +8,12 @@ import {
   toProjectDetailRecord,
   toProjectRecord,
   toProjectSchedulerControlRecord,
-} from "@/lib/prisma-transforms"
+} from "@/lib/infra/prisma-transforms"
 import {
   buildDefaultProjectSchedulerControl as buildDefaultLifecycleControl,
   isProjectSchedulerRunning,
   normalizeProjectSchedulerControl,
-} from "@/lib/project-scheduler-lifecycle"
+} from "@/lib/project/project-scheduler-lifecycle"
 import { createAuditLog, pushProjectActivity } from "./scheduler-control-helpers"
 import type {
   ProjectDetailRecord,

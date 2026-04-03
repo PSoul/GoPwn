@@ -1,5 +1,5 @@
-import { defaultGlobalApprovalControl } from "@/lib/platform-config"
-import { prisma } from "@/lib/prisma"
+import { defaultGlobalApprovalControl } from "@/lib/settings/platform-config"
+import { prisma } from "@/lib/infra/prisma"
 import {
   fromLogRecord,
   fromProjectDetailRecord,
@@ -9,11 +9,11 @@ import {
   toProjectDetailRecord,
   toProjectFormPresetRecord,
   toProjectRecord,
-} from "@/lib/prisma-transforms"
-import { buildProjectClosureStatus } from "@/lib/project-closure-status"
-import { buildDefaultProjectSchedulerControl } from "@/lib/project-scheduler-lifecycle"
-import { normalizeProjectTargets, SINGLE_USER_LABEL } from "@/lib/project-targets"
-import { generateProjectId } from "@/lib/project-id"
+} from "@/lib/infra/prisma-transforms"
+import { buildProjectClosureStatus } from "@/lib/project/project-closure-status"
+import { buildDefaultProjectSchedulerControl } from "@/lib/project/project-scheduler-lifecycle"
+import { normalizeProjectTargets, SINGLE_USER_LABEL } from "@/lib/project/project-targets"
+import { generateProjectId } from "@/lib/project/project-id"
 import type {
   LogRecord,
   ProjectDetailRecord,

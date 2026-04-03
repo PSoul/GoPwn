@@ -1,8 +1,8 @@
-import { mcpDispatchSchema } from "@/lib/mcp-write-schema"
-import { dispatchProjectMcpRunAndDrain } from "@/lib/project-mcp-dispatch-service"
-import { listStoredMcpRuns } from "@/lib/mcp-gateway-repository"
-import { getStoredProjectById } from "@/lib/project-repository"
-import { withApiHandler } from "@/lib/api-handler"
+import { mcpDispatchSchema } from "@/lib/mcp/mcp-write-schema"
+import { dispatchProjectMcpRunAndDrain } from "@/lib/project/project-mcp-dispatch-service"
+import { listStoredMcpRuns } from "@/lib/mcp/mcp-gateway-repository"
+import { getStoredProjectById } from "@/lib/project/project-repository"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const GET = withApiHandler(async (_request, { params }) => {
   const { projectId } = await params

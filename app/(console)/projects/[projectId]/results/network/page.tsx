@@ -15,8 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { listStoredAssetsByTypes } from "@/lib/asset-repository"
-import { getStoredProjectById } from "@/lib/project-repository"
+import { listStoredAssetsByTypes } from "@/lib/data/asset-repository"
+import { getStoredProjectById } from "@/lib/project/project-repository"
 import type { AssetRecord } from "@/lib/prototype-types"
 
 const scopeTone = {

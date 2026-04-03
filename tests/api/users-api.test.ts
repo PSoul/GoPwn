@@ -7,8 +7,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { GET, POST } from "@/app/api/users/route"
 import { GET as getUser, PATCH } from "@/app/api/users/[userId]/route"
 import { POST as login } from "@/app/api/auth/login/route"
-import { generateCaptcha, ensureSeedUsers } from "@/lib/auth-repository"
-import { createSessionToken } from "@/lib/auth-session"
+import { generateCaptcha, ensureSeedUsers } from "@/lib/auth/auth-repository"
+import { createSessionToken } from "@/lib/auth/auth-session"
 
 function makeRequest(url: string, init?: RequestInit & { cookie?: string }) {
   const headers: Record<string, string> = {

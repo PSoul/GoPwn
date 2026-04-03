@@ -4,17 +4,17 @@ import path from "node:path"
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
-import { updateStoredApprovalDecision } from "@/lib/approval-repository"
-import { dispatchStoredMcpRun, getStoredMcpRunById } from "@/lib/mcp-gateway-repository"
+import { updateStoredApprovalDecision } from "@/lib/data/approval-repository"
+import { dispatchStoredMcpRun, getStoredMcpRunById } from "@/lib/mcp/mcp-gateway-repository"
 import {
   claimStoredSchedulerTask,
   getStoredSchedulerTaskByRunId,
   updateStoredSchedulerTask,
-} from "@/lib/mcp-scheduler-repository"
+} from "@/lib/mcp/mcp-scheduler-repository"
 import {
   drainStoredSchedulerTasks,
   syncStoredSchedulerTaskAfterApprovalDecision,
-} from "@/lib/mcp-scheduler-service"
+} from "@/lib/mcp/mcp-scheduler-service"
 import { createStoredProjectFixture, seedWorkflowReadyMcpTools } from "@/tests/helpers/project-fixtures"
 
 describe("MCP scheduler service", () => {

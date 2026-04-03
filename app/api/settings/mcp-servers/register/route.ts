@@ -1,6 +1,6 @@
-import { mcpServerRegistrationSchema } from "@/lib/mcp-registration-schema"
-import { registerStoredMcpServer } from "@/lib/mcp-server-repository"
-import { withApiHandler } from "@/lib/api-handler"
+import { mcpServerRegistrationSchema } from "@/lib/mcp/mcp-registration-schema"
+import { registerStoredMcpServer } from "@/lib/mcp/mcp-server-repository"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const POST = withApiHandler(async (request) => {
   const body = await request.json()

@@ -4,7 +4,7 @@ import { Plus } from "lucide-react"
 import { ProjectListClient } from "@/components/projects/project-list-client"
 import { PageHeader } from "@/components/shared/page-header"
 import { Button } from "@/components/ui/button"
-import { listStoredProjects } from "@/lib/project-repository"
+import { listStoredProjects } from "@/lib/project/project-repository"
 
 export default async function ProjectsPage() {
   const projects = await listStoredProjects()

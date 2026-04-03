@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { McpGatewayClient } from "@/components/settings/mcp-gateway-client"
-import { mcpBoundaryRules, mcpCapabilityRecords, mcpRegistrationFields } from "@/lib/platform-config"
+import { mcpBoundaryRules, mcpCapabilityRecords, mcpRegistrationFields } from "@/lib/settings/platform-config"
 import type {
   McpServerContractSummaryRecord,
   McpServerInvocationRecord,

@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 import { realHttpValidationMcpConnector } from "@/lib/mcp-connectors/real-http-validation-mcp-connector"
 import type { McpConnectorExecutionContext } from "@/lib/mcp-connectors/types"
-import { registerStoredMcpServer } from "@/lib/mcp-server-repository"
+import { registerStoredMcpServer } from "@/lib/mcp/mcp-server-repository"
 
 describe.skipIf(process.env.SKIP_MCP_INTEGRATION === "1")("real http-validation MCP connector", () => {
   let server: ReturnType<typeof createServer>

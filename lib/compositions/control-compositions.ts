@@ -1,29 +1,29 @@
 import {
   systemControlOverview,
-} from "@/lib/platform-config"
+} from "@/lib/settings/platform-config"
 import {
   getStoredGlobalApprovalControl,
   listStoredApprovalPolicies,
   listStoredScopeRules,
   updateStoredApprovalDecision,
-} from "@/lib/approval-repository"
-import { listStoredMcpRuns } from "@/lib/mcp-gateway-repository"
+} from "@/lib/data/approval-repository"
+import { listStoredMcpRuns } from "@/lib/mcp/mcp-gateway-repository"
 import {
   runProjectLifecycleKickoff,
-} from "@/lib/orchestrator-service"
+} from "@/lib/orchestration/orchestrator-service"
 import {
   drainStoredSchedulerTasks,
   syncStoredSchedulerTaskAfterApprovalDecision,
-} from "@/lib/mcp-scheduler-service"
+} from "@/lib/mcp/mcp-scheduler-service"
 import {
   getStoredProjectSchedulerControl,
   stopStoredProjectSchedulerTasks,
   updateStoredProjectSchedulerControl,
-} from "@/lib/project-scheduler-control-repository"
+} from "@/lib/project/project-scheduler-control-repository"
 import {
   getStoredProjectById,
   getStoredProjectDetailById,
-} from "@/lib/project-repository"
+} from "@/lib/project/project-repository"
 import type {
   ApprovalDecisionInput,
   ApprovalPolicyPayload,

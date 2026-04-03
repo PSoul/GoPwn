@@ -1,5 +1,5 @@
-import { archiveStoredProject } from "@/lib/project-repository"
-import { withApiHandler } from "@/lib/api-handler"
+import { archiveStoredProject } from "@/lib/project/project-repository"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const POST = withApiHandler(async (_request, { params }) => {
   const { projectId } = await params

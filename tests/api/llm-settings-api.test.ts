@@ -5,7 +5,7 @@ import path from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 import { GET as getLlmSettings, PATCH as patchLlmSettings } from "@/app/api/settings/llm/route"
-import { prisma } from "@/lib/prisma"
+import { prisma } from "@/lib/infra/prisma"
 
 describe("llm settings api route", () => {
   let tempDir: string

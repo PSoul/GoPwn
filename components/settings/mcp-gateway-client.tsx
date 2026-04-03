@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { McpToolTable } from "@/components/settings/mcp-tool-table"
-import { apiFetch } from "@/lib/api-client"
+import { apiFetch } from "@/lib/infra/api-client"
 import type {
   McpBoundaryRule,
   McpCapabilityRecord,

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma"
+import { prisma } from "@/lib/infra/prisma"
 
 const DEFAULT_LLM_PROFILES = [
   { id: "orchestrator", provider: "openai-compatible", label: "Default Orchestrator", apiKey: "", baseUrl: "", model: "", timeoutMs: 120000, temperature: 0.2, enabled: false },

@@ -1,6 +1,6 @@
-import { llmLogBus } from "@/lib/llm-call-logger"
-import type { LlmLogEvent } from "@/lib/llm-call-logger"
-import { withApiHandler } from "@/lib/api-handler"
+import { llmLogBus } from "@/lib/llm/llm-call-logger"
+import type { LlmLogEvent } from "@/lib/llm/llm-call-logger"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"

@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/select"
 import { Pagination } from "@/components/shared/pagination"
 import type { ProjectRecord } from "@/lib/prototype-types"
-import { apiFetch } from "@/lib/api-client"
+import { apiFetch } from "@/lib/infra/api-client"
 
 const PAGE_SIZE = 12
 

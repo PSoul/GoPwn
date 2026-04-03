@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma"
-import { toMcpRunRecord } from "@/lib/prisma-transforms"
+import { prisma } from "@/lib/infra/prisma"
+import { toMcpRunRecord } from "@/lib/infra/prisma-transforms"
 import type { McpRunRecord } from "@/lib/prototype-types"
 
 export async function listStoredMcpRuns(projectId?: string) {

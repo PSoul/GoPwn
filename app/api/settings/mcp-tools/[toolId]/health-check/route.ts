@@ -1,5 +1,5 @@
-import { runStoredMcpHealthCheck } from "@/lib/mcp-repository"
-import { withApiHandler } from "@/lib/api-handler"
+import { runStoredMcpHealthCheck } from "@/lib/mcp/mcp-repository"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const POST = withApiHandler(async (_request, { params }) => {
   const { toolId } = await params

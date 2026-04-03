@@ -1,7 +1,7 @@
-import { callMcpServerTool } from "@/lib/mcp-client-service"
-import { getDiscoveredMcpServerConfig, getServerKeyByToolName, getToolMappingByToolName } from "@/lib/mcp-auto-discovery"
-import { throwIfExecutionAborted } from "@/lib/mcp-execution-abort"
-import { findStoredEnabledMcpServerByToolBinding } from "@/lib/mcp-server-repository"
+import { callMcpServerTool } from "@/lib/mcp/mcp-client-service"
+import { getDiscoveredMcpServerConfig, getServerKeyByToolName, getToolMappingByToolName } from "@/lib/mcp/mcp-auto-discovery"
+import { throwIfExecutionAborted } from "@/lib/mcp/mcp-execution-abort"
+import { findStoredEnabledMcpServerByToolBinding } from "@/lib/mcp/mcp-server-repository"
 import type { McpConnector, McpConnectorExecutionContext, McpConnectorResult } from "@/lib/mcp-connectors/types"
 import type { McpServerRecord } from "@/lib/prototype-types"
 

@@ -8,7 +8,7 @@ import { Loader2, PlayCircle } from "lucide-react"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
 import type { ProjectDetailRecord, ProjectRecord, Tone, McpSchedulerTaskRecord, OrchestratorRoundRecord, ProjectSchedulerControl } from "@/lib/prototype-types"
-import { apiFetch } from "@/lib/api-client"
+import { apiFetch } from "@/lib/infra/api-client"
 
 const metricToneStyles: Record<Tone, string> = {
   neutral: "border-slate-200/80 dark:border-slate-800",

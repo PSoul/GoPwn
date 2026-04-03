@@ -13,9 +13,9 @@ import { Button } from "@/components/ui/button"
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { normalizeProjectTargets, SINGLE_USER_LABEL } from "@/lib/project-targets"
+import { normalizeProjectTargets, SINGLE_USER_LABEL } from "@/lib/project/project-targets"
 import type { ProjectFormPreset, ProjectRecord } from "@/lib/prototype-types"
-import { apiFetch } from "@/lib/api-client"
+import { apiFetch } from "@/lib/infra/api-client"
 
 const projectSchema = z.object({
   name: z.string().min(1, "项目名称不能为空").max(100, "项目名称最多 100 个字符"),

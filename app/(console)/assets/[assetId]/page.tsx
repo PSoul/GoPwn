@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { getStoredAssetById } from "@/lib/asset-repository"
+import { getStoredAssetById } from "@/lib/data/asset-repository"
 
 export default async function AssetDetailPage({
   params,

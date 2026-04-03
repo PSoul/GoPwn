@@ -10,7 +10,7 @@ import {
   listStoredMcpServerInvocations,
   listStoredMcpServers,
   registerStoredMcpServer,
-} from "@/lib/mcp-server-repository"
+} from "@/lib/mcp/mcp-server-repository"
 
 describe("MCP server repository", () => {
   let tempDir: string

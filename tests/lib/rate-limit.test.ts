@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { createRateLimiter } from "@/lib/rate-limit"
+import { createRateLimiter } from "@/lib/auth/rate-limit"
 
 describe("createRateLimiter", () => {
   it("allows requests within the limit", () => {

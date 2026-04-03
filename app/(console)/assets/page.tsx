@@ -4,8 +4,8 @@ import { AssetCenterClient } from "@/components/assets/asset-center-client"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { listStoredAssets } from "@/lib/asset-repository"
-import { buildAssetViews } from "@/lib/api-compositions"
+import { listStoredAssets } from "@/lib/data/asset-repository"
+import { buildAssetViews } from "@/lib/infra/api-compositions"
 
 export default async function AssetsPage({
   searchParams,

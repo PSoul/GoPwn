@@ -5,8 +5,8 @@ import { EvidenceDetail } from "@/components/evidence/evidence-detail"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { getStoredEvidenceById } from "@/lib/evidence-repository"
-import { buildRuntimeArtifactUrl } from "@/lib/runtime-artifacts"
+import { getStoredEvidenceById } from "@/lib/data/evidence-repository"
+import { buildRuntimeArtifactUrl } from "@/lib/data/runtime-artifacts"
 
 export default async function EvidenceDetailPage({
   params,

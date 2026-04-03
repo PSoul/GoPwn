@@ -1,8 +1,8 @@
 import { z } from "zod"
 
-import { getStoredProjectById } from "@/lib/project-repository"
-import { listStoredProjectFindings, upsertStoredProjectFindings } from "@/lib/project-results-repository"
-import { withApiHandler } from "@/lib/api-handler"
+import { getStoredProjectById } from "@/lib/project/project-repository"
+import { listStoredProjectFindings, upsertStoredProjectFindings } from "@/lib/project/project-results-repository"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 const findingStatusSchema = z.object({
   findingId: z.string(),

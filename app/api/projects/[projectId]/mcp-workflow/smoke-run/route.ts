@@ -1,6 +1,6 @@
-import { mcpWorkflowSmokeSchema } from "@/lib/mcp-write-schema"
-import { runProjectSmokeWorkflow } from "@/lib/mcp-workflow-service"
-import { withApiHandler } from "@/lib/api-handler"
+import { mcpWorkflowSmokeSchema } from "@/lib/mcp/mcp-write-schema"
+import { runProjectSmokeWorkflow } from "@/lib/mcp/mcp-workflow-service"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const POST = withApiHandler(async (request, { params }) => {
   const { projectId } = await params

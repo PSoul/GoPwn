@@ -10,7 +10,7 @@ import McpToolsSettingsPage from "@/app/(console)/settings/mcp-tools/page"
 import SettingsPage from "@/app/(console)/settings/page"
 import SystemStatusSettingsPage from "@/app/(console)/settings/system-status/page"
 import WorkLogsSettingsPage from "@/app/(console)/settings/work-logs/page"
-import { upsertStoredEvidence } from "@/lib/evidence-repository"
+import { upsertStoredEvidence } from "@/lib/data/evidence-repository"
 import { createWorkflowFixture } from "@/tests/helpers/project-fixtures"
 
 describe("Evidence and settings pages", () => {

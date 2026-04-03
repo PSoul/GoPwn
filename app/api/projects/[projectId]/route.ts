@@ -1,6 +1,6 @@
-import { getStoredProjectById, getStoredProjectDetailById, updateStoredProject } from "@/lib/project-repository"
-import { projectPatchSchema } from "@/lib/project-write-schema"
-import { withApiHandler } from "@/lib/api-handler"
+import { getStoredProjectById, getStoredProjectDetailById, updateStoredProject } from "@/lib/project/project-repository"
+import { projectPatchSchema } from "@/lib/project/project-write-schema"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const GET = withApiHandler(async (_request, { params }) => {
   const { projectId } = await params

@@ -3,21 +3,21 @@ import {
   mcpCapabilityRecords,
   mcpRegistrationFields,
   settingsSections,
-} from "@/lib/platform-config"
-import { listStoredLlmProfiles } from "@/lib/llm-settings-repository"
-import { getStoredGlobalApprovalControl } from "@/lib/approval-repository"
+} from "@/lib/settings/platform-config"
+import { listStoredLlmProfiles } from "@/lib/llm/llm-settings-repository"
+import { getStoredGlobalApprovalControl } from "@/lib/data/approval-repository"
 import {
   listStoredMcpServerInvocations,
   listStoredMcpServers,
-} from "@/lib/mcp-server-repository"
+} from "@/lib/mcp/mcp-server-repository"
 import {
   listStoredMcpTools,
-} from "@/lib/mcp-repository"
+} from "@/lib/mcp/mcp-repository"
 import {
   listStoredAuditLogs,
-} from "@/lib/project-repository"
-import { prisma } from "@/lib/prisma"
-import { listStoredWorkLogs } from "@/lib/work-log-repository"
+} from "@/lib/project/project-repository"
+import { prisma } from "@/lib/infra/prisma"
+import { listStoredWorkLogs } from "@/lib/data/work-log-repository"
 import type {
   LlmProfileRecord,
   McpResultMapping,

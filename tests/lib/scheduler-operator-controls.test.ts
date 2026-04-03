@@ -4,19 +4,19 @@ import path from "node:path"
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
-import { dispatchStoredMcpRun, getStoredMcpRunById, updateStoredMcpRun } from "@/lib/mcp-gateway-repository"
+import { dispatchStoredMcpRun, getStoredMcpRunById, updateStoredMcpRun } from "@/lib/mcp/mcp-gateway-repository"
 import {
   registerActiveExecution,
   resetActiveExecutionRegistry,
-} from "@/lib/mcp-execution-runtime"
-import { getStoredSchedulerTaskByRunId, updateStoredSchedulerTask } from "@/lib/mcp-scheduler-repository"
-import { drainStoredSchedulerTasks } from "@/lib/mcp-scheduler-service"
+} from "@/lib/mcp/mcp-execution-runtime"
+import { getStoredSchedulerTaskByRunId, updateStoredSchedulerTask } from "@/lib/mcp/mcp-scheduler-repository"
+import { drainStoredSchedulerTasks } from "@/lib/mcp/mcp-scheduler-service"
 import {
   cancelStoredSchedulerTask,
   getStoredProjectSchedulerControl,
   retryStoredSchedulerTask,
   updateStoredProjectSchedulerControl,
-} from "@/lib/project-scheduler-control-repository"
+} from "@/lib/project/project-scheduler-control-repository"
 import { createStoredProjectFixture, seedWorkflowReadyMcpTools } from "@/tests/helpers/project-fixtures"
 
 describe("scheduler operator controls", () => {

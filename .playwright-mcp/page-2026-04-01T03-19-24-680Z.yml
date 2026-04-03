@@ -1,0 +1,205 @@
+- generic [ref=e2]:
+  - generic [ref=e6]:
+    - link "平台控制台 授权外网安全评估平台" [ref=e8] [cursor=pointer]:
+      - /url: /dashboard
+      - img [ref=e10]
+      - generic [ref=e13]:
+        - paragraph [ref=e14]: 平台控制台
+        - paragraph [ref=e15]: 授权外网安全评估平台
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]: 总览
+        - list [ref=e20]:
+          - listitem [ref=e21]:
+            - link "仪表盘" [ref=e22] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e23]
+              - generic [ref=e26]: 仪表盘
+          - listitem [ref=e27]:
+            - link "项目管理" [ref=e28] [cursor=pointer]:
+              - /url: /projects
+              - img [ref=e29]
+              - generic [ref=e31]: 项目管理
+          - listitem [ref=e32]:
+            - link "审批中心" [ref=e33] [cursor=pointer]:
+              - /url: /approvals
+              - img [ref=e34]
+              - generic [ref=e38]: 审批中心
+      - generic [ref=e39]:
+        - generic [ref=e40]: 发现
+        - list [ref=e42]:
+          - listitem [ref=e43]:
+            - link "资产中心" [ref=e44] [cursor=pointer]:
+              - /url: /assets
+              - img [ref=e45]
+              - generic [ref=e50]: 资产中心
+          - listitem [ref=e51]:
+            - link "漏洞中心" [ref=e52] [cursor=pointer]:
+              - /url: /vuln-center
+              - img [ref=e53]
+              - generic [ref=e57]: 漏洞中心
+      - generic [ref=e58]:
+        - generic [ref=e59]: 系统
+        - list [ref=e61]:
+          - listitem [ref=e62]:
+            - link "系统设置" [ref=e63] [cursor=pointer]:
+              - /url: /settings
+              - img [ref=e64]
+              - generic [ref=e67]: 系统设置
+  - main [ref=e68]:
+    - generic [ref=e70]:
+      - navigation [ref=e72]:
+        - link "平台控制台" [ref=e74] [cursor=pointer]:
+          - /url: /dashboard
+        - generic [ref=e75]:
+          - img [ref=e76]
+          - generic [ref=e78]: 项目管理
+      - generic [ref=e79]:
+        - button "查看通知" [ref=e80] [cursor=pointer]:
+          - img
+          - generic [ref=e81]: 查看通知
+        - generic [ref=e83]:
+          - generic [ref=e85]: 研
+          - generic [ref=e86]:
+            - paragraph [ref=e87]: 研究员席位 A
+            - paragraph [ref=e88]: 研究员
+        - button "退出" [ref=e90] [cursor=pointer]
+    - generic [ref=e92]:
+      - generic [ref=e93]:
+        - generic [ref=e94]:
+          - generic [ref=e95]:
+            - heading "DVWA-v2-优化验证" [level=1] [ref=e96]
+            - generic [ref=e97]: 已完成
+          - generic [ref=e98]:
+            - generic [ref=e99]:
+              - generic [ref=e100]:
+                - text: 资产
+                - strong [ref=e101]: "1"
+              - generic [ref=e102]:
+                - text: 证据
+                - strong [ref=e103]: "0"
+              - generic [ref=e104]:
+                - text: 审批
+                - strong [ref=e105]: "0"
+            - link "编辑" [ref=e106] [cursor=pointer]:
+              - /url: /projects/proj-20260401-81fc0456/edit
+        - generic [ref=e108]: http://host.docker.internal:8081
+      - tablist "项目工作区" [ref=e109]:
+        - tab "概览" [selected] [ref=e110] [cursor=pointer]
+        - tab "域名" [ref=e111] [cursor=pointer]:
+          - img [ref=e112]
+          - text: 域名
+        - tab "站点" [ref=e115] [cursor=pointer]:
+          - img [ref=e116]
+          - text: 站点
+        - tab "端口" [ref=e119] [cursor=pointer]:
+          - img [ref=e120]
+          - text: 端口
+        - tab "漏洞" [ref=e125] [cursor=pointer]:
+          - img [ref=e126]
+          - text: 漏洞
+        - tab "执行控制" [ref=e128] [cursor=pointer]:
+          - img [ref=e129]
+          - text: 执行控制
+        - tab "AI 日志" [ref=e132] [cursor=pointer]:
+          - img [ref=e133]
+          - text: AI 日志
+      - generic [ref=e145]:
+        - generic [ref=e146]:
+          - generic [ref=e147]:
+            - generic [ref=e148]:
+              - generic [ref=e149]:
+                - paragraph [ref=e150]: 测试完成 — 最终结论
+                - paragraph [ref=e151]: 最终结论：根据当前项目DVWA-v2-优化验证的测试结果，未发现任何漏洞或安全问题。所有测试活动已完成，且未记录到任何证据或发现。项目目标http://host.docker.internal:8081经过全面测试后，显示安全状态良好。
+              - generic [ref=e152]: LLM 审阅
+            - generic [ref=e153]:
+              - paragraph [ref=e154]: 关键发现
+              - list [ref=e155]:
+                - listitem [ref=e156]: • 关闭项目 @ http://host.docker.internal:8081
+          - generic [ref=e157]:
+            - link "域名 1 已发现域名和子域名资产。" [ref=e158] [cursor=pointer]:
+              - /url: /projects/proj-20260401-81fc0456/results/domains
+              - paragraph [ref=e159]: 域名
+              - paragraph [ref=e160]: "1"
+              - paragraph [ref=e161]: 已发现域名和子域名资产。
+            - link "站点 0 等待识别" [ref=e162] [cursor=pointer]:
+              - /url: /projects/proj-20260401-81fc0456/results/sites
+              - paragraph [ref=e163]: 站点
+              - paragraph [ref=e164]: "0"
+              - paragraph [ref=e165]: 等待识别
+            - link "开放端口 0 等待识别" [ref=e166] [cursor=pointer]:
+              - /url: /projects/proj-20260401-81fc0456/results/network
+              - paragraph [ref=e167]: 开放端口
+              - paragraph [ref=e168]: "0"
+              - paragraph [ref=e169]: 等待识别
+            - link "漏洞线索 0 等待验证" [ref=e170] [cursor=pointer]:
+              - /url: /projects/proj-20260401-81fc0456/results/findings
+              - paragraph [ref=e171]: 漏洞线索
+              - paragraph [ref=e172]: "0"
+              - paragraph [ref=e173]: 等待验证
+          - generic [ref=e174]:
+            - generic [ref=e175]:
+              - paragraph [ref=e176]: 最近动态
+              - link "查看全部" [ref=e177] [cursor=pointer]:
+                - /url: /projects/proj-20260401-81fc0456/context
+            - generic [ref=e178]:
+              - generic [ref=e179]:
+                - generic [ref=e180]:
+                  - paragraph [ref=e181]: 项目结论
+                  - paragraph [ref=e182]: 最终结论：根据当前项目DVWA-v2-优化验证的测试结果，未发现任何漏洞或安全问题。所有测试活动已完成，且未记录到任何证据或发现。项目目标http://host.docker.internal:8081经过全面测试后，显示安全状态良好。
+                - generic [ref=e183]: reviewer-provider · 2026-04-01 11:19
+              - generic [ref=e184]:
+                - generic [ref=e185]:
+                  - paragraph [ref=e186]: 报告导出
+                  - paragraph [ref=e187]: 项目报告摘要已导出：种子目标 0 个；域名与入口 1 条；证据记录 0 条；漏洞与发现 0 条
+                - generic [ref=e188]: report-exporter · 2026-04-01 11:19
+              - generic [ref=e189]:
+                - generic [ref=e190]:
+                  - paragraph [ref=e191]: DNS / 子域 / 证书情报类
+                  - paragraph [ref=e192]: subfinder_enum 已执行完成
+                - generic [ref=e193]: subfinder_enum · 2026-04-01 11:19
+              - generic [ref=e194]:
+                - generic [ref=e195]:
+                  - paragraph [ref=e196]: AI 规划
+                  - paragraph [ref=e197]: 自动续跑：开始第5轮 AI 规划
+                - generic [ref=e198]: orchestrator-auto-replan · 2026-04-01 11:18
+              - generic [ref=e199]:
+                - generic [ref=e200]:
+                  - paragraph [ref=e201]: DNS / 子域 / 证书情报类
+                  - paragraph [ref=e202]: subfinder_enum 已执行完成
+                - generic [ref=e203]: subfinder_enum · 2026-04-01 11:18
+        - generic [ref=e204]:
+          - link "域名 1 条记录" [ref=e205] [cursor=pointer]:
+            - /url: /projects/proj-20260401-81fc0456/results/domains
+            - generic [ref=e206]:
+              - img [ref=e208]
+              - generic [ref=e211]:
+                - paragraph [ref=e212]: 域名
+                - paragraph [ref=e213]: 1 条记录
+            - img [ref=e214]
+          - link "站点 暂无数据" [ref=e216] [cursor=pointer]:
+            - /url: /projects/proj-20260401-81fc0456/results/sites
+            - generic [ref=e217]:
+              - img [ref=e219]
+              - generic [ref=e222]:
+                - paragraph [ref=e223]: 站点
+                - paragraph [ref=e224]: 暂无数据
+            - img [ref=e225]
+          - link "端口 暂无数据" [ref=e227] [cursor=pointer]:
+            - /url: /projects/proj-20260401-81fc0456/results/network
+            - generic [ref=e228]:
+              - img [ref=e230]
+              - generic [ref=e235]:
+                - paragraph [ref=e236]: 端口
+                - paragraph [ref=e237]: 暂无数据
+            - img [ref=e238]
+          - link "漏洞 暂无数据" [ref=e240] [cursor=pointer]:
+            - /url: /projects/proj-20260401-81fc0456/results/findings
+            - generic [ref=e241]:
+              - img [ref=e243]
+              - generic [ref=e245]:
+                - paragraph [ref=e246]: 漏洞
+                - paragraph [ref=e247]: 暂无数据
+            - img [ref=e248]
+  - button "打开 AI 对话日志" [ref=e250] [cursor=pointer]:
+    - img [ref=e251]

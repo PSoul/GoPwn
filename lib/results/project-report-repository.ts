@@ -1,10 +1,10 @@
-import { prisma } from "@/lib/prisma"
+import { prisma } from "@/lib/infra/prisma"
 import {
   toProjectRecord,
   toProjectConclusionRecord,
   toMcpRunRecord,
   toLogRecord,
-} from "@/lib/prisma-transforms"
+} from "@/lib/infra/prisma-transforms"
 import { getStoredProjectLatestConclusion } from "./project-results-core"
 import type {
   McpRunRecord,

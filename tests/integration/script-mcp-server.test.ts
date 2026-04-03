@@ -9,8 +9,8 @@
  * 需要 Docker 靶场运行 + ENABLE_DOCKER_LAB_TESTS=1
  */
 import { describe, it, expect } from "vitest"
-import { callMcpServerTool } from "@/lib/mcp-client-service"
-import { getDiscoveredMcpServerConfig, getServerKeyByToolName } from "@/lib/mcp-auto-discovery"
+import { callMcpServerTool } from "@/lib/mcp/mcp-client-service"
+import { getDiscoveredMcpServerConfig, getServerKeyByToolName } from "@/lib/mcp/mcp-auto-discovery"
 import type { McpServerRecord } from "@/lib/prototype-types"
 
 const ENABLED = process.env.ENABLE_DOCKER_LAB_TESTS === "1"

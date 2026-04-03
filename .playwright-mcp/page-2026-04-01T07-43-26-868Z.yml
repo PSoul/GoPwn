@@ -1,0 +1,210 @@
+- generic [ref=e2]:
+  - generic [ref=e6]:
+    - link "平台控制台 授权外网安全评估平台" [ref=e8] [cursor=pointer]:
+      - /url: /dashboard
+      - img [ref=e10]
+      - generic [ref=e13]:
+        - paragraph [ref=e14]: 平台控制台
+        - paragraph [ref=e15]: 授权外网安全评估平台
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]: 总览
+        - list [ref=e20]:
+          - listitem [ref=e21]:
+            - link "仪表盘" [ref=e22] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e23]
+              - generic [ref=e26]: 仪表盘
+          - listitem [ref=e27]:
+            - link "项目管理" [ref=e28] [cursor=pointer]:
+              - /url: /projects
+              - img [ref=e29]
+              - generic [ref=e31]: 项目管理
+          - listitem [ref=e32]:
+            - link "审批中心" [ref=e33] [cursor=pointer]:
+              - /url: /approvals
+              - img [ref=e34]
+              - generic [ref=e38]: 审批中心
+      - generic [ref=e39]:
+        - generic [ref=e40]: 发现
+        - list [ref=e42]:
+          - listitem [ref=e43]:
+            - link "资产中心" [ref=e44] [cursor=pointer]:
+              - /url: /assets
+              - img [ref=e45]
+              - generic [ref=e50]: 资产中心
+          - listitem [ref=e51]:
+            - link "漏洞中心" [ref=e52] [cursor=pointer]:
+              - /url: /vuln-center
+              - img [ref=e53]
+              - generic [ref=e57]: 漏洞中心
+      - generic [ref=e58]:
+        - generic [ref=e59]: 系统
+        - list [ref=e61]:
+          - listitem [ref=e62]:
+            - link "系统设置" [ref=e63] [cursor=pointer]:
+              - /url: /settings
+              - img [ref=e64]
+              - generic [ref=e67]: 系统设置
+  - main [ref=e68]:
+    - generic [ref=e70]:
+      - navigation [ref=e72]:
+        - link "平台控制台" [ref=e74] [cursor=pointer]:
+          - /url: /dashboard
+        - generic [ref=e75]:
+          - img [ref=e76]
+          - generic [ref=e78]: 项目管理
+      - generic [ref=e79]:
+        - button "查看通知" [ref=e80] [cursor=pointer]:
+          - img
+          - generic [ref=e81]: 查看通知
+        - generic [ref=e83]:
+          - generic [ref=e85]: 研
+          - generic [ref=e86]:
+            - paragraph [ref=e87]: 研究员席位 A
+            - paragraph [ref=e88]: 研究员
+        - button "退出" [ref=e90] [cursor=pointer]
+    - generic [ref=e92]:
+      - generic [ref=e93]:
+        - generic [ref=e94]:
+          - generic [ref=e95]:
+            - heading "TCP服务靶场验证" [level=1] [ref=e96]
+            - generic [ref=e97]: 已完成
+          - generic [ref=e98]:
+            - generic [ref=e99]:
+              - generic [ref=e100]:
+                - text: 资产
+                - strong [ref=e101]: "5"
+              - generic [ref=e102]:
+                - text: 证据
+                - strong [ref=e103]: "1"
+              - generic [ref=e104]:
+                - text: 审批
+                - strong [ref=e105]: "0"
+            - link "编辑" [ref=e106] [cursor=pointer]:
+              - /url: /projects/proj-20260401-58921013/edit
+        - generic [ref=e107]:
+          - generic [ref=e108]: tcp://localhost:6379
+          - generic [ref=e109]: tcp://localhost:2222
+          - generic [ref=e110]: tcp://localhost:27017
+      - tablist "项目工作区" [ref=e111]:
+        - tab "概览" [selected] [ref=e112] [cursor=pointer]
+        - tab "域名" [ref=e113] [cursor=pointer]:
+          - img [ref=e114]
+          - text: 域名
+        - tab "站点" [ref=e117] [cursor=pointer]:
+          - img [ref=e118]
+          - text: 站点
+        - tab "端口" [ref=e121] [cursor=pointer]:
+          - img [ref=e122]
+          - text: 端口
+        - tab "漏洞" [ref=e127] [cursor=pointer]:
+          - img [ref=e128]
+          - text: 漏洞
+        - tab "执行控制" [ref=e130] [cursor=pointer]:
+          - img [ref=e131]
+          - text: 执行控制
+        - tab "AI 日志" [ref=e134] [cursor=pointer]:
+          - img [ref=e135]
+          - text: AI 日志
+      - generic [ref=e147]:
+        - generic [ref=e148]:
+          - generic [ref=e149]:
+            - generic [ref=e150]:
+              - generic [ref=e151]:
+                - paragraph [ref=e152]: 测试完成 — 最终结论
+                - paragraph [ref=e153]: 最终结论：当前扫描覆盖不足，未能有效触达目标或未能完成深度漏洞验证，不能排除安全风险。项目针对TCP服务靶场（Redis无认证、SSH弱口令、MongoDB无认证）进行了验证，但未发现有效漏洞或证据，表明扫描可能未成功执行或未深入验证目标服务。
+              - generic [ref=e154]: LLM 审阅
+            - generic [ref=e155]:
+              - paragraph [ref=e156]: 关键发现
+              - list [ref=e157]:
+                - listitem [ref=e158]: • 重新执行针对Redis无认证端口的漏洞验证 @ tcp://localhost:6379
+                - listitem [ref=e159]: • 重新执行针对SSH弱口令端口的漏洞验证 @ tcp://localhost:2222
+                - listitem [ref=e160]: • 重新执行针对MongoDB无认证端口的漏洞验证 @ tcp://localhost:27017
+          - generic [ref=e161]:
+            - link "域名 1 已发现域名和子域名资产。" [ref=e162] [cursor=pointer]:
+              - /url: /projects/proj-20260401-58921013/results/domains
+              - paragraph [ref=e163]: 域名
+              - paragraph [ref=e164]: "1"
+              - paragraph [ref=e165]: 已发现域名和子域名资产。
+            - link "站点 0 等待识别" [ref=e166] [cursor=pointer]:
+              - /url: /projects/proj-20260401-58921013/results/sites
+              - paragraph [ref=e167]: 站点
+              - paragraph [ref=e168]: "0"
+              - paragraph [ref=e169]: 等待识别
+            - link "开放端口 3 已发现开放端口和运行服务。" [ref=e170] [cursor=pointer]:
+              - /url: /projects/proj-20260401-58921013/results/network
+              - paragraph [ref=e171]: 开放端口
+              - paragraph [ref=e172]: "3"
+              - paragraph [ref=e173]: 已发现开放端口和运行服务。
+            - link "漏洞线索 0 等待验证" [ref=e174] [cursor=pointer]:
+              - /url: /projects/proj-20260401-58921013/results/findings
+              - paragraph [ref=e175]: 漏洞线索
+              - paragraph [ref=e176]: "0"
+              - paragraph [ref=e177]: 等待验证
+          - generic [ref=e178]:
+            - generic [ref=e179]:
+              - paragraph [ref=e180]: 最近动态
+              - link "查看全部" [ref=e181] [cursor=pointer]:
+                - /url: /projects/proj-20260401-58921013/context
+            - generic [ref=e182]:
+              - generic [ref=e183]:
+                - generic [ref=e184]:
+                  - paragraph [ref=e185]: 目标标准化
+                  - paragraph [ref=e186]: 种子目标已规范化为 tcp://localhost:2222 / tcp:，创建了 0 个初始资产。
+                - generic [ref=e187]: seed-normalizer · 2026-04-01 15:31
+              - generic [ref=e188]:
+                - generic [ref=e189]:
+                  - paragraph [ref=e190]: 报告导出
+                  - paragraph [ref=e191]: 项目报告摘要已导出：种子目标 0 个；域名与入口 5 条；证据记录 1 条；漏洞与发现 0 条
+                - generic [ref=e192]: report-exporter · 2026-04-01 15:31
+              - generic [ref=e193]:
+                - generic [ref=e194]:
+                  - paragraph [ref=e195]: 导出项目报告 已执行
+                  - paragraph [ref=e196]: report-exporter 已自动完成该动作，结果已写入项目上下文。
+                - generic [ref=e197]: MCP 网关
+              - generic [ref=e198]:
+                - generic [ref=e199]:
+                  - paragraph [ref=e200]: 目标标准化
+                  - paragraph [ref=e201]: 种子目标已规范化为 tcp://localhost:2222 / tcp:，创建了 0 个初始资产。
+                - generic [ref=e202]: seed-normalizer · 2026-04-01 15:30
+              - generic [ref=e203]:
+                - generic [ref=e204]:
+                  - paragraph [ref=e205]: 标准化并分类项目目标 已执行
+                  - paragraph [ref=e206]: seed-normalizer 已自动完成该动作，结果已写入项目上下文。
+                - generic [ref=e207]: MCP 网关
+        - generic [ref=e208]:
+          - link "域名 1 条记录" [ref=e209] [cursor=pointer]:
+            - /url: /projects/proj-20260401-58921013/results/domains
+            - generic [ref=e210]:
+              - img [ref=e212]
+              - generic [ref=e215]:
+                - paragraph [ref=e216]: 域名
+                - paragraph [ref=e217]: 1 条记录
+            - img [ref=e218]
+          - link "站点 暂无数据" [ref=e220] [cursor=pointer]:
+            - /url: /projects/proj-20260401-58921013/results/sites
+            - generic [ref=e221]:
+              - img [ref=e223]
+              - generic [ref=e226]:
+                - paragraph [ref=e227]: 站点
+                - paragraph [ref=e228]: 暂无数据
+            - img [ref=e229]
+          - link "端口 4 条记录" [ref=e231] [cursor=pointer]:
+            - /url: /projects/proj-20260401-58921013/results/network
+            - generic [ref=e232]:
+              - img [ref=e234]
+              - generic [ref=e239]:
+                - paragraph [ref=e240]: 端口
+                - paragraph [ref=e241]: 4 条记录
+            - img [ref=e242]
+          - link "漏洞 暂无数据" [ref=e244] [cursor=pointer]:
+            - /url: /projects/proj-20260401-58921013/results/findings
+            - generic [ref=e245]:
+              - img [ref=e247]
+              - generic [ref=e249]:
+                - paragraph [ref=e250]: 漏洞
+                - paragraph [ref=e251]: 暂无数据
+            - img [ref=e252]
+  - button "打开 AI 对话日志" [ref=e254] [cursor=pointer]:
+    - img [ref=e255]

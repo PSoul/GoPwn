@@ -1,6 +1,6 @@
-import { llmProfileWriteSchema } from "@/lib/llm-settings-write-schema"
-import { listStoredLlmProfiles, updateStoredLlmProfile } from "@/lib/llm-settings-repository"
-import { withApiHandler } from "@/lib/api-handler"
+import { llmProfileWriteSchema } from "@/lib/settings/llm-settings-write-schema"
+import { listStoredLlmProfiles, updateStoredLlmProfile } from "@/lib/llm/llm-settings-repository"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const GET = withApiHandler(async () => {
   return Response.json({ profiles: await listStoredLlmProfiles() })

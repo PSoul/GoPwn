@@ -8,9 +8,9 @@ import path from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 import { realWebSurfaceMcpConnector } from "@/lib/mcp-connectors/real-web-surface-mcp-connector"
-import { resetLocalLabCatalogTestAdapters, setLocalLabCatalogTestAdapters } from "@/lib/local-lab-catalog"
+import { resetLocalLabCatalogTestAdapters, setLocalLabCatalogTestAdapters } from "@/lib/infra/local-lab-catalog"
 import type { McpConnectorExecutionContext } from "@/lib/mcp-connectors/types"
-import { listStoredMcpServerInvocations, registerStoredMcpServer } from "@/lib/mcp-server-repository"
+import { listStoredMcpServerInvocations, registerStoredMcpServer } from "@/lib/mcp/mcp-server-repository"
 
 describe.skipIf(process.env.SKIP_MCP_INTEGRATION === "1")("real web-surface MCP connector", () => {
   let server: ReturnType<typeof createServer>

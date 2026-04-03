@@ -8,7 +8,7 @@ import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
 import { Button } from "@/components/ui/button"
-import { apiFetch } from "@/lib/api-client"
+import { apiFetch } from "@/lib/infra/api-client"
 import type { UserRole, UserStatus } from "@/lib/prototype-types"
 
 interface UserItem {

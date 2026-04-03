@@ -1,8 +1,8 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest"
 
-import { ApiError, withApiHandler } from "@/lib/api-handler"
-import type { ApiErrorCode } from "@/lib/api-handler"
+import { ApiError, withApiHandler } from "@/lib/infra/api-handler"
+import type { ApiErrorCode } from "@/lib/infra/api-handler"
 
 describe("ApiError", () => {
   it("infers VALIDATION code from 400 status", () => {

@@ -16,8 +16,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { apiFetch } from "@/lib/api-client"
-import { prototypeNavigation } from "@/lib/navigation"
+import { apiFetch } from "@/lib/infra/api-client"
+import { prototypeNavigation } from "@/lib/infra/navigation"
 
 export function AppSidebar({ pathname }: { pathname: string }) {
   const [dynamicBadges, setDynamicBadges] = useState<Record<string, string>>({})

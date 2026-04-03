@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { buildProjectClosureStatus } from "@/lib/project-closure-status"
+import { buildProjectClosureStatus } from "@/lib/project/project-closure-status"
 
 describe("project closure status", () => {
   it("marks a fresh idle project as waiting for manual start", () => {

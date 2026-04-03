@@ -3,7 +3,7 @@ import { SectionCard } from "@/components/shared/section-card"
 import { SettingsHubGrid } from "@/components/settings/settings-hub-grid"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
 import { SystemStatusGrid } from "@/components/settings/system-status-grid"
-import { getSettingsSectionsPayload, getSystemStatusPayload } from "@/lib/api-compositions"
+import { getSettingsSectionsPayload, getSystemStatusPayload } from "@/lib/infra/api-compositions"
 
 export default async function SettingsPage() {
   const { items: sections } = await getSettingsSectionsPayload()

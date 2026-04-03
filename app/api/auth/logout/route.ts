@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server"
 
-import { recordLogout } from "@/lib/auth-repository"
-import { AUTH_COOKIE_NAME, readSessionFromCookieHeader } from "@/lib/auth-session"
-import { withApiHandler } from "@/lib/api-handler"
+import { recordLogout } from "@/lib/auth/auth-repository"
+import { AUTH_COOKIE_NAME, readSessionFromCookieHeader } from "@/lib/auth/auth-session"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const POST = withApiHandler(async (request) => {
   const session = await readSessionFromCookieHeader(request.headers.get("cookie"))

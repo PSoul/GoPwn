@@ -1,5 +1,5 @@
-import { getMcpSettingsPayload } from "@/lib/api-compositions"
-import { withApiHandler } from "@/lib/api-handler"
+import { getMcpSettingsPayload } from "@/lib/infra/api-compositions"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const GET = withApiHandler(async () => {
   return Response.json(await getMcpSettingsPayload())

@@ -1,7 +1,7 @@
 import { cookies } from "next/headers"
 
 import { AppShell } from "@/components/layout/app-shell"
-import { readSessionToken, AUTH_COOKIE_NAME } from "@/lib/auth-session"
+import { readSessionToken, AUTH_COOKIE_NAME } from "@/lib/auth/auth-session"
 
 export default async function ConsoleLayout({
   children,

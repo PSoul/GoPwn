@@ -1,4 +1,4 @@
-import { getStoredLlmProfile } from "@/lib/llm-settings-repository"
+import { getStoredLlmProfile } from "@/lib/llm/llm-settings-repository"
 import {
   buildOpenAiCompatibleStatus,
   buildOpenAiCompatibleStatusFromEnv,

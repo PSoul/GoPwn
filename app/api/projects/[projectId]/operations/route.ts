@@ -1,5 +1,5 @@
-import { getProjectOperationsPayload } from "@/lib/api-compositions"
-import { withApiHandler } from "@/lib/api-handler"
+import { getProjectOperationsPayload } from "@/lib/infra/api-compositions"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const GET = withApiHandler(async (_request, { params }) => {
   const { projectId } = await params

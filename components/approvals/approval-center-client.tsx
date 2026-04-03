@@ -11,7 +11,7 @@ import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { apiFetch } from "@/lib/api-client"
+import { apiFetch } from "@/lib/infra/api-client"
 import type { ApprovalRecord } from "@/lib/prototype-types"
 
 const statIcons = [ClipboardCheck, ShieldAlert, TimerReset, Workflow]

@@ -22,7 +22,7 @@ if (!isNodeEnv) {
 }
 
 import { cleanDatabase, seedTestUsers } from "@/tests/helpers/prisma-test-utils"
-import { abortAllActiveExecutions } from "@/lib/mcp-execution-runtime"
+import { abortAllActiveExecutions } from "@/lib/mcp/mcp-execution-runtime"
 
 const AUTO_PROTOTYPE_FLAG = "__AUTO_PROTOTYPE_DATA_DIR__"
 

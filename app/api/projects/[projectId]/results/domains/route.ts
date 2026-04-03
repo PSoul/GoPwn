@@ -1,5 +1,5 @@
-import { getStoredProjectById, getStoredProjectDetailById } from "@/lib/project-repository"
-import { withApiHandler } from "@/lib/api-handler"
+import { getStoredProjectById, getStoredProjectDetailById } from "@/lib/project/project-repository"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const GET = withApiHandler(async (_request, { params }) => {
   const { projectId } = await params

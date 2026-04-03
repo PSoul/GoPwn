@@ -7,14 +7,14 @@ import "dotenv/config"
 // Force Prisma mode
 process.env.DATA_LAYER = "prisma"
 
-import { listStoredProjects, getStoredProjectById, createStoredProject, updateStoredProject, archiveStoredProject } from "../lib/project-repository"
-import { listStoredAssets, upsertStoredAssets } from "../lib/asset-repository"
-import { listStoredEvidence, upsertStoredEvidence } from "../lib/evidence-repository"
-import { getStoredLlmProfile, listStoredLlmProfiles } from "../lib/llm-settings-repository"
-import { listStoredMcpTools } from "../lib/mcp-repository"
-import { listStoredAuditLogs } from "../lib/project-repository"
-import { getStoredProjectSchedulerControl } from "../lib/project-scheduler-control-repository"
-import { listStoredWorkLogs } from "../lib/work-log-repository"
+import { listStoredProjects, getStoredProjectById, createStoredProject, updateStoredProject, archiveStoredProject } from "../lib/project/project-repository"
+import { listStoredAssets, upsertStoredAssets } from "../lib/data/asset-repository"
+import { listStoredEvidence, upsertStoredEvidence } from "../lib/data/evidence-repository"
+import { getStoredLlmProfile, listStoredLlmProfiles } from "../lib/llm/llm-settings-repository"
+import { listStoredMcpTools } from "../lib/mcp/mcp-repository"
+import { listStoredAuditLogs } from "../lib/project/project-repository"
+import { getStoredProjectSchedulerControl } from "../lib/project/project-scheduler-control-repository"
+import { listStoredWorkLogs } from "../lib/data/work-log-repository"
 
 const passed: string[] = []
 const failed: string[] = []

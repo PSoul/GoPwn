@@ -1,0 +1,127 @@
+- generic [ref=e2]:
+  - generic [ref=e6]:
+    - link "平台控制台 授权外网安全评估平台" [ref=e8] [cursor=pointer]:
+      - /url: /dashboard
+      - img [ref=e10]
+      - generic [ref=e13]:
+        - paragraph [ref=e14]: 平台控制台
+        - paragraph [ref=e15]: 授权外网安全评估平台
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]: 总览
+        - list [ref=e20]:
+          - listitem [ref=e21]:
+            - link "仪表盘" [ref=e22] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e23]
+              - generic [ref=e26]: 仪表盘
+          - listitem [ref=e27]:
+            - link "项目管理" [ref=e28] [cursor=pointer]:
+              - /url: /projects
+              - img [ref=e29]
+              - generic [ref=e31]: 项目管理
+          - listitem [ref=e32]:
+            - link "审批中心" [ref=e33] [cursor=pointer]:
+              - /url: /approvals
+              - img [ref=e34]
+              - generic [ref=e38]: 审批中心
+      - generic [ref=e39]:
+        - generic [ref=e40]: 发现
+        - list [ref=e42]:
+          - listitem [ref=e43]:
+            - link "资产中心" [ref=e44] [cursor=pointer]:
+              - /url: /assets
+              - img [ref=e45]
+              - generic [ref=e50]: 资产中心
+          - listitem [ref=e51]:
+            - link "漏洞中心" [ref=e52] [cursor=pointer]:
+              - /url: /vuln-center
+              - img [ref=e53]
+              - generic [ref=e57]: 漏洞中心
+      - generic [ref=e58]:
+        - generic [ref=e59]: 系统
+        - list [ref=e61]:
+          - listitem [ref=e62]:
+            - link "系统设置" [ref=e63] [cursor=pointer]:
+              - /url: /settings
+              - img [ref=e64]
+              - generic [ref=e67]: 系统设置
+  - main [ref=e68]:
+    - generic [ref=e70]:
+      - navigation [ref=e72]:
+        - link "平台控制台" [ref=e74] [cursor=pointer]:
+          - /url: /dashboard
+        - generic [ref=e75]:
+          - img [ref=e76]
+          - generic [ref=e78]: 项目管理
+      - generic [ref=e79]:
+        - button "查看通知" [ref=e80] [cursor=pointer]:
+          - img
+          - generic [ref=e81]: 查看通知
+        - generic [ref=e83]:
+          - generic [ref=e85]: 研
+          - generic [ref=e86]:
+            - paragraph [ref=e87]: 研究员席位 A
+            - paragraph [ref=e88]: 研究员
+        - button "退出" [ref=e90] [cursor=pointer]
+    - generic [ref=e92]:
+      - generic [ref=e94]:
+        - heading "新建项目" [level=1] [ref=e95]
+        - paragraph [ref=e96]: 项目创建现在只保留项目名称、目标和项目说明三项最小输入，保存后直接进入项目工作台。
+      - generic [ref=e97]:
+        - generic [ref=e98]:
+          - generic [ref=e99]:
+            - generic [ref=e100]:
+              - heading "项目基础信息" [level=2] [ref=e101]
+              - paragraph [ref=e102]: 新建和编辑项目只保留最小输入：项目名称、目标、项目说明。并发、审批、超时和重试统一回到探测工具与系统设置管理。
+            - generic [ref=e103]:
+              - generic [ref=e104]:
+                - text: 项目名称
+                - textbox "项目名称" [ref=e105]:
+                  - /placeholder: 例如：某公司年度渗透测试
+              - generic [ref=e106]:
+                - text: 目标
+                - textbox "目标" [ref=e107]
+                - paragraph [ref=e108]: 可输入域名、IP、IP 段，LLM 收到信息后会自动进行任务整理和分发。不同目标一行一个。
+              - generic [ref=e109]:
+                - text: 项目说明
+                - textbox "项目说明" [ref=e110]
+              - generic [ref=e111]:
+                - text: 审批策略
+                - combobox "审批策略" [ref=e112]:
+                  - option "默认审批策略（高风险操作需审批）" [selected]
+                  - option "全自动执行（跳过所有审批）"
+                - paragraph [ref=e113]: 选择“全自动”后，该项目的所有探测工具调用将直接执行，不再进入审批队列。
+          - generic [ref=e114]:
+            - generic [ref=e115]:
+              - heading "确认创建" [level=2] [ref=e116]
+              - paragraph [ref=e117]: 保存后会进入项目工作台，优先查看结果表、阶段流转和任务调度。
+            - button "创建项目" [ref=e119] [cursor=pointer]
+        - generic [ref=e121]:
+          - generic [ref=e122]:
+            - heading "项目预览" [level=2] [ref=e123]
+            - paragraph [ref=e124]: 右侧预览帮助研究员确认当前项目输入会如何进入工作台。
+          - generic [ref=e125]:
+            - generic [ref=e126]:
+              - generic [ref=e127]:
+                - img [ref=e128]
+                - paragraph [ref=e130]: 未命名项目
+              - paragraph [ref=e131]: 还没有填写项目说明。
+            - generic [ref=e132]:
+              - generic [ref=e133]:
+                - img [ref=e134]
+                - paragraph [ref=e137]: 目标拆分预览
+              - paragraph [ref=e138]: 0 个目标将进入规划队列
+              - generic [ref=e140]: 目标会在这里按行拆分显示。
+            - generic [ref=e141]:
+              - generic [ref=e142]:
+                - img [ref=e143]
+                - paragraph [ref=e146]: 审批策略
+              - paragraph [ref=e147]: 默认审批策略：高风险操作需要人工审批后才能执行。
+            - generic [ref=e148]:
+              - generic [ref=e149]:
+                - img [ref=e150]
+                - paragraph [ref=e157]: 工作台提示
+              - paragraph [ref=e158]: 当前平台为单用户模式，负责人固定为 研究员席位。并发、超时和重试在探测工具配置与系统设置中统一生效。
+  - button "打开 AI 对话日志" [ref=e159] [cursor=pointer]:
+    - img [ref=e160]

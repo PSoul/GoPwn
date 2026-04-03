@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
-import { readSessionToken } from "@/lib/auth-session"
-import { ensureCsrfCookie, verifyCsrfToken } from "@/lib/csrf"
-import { loginLimiter, apiLimiter } from "@/lib/rate-limit"
+import { readSessionToken } from "@/lib/auth/auth-session"
+import { ensureCsrfCookie, verifyCsrfToken } from "@/lib/auth/csrf"
+import { loginLimiter, apiLimiter } from "@/lib/auth/rate-limit"
 
 function getLoginRedirect(request: NextRequest) {
   const url = new URL("/login", request.url)

@@ -1,10 +1,10 @@
-import { localValidationRunSchema } from "@/lib/mcp-write-schema"
-import { getStoredProjectById } from "@/lib/project-repository"
+import { localValidationRunSchema } from "@/lib/mcp/mcp-write-schema"
+import { getStoredProjectById } from "@/lib/project/project-repository"
 import {
   generateProjectOrchestratorPlan,
   getProjectOrchestratorPanelPayload,
-} from "@/lib/orchestrator-service"
-import { withApiHandler } from "@/lib/api-handler"
+} from "@/lib/orchestration/orchestrator-service"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const GET = withApiHandler(async (_request, { params }) => {
   const { projectId } = await params

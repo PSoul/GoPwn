@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { LlmSettingsPanel } from "@/components/settings/llm-settings-panel"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
-import { listStoredLlmProfiles } from "@/lib/llm-settings-repository"
+import { listStoredLlmProfiles } from "@/lib/llm/llm-settings-repository"
 
 export default async function LlmSettingsPage() {
   const profiles = await listStoredLlmProfiles()

@@ -1,0 +1,185 @@
+- generic [ref=e2]:
+  - generic [ref=e6]:
+    - link "平台控制台 授权外网安全评估平台" [ref=e8] [cursor=pointer]:
+      - /url: /dashboard
+      - img [ref=e10]
+      - generic [ref=e13]:
+        - paragraph [ref=e14]: 平台控制台
+        - paragraph [ref=e15]: 授权外网安全评估平台
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]: 总览
+        - list [ref=e20]:
+          - listitem [ref=e21]:
+            - link "仪表盘" [ref=e22] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e23]
+              - generic [ref=e26]: 仪表盘
+          - listitem [ref=e27]:
+            - link "项目管理" [ref=e28] [cursor=pointer]:
+              - /url: /projects
+              - img [ref=e29]
+              - generic [ref=e31]: 项目管理
+          - listitem [ref=e32]:
+            - link "审批中心" [ref=e33] [cursor=pointer]:
+              - /url: /approvals
+              - img [ref=e34]
+              - generic [ref=e38]: 审批中心
+      - generic [ref=e39]:
+        - generic [ref=e40]: 发现
+        - list [ref=e42]:
+          - listitem [ref=e43]:
+            - link "资产中心" [ref=e44] [cursor=pointer]:
+              - /url: /assets
+              - img [ref=e45]
+              - generic [ref=e50]: 资产中心
+          - listitem [ref=e51]:
+            - link "漏洞中心" [ref=e52] [cursor=pointer]:
+              - /url: /vuln-center
+              - img [ref=e53]
+              - generic [ref=e57]: 漏洞中心
+      - generic [ref=e58]:
+        - generic [ref=e59]: 系统
+        - list [ref=e61]:
+          - listitem [ref=e62]:
+            - link "系统设置" [ref=e63] [cursor=pointer]:
+              - /url: /settings
+              - img [ref=e64]
+              - generic [ref=e67]: 系统设置
+  - main [ref=e68]:
+    - generic [ref=e70]:
+      - navigation [ref=e72]:
+        - link "平台控制台" [ref=e74] [cursor=pointer]:
+          - /url: /dashboard
+        - generic [ref=e75]:
+          - img [ref=e76]
+          - generic [ref=e78]: 项目管理
+      - generic [ref=e79]:
+        - button "查看通知" [ref=e80] [cursor=pointer]:
+          - img
+          - generic [ref=e81]: 查看通知
+        - generic [ref=e83]:
+          - generic [ref=e85]: 研
+          - generic [ref=e86]:
+            - paragraph [ref=e87]: 研究员席位 A
+            - paragraph [ref=e88]: 研究员
+        - button "退出" [ref=e90] [cursor=pointer]
+    - generic [ref=e92]:
+      - generic [ref=e93]:
+        - generic [ref=e94]:
+          - generic [ref=e95]:
+            - heading "Phase22-DVWA验证" [level=1] [ref=e96]
+            - generic [ref=e97]: 运行中
+          - generic [ref=e98]:
+            - generic [ref=e99]:
+              - generic [ref=e100]:
+                - text: 资产
+                - strong [ref=e101]: "0"
+              - generic [ref=e102]:
+                - text: 证据
+                - strong [ref=e103]: "0"
+              - generic [ref=e104]:
+                - text: 审批
+                - strong [ref=e105]: "0"
+            - link "编辑" [ref=e106] [cursor=pointer]:
+              - /url: /projects/proj-20260401-cdf6296a/edit
+        - generic [ref=e108]: http://host.docker.internal:8081
+      - tablist "项目工作区" [ref=e109]:
+        - tab "概览" [ref=e110] [cursor=pointer]
+        - tab "域名" [ref=e111] [cursor=pointer]:
+          - img [ref=e112]
+          - text: 域名
+        - tab "站点" [ref=e115] [cursor=pointer]:
+          - img [ref=e116]
+          - text: 站点
+        - tab "端口" [ref=e119] [cursor=pointer]:
+          - img [ref=e120]
+          - text: 端口
+        - tab "漏洞" [ref=e125] [cursor=pointer]:
+          - img [ref=e126]
+          - text: 漏洞
+        - tab "执行控制" [selected] [ref=e128] [cursor=pointer]:
+          - img [ref=e129]
+          - text: 执行控制
+        - tab "AI 日志" [ref=e132] [cursor=pointer]:
+          - img [ref=e133]
+          - text: AI 日志
+      - generic [ref=e145]:
+        - generic [ref=e146]:
+          - generic [ref=e148]:
+            - generic [ref=e149]:
+              - generic [ref=e150]: 运行中
+              - generic [ref=e151]: 轮次 0/10
+              - generic [ref=e152]:
+                - img [ref=e153]
+                - text: 3 个任务执行中
+            - generic [ref=e155]:
+              - button "暂停" [ref=e156] [cursor=pointer]:
+                - img
+                - text: 暂停
+              - button "停止" [ref=e157] [cursor=pointer]:
+                - img
+                - text: 停止
+          - button "任务队列 (3)" [ref=e159] [cursor=pointer]:
+            - generic [ref=e160]: 任务队列 (3)
+            - img [ref=e161]
+        - generic [ref=e163]:
+          - generic [ref=e164]:
+            - paragraph [ref=e165]: 审批与项目状态
+            - generic [ref=e166]:
+              - generic [ref=e167] [cursor=pointer]:
+                - generic [ref=e168]:
+                  - text: 高风险动作需审批
+                  - paragraph [ref=e169]: 该项目已设置为全自动执行，所有工具调用将直接运行，不进入审批队列。
+                - switch "高风险动作需审批 该项目已设置为全自动执行，所有工具调用将直接运行，不进入审批队列。" [ref=e170]
+                - checkbox
+              - generic [ref=e171] [cursor=pointer]:
+                - generic [ref=e172]: 低风险自动放行
+                - switch "低风险自动放行" [checked] [ref=e173]
+                - checkbox [checked]
+              - button "保存" [ref=e175] [cursor=pointer]
+            - generic [ref=e176]:
+              - generic [ref=e177]:
+                - paragraph [ref=e178]: 自动收尾状态
+                - generic [ref=e179]: 等待启动
+              - paragraph [ref=e180]: 项目尚未启动，LLM 与调度器尚未接管目标。
+              - generic [ref=e181]:
+                - generic [ref=e182]: 报告待导出
+                - generic [ref=e183]: 结论待生成
+            - generic [ref=e184]:
+              - generic [ref=e185]:
+                - paragraph [ref=e186]: "0"
+                - paragraph [ref=e187]: 待审批
+              - generic [ref=e188]:
+                - paragraph [ref=e189]: "1"
+                - paragraph [ref=e190]: 开放任务
+          - generic [ref=e191]:
+            - generic [ref=e192]:
+              - heading "报告导出" [level=2] [ref=e193]
+              - paragraph [ref=e194]: 这里提供可见的闭环出口。触发后会走 MCP 调度链路，并把最新导出摘要回写到项目操作页。
+            - generic [ref=e195]:
+              - generic [ref=e196]:
+                - generic [ref=e197]:
+                  - img [ref=e198]
+                  - paragraph [ref=e201]: 闭环导出入口
+                - paragraph [ref=e202]: 在项目操作页直接触发一次报告导出，并查看最近一次导出的摘要、产物计数和结果要点。
+                - generic [ref=e203]:
+                  - generic [ref=e204]:
+                    - paragraph [ref=e205]: 导出次数
+                    - paragraph [ref=e206]: "0"
+                  - button "导出项目报告" [ref=e207] [cursor=pointer]
+              - generic [ref=e208]:
+                - generic [ref=e209]:
+                  - generic [ref=e210]:
+                    - img [ref=e211]
+                    - paragraph [ref=e214]: 最近一次导出结果
+                  - generic [ref=e215]: 暂无导出
+                - generic [ref=e216]: 当前项目还没有导出记录。点击“导出项目报告”后，这里会展示最新闭环结果。
+        - button "AI 规划配置" [ref=e218] [cursor=pointer]:
+          - generic [ref=e219]: AI 规划配置
+          - img [ref=e220]
+        - button "MCP 调度记录" [ref=e223] [cursor=pointer]:
+          - generic [ref=e224]: MCP 调度记录
+          - img [ref=e225]
+  - button "打开 AI 对话日志" [ref=e227] [cursor=pointer]:
+    - img [ref=e228]

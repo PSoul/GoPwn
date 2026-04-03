@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ProjectForm } from "@/components/projects/project-form"
 import { ProjectListClient } from "@/components/projects/project-list-client"
-import { defaultProjectFormPreset } from "@/lib/platform-config"
+import { defaultProjectFormPreset } from "@/lib/settings/platform-config"
 import { createStoredProjectFixture } from "@/tests/helpers/project-fixtures"
 
 const push = vi.fn()

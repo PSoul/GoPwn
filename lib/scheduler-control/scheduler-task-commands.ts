@@ -1,5 +1,5 @@
 import { formatTimestamp } from "@/lib/prototype-record-utils"
-import { prisma } from "@/lib/prisma"
+import { prisma } from "@/lib/infra/prisma"
 import {
   fromLogRecord,
   fromProjectDetailRecord,
@@ -10,8 +10,8 @@ import {
   toProjectRecord,
   toSchedulerTaskRecord,
   fromSchedulerTaskRecord,
-} from "@/lib/prisma-transforms"
-import { abortActiveExecution } from "@/lib/mcp-execution-runtime"
+} from "@/lib/infra/prisma-transforms"
+import { abortActiveExecution } from "@/lib/mcp/mcp-execution-runtime"
 import { createAuditLog, pushProjectActivity } from "./scheduler-control-helpers"
 import type {
   McpRunRecord,

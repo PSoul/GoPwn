@@ -1,6 +1,6 @@
-import { listAllRecentLlmCallLogs } from "@/lib/llm-call-logger"
-import { listStoredProjects } from "@/lib/project-repository"
-import { withApiHandler } from "@/lib/api-handler"
+import { listAllRecentLlmCallLogs } from "@/lib/llm/llm-call-logger"
+import { listStoredProjects } from "@/lib/project/project-repository"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const GET = withApiHandler(async (request) => {
   const url = new URL(request.url)

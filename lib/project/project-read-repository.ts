@@ -1,10 +1,10 @@
-import { prisma } from "@/lib/prisma"
+import { prisma } from "@/lib/infra/prisma"
 import {
   toProjectDetailRecord,
   toProjectFormPresetRecord,
   toProjectRecord,
   toLogRecord,
-} from "@/lib/prisma-transforms"
+} from "@/lib/infra/prisma-transforms"
 
 export async function listStoredProjects() {
   const rows = await prisma.project.findMany({ orderBy: { lastUpdated: "desc" } })

@@ -1,7 +1,7 @@
 import { readdir } from "node:fs/promises"
 import { join } from "node:path"
 
-import { withApiHandler } from "@/lib/api-handler"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 const STORE_DIR = join(process.cwd(), ".prototype-store")
 const APP_VERSION = process.env.npm_package_version ?? "0.0.0"

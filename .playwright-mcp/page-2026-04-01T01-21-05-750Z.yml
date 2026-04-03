@@ -1,0 +1,370 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e6]:
+      - link "平台控制台 授权外网安全评估平台" [ref=e8] [cursor=pointer]:
+        - /url: /dashboard
+        - img [ref=e10]
+        - generic [ref=e13]:
+          - paragraph [ref=e14]: 平台控制台
+          - paragraph [ref=e15]: 授权外网安全评估平台
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - generic [ref=e18]: 总览
+          - list [ref=e20]:
+            - listitem [ref=e21]:
+              - link "仪表盘" [ref=e22] [cursor=pointer]:
+                - /url: /dashboard
+                - img [ref=e23]
+                - generic [ref=e26]: 仪表盘
+            - listitem [ref=e27]:
+              - link "项目管理" [ref=e28] [cursor=pointer]:
+                - /url: /projects
+                - img [ref=e29]
+                - generic [ref=e31]: 项目管理
+              - generic: "71"
+            - listitem [ref=e32]:
+              - link "审批中心" [ref=e33] [cursor=pointer]:
+                - /url: /approvals
+                - img [ref=e34]
+                - generic [ref=e38]: 审批中心
+        - generic [ref=e39]:
+          - generic [ref=e40]: 发现
+          - list [ref=e42]:
+            - listitem [ref=e43]:
+              - link "资产中心" [ref=e44] [cursor=pointer]:
+                - /url: /assets
+                - img [ref=e45]
+                - generic [ref=e50]: 资产中心
+            - listitem [ref=e51]:
+              - link "漏洞中心" [ref=e52] [cursor=pointer]:
+                - /url: /vuln-center
+                - img [ref=e53]
+                - generic [ref=e57]: 漏洞中心
+        - generic [ref=e58]:
+          - generic [ref=e59]: 系统
+          - list [ref=e61]:
+            - listitem [ref=e62]:
+              - link "系统设置" [ref=e63] [cursor=pointer]:
+                - /url: /settings
+                - img [ref=e64]
+                - generic [ref=e67]: 系统设置
+    - main [ref=e68]:
+      - generic [ref=e70]:
+        - navigation [ref=e72]:
+          - link "平台控制台" [ref=e74] [cursor=pointer]:
+            - /url: /dashboard
+          - generic [ref=e75]:
+            - img [ref=e76]
+            - generic [ref=e78]: 项目管理
+        - generic [ref=e79]:
+          - button "查看通知" [ref=e80] [cursor=pointer]:
+            - img
+            - generic [ref=e81]: 查看通知
+          - button "Toggle theme" [ref=e241] [cursor=pointer]:
+            - img [ref=e242]
+            - generic [ref=e248]: Toggle theme
+          - generic [ref=e83]:
+            - generic [ref=e85]: 研
+            - generic [ref=e86]:
+              - paragraph [ref=e87]: 研究员席位 A
+              - paragraph [ref=e88]: 研究员
+          - button "退出" [ref=e90] [cursor=pointer]
+      - generic [ref=e92]:
+        - generic [ref=e93]:
+          - generic [ref=e94]:
+            - generic [ref=e95]:
+              - heading "Phase22-DVWA验证" [level=1] [ref=e96]
+              - generic [ref=e97]: 运行中
+            - generic [ref=e98]:
+              - generic [ref=e99]:
+                - generic [ref=e100]:
+                  - text: 资产
+                  - strong [ref=e101]: "1"
+                - generic [ref=e102]:
+                  - text: 证据
+                  - strong [ref=e103]: "0"
+                - generic [ref=e104]:
+                  - text: 审批
+                  - strong [ref=e105]: "0"
+              - link "编辑" [ref=e106] [cursor=pointer]:
+                - /url: /projects/proj-20260401-cdf6296a/edit
+          - generic [ref=e108]: http://host.docker.internal:8081
+        - tablist "项目工作区" [ref=e109]:
+          - tab "概览" [ref=e110] [cursor=pointer]
+          - tab "域名" [ref=e111] [cursor=pointer]:
+            - img [ref=e112]
+            - text: 域名
+          - tab "站点" [ref=e115] [cursor=pointer]:
+            - img [ref=e116]
+            - text: 站点
+          - tab "端口" [ref=e119] [cursor=pointer]:
+            - img [ref=e120]
+            - text: 端口
+          - tab "漏洞" [ref=e125] [cursor=pointer]:
+            - img [ref=e126]
+            - text: 漏洞
+          - tab "执行控制" [selected] [ref=e128] [cursor=pointer]:
+            - img [ref=e129]
+            - text: 执行控制
+          - tab "AI 日志" [ref=e132] [cursor=pointer]:
+            - img [ref=e133]
+            - text: AI 日志
+        - generic [ref=e145]:
+          - generic [ref=e146]:
+            - generic [ref=e148]:
+              - generic [ref=e149]:
+                - generic [ref=e150]: 运行中
+                - generic [ref=e151]: 轮次 0/10
+                - generic [ref=e152]:
+                  - img [ref=e153]
+                  - text: 1 个任务执行中
+                - generic [ref=e155]: · 2 个失败
+              - generic [ref=e156]:
+                - button "暂停" [ref=e157] [cursor=pointer]:
+                  - img
+                  - text: 暂停
+                - button "停止" [ref=e158] [cursor=pointer]:
+                  - img
+                  - text: 停止
+            - button "任务队列 (6)" [ref=e160] [cursor=pointer]:
+              - generic [ref=e161]: 任务队列 (6)
+              - img [ref=e162]
+          - generic [ref=e164]:
+            - generic [ref=e165]:
+              - paragraph [ref=e166]: 审批与项目状态
+              - generic [ref=e167]:
+                - generic [ref=e168] [cursor=pointer]:
+                  - generic [ref=e169]:
+                    - text: 高风险动作需审批
+                    - paragraph [ref=e170]: 该项目已设置为全自动执行，所有工具调用将直接运行，不进入审批队列。
+                  - switch "高风险动作需审批 该项目已设置为全自动执行，所有工具调用将直接运行，不进入审批队列。" [ref=e171]
+                - generic [ref=e172] [cursor=pointer]:
+                  - generic [ref=e173]: 低风险自动放行
+                  - switch "低风险自动放行" [checked] [ref=e174]
+                - button "保存" [ref=e176] [cursor=pointer]
+              - generic [ref=e177]:
+                - generic [ref=e178]:
+                  - paragraph [ref=e179]: 自动收尾状态
+                  - generic [ref=e180]: 运行中
+                - paragraph [ref=e181]: 当前仍有任务在执行或排队，项目会在队列跑空后再进入自动收尾。
+                - generic [ref=e182]:
+                  - generic [ref=e183]: 报告待导出
+                  - generic [ref=e184]: 结论待生成
+              - generic [ref=e185]:
+                - generic [ref=e186]:
+                  - paragraph [ref=e187]: "0"
+                  - paragraph [ref=e188]: 待审批
+                - generic [ref=e189]:
+                  - paragraph [ref=e190]: "3"
+                  - paragraph [ref=e191]: 开放任务
+            - generic [ref=e192]:
+              - generic [ref=e193]:
+                - heading "报告导出" [level=2] [ref=e194]
+                - paragraph [ref=e195]: 这里提供可见的闭环出口。触发后会走 MCP 调度链路，并把最新导出摘要回写到项目操作页。
+              - generic [ref=e196]:
+                - generic [ref=e197]:
+                  - generic [ref=e198]:
+                    - img [ref=e199]
+                    - paragraph [ref=e202]: 闭环导出入口
+                  - paragraph [ref=e203]: 在项目操作页直接触发一次报告导出，并查看最近一次导出的摘要、产物计数和结果要点。
+                  - generic [ref=e204]:
+                    - generic [ref=e205]:
+                      - paragraph [ref=e206]: 导出次数
+                      - paragraph [ref=e207]: "0"
+                    - button "导出项目报告" [ref=e208] [cursor=pointer]
+                - generic [ref=e209]:
+                  - generic [ref=e210]:
+                    - generic [ref=e211]:
+                      - img [ref=e212]
+                      - paragraph [ref=e215]: 最近一次导出结果
+                    - generic [ref=e216]: 暂无导出
+                  - generic [ref=e217]: 当前项目还没有导出记录。点击“导出项目报告”后，这里会展示最新闭环结果。
+          - button "AI 规划配置" [ref=e219] [cursor=pointer]:
+            - generic [ref=e220]: AI 规划配置
+            - img [ref=e221]
+          - generic [ref=e223]:
+            - button "MCP 调度记录" [active] [ref=e224] [cursor=pointer]:
+              - generic [ref=e225]: MCP 调度记录
+              - img [ref=e226]
+            - generic [ref=e325]:
+              - generic [ref=e326]:
+                - generic [ref=e327]:
+                  - heading "MCP 调度请求" [level=2] [ref=e328]
+                  - paragraph [ref=e329]: LLM 负责决定下一步要什么能力，MCP 网关负责挑选工具、套用边界、判断是否需要审批。
+                - generic [ref=e330]:
+                  - generic [ref=e331]:
+                    - generic [ref=e332]:
+                      - img [ref=e333]
+                      - paragraph [ref=e336]: 规划输入
+                    - paragraph [ref=e337]: 这里不是直接选具体工具，而是先声明所需能力，再让网关决定具体由哪个 MCP 承接。
+                  - generic [ref=e338]:
+                    - paragraph [ref=e339]: 基础流程自检
+                    - paragraph [ref=e340]: 用几类最基础的探测工具把整条链路串一遍，验证”自动执行”和”审批阻塞”两种主路径都能被平台正确处理。
+                    - generic [ref=e341]:
+                      - button "运行基础流程" [ref=e342] [cursor=pointer]
+                      - button "运行含审批流程" [ref=e343] [cursor=pointer]
+                  - generic [ref=e344]:
+                    - paragraph [ref=e345]: 能力族
+                    - combobox [ref=e346] [cursor=pointer]:
+                      - generic: 目标解析类
+                      - img [ref=e347]
+                  - generic [ref=e349]:
+                    - paragraph [ref=e350]: 请求动作
+                    - textbox [ref=e351]: 标准化种子目标
+                  - generic [ref=e352]:
+                    - paragraph [ref=e353]: 目标
+                    - textbox [ref=e354]: http://host.docker.internal:8081
+                  - generic [ref=e355]:
+                    - paragraph [ref=e356]: 风险级别
+                    - generic [ref=e357]:
+                      - button "风险 低" [ref=e358] [cursor=pointer]
+                      - button "风险 中" [ref=e359] [cursor=pointer]
+                      - button "风险 高" [ref=e360] [cursor=pointer]
+                  - generic [ref=e361]:
+                    - generic [ref=e362]:
+                      - paragraph [ref=e363]: 网关策略提示
+                      - paragraph [ref=e364]: 低风险动作更容易自动执行，中高风险动作默认会进入审批，除非项目和全局策略明确放开。
+                    - button "发起 MCP 调度" [ref=e365] [cursor=pointer]
+              - generic [ref=e366]:
+                - generic [ref=e367]:
+                  - heading "最近 MCP 运行" [level=2] [ref=e368]
+                  - paragraph [ref=e369]: 每一次请求都会留下运行记录。批准前只排队，不会直接把高风险动作打到目标上。
+                - generic [ref=e370]:
+                  - generic [ref=e371]:
+                    - generic [ref=e372]:
+                      - generic [ref=e373]:
+                        - generic [ref=e374]:
+                          - img [ref=e375]
+                          - generic [ref=e379]: 目标解析类
+                        - paragraph [ref=e380]: 标准化并分类项目目标
+                        - paragraph [ref=e381]: http://host.docker.internal:8081
+                      - generic [ref=e382]:
+                        - generic [ref=e383]: 已执行
+                        - generic [ref=e384]: 风险 低
+                        - generic [ref=e385]: 本地模拟
+                    - generic [ref=e387]:
+                      - generic [ref=e388]:
+                        - generic [ref=e389]:
+                          - img [ref=e390]
+                          - paragraph [ref=e393]: 执行承载
+                        - paragraph [ref=e394]: seed-normalizer
+                        - paragraph [ref=e395]: 自动执行 · 2026-04-01 09:19
+                      - generic [ref=e396]:
+                        - paragraph [ref=e397]: 结果摘要
+                        - generic [ref=e398]:
+                          - paragraph [ref=e399]: 标准化并分类项目目标 已进入调度队列，准备调用 seed-normalizer。
+                          - paragraph [ref=e400]: 调度器将按连接器策略执行并把结构化结果同步到项目结果与证据链路。
+                          - paragraph [ref=e401]: seed-normalizer 已由调度器认领执行。
+                          - paragraph [ref=e402]: 执行 worker worker-1775006354480-c4d8 已建立运行租约。
+                          - paragraph [ref=e403]: 标准化得到 1 个种子目标。
+                          - paragraph [ref=e404]: host.docker.internal:8081
+                          - paragraph [ref=e405]: 资产中心已新增或刷新 1 条记录。
+                          - paragraph [ref=e406]: 本次执行由本地基础连接器完成。
+                  - generic [ref=e407]:
+                    - generic [ref=e408]:
+                      - generic [ref=e409]:
+                        - generic [ref=e410]:
+                          - img [ref=e411]
+                          - generic [ref=e415]: HTTP / API 结构发现类
+                        - paragraph [ref=e416]: Perform basic directory scanning with common wordlist
+                        - paragraph [ref=e417]: http://host.docker.internal:8081
+                      - generic [ref=e418]:
+                        - generic [ref=e419]: 执行中
+                        - generic [ref=e420]: 风险 低
+                        - generic [ref=e421]: 本地模拟
+                    - generic [ref=e423]:
+                      - generic [ref=e424]:
+                        - generic [ref=e425]:
+                          - img [ref=e426]
+                          - paragraph [ref=e429]: 执行承载
+                        - paragraph [ref=e430]: dirsearch_scan
+                        - paragraph [ref=e431]: 自动执行 · 2026-04-01 09:19
+                      - generic [ref=e432]:
+                        - paragraph [ref=e433]: 结果摘要
+                        - generic [ref=e434]:
+                          - paragraph [ref=e435]: Perform basic directory scanning with common wordlist 已进入调度队列，准备调用 dirsearch_scan。
+                          - paragraph [ref=e436]: 调度器将按连接器策略执行并把结构化结果同步到项目结果与证据链路。
+                          - paragraph [ref=e437]: dirsearch_scan 已由调度器认领执行。
+                          - paragraph [ref=e438]: 执行 worker worker-1775006354475-148e 已建立运行租约。
+                  - generic [ref=e439]:
+                    - generic [ref=e440]:
+                      - generic [ref=e441]:
+                        - generic [ref=e442]:
+                          - img [ref=e443]
+                          - generic [ref=e447]: DNS / 子域 / 证书情报类
+                        - paragraph [ref=e448]: 采集域名、子域与证书情报
+                        - paragraph [ref=e449]: host.docker.internal
+                      - generic [ref=e450]:
+                        - generic [ref=e451]: 已执行
+                        - generic [ref=e452]: 风险 低
+                        - generic [ref=e453]: 已接入
+                    - generic [ref=e455]:
+                      - generic [ref=e456]:
+                        - generic [ref=e457]:
+                          - img [ref=e458]
+                          - paragraph [ref=e461]: 执行承载
+                        - paragraph [ref=e462]: subfinder_enum
+                        - paragraph [ref=e463]: 自动执行 · 2026-04-01 09:19
+                      - generic [ref=e464]:
+                        - paragraph [ref=e465]: 结果摘要
+                        - generic [ref=e466]:
+                          - paragraph [ref=e467]: 采集域名、子域与证书情报 已进入调度队列，准备调用 subfinder_enum。
+                          - paragraph [ref=e468]: 调度器将按连接器策略执行并把结构化结果同步到项目结果与证据链路。
+                          - paragraph [ref=e469]: subfinder_enum 已由调度器认领执行。
+                          - paragraph [ref=e470]: 执行 worker worker-1775006354470-27fc 已建立运行租约。
+                          - paragraph [ref=e471]: 真实 stdio MCP (subfinder_enum) 执行成功
+                          - paragraph [ref=e472]: 发现 0 个域名/子域
+                          - paragraph [ref=e473]: 本次执行由真实连接器完成采集。
+                  - button "展开全部 6 条记录" [ref=e474] [cursor=pointer]:
+                    - text: 展开全部 6 条记录
+                    - img
+    - generic [ref=e249]:
+      - generic [ref=e250]:
+        - generic [ref=e251]:
+          - img [ref=e252]
+          - generic [ref=e264]: AI 思考日志
+          - img [ref=e265]
+        - button "最小化" [ref=e268] [cursor=pointer]:
+          - img [ref=e269]
+      - generic [ref=e274]:
+        - button "全部" [ref=e275] [cursor=pointer]
+        - button "规划" [ref=e276] [cursor=pointer]
+        - button "审阅" [ref=e277] [cursor=pointer]
+        - button "提取" [ref=e278] [cursor=pointer]
+        - button "筛选项目" [ref=e280] [cursor=pointer]:
+          - generic [ref=e281]: Phase22-DVWA验证
+          - img [ref=e282]
+      - generic [ref=e286]:
+        - generic [ref=e287]:
+          - generic [ref=e288]: 规划
+          - generic [ref=e289]: 09:17:00
+        - generic [ref=e291]:
+          - paragraph [ref=e292]: Initial reconnaissance for DVWA target to identify web services and potential entry points
+          - generic [ref=e293]:
+            - generic [ref=e294]: "1."
+            - generic [ref=e295]:
+              - text: Perform HTTP probe to verify web service availability
+              - generic [ref=e296]: "[httpx_probe]"
+              - generic [ref=e297]: → http://host.docker.internal:8081
+          - generic [ref=e298]:
+            - generic [ref=e299]: "2."
+            - generic [ref=e300]:
+              - text: Detect web application technologies in use
+              - generic [ref=e301]: "[httpx_tech_detect]"
+              - generic [ref=e302]: → http://host.docker.internal:8081
+          - generic [ref=e303]:
+            - generic [ref=e304]: "3."
+            - generic [ref=e305]:
+              - text: Check for WAF presence
+              - generic [ref=e306]: "[wafw00f_detect]"
+              - generic [ref=e307]: → http://host.docker.internal:8081
+          - generic [ref=e308]:
+            - generic [ref=e309]: "4."
+            - generic [ref=e310]:
+              - text: Perform basic directory scanning with common wordlist
+              - generic [ref=e311]: "[dirsearch_scan]"
+              - generic [ref=e312]: → http://host.docker.internal:8081
+        - paragraph [ref=e313]: Pro/deepseek-ai/DeepSeek-V3 · 44.1s
+  - button "Open Next.js Dev Tools" [ref=e319] [cursor=pointer]:
+    - img [ref=e320]
+  - alert [ref=e323]

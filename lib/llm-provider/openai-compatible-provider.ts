@@ -5,13 +5,13 @@ import {
   ORCHESTRATOR_BRAIN_SYSTEM_PROMPT,
   REVIEWER_BRAIN_SYSTEM_PROMPT,
   buildToolAnalysisPrompt,
-} from "@/lib/llm-brain-prompt"
+} from "@/lib/llm/llm-brain-prompt"
 import {
   createLlmCallLog,
   appendLlmCallResponse,
   completeLlmCallLog,
   failLlmCallLog,
-} from "@/lib/llm-call-logger"
+} from "@/lib/llm/llm-call-logger"
 import type { LlmAnalysisResult, LlmProvider } from "@/lib/llm-provider/types"
 import type { LlmCallPhase, LlmCallRole, LlmProviderStatus, OrchestratorPlanItem } from "@/lib/prototype-types"
 

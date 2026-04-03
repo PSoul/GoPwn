@@ -8,10 +8,10 @@ import { ProjectOrchestratorPanel } from "@/components/projects/project-orchestr
 import { ProjectOperationsPanel } from "@/components/projects/project-operations-panel"
 import { ProjectReportExportPanel } from "@/components/projects/project-report-export-panel"
 import { ProjectSchedulerRuntimePanel } from "@/components/projects/project-scheduler-runtime-panel"
-import { mcpCapabilityRecords } from "@/lib/platform-config"
-import { getProjectOperationsPayload } from "@/lib/api-compositions"
-import { getProjectPrimaryTarget } from "@/lib/project-targets"
-import { listStoredLlmProfiles } from "@/lib/llm-settings-repository"
+import { mcpCapabilityRecords } from "@/lib/settings/platform-config"
+import { getProjectOperationsPayload } from "@/lib/infra/api-compositions"
+import { getProjectPrimaryTarget } from "@/lib/project/project-targets"
+import { listStoredLlmProfiles } from "@/lib/llm/llm-settings-repository"
 
 export default async function ProjectOperationsPage({
   params,

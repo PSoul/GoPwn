@@ -4,7 +4,7 @@ import { notFound } from "next/navigation"
 import { ProjectWorkspaceNav } from "@/components/projects/project-workspace-nav"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { getStoredProjectById } from "@/lib/project-repository"
+import { getStoredProjectById } from "@/lib/project/project-repository"
 
 export default async function ProjectWorkspaceLayout({
   children,

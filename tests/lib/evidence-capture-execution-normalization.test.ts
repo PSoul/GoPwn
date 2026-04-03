@@ -7,12 +7,12 @@ import path from "node:path"
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
-import { listStoredAssets } from "@/lib/asset-repository"
-import { getStoredEvidenceById, listStoredEvidence } from "@/lib/evidence-repository"
-import { executeStoredMcpRun } from "@/lib/mcp-execution-service"
-import { dispatchStoredMcpRun, getStoredMcpRunById } from "@/lib/mcp-gateway-repository"
-import { registerStoredMcpServer } from "@/lib/mcp-server-repository"
-import { buildRuntimeArtifactUrl } from "@/lib/runtime-artifacts"
+import { listStoredAssets } from "@/lib/data/asset-repository"
+import { getStoredEvidenceById, listStoredEvidence } from "@/lib/data/evidence-repository"
+import { executeStoredMcpRun } from "@/lib/mcp/mcp-execution-service"
+import { dispatchStoredMcpRun, getStoredMcpRunById } from "@/lib/mcp/mcp-gateway-repository"
+import { registerStoredMcpServer } from "@/lib/mcp/mcp-server-repository"
+import { buildRuntimeArtifactUrl } from "@/lib/data/runtime-artifacts"
 import { createStoredProjectFixture } from "@/tests/helpers/project-fixtures"
 
 describe.skipIf(process.env.SKIP_MCP_INTEGRATION === "1")("evidence capture execution normalization", () => {

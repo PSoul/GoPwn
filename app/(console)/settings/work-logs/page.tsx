@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { SettingsLogTable } from "@/components/settings/settings-log-table"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
-import { listStoredWorkLogs } from "@/lib/work-log-repository"
+import { listStoredWorkLogs } from "@/lib/data/work-log-repository"
 
 export default async function WorkLogsSettingsPage() {
   const items = await listStoredWorkLogs()

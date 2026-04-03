@@ -1,6 +1,6 @@
-import { cancelStoredSchedulerTask, retryStoredSchedulerTask } from "@/lib/project-scheduler-control-repository"
-import { projectSchedulerTaskActionSchema } from "@/lib/scheduler-write-schema"
-import { withApiHandler } from "@/lib/api-handler"
+import { cancelStoredSchedulerTask, retryStoredSchedulerTask } from "@/lib/project/project-scheduler-control-repository"
+import { projectSchedulerTaskActionSchema } from "@/lib/settings/scheduler-write-schema"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const PATCH = withApiHandler(async (request, { params }) => {
   const { projectId, taskId } = await params

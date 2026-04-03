@@ -23,7 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { ProjectFindingRecord } from "@/lib/prototype-types"
-import { apiFetch } from "@/lib/api-client"
+import { apiFetch } from "@/lib/infra/api-client"
 
 const severityTone = {
   高危: "danger",

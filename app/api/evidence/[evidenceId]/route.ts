@@ -1,6 +1,6 @@
-import { getStoredEvidenceById } from "@/lib/evidence-repository"
-import { buildRuntimeArtifactUrl } from "@/lib/runtime-artifacts"
-import { withApiHandler } from "@/lib/api-handler"
+import { getStoredEvidenceById } from "@/lib/data/evidence-repository"
+import { buildRuntimeArtifactUrl } from "@/lib/data/runtime-artifacts"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const GET = withApiHandler(async (_request, { params }) => {
   const { evidenceId } = await params

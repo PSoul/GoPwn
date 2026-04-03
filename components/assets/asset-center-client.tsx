@@ -8,7 +8,7 @@ import { AlertTriangle, Boxes, FolderKanban, ShieldCheck } from "lucide-react"
 import { AssetTable } from "@/components/assets/asset-table"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { getPreferredAssetViewKey } from "@/lib/asset-view-selection"
+import { getPreferredAssetViewKey } from "@/lib/data/asset-view-selection"
 import type { AssetCollectionView } from "@/lib/prototype-types"
 
 export function AssetCenterClient({

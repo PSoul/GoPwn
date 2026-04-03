@@ -3,8 +3,8 @@ import { notFound } from "next/navigation"
 import { AlertTriangle } from "lucide-react"
 
 import { ProjectLlmLogPanel } from "@/components/projects/project-llm-log-panel"
-import { getStoredProjectById, getStoredProjectDetailById } from "@/lib/project-repository"
-import { listStoredLlmProfiles } from "@/lib/llm-settings-repository"
+import { getStoredProjectById, getStoredProjectDetailById } from "@/lib/project/project-repository"
+import { listStoredLlmProfiles } from "@/lib/llm/llm-settings-repository"
 
 export default async function ProjectAiLogsPage({
   params,

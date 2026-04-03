@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { getConfiguredLlmProviderStatus, resolveLlmProvider } from "@/lib/llm-provider/registry"
-import { prisma } from "@/lib/prisma"
+import { prisma } from "@/lib/infra/prisma"
 
 describe("LLM provider registry", () => {
   beforeEach(() => {

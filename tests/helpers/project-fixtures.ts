@@ -1,13 +1,13 @@
-import { listStoredProjectApprovals, updateStoredApprovalDecision } from "@/lib/approval-repository"
-import { listStoredAssets } from "@/lib/asset-repository"
-import { listStoredEvidence } from "@/lib/evidence-repository"
-import { dispatchStoredMcpRun, listStoredMcpRuns } from "@/lib/mcp-gateway-repository"
-import { drainStoredSchedulerTasks, syncStoredSchedulerTaskAfterApprovalDecision } from "@/lib/mcp-scheduler-service"
-import { createStoredProject, getStoredProjectById, getStoredProjectDetailById } from "@/lib/project-repository"
-import { listStoredProjectFindings } from "@/lib/project-results-repository"
-import { prisma } from "@/lib/prisma"
-import { fromMcpToolRecord } from "@/lib/prisma-transforms"
-import { runProjectSmokeWorkflow } from "@/lib/mcp-workflow-service"
+import { listStoredProjectApprovals, updateStoredApprovalDecision } from "@/lib/data/approval-repository"
+import { listStoredAssets } from "@/lib/data/asset-repository"
+import { listStoredEvidence } from "@/lib/data/evidence-repository"
+import { dispatchStoredMcpRun, listStoredMcpRuns } from "@/lib/mcp/mcp-gateway-repository"
+import { drainStoredSchedulerTasks, syncStoredSchedulerTaskAfterApprovalDecision } from "@/lib/mcp/mcp-scheduler-service"
+import { createStoredProject, getStoredProjectById, getStoredProjectDetailById } from "@/lib/project/project-repository"
+import { listStoredProjectFindings } from "@/lib/project/project-results-repository"
+import { prisma } from "@/lib/infra/prisma"
+import { fromMcpToolRecord } from "@/lib/infra/prisma-transforms"
+import { runProjectSmokeWorkflow } from "@/lib/mcp/mcp-workflow-service"
 import type {
   ApprovalRecord,
   AssetRecord,

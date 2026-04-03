@@ -1,6 +1,6 @@
 import Link from "next/link"
 
-import { settingsSections } from "@/lib/platform-config"
+import { settingsSections } from "@/lib/settings/platform-config"
 import { cn } from "@/lib/utils"
 
 export function SettingsSubnav({ currentHref }: { currentHref: string }) {

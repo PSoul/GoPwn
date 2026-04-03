@@ -1,5 +1,5 @@
 import { Prisma } from "@/lib/generated/prisma/client"
-import { prisma } from "@/lib/prisma"
+import { prisma } from "@/lib/infra/prisma"
 import {
   toProjectRecord,
   toProjectDetailRecord,
@@ -12,10 +12,10 @@ import {
   toMcpRunRecord,
   toLogRecord,
   toSchedulerTaskRecord,
-} from "@/lib/prisma-transforms"
-import { buildProjectClosureStatus } from "@/lib/project-closure-status"
+} from "@/lib/infra/prisma-transforms"
+import { buildProjectClosureStatus } from "@/lib/project/project-closure-status"
 import { formatTimestamp, toDisplayCount } from "@/lib/prototype-record-utils"
-import { SINGLE_USER_LABEL } from "@/lib/project-targets"
+import { SINGLE_USER_LABEL } from "@/lib/project/project-targets"
 import type {
   ApprovalRecord,
   AssetRecord,

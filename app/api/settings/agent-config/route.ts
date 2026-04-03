@@ -1,5 +1,5 @@
-import { withApiHandler } from "@/lib/api-handler"
-import { getAgentConfig, updateAgentConfig } from "@/lib/agent-config"
+import { withApiHandler } from "@/lib/infra/api-handler"
+import { getAgentConfig, updateAgentConfig } from "@/lib/settings/agent-config"
 
 /** GET /api/settings/agent-config — 读取 Agent 配置 */
 export const GET = withApiHandler(async () => {

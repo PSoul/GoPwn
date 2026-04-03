@@ -13,8 +13,8 @@ import {
   EmptyTitle,
   EmptyDescription,
 } from "@/components/ui/empty"
-import { listStoredAssetsByTypes } from "@/lib/asset-repository"
-import { getStoredProjectById } from "@/lib/project-repository"
+import { listStoredAssetsByTypes } from "@/lib/data/asset-repository"
+import { getStoredProjectById } from "@/lib/project/project-repository"
 
 const IP_REGEX = /^(\d{1,3}\.){3}\d{1,3}(\/\d{1,2})?$/
 

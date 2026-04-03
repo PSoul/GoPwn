@@ -1,5 +1,5 @@
 import "dotenv/config"
-import { prisma } from "../lib/prisma"
+import { prisma } from "../lib/infra/prisma"
 
 async function main() {
   // 1. Configure LLM profiles with SiliconFlow DeepSeek-V3.2

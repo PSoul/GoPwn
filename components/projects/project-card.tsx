@@ -5,7 +5,7 @@ import { ArchiveX, ExternalLink, Pencil } from "lucide-react"
 
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { getProjectPrimaryTarget } from "@/lib/project-targets"
+import { getProjectPrimaryTarget } from "@/lib/project/project-targets"
 import type { ProjectRecord } from "@/lib/prototype-types"
 
 const statusConfig = {

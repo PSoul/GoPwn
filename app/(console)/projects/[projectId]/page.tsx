@@ -2,8 +2,8 @@ import { notFound } from "next/navigation"
 
 import { ProjectResultsHub } from "@/components/projects/project-results-hub"
 import { ProjectSummary } from "@/components/projects/project-summary"
-import { listStoredAssets } from "@/lib/asset-repository"
-import { getStoredProjectById, getStoredProjectDetailById } from "@/lib/project-repository"
+import { listStoredAssets } from "@/lib/data/asset-repository"
+import { getStoredProjectById, getStoredProjectDetailById } from "@/lib/project/project-repository"
 
 export default async function ProjectDetailPage({
   params,

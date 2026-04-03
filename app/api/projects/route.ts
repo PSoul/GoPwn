@@ -1,6 +1,6 @@
-import { createStoredProject, listStoredProjects } from "@/lib/project-repository"
-import { projectMutationSchema } from "@/lib/project-write-schema"
-import { withApiHandler } from "@/lib/api-handler"
+import { createStoredProject, listStoredProjects } from "@/lib/project/project-repository"
+import { projectMutationSchema } from "@/lib/project/project-write-schema"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const GET = withApiHandler(async () => {
   const projects = await listStoredProjects()

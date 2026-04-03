@@ -1,4 +1,4 @@
-import { allocateRunArtifactTargets } from "@/lib/runtime-artifacts"
+import { allocateRunArtifactTargets } from "@/lib/data/runtime-artifacts"
 import { createRealMcpConnector, isHttpTarget } from "@/lib/mcp-connectors/real-mcp-connector-base"
 
 type EvidenceCaptureStructuredContent = {

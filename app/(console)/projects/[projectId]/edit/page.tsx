@@ -2,7 +2,7 @@ import { notFound } from "next/navigation"
 
 import { ProjectForm } from "@/components/projects/project-form"
 import { PageHeader } from "@/components/shared/page-header"
-import { getStoredProjectById, getStoredProjectFormPreset } from "@/lib/project-repository"
+import { getStoredProjectById, getStoredProjectFormPreset } from "@/lib/project/project-repository"
 import type { ProjectFormPreset } from "@/lib/prototype-types"
 
 export default async function EditProjectPage({

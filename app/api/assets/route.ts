@@ -1,6 +1,6 @@
-import { listStoredAssets } from "@/lib/asset-repository"
-import { buildAssetViews } from "@/lib/api-compositions"
-import { withApiHandler } from "@/lib/api-handler"
+import { listStoredAssets } from "@/lib/data/asset-repository"
+import { buildAssetViews } from "@/lib/infra/api-compositions"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const GET = withApiHandler(async () => {
   const items = await listStoredAssets()

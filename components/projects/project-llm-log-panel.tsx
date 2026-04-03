@@ -6,7 +6,7 @@ import { BrainCircuit, ChevronDown, Clock, Loader2, RefreshCw } from "lucide-rea
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
-import { apiFetch } from "@/lib/api-client"
+import { apiFetch } from "@/lib/infra/api-client"
 import type { LlmCallLogRecord, LlmCallRole } from "@/lib/prototype-types"
 
 const roleLabels: Record<LlmCallRole, string> = {

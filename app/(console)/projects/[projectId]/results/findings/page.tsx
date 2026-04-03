@@ -5,8 +5,8 @@ import { ProjectFindingsTable } from "@/components/projects/project-findings-tab
 import { ProjectWorkspaceIntro } from "@/components/projects/project-workspace-intro"
 import { SectionCard } from "@/components/shared/section-card"
 import { Button } from "@/components/ui/button"
-import { getStoredProjectById } from "@/lib/project-repository"
-import { listStoredProjectFindings } from "@/lib/project-results-repository"
+import { getStoredProjectById } from "@/lib/project/project-repository"
+import { listStoredProjectFindings } from "@/lib/project/project-results-repository"
 
 export default async function ProjectFindingsResultsPage({
   params,

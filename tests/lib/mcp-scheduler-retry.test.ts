@@ -4,8 +4,8 @@ import path from "node:path"
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { dispatchStoredMcpRun, getStoredMcpRunById } from "@/lib/mcp-gateway-repository"
-import { getStoredSchedulerTaskByRunId } from "@/lib/mcp-scheduler-repository"
+import { dispatchStoredMcpRun, getStoredMcpRunById } from "@/lib/mcp/mcp-gateway-repository"
+import { getStoredSchedulerTaskByRunId } from "@/lib/mcp/mcp-scheduler-repository"
 import { createStoredProjectFixture, seedWorkflowReadyMcpTools } from "@/tests/helpers/project-fixtures"
 
 let mockedExecutionResult:
@@ -20,7 +20,7 @@ let mockedExecutionResult:
     }
   | null = null
 
-vi.mock("@/lib/mcp-execution-service", () => ({
+vi.mock("@/lib/mcp/mcp-execution-service", () => ({
   executeStoredMcpRun: vi.fn(async () => mockedExecutionResult),
 }))
 
@@ -60,7 +60,7 @@ describe("MCP scheduler retry transitions", () => {
       run: queuedRun,
     }
 
-    const { processStoredSchedulerTask } = await import("@/lib/mcp-scheduler-service")
+    const { processStoredSchedulerTask } = await import("@/lib/mcp/mcp-scheduler-service")
     const task = await getStoredSchedulerTaskByRunId(payload!.run.id)
     const result = await processStoredSchedulerTask(task!.id)
     const updatedTask = await getStoredSchedulerTaskByRunId(payload!.run.id)

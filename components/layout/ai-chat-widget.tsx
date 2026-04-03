@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { BrainCircuit, ChevronDown, Loader2, Minimize2 } from "lucide-react"
 
 import { StatusBadge } from "@/components/shared/status-badge"
-import { apiFetch } from "@/lib/api-client"
+import { apiFetch } from "@/lib/infra/api-client"
 import type { LlmCallLogRecord, LlmCallRole } from "@/lib/prototype-types"
 
 const roleLabels: Record<LlmCallRole, string> = {

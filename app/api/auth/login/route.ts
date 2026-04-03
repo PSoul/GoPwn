@@ -1,9 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 
-import { authenticateResearcher } from "@/lib/auth-repository"
-import { AUTH_COOKIE_NAME, createSessionToken } from "@/lib/auth-session"
-import { CSRF_COOKIE_NAME } from "@/lib/csrf"
-import { withApiHandler } from "@/lib/api-handler"
+import { authenticateResearcher } from "@/lib/auth/auth-repository"
+import { AUTH_COOKIE_NAME, createSessionToken } from "@/lib/auth/auth-session"
+import { CSRF_COOKIE_NAME } from "@/lib/auth/csrf"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const POST = withApiHandler(async (request) => {
   const nextReq = request as NextRequest

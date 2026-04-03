@@ -1,7 +1,7 @@
-import { approvalDecisionSchema } from "@/lib/approval-write-schema"
-import { getStoredApprovalById } from "@/lib/approval-repository"
-import { updateApprovalDecisionPayload } from "@/lib/api-compositions"
-import { withApiHandler } from "@/lib/api-handler"
+import { approvalDecisionSchema } from "@/lib/data/approval-write-schema"
+import { getStoredApprovalById } from "@/lib/data/approval-repository"
+import { updateApprovalDecisionPayload } from "@/lib/infra/api-compositions"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const GET = withApiHandler(async (_request, { params }) => {
   const { approvalId } = await params

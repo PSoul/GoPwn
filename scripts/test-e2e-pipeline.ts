@@ -1,10 +1,10 @@
 /**
  * End-to-end pipeline test: auto-discover MCP servers, test tool execution against Docker targets
  */
-import { discoverAndRegisterMcpServers, getDiscoveredMcpServerConfig } from "@/lib/mcp-auto-discovery"
-import { listStoredMcpTools } from "@/lib/mcp-repository"
-import { callMcpServerTool } from "@/lib/mcp-client-service"
-import { findStoredEnabledMcpServerByToolBinding } from "@/lib/mcp-server-repository"
+import { discoverAndRegisterMcpServers, getDiscoveredMcpServerConfig } from "@/lib/mcp/mcp-auto-discovery"
+import { listStoredMcpTools } from "@/lib/mcp/mcp-repository"
+import { callMcpServerTool } from "@/lib/mcp/mcp-client-service"
+import { findStoredEnabledMcpServerByToolBinding } from "@/lib/mcp/mcp-server-repository"
 import type { McpServerRecord } from "@/lib/prototype-types"
 
 async function main() {

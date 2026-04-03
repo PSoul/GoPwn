@@ -13,13 +13,13 @@
 import fs from "node:fs"
 import path from "node:path"
 
-import { listLocalLabs } from "@/lib/local-lab-catalog"
-import { executeProjectLocalValidation } from "@/lib/orchestrator-service"
-import { createStoredProject } from "@/lib/project-repository"
-import { listStoredAssets } from "@/lib/asset-repository"
-import { listStoredEvidence } from "@/lib/evidence-repository"
-import { listStoredProjectFindings } from "@/lib/project-results-repository"
-import { discoverAndRegisterMcpServers } from "@/lib/mcp-auto-discovery"
+import { listLocalLabs } from "@/lib/infra/local-lab-catalog"
+import { executeProjectLocalValidation } from "@/lib/orchestration/orchestrator-service"
+import { createStoredProject } from "@/lib/project/project-repository"
+import { listStoredAssets } from "@/lib/data/asset-repository"
+import { listStoredEvidence } from "@/lib/data/evidence-repository"
+import { listStoredProjectFindings } from "@/lib/project/project-results-repository"
+import { discoverAndRegisterMcpServers } from "@/lib/mcp/mcp-auto-discovery"
 
 interface LabValidationResult {
   labId: string

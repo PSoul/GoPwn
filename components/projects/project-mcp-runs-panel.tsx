@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { McpRunRecord, McpWorkflowSmokePayload } from "@/lib/prototype-types"
-import { apiFetch } from "@/lib/api-client"
+import { apiFetch } from "@/lib/infra/api-client"
 
 const capabilityPresets: Record<string, { requestedAction: string; riskLevel: "高" | "中" | "低" }> = {
   "目标解析类": { requestedAction: "标准化种子目标", riskLevel: "低" },

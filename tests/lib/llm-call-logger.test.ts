@@ -8,7 +8,7 @@ import {
   listLlmCallLogs,
   getLlmCallLogById,
   listAllRecentLlmCallLogs,
-} from "@/lib/llm-call-logger"
+} from "@/lib/llm/llm-call-logger"
 import { createStoredProjectFixture } from "@/tests/helpers/project-fixtures"
 
 describe("llm-call-logger", () => {

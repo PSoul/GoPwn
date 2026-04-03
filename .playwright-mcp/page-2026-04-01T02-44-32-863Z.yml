@@ -1,0 +1,248 @@
+- generic:
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - link:
+              - /url: /dashboard
+              - generic:
+                - img
+              - generic:
+                - paragraph: 平台控制台
+                - paragraph: 授权外网安全评估平台
+          - generic:
+            - generic:
+              - generic: 总览
+              - generic:
+                - list:
+                  - listitem:
+                    - link:
+                      - /url: /dashboard
+                      - img
+                      - generic: 仪表盘
+                  - listitem:
+                    - link:
+                      - /url: /projects
+                      - img
+                      - generic: 项目管理
+                    - generic: "2"
+                  - listitem:
+                    - link:
+                      - /url: /approvals
+                      - img
+                      - generic: 审批中心
+                    - generic: "1"
+            - generic:
+              - generic: 发现
+              - generic:
+                - list:
+                  - listitem:
+                    - link:
+                      - /url: /assets
+                      - img
+                      - generic: 资产中心
+                  - listitem:
+                    - link:
+                      - /url: /vuln-center
+                      - img
+                      - generic: 漏洞中心
+            - generic:
+              - generic: 系统
+              - generic:
+                - list:
+                  - listitem:
+                    - link:
+                      - /url: /settings
+                      - img
+                      - generic: 系统设置
+    - main:
+      - generic:
+        - generic:
+          - generic:
+            - navigation:
+              - generic:
+                - link:
+                  - /url: /dashboard
+                  - text: 平台控制台
+              - generic:
+                - img
+                - generic: 审批中心
+          - generic:
+            - button:
+              - img
+              - generic: 查看通知
+            - generic:
+              - button:
+                - img
+                - generic: Toggle theme
+            - generic:
+              - generic:
+                - generic: 研
+              - generic:
+                - paragraph: 研究员席位 A
+                - paragraph: 研究员
+            - generic:
+              - button: 退出
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - heading [level=1]: 审批中心
+              - paragraph: 审批中心作为全局一级入口，负责清理跨项目的高风险动作阻塞。先看影响面，再看具体工具和停止条件。
+            - generic:
+              - generic: 1 个待处理
+              - link:
+                - /url: /projects
+                - text: 回到项目主路径
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - paragraph: 待处理队列
+                  - paragraph: "1"
+                - generic:
+                  - img
+              - paragraph: 优先处理直接阻塞项目主路径的动作。
+            - generic:
+              - generic:
+                - generic:
+                  - paragraph: 高风险动作
+                  - paragraph: "0"
+                - generic:
+                  - img
+              - paragraph: 需要人工明确判断停止条件与前置约束。
+            - generic:
+              - generic:
+                - generic:
+                  - paragraph: 受阻项目
+                  - paragraph: "1"
+                - generic:
+                  - img
+              - paragraph: 跨项目阻塞统一在这里清理。
+            - generic:
+              - generic:
+                - generic:
+                  - paragraph: 已延后
+                  - paragraph: "0"
+                - generic:
+                  - img
+              - paragraph: 仍需在窗口期内回看，不应长期挂起。
+          - generic:
+            - generic:
+              - generic:
+                - generic: Approval Queue
+                - heading [level=2]: 待处理审批
+                - paragraph: 默认按待处理、风险等级和阻塞影响排序，细节抽屉里给出参数摘要、执行前提和停止条件。
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - textbox:
+                      - /placeholder: 搜索审批单号、项目、目标或工具...
+                  - generic:
+                    - button: 全部
+                    - button: 待处理
+                    - button: 已延后
+                    - button: 已批准
+                    - button: 已拒绝
+                  - generic:
+                    - button: 风险 全部
+                    - button: 风险 高
+                    - button: 风险 中
+                    - button: 风险 低
+                - generic:
+                  - generic:
+                    - table:
+                      - rowgroup:
+                        - row:
+                          - columnheader: 队列
+                          - columnheader: 审批单
+                          - columnheader: 项目与目标
+                          - columnheader: 动作类型
+                          - columnheader: 风险
+                          - columnheader: 阻塞影响
+                          - columnheader: 状态
+                          - columnheader: 操作
+                      - rowgroup:
+                        - row:
+                          - cell: "#1"
+                          - cell:
+                            - paragraph: APR-1775010223353-1ed1
+                            - paragraph: 2026-04-01 10:23
+                          - cell:
+                            - paragraph: DVWA-v2-优化验证
+                            - paragraph: http://host.docker.internal:8081
+                          - cell:
+                            - paragraph: 识别 Web 入口与响应特征
+                            - paragraph: 受控验证类 · fscan_web_scan
+                          - cell:
+                            - generic: 风险 低
+                          - cell: 审批通过前，该动作不会进入 MCP 实际执行阶段。
+                          - cell:
+                            - generic: 待处理
+                          - cell:
+                            - button: 已选中
+            - generic:
+              - generic:
+                - generic:
+                  - generic: Approval Sheet
+                  - heading [level=2]: 队列首项详情
+                  - paragraph: 这里固定预览当前最值得处理的一项审批，便于快速进入判断。
+                - generic:
+                  - generic:
+                    - generic: 风险 低
+                    - generic: 待处理
+                    - generic: "队列 #1"
+                  - generic:
+                    - paragraph: Detail Preview
+                    - heading [level=3]: 识别 Web 入口与响应特征
+                    - paragraph: DVWA-v2-优化验证 · http://host.docker.internal:8081
+                  - generic:
+                    - generic:
+                      - paragraph: 建议理由
+                      - paragraph: 该动作需要通过 fscan_web_scan 触达目标环境，当前能力族为 受控验证类。
+                    - generic:
+                      - paragraph: 阻塞影响
+                      - paragraph: 审批通过前，该动作不会进入 MCP 实际执行阶段。
+                    - generic:
+                      - paragraph: 工具与参数摘要
+                      - paragraph: 受控验证类 · fscan_web_scan
+                      - paragraph: target=http://host.docker.internal:8081; capability=受控验证类; tool=fscan_web_scan; endpoint=
+                    - generic:
+                      - paragraph: 执行前提与停止条件
+                      - generic:
+                        - generic: 确认目标仍在授权范围内
+                        - generic: 确认当前时间窗口允许执行
+                        - generic: 确认结果链路可正常留痕
+                      - paragraph: 出现异常回显、速率限制、目标波动或授权边界不清时立即停止。
+                      - paragraph: 提交时间：2026-04-01 10:23
+                  - generic: 当前状态会被写入本地持久化存储，并同步进入项目活动与平台审计日志。
+                  - generic:
+                    - button: 延后处理
+                    - button: 拒绝动作
+                    - button: 批准并进入调度
+              - generic:
+                - generic:
+                  - generic: Review Rules
+                  - heading [level=2]: 决策原则
+                  - paragraph: 审批不是单纯点击通过，而是判断当前环境、证据链完整度和风险暴露窗口。
+                - generic:
+                  - generic: 先处理正在阻塞项目主路径的高风险动作，再看补充性验证。
+                  - generic: 必须先确认范围与证据采集链路健康，再批准进入受控 PoC。
+                  - generic: 当工具健康异常或环境波动明显时，宁可延后也不要冒进。
+                  - generic:
+                    - paragraph: 当前提醒
+                    - paragraph: capture-evidence 当前异常，高风险动作审批需要同时确认是否允许降级采证，避免出现“动作执行了但证据链断掉”的情况。
+    - button:
+      - img
+  - button [ref=e277] [cursor=pointer]:
+    - img [ref=e273]
+  - alert
+  - alertdialog "确认批准并进入调度" [ref=e279]:
+    - generic [ref=e280]:
+      - heading "确认批准并进入调度" [level=2] [ref=e281]
+      - paragraph [ref=e282]: 批准后该动作将进入 MCP 调度队列，请确认风险评估和停止条件已检查。
+    - generic [ref=e283]:
+      - button "返回" [active] [ref=e284] [cursor=pointer]
+      - button "确认批准" [ref=e285] [cursor=pointer]

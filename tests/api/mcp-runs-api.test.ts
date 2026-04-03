@@ -14,7 +14,7 @@ import {
   seedWorkflowReadyMcpTools,
   workflowReadyMcpToolFixtures,
 } from "@/tests/helpers/project-fixtures"
-import { getProjectPrimaryTarget } from "@/lib/project-targets"
+import { getProjectPrimaryTarget } from "@/lib/project/project-targets"
 
 const buildProjectContext = (projectId: string) => ({
   params: Promise.resolve({ projectId }),
@@ -122,7 +122,7 @@ describe("project MCP run api routes", () => {
     // Stop the scheduler lifecycle to prevent the approval handler from triggering
     // a full multi-round orchestration kickoff that can exceed the test timeout.
     // The drain still executes the linked run thanks to ignoreProjectLifecycle.
-    const { prisma: testPrisma } = await import("@/lib/prisma")
+    const { prisma: testPrisma } = await import("@/lib/infra/prisma")
     await testPrisma.projectSchedulerControl.updateMany({
       where: { projectId: fixture.project.id },
       data: { lifecycle: "stopped" },

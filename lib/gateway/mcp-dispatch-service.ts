@@ -1,6 +1,6 @@
-import { listBuiltInMcpTools } from "@/lib/built-in-mcp-tools"
+import { listBuiltInMcpTools } from "@/lib/mcp/built-in-mcp-tools"
 import { Prisma } from "@/lib/generated/prisma/client"
-import { prisma } from "@/lib/prisma"
+import { prisma } from "@/lib/infra/prisma"
 import { setLlmCodeForRun } from "@/lib/mcp-connectors/stdio-mcp-connector"
 import {
   toMcpRunRecord,
@@ -8,9 +8,9 @@ import {
   toApprovalRecord,
   fromApprovalRecord,
   fromLogRecord,
-} from "@/lib/prisma-transforms"
-import { normalizeProjectSchedulerControl } from "@/lib/project-scheduler-lifecycle"
-import { createStoredSchedulerTaskFromRun } from "@/lib/mcp-scheduler-repository"
+} from "@/lib/infra/prisma-transforms"
+import { normalizeProjectSchedulerControl } from "@/lib/project/project-scheduler-lifecycle"
+import { createStoredSchedulerTaskFromRun } from "@/lib/mcp/mcp-scheduler-repository"
 import type {
   ApprovalRecord,
   McpDispatchInput,
@@ -246,7 +246,7 @@ function shouldRequireApproval({
 
 export async function dispatchStoredMcpRun(projectId: string, input: McpDispatchInput): Promise<McpDispatchPayload | null> {
   // Import transforms for reading tool records
-  const { toProjectRecord, toProjectDetailRecord, toMcpToolRecord, toApprovalControlRecord: toGAC } = await import("@/lib/prisma-transforms")
+  const { toProjectRecord, toProjectDetailRecord, toMcpToolRecord, toApprovalControlRecord: toGAC } = await import("@/lib/infra/prisma-transforms")
 
   const [projectRow, detailRow] = await Promise.all([
     prisma.project.findUnique({ where: { id: projectId } }),
@@ -259,7 +259,7 @@ export async function dispatchStoredMcpRun(projectId: string, input: McpDispatch
   const schedulerControlRow = await prisma.projectSchedulerControl.findUnique({ where: { projectId } })
   const schedulerControl = normalizeProjectSchedulerControl({
     control: schedulerControlRow
-      ? (await import("@/lib/prisma-transforms")).toProjectSchedulerControlRecord(schedulerControlRow)
+      ? (await import("@/lib/infra/prisma-transforms")).toProjectSchedulerControlRecord(schedulerControlRow)
       : undefined,
     projectStatus: project.status,
     updatedAt: project.lastUpdated,

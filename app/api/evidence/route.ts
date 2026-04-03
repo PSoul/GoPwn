@@ -1,5 +1,5 @@
-import { listStoredEvidence } from "@/lib/evidence-repository"
-import { withApiHandler } from "@/lib/api-handler"
+import { listStoredEvidence } from "@/lib/data/evidence-repository"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const GET = withApiHandler(async () => {
   const items = await listStoredEvidence()

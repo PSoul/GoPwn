@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import { projectMutationSchema } from "@/lib/project-write-schema"
+import { projectMutationSchema } from "@/lib/project/project-write-schema"
 import type { ProjectFormPreset } from "@/lib/prototype-types"
-import { createStoredProject } from "@/lib/project-repository"
+import { createStoredProject } from "@/lib/project/project-repository"
 
 describe("simplified project model", () => {
   it("accepts the minimal create payload and exposes only the simplified form preset", async () => {

@@ -4,14 +4,14 @@ import path from "node:path"
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
-import { dispatchStoredMcpRun } from "@/lib/mcp-gateway-repository"
+import { dispatchStoredMcpRun } from "@/lib/mcp/mcp-gateway-repository"
 import {
   claimStoredSchedulerTask,
   getStoredSchedulerTaskByRunId,
   heartbeatStoredSchedulerTask,
   recoverExpiredStoredSchedulerTasks,
   updateStoredSchedulerTask,
-} from "@/lib/mcp-scheduler-repository"
+} from "@/lib/mcp/mcp-scheduler-repository"
 import { createStoredProjectFixture, seedWorkflowReadyMcpTools } from "@/tests/helpers/project-fixtures"
 
 describe("MCP scheduler repository durable leases", () => {

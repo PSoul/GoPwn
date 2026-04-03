@@ -8,9 +8,9 @@ import {
   isExecutionAbortError,
   throwIfExecutionAborted,
   withAbortSignal,
-} from "@/lib/mcp-execution-abort"
+} from "@/lib/mcp/mcp-execution-abort"
 import { getHostFromTarget, getRootDomain } from "@/lib/mcp-connectors/local-foundational-connectors"
-import { getProjectPrimaryTarget } from "@/lib/project-targets"
+import { getProjectPrimaryTarget } from "@/lib/project/project-targets"
 import type { McpConnector, McpConnectorExecutionContext, McpConnectorResult } from "@/lib/mcp-connectors/types"
 
 type CertificateSummary = {

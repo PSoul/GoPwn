@@ -5,7 +5,7 @@ import path from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 import { GET as getArtifact } from "@/app/api/artifacts/[...artifactPath]/route"
-import { AUTH_COOKIE_NAME, createSessionToken } from "@/lib/auth-session"
+import { AUTH_COOKIE_NAME, createSessionToken } from "@/lib/auth/auth-session"
 
 const buildArtifactContext = (artifactPath: string[]) => ({
   params: Promise.resolve({ artifactPath } as any),

@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { POST as login } from "@/app/api/auth/login/route"
 import { POST as logout } from "@/app/api/auth/logout/route"
 import { GET as getAuditLogs } from "@/app/api/settings/audit-logs/route"
-import { generateCaptcha } from "@/lib/auth-repository"
+import { generateCaptcha } from "@/lib/auth/auth-repository"
 
 describe("auth api routes", () => {
   let tempDir: string

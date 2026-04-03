@@ -21,7 +21,7 @@ import type {
   ProjectSchedulerLifecycle,
   ProjectStatus,
 } from "@/lib/prototype-types"
-import { apiFetch } from "@/lib/api-client"
+import { apiFetch } from "@/lib/infra/api-client"
 
 const lifecycleLabelMap: Record<ProjectSchedulerLifecycle, string> = {
   idle: "待开始",

@@ -3,22 +3,22 @@ import os from "node:os"
 import {
   dashboardMetrics,
   systemStatusCards,
-} from "@/lib/platform-config"
-import { listStoredLlmProfiles } from "@/lib/llm-settings-repository"
-import { listStoredApprovals } from "@/lib/approval-repository"
-import { listStoredAssets } from "@/lib/asset-repository"
-import { listStoredEvidence } from "@/lib/evidence-repository"
+} from "@/lib/settings/platform-config"
+import { listStoredLlmProfiles } from "@/lib/llm/llm-settings-repository"
+import { listStoredApprovals } from "@/lib/data/approval-repository"
+import { listStoredAssets } from "@/lib/data/asset-repository"
+import { listStoredEvidence } from "@/lib/data/evidence-repository"
 import {
   listStoredMcpTools,
-} from "@/lib/mcp-repository"
+} from "@/lib/mcp/mcp-repository"
 import {
   getStoredProjectDetailById,
   listStoredProjects,
-} from "@/lib/project-repository"
+} from "@/lib/project/project-repository"
 import {
   listStoredProjectFindings,
-} from "@/lib/project-results-repository"
-import { prisma } from "@/lib/prisma"
+} from "@/lib/project/project-results-repository"
+import { prisma } from "@/lib/infra/prisma"
 import { buildAssetViews } from "./project-compositions"
 import type {
   DashboardPayload,

@@ -6,7 +6,7 @@ import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import type { ApprovalControl, ApprovalRecord, ProjectDetailRecord, ProjectRecord } from "@/lib/prototype-types"
-import { apiFetch } from "@/lib/api-client"
+import { apiFetch } from "@/lib/infra/api-client"
 
 const approvalTone = {
   待处理: "danger",

@@ -1,0 +1,422 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e6]:
+      - link "平台控制台 授权外网安全评估平台" [ref=e8] [cursor=pointer]:
+        - /url: /dashboard
+        - img [ref=e10]
+        - generic [ref=e13]:
+          - paragraph [ref=e14]: 平台控制台
+          - paragraph [ref=e15]: 授权外网安全评估平台
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - generic [ref=e18]: 总览
+          - list [ref=e20]:
+            - listitem [ref=e21]:
+              - link "仪表盘" [ref=e22] [cursor=pointer]:
+                - /url: /dashboard
+                - img [ref=e23]
+                - generic [ref=e26]: 仪表盘
+            - listitem [ref=e27]:
+              - link "项目管理" [ref=e28] [cursor=pointer]:
+                - /url: /projects
+                - img [ref=e29]
+                - generic [ref=e31]: 项目管理
+            - listitem [ref=e32]:
+              - link "审批中心" [ref=e33] [cursor=pointer]:
+                - /url: /approvals
+                - img [ref=e34]
+                - generic [ref=e38]: 审批中心
+        - generic [ref=e39]:
+          - generic [ref=e40]: 发现
+          - list [ref=e42]:
+            - listitem [ref=e43]:
+              - link "资产中心" [ref=e44] [cursor=pointer]:
+                - /url: /assets
+                - img [ref=e45]
+                - generic [ref=e50]: 资产中心
+            - listitem [ref=e51]:
+              - link "漏洞中心" [ref=e52] [cursor=pointer]:
+                - /url: /vuln-center
+                - img [ref=e53]
+                - generic [ref=e57]: 漏洞中心
+        - generic [ref=e58]:
+          - generic [ref=e59]: 系统
+          - list [ref=e61]:
+            - listitem [ref=e62]:
+              - link "系统设置" [ref=e63] [cursor=pointer]:
+                - /url: /settings
+                - img [ref=e64]
+                - generic [ref=e67]: 系统设置
+    - main [ref=e68]:
+      - generic [ref=e70]:
+        - navigation [ref=e72]:
+          - link "平台控制台" [ref=e74] [cursor=pointer]:
+            - /url: /dashboard
+          - generic [ref=e75]:
+            - img [ref=e76]
+            - generic [ref=e78]: 仪表盘
+        - generic [ref=e79]:
+          - button "查看通知" [ref=e80] [cursor=pointer]:
+            - img
+            - generic [ref=e81]: 查看通知
+          - button "Toggle theme" [ref=e83] [cursor=pointer]:
+            - img [ref=e84]
+            - generic [ref=e90]: Toggle theme
+          - generic [ref=e91]:
+            - generic [ref=e93]: 研
+            - generic [ref=e94]:
+              - paragraph [ref=e95]: 研究员席位 A
+              - paragraph [ref=e96]: 研究员
+          - button "退出" [ref=e98] [cursor=pointer]
+      - generic [ref=e100]:
+        - generic [ref=e101]:
+          - generic [ref=e102]:
+            - generic [ref=e103]:
+              - paragraph [ref=e104]: 控制台概览
+              - heading "平台仪表盘" [level=1] [ref=e105]
+              - paragraph [ref=e106]: 项目总览、资产、漏洞与审批压力一目了然
+            - generic [ref=e107]:
+              - generic [ref=e108]: 已完成
+              - link "新建项目" [ref=e109] [cursor=pointer]:
+                - /url: /projects/new
+              - link "MCP 配置" [ref=e110] [cursor=pointer]:
+                - /url: /settings/mcp-tools
+          - generic [ref=e111]:
+            - link "项目总数 70 15 个运行中" [ref=e112] [cursor=pointer]:
+              - /url: /projects
+              - generic [ref=e113]:
+                - generic [ref=e114]:
+                  - paragraph [ref=e115]: 项目总数
+                  - paragraph [ref=e116]: "70"
+                - img [ref=e118]
+              - generic [ref=e120]:
+                - paragraph [ref=e121]: 15 个运行中
+                - img [ref=e122]
+            - link "已发现资产 47 47 个待验证" [ref=e124] [cursor=pointer]:
+              - /url: /assets
+              - generic [ref=e125]:
+                - generic [ref=e126]:
+                  - paragraph [ref=e127]: 已发现资产
+                  - paragraph [ref=e128]: "47"
+                - img [ref=e130]
+              - generic [ref=e135]:
+                - paragraph [ref=e136]: 47 个待验证
+                - img [ref=e137]
+            - link "已发现漏洞 8 8 个待复核" [ref=e139] [cursor=pointer]:
+              - /url: /projects
+              - generic [ref=e140]:
+                - generic [ref=e141]:
+                  - paragraph [ref=e142]: 已发现漏洞
+                  - paragraph [ref=e143]: "8"
+                - img [ref=e145]
+              - generic [ref=e147]:
+                - paragraph [ref=e148]: 8 个待复核
+                - img [ref=e149]
+            - link "待审批动作 0 当前无审批阻塞" [ref=e151] [cursor=pointer]:
+              - /url: /approvals
+              - generic [ref=e152]:
+                - generic [ref=e153]:
+                  - paragraph [ref=e154]: 待审批动作
+                  - paragraph [ref=e155]: "0"
+                - img [ref=e157]
+              - generic [ref=e161]:
+                - paragraph [ref=e162]: 当前无审批阻塞
+                - img [ref=e163]
+        - generic [ref=e165]:
+          - link "探测工具 34 / 34 正常 当前已启用探测工具数量。" [ref=e166] [cursor=pointer]:
+            - /url: /settings/mcp-tools
+            - generic [ref=e167]:
+              - generic [ref=e168]:
+                - paragraph [ref=e169]: 探测工具
+                - paragraph [ref=e170]: 34 / 34
+              - generic [ref=e171]: 正常
+            - paragraph [ref=e172]: 当前已启用探测工具数量。
+          - link "LLM 模型 Pro/deepseek-ai/DeepSeek-V3 信息 当前参与规划的模型配置。" [ref=e173] [cursor=pointer]:
+            - /url: /settings/llm
+            - generic [ref=e174]:
+              - generic [ref=e175]:
+                - paragraph [ref=e176]: LLM 模型
+                - paragraph [ref=e177]: Pro/deepseek-ai/DeepSeek-V3
+              - generic [ref=e178]: 信息
+            - paragraph [ref=e179]: 当前参与规划的模型配置。
+          - link "执行队列 10 条 信息 15 个运行中项目 / 0 个待审批动作" [ref=e180] [cursor=pointer]:
+            - /url: /settings/system-status
+            - generic [ref=e181]:
+              - generic [ref=e182]:
+                - paragraph [ref=e183]: 执行队列
+                - paragraph [ref=e184]: 10 条
+              - generic [ref=e185]: 信息
+            - paragraph [ref=e186]: 15 个运行中项目 / 0 个待审批动作
+          - link "运行状态 Heap 477/554 MB 信息 1m load 0.00，用于快速感知当前本地运行压力。" [ref=e187] [cursor=pointer]:
+            - /url: /settings/system-status
+            - generic [ref=e188]:
+              - generic [ref=e189]:
+                - paragraph [ref=e190]: 运行状态
+                - paragraph [ref=e191]: Heap 477/554 MB
+              - generic [ref=e192]: 信息
+            - paragraph [ref=e193]: 1m load 0.00，用于快速感知当前本地运行压力。
+        - generic [ref=e194]:
+          - generic [ref=e195]:
+            - generic [ref=e196]:
+              - img [ref=e197]
+              - text: 最近结果更新
+            - generic [ref=e199]:
+              - link "Apache 版本过旧：Apache/2.4.25 http://localhost:8081 中危 · 2026-04-01 09:10 待复核" [ref=e200] [cursor=pointer]:
+                - /url: /projects/proj-20260329-5dfc1570/results/findings
+                - generic [ref=e201]:
+                  - generic [ref=e202]:
+                    - paragraph [ref=e203]: Apache 版本过旧：Apache/2.4.25
+                    - paragraph [ref=e204]: http://localhost:8081
+                    - paragraph [ref=e205]: 中危 · 2026-04-01 09:10
+                  - generic [ref=e206]: 待复核
+              - link "服务器版本泄露：Apache/2.4.25 (Debian) http://localhost:8081 低危 · 2026-04-01 09:10 待复核" [ref=e207] [cursor=pointer]:
+                - /url: /projects/proj-20260329-5dfc1570/results/findings
+                - generic [ref=e208]:
+                  - generic [ref=e209]:
+                    - paragraph [ref=e210]: 服务器版本泄露：Apache/2.4.25 (Debian)
+                    - paragraph [ref=e211]: http://localhost:8081
+                    - paragraph [ref=e212]: 低危 · 2026-04-01 09:10
+                  - generic [ref=e213]: 待复核
+              - link "Apache 版本过旧：Apache/2.4.25 http://127.0.0.1:8081 中危 · 2026-04-01 09:10 待复核" [ref=e214] [cursor=pointer]:
+                - /url: /projects/proj-20260329-f0a9ba9a/results/findings
+                - generic [ref=e215]:
+                  - generic [ref=e216]:
+                    - paragraph [ref=e217]: Apache 版本过旧：Apache/2.4.25
+                    - paragraph [ref=e218]: http://127.0.0.1:8081
+                    - paragraph [ref=e219]: 中危 · 2026-04-01 09:10
+                  - generic [ref=e220]: 待复核
+              - link "服务器版本泄露：Apache/2.4.25 (Debian) http://127.0.0.1:8081 低危 · 2026-04-01 09:10 待复核" [ref=e221] [cursor=pointer]:
+                - /url: /projects/proj-20260329-f0a9ba9a/results/findings
+                - generic [ref=e222]:
+                  - generic [ref=e223]:
+                    - paragraph [ref=e224]: 服务器版本泄露：Apache/2.4.25 (Debian)
+                    - paragraph [ref=e225]: http://127.0.0.1:8081
+                    - paragraph [ref=e226]: 低危 · 2026-04-01 09:10
+                  - generic [ref=e227]: 待复核
+              - link "Apache 版本过旧：Apache/2.4.25 http://127.0.0.1:8081 中危 · 2026-04-01 09:10 待复核" [ref=e228] [cursor=pointer]:
+                - /url: /projects/proj-20260329-5ac9e5eb/results/findings
+                - generic [ref=e229]:
+                  - generic [ref=e230]:
+                    - paragraph [ref=e231]: Apache 版本过旧：Apache/2.4.25
+                    - paragraph [ref=e232]: http://127.0.0.1:8081
+                    - paragraph [ref=e233]: 中危 · 2026-04-01 09:10
+                  - generic [ref=e234]: 待复核
+              - link "服务器版本泄露：Apache/2.4.25 (Debian) http://127.0.0.1:8081 低危 · 2026-04-01 09:10 待复核" [ref=e235] [cursor=pointer]:
+                - /url: /projects/proj-20260329-5ac9e5eb/results/findings
+                - generic [ref=e236]:
+                  - generic [ref=e237]:
+                    - paragraph [ref=e238]: 服务器版本泄露：Apache/2.4.25 (Debian)
+                    - paragraph [ref=e239]: http://127.0.0.1:8081
+                    - paragraph [ref=e240]: 低危 · 2026-04-01 09:10
+                  - generic [ref=e241]: 待复核
+              - link "服务器版本泄露：Apache/2.4.57 (Debian) http://127.0.0.1:8082 低危 · 2026-04-01 09:10 待复核" [ref=e242] [cursor=pointer]:
+                - /url: /projects/proj-20260329-1d5aa674/results/findings
+                - generic [ref=e243]:
+                  - generic [ref=e244]:
+                    - paragraph [ref=e245]: 服务器版本泄露：Apache/2.4.57 (Debian)
+                    - paragraph [ref=e246]: http://127.0.0.1:8082
+                    - paragraph [ref=e247]: 低危 · 2026-04-01 09:10
+                  - generic [ref=e248]: 待复核
+              - link "服务器版本泄露：Apache/2.4.65 (Debian) http://127.0.0.1:8083 低危 · 2026-04-01 09:10 待复核" [ref=e249] [cursor=pointer]:
+                - /url: /projects/proj-20260329-ab0c281d/results/findings
+                - generic [ref=e250]:
+                  - generic [ref=e251]:
+                    - paragraph [ref=e252]: 服务器版本泄露：Apache/2.4.65 (Debian)
+                    - paragraph [ref=e253]: http://127.0.0.1:8083
+                    - paragraph [ref=e254]: 低危 · 2026-04-01 09:10
+                  - generic [ref=e255]: 待复核
+          - generic [ref=e256]:
+            - generic [ref=e257]:
+              - generic [ref=e258]:
+                - generic [ref=e259]:
+                  - generic [ref=e260]:
+                    - img [ref=e261]
+                    - text: 全局资产预览
+                  - paragraph [ref=e271]: 仪表盘只保留四类核心结果视图，让研究员先判断已经拿到了什么，而不是先被控制逻辑打断。
+                - generic [ref=e272]:
+                  - generic [ref=e273]: 15 条待验证线索
+                  - link "打开完整视图" [ref=e274] [cursor=pointer]:
+                    - /url: /assets?view=domains-web
+                    - text: 打开完整视图
+                    - img [ref=e275]
+              - tablist [ref=e278]:
+                - tab "域名 / Web 15" [selected] [ref=e279] [cursor=pointer]:
+                  - generic [ref=e280]: 域名 / Web
+                  - generic [ref=e281]: "15"
+                - tab "IP / 主机 0" [ref=e282] [cursor=pointer]:
+                  - generic [ref=e283]: IP / 主机
+                  - generic [ref=e284]: "0"
+                - tab "端口 / 服务 32" [ref=e285] [cursor=pointer]:
+                  - generic [ref=e286]: 端口 / 服务
+                  - generic [ref=e287]: "32"
+                - tab "指纹 / 技术栈 0" [ref=e288] [cursor=pointer]:
+                  - generic [ref=e289]: 指纹 / 技术栈
+                  - generic [ref=e290]: "0"
+            - generic [ref=e292]:
+              - table [ref=e296]:
+                - rowgroup [ref=e297]:
+                  - row "域名 / Web 入口 所属项目 画像 / 线索 归属 / 置信度 范围状态 最近发现 详情" [ref=e298]:
+                    - columnheader "域名 / Web 入口" [ref=e299]
+                    - columnheader "所属项目" [ref=e300]
+                    - columnheader "画像 / 线索" [ref=e301]
+                    - columnheader "归属 / 置信度" [ref=e302]
+                    - columnheader "范围状态" [ref=e303]
+                    - columnheader "最近发现" [ref=e304]
+                    - columnheader "详情" [ref=e305]
+                - rowgroup [ref=e306]:
+                  - row "http://127.0.0.1:8083 entry Docker验证-phpMyAdmin 127.0.0.1:8083 HTTP 200 可继续衔接目录扫描、漏洞检测或证据采集。 Docker验证-phpMyAdmin Web 暴露面 0.81 置信度 已纳入 2026-03-29 21:21 查看画像" [ref=e307]:
+                    - cell "http://127.0.0.1:8083 entry" [ref=e308]:
+                      - generic [ref=e309]:
+                        - paragraph [ref=e310]: http://127.0.0.1:8083
+                        - paragraph [ref=e311]: entry
+                    - cell "Docker验证-phpMyAdmin 127.0.0.1:8083" [ref=e312]:
+                      - generic [ref=e313]:
+                        - paragraph [ref=e314]: Docker验证-phpMyAdmin
+                        - paragraph [ref=e315]: 127.0.0.1:8083
+                    - cell "HTTP 200 可继续衔接目录扫描、漏洞检测或证据采集。" [ref=e316]:
+                      - generic [ref=e317]:
+                        - paragraph [ref=e318]: HTTP 200
+                        - paragraph [ref=e319]: 可继续衔接目录扫描、漏洞检测或证据采集。
+                    - cell "Docker验证-phpMyAdmin Web 暴露面 0.81 置信度" [ref=e320]:
+                      - generic [ref=e321]:
+                        - paragraph [ref=e322]: Docker验证-phpMyAdmin Web 暴露面
+                        - paragraph [ref=e323]: 0.81 置信度
+                    - cell "已纳入" [ref=e324]:
+                      - generic [ref=e325]: 已纳入
+                    - cell "2026-03-29 21:21" [ref=e326]
+                    - cell "查看画像" [ref=e327]:
+                      - link "查看画像" [ref=e328] [cursor=pointer]:
+                        - /url: /assets/asset-proj-20260329-ab0c281d-entry-127-0-0-1-8083
+                        - text: 查看画像
+                        - img
+                  - row "http://127.0.0.1:8082 entry Docker验证-WordPress (弱口令 CMS) 127.0.0.1:8082 HTTP 302 可继续衔接目录扫描、漏洞检测或证据采集。 Docker验证-WordPress (弱口令 CMS) Web 暴露面 0.81 置信度 已纳入 2026-03-29 21:18 查看画像" [ref=e329]:
+                    - cell "http://127.0.0.1:8082 entry" [ref=e330]:
+                      - generic [ref=e331]:
+                        - paragraph [ref=e332]: http://127.0.0.1:8082
+                        - paragraph [ref=e333]: entry
+                    - cell "Docker验证-WordPress (弱口令 CMS) 127.0.0.1:8082" [ref=e334]:
+                      - generic [ref=e335]:
+                        - paragraph [ref=e336]: Docker验证-WordPress (弱口令 CMS)
+                        - paragraph [ref=e337]: 127.0.0.1:8082
+                    - cell "HTTP 302 可继续衔接目录扫描、漏洞检测或证据采集。" [ref=e338]:
+                      - generic [ref=e339]:
+                        - paragraph [ref=e340]: HTTP 302
+                        - paragraph [ref=e341]: 可继续衔接目录扫描、漏洞检测或证据采集。
+                    - cell "Docker验证-WordPress (弱口令 CMS) Web 暴露面 0.81 置信度" [ref=e342]:
+                      - generic [ref=e343]:
+                        - paragraph [ref=e344]: Docker验证-WordPress (弱口令 CMS) Web 暴露面
+                        - paragraph [ref=e345]: 0.81 置信度
+                    - cell "已纳入" [ref=e346]:
+                      - generic [ref=e347]: 已纳入
+                    - cell "2026-03-29 21:18" [ref=e348]
+                    - cell "查看画像" [ref=e349]:
+                      - link "查看画像" [ref=e350] [cursor=pointer]:
+                        - /url: /assets/asset-proj-20260329-1d5aa674-entry-127-0-0-1-8082
+                        - text: 查看画像
+                        - img
+                  - row "http://127.0.0.1:8081 entry Docker验证-DVWA 127.0.0.1:8081 HTTP 302 可继续衔接目录扫描、漏洞检测或证据采集。 Docker验证-DVWA Web 暴露面 0.81 置信度 已纳入 2026-03-29 21:15 查看画像" [ref=e351]:
+                    - cell "http://127.0.0.1:8081 entry" [ref=e352]:
+                      - generic [ref=e353]:
+                        - paragraph [ref=e354]: http://127.0.0.1:8081
+                        - paragraph [ref=e355]: entry
+                    - cell "Docker验证-DVWA 127.0.0.1:8081" [ref=e356]:
+                      - generic [ref=e357]:
+                        - paragraph [ref=e358]: Docker验证-DVWA
+                        - paragraph [ref=e359]: 127.0.0.1:8081
+                    - cell "HTTP 302 可继续衔接目录扫描、漏洞检测或证据采集。" [ref=e360]:
+                      - generic [ref=e361]:
+                        - paragraph [ref=e362]: HTTP 302
+                        - paragraph [ref=e363]: 可继续衔接目录扫描、漏洞检测或证据采集。
+                    - cell "Docker验证-DVWA Web 暴露面 0.81 置信度" [ref=e364]:
+                      - generic [ref=e365]:
+                        - paragraph [ref=e366]: Docker验证-DVWA Web 暴露面
+                        - paragraph [ref=e367]: 0.81 置信度
+                    - cell "已纳入" [ref=e368]:
+                      - generic [ref=e369]: 已纳入
+                    - cell "2026-03-29 21:15" [ref=e370]
+                    - cell "查看画像" [ref=e371]:
+                      - link "查看画像" [ref=e372] [cursor=pointer]:
+                        - /url: /assets/asset-proj-20260329-5ac9e5eb-entry-127-0-0-1-8081
+                        - text: 查看画像
+                        - img
+                  - row "http://127.0.0.1:18080/WebGoat/login entry Docker验证-OWASP WebGoat 127.0.0.1:18080 HTTP 200 可继续衔接目录扫描、漏洞检测或证据采集。 Docker验证-OWASP WebGoat Web 暴露面 0.81 置信度 已纳入 2026-03-29 21:14 查看画像" [ref=e373]:
+                    - cell "http://127.0.0.1:18080/WebGoat/login entry" [ref=e374]:
+                      - generic [ref=e375]:
+                        - paragraph [ref=e376]: http://127.0.0.1:18080/WebGoat/login
+                        - paragraph [ref=e377]: entry
+                    - cell "Docker验证-OWASP WebGoat 127.0.0.1:18080" [ref=e378]:
+                      - generic [ref=e379]:
+                        - paragraph [ref=e380]: Docker验证-OWASP WebGoat
+                        - paragraph [ref=e381]: 127.0.0.1:18080
+                    - cell "HTTP 200 可继续衔接目录扫描、漏洞检测或证据采集。" [ref=e382]:
+                      - generic [ref=e383]:
+                        - paragraph [ref=e384]: HTTP 200
+                        - paragraph [ref=e385]: 可继续衔接目录扫描、漏洞检测或证据采集。
+                    - cell "Docker验证-OWASP WebGoat Web 暴露面 0.81 置信度" [ref=e386]:
+                      - generic [ref=e387]:
+                        - paragraph [ref=e388]: Docker验证-OWASP WebGoat Web 暴露面
+                        - paragraph [ref=e389]: 0.81 置信度
+                    - cell "已纳入" [ref=e390]:
+                      - generic [ref=e391]: 已纳入
+                    - cell "2026-03-29 21:14" [ref=e392]
+                    - cell "查看画像" [ref=e393]:
+                      - link "查看画像" [ref=e394] [cursor=pointer]:
+                        - /url: /assets/asset-proj-20260329-654d9052-entry-127-0-0-1-18080-webgoat-login
+                        - text: 查看画像
+                        - img
+                  - row "http://127.0.0.1:18080/WebGoat entry Docker验证-OWASP WebGoat 127.0.0.1:18080 HTTP 302 可继续衔接目录扫描、漏洞检测或证据采集。 Docker验证-OWASP WebGoat Web 暴露面 0.81 置信度 已纳入 2026-03-29 21:12 查看画像" [ref=e395]:
+                    - cell "http://127.0.0.1:18080/WebGoat entry" [ref=e396]:
+                      - generic [ref=e397]:
+                        - paragraph [ref=e398]: http://127.0.0.1:18080/WebGoat
+                        - paragraph [ref=e399]: entry
+                    - cell "Docker验证-OWASP WebGoat 127.0.0.1:18080" [ref=e400]:
+                      - generic [ref=e401]:
+                        - paragraph [ref=e402]: Docker验证-OWASP WebGoat
+                        - paragraph [ref=e403]: 127.0.0.1:18080
+                    - cell "HTTP 302 可继续衔接目录扫描、漏洞检测或证据采集。" [ref=e404]:
+                      - generic [ref=e405]:
+                        - paragraph [ref=e406]: HTTP 302
+                        - paragraph [ref=e407]: 可继续衔接目录扫描、漏洞检测或证据采集。
+                    - cell "Docker验证-OWASP WebGoat Web 暴露面 0.81 置信度" [ref=e408]:
+                      - generic [ref=e409]:
+                        - paragraph [ref=e410]: Docker验证-OWASP WebGoat Web 暴露面
+                        - paragraph [ref=e411]: 0.81 置信度
+                    - cell "已纳入" [ref=e412]:
+                      - generic [ref=e413]: 已纳入
+                    - cell "2026-03-29 21:12" [ref=e414]
+                    - cell "查看画像" [ref=e415]:
+                      - link "查看画像" [ref=e416] [cursor=pointer]:
+                        - /url: /assets/asset-proj-20260329-654d9052-entry-127-0-0-1-18080-webgoat
+                        - text: 查看画像
+                        - img
+                  - row "http://127.0.0.1:3000 entry Docker验证-OWASP Juice Shop 127.0.0.1:3000 HTTP 200 可继续衔接目录扫描、漏洞检测或证据采集。 Docker验证-OWASP Juice Shop Web 暴露面 0.81 置信度 已纳入 2026-03-29 21:08 查看画像" [ref=e417]:
+                    - cell "http://127.0.0.1:3000 entry" [ref=e418]:
+                      - generic [ref=e419]:
+                        - paragraph [ref=e420]: http://127.0.0.1:3000
+                        - paragraph [ref=e421]: entry
+                    - cell "Docker验证-OWASP Juice Shop 127.0.0.1:3000" [ref=e422]:
+                      - generic [ref=e423]:
+                        - paragraph [ref=e424]: Docker验证-OWASP Juice Shop
+                        - paragraph [ref=e425]: 127.0.0.1:3000
+                    - cell "HTTP 200 可继续衔接目录扫描、漏洞检测或证据采集。" [ref=e426]:
+                      - generic [ref=e427]:
+                        - paragraph [ref=e428]: HTTP 200
+                        - paragraph [ref=e429]: 可继续衔接目录扫描、漏洞检测或证据采集。
+                    - cell "Docker验证-OWASP Juice Shop Web 暴露面 0.81 置信度" [ref=e430]:
+                      - generic [ref=e431]:
+                        - paragraph [ref=e432]: Docker验证-OWASP Juice Shop Web 暴露面
+                        - paragraph [ref=e433]: 0.81 置信度
+                    - cell "已纳入" [ref=e434]:
+                      - generic [ref=e435]: 已纳入
+                    - cell "2026-03-29 21:08" [ref=e436]
+                    - cell "查看画像" [ref=e437]:
+                      - link "查看画像" [ref=e438] [cursor=pointer]:
+                        - /url: /assets/asset-proj-20260329-e37632e5-entry-127-0-0-1-3000
+                        - text: 查看画像
+                        - img
+              - paragraph [ref=e439]: 当前仅预览前 6 条记录，进入完整视图可查看该类型的全部真实数据。
+    - button "打开 AI 对话日志" [ref=e440] [cursor=pointer]:
+      - img [ref=e441]
+  - button "Open Next.js Dev Tools" [ref=e458] [cursor=pointer]:
+    - img [ref=e459]
+  - alert [ref=e462]

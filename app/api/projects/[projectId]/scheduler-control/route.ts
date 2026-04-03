@@ -1,6 +1,6 @@
-import { projectSchedulerControlPatchSchema } from "@/lib/scheduler-write-schema"
-import { updateProjectSchedulerControlPayload } from "@/lib/api-compositions"
-import { withApiHandler } from "@/lib/api-handler"
+import { projectSchedulerControlPatchSchema } from "@/lib/settings/scheduler-write-schema"
+import { updateProjectSchedulerControlPayload } from "@/lib/infra/api-compositions"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const PATCH = withApiHandler(async (request, { params }) => {
   const { projectId } = await params

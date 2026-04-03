@@ -1,6 +1,6 @@
-import { listStoredProjectFindings } from "@/lib/project-results-repository"
-import { listStoredProjects } from "@/lib/project-repository"
-import { withApiHandler } from "@/lib/api-handler"
+import { listStoredProjectFindings } from "@/lib/project/project-results-repository"
+import { listStoredProjects } from "@/lib/project/project-repository"
+import { withApiHandler } from "@/lib/infra/api-handler"
 import type { VulnCenterSummaryPayload } from "@/lib/prototype-types"
 
 export const GET = withApiHandler(async () => {

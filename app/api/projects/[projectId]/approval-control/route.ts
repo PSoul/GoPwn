@@ -1,6 +1,6 @@
-import { approvalControlPatchSchema } from "@/lib/approval-write-schema"
-import { updateStoredProjectApprovalControl } from "@/lib/approval-repository"
-import { withApiHandler } from "@/lib/api-handler"
+import { approvalControlPatchSchema } from "@/lib/data/approval-write-schema"
+import { updateStoredProjectApprovalControl } from "@/lib/data/approval-repository"
+import { withApiHandler } from "@/lib/infra/api-handler"
 
 export const PATCH = withApiHandler(async (request, { params }) => {
   const { projectId } = await params

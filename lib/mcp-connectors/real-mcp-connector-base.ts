@@ -1,8 +1,8 @@
-import { callMcpServerTool } from "@/lib/mcp-client-service"
-import { resolveLocalLabHttpTarget } from "@/lib/local-lab-catalog"
-import { createExecutionAbortError, isExecutionAbortError, throwIfExecutionAborted } from "@/lib/mcp-execution-abort"
-import { findStoredEnabledMcpServerByToolBinding } from "@/lib/mcp-server-repository"
-import { getProjectPrimaryTarget } from "@/lib/project-targets"
+import { callMcpServerTool } from "@/lib/mcp/mcp-client-service"
+import { resolveLocalLabHttpTarget } from "@/lib/infra/local-lab-catalog"
+import { createExecutionAbortError, isExecutionAbortError, throwIfExecutionAborted } from "@/lib/mcp/mcp-execution-abort"
+import { findStoredEnabledMcpServerByToolBinding } from "@/lib/mcp/mcp-server-repository"
+import { getProjectPrimaryTarget } from "@/lib/project/project-targets"
 import type { McpConnector, McpConnectorExecutionContext, McpConnectorResult } from "@/lib/mcp-connectors/types"
 
 type LocalLabTarget = ReturnType<typeof resolveLocalLabHttpTarget>

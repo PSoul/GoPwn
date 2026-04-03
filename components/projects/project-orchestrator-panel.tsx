@@ -14,7 +14,7 @@ import type {
   OrchestratorPlanPayload,
   ProjectOrchestratorPanelPayload,
 } from "@/lib/prototype-types"
-import { apiFetch } from "@/lib/api-client"
+import { apiFetch } from "@/lib/infra/api-client"
 
 const labTone: Record<LocalLabRecord["status"], "success" | "warning" | "danger"> = {
   online: "success",

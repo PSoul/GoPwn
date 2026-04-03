@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
 import { SystemStatusGrid } from "@/components/settings/system-status-grid"
-import { getSystemStatusPayload } from "@/lib/api-compositions"
+import { getSystemStatusPayload } from "@/lib/infra/api-compositions"
 
 export default async function SystemStatusSettingsPage() {
   const { items } = await getSystemStatusPayload()
