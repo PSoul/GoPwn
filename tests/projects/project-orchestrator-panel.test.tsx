@@ -11,6 +11,7 @@ const initialPayload: ProjectOrchestratorPanelPayload = {
     baseUrl: "",
     orchestratorModel: "",
     reviewerModel: "",
+    analyzerModel: "",
     note: "当前未接入真实 LLM，将使用本地回退编排。",
   },
   localLabs: [

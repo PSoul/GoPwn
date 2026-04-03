@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/prisma"
-import { DEFAULT_LLM_PROFILES } from "@/lib/prototype-store"
+
+const DEFAULT_LLM_PROFILES = [
+  { id: "orchestrator", provider: "openai-compatible", label: "Default Orchestrator", apiKey: "", baseUrl: "", model: "", timeoutMs: 120000, temperature: 0.2, enabled: false },
+  { id: "reviewer", provider: "openai-compatible", label: "Default Reviewer", apiKey: "", baseUrl: "", model: "", timeoutMs: 120000, temperature: 0.1, enabled: false },
+  { id: "analyzer", provider: "openai-compatible", label: "Default Analyzer", apiKey: "", baseUrl: "", model: "", timeoutMs: 120000, temperature: 0, enabled: false },
+] as const
 
 /**
  * Truncate all tables with CASCADE. Retries on transient deadlocks that

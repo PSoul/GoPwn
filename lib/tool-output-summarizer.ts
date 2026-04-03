@@ -387,17 +387,3 @@ function extractGenericFindings(output: string): string[] {
   return findings
 }
 
-/**
- * 格式化一组摘要为 LLM 可读的文本
- */
-export function formatSummariesForPrompt(summaries: ToolOutputSummary[]): string {
-  return summaries
-    .map((s) => {
-      const statusIcon = s.status === "成功" ? "✓" : s.status === "失败" ? "✗" : s.status === "超时" ? "⏰" : "⏳"
-      const findingsText = s.keyFindings.length > 0
-        ? s.keyFindings.map(f => `  · ${f}`).join("\n")
-        : "  · (无输出)"
-      return `${statusIcon} ${s.toolName}(${s.target}) [${s.rawOutputLength}→${Math.round(s.rawOutputLength / Math.max(s.compressionRatio, 1))} bytes]\n${findingsText}`
-    })
-    .join("\n")
-}

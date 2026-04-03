@@ -130,10 +130,3 @@ export function buildEnvironmentPromptSection(): string {
   ].join("\n")
 }
 
-/**
- * 生成简短的环境标识（用于 MCP tool description）
- */
-export function getShortEnvironmentTag(): string {
-  const env = detectPlatformEnvironment()
-  return `[Platform: ${env.osPlatform}/${env.osArch}, Node ${env.nodeVersion}, Shell: ${env.shell}]`
-}

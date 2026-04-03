@@ -3,7 +3,7 @@ import { notFound } from "next/navigation"
 import { ProjectForm } from "@/components/projects/project-form"
 import { PageHeader } from "@/components/shared/page-header"
 import { getStoredProjectById, getStoredProjectFormPreset } from "@/lib/project-repository"
-import { getDefaultProjectFormPreset } from "@/lib/prototype-store"
+import type { ProjectFormPreset } from "@/lib/prototype-types"
 
 export default async function EditProjectPage({
   params,
@@ -17,7 +17,8 @@ export default async function EditProjectPage({
     notFound()
   }
 
-  const preset = projectId ? (await getStoredProjectFormPreset(projectId) ?? getDefaultProjectFormPreset()) : getDefaultProjectFormPreset()
+  const defaultPreset: ProjectFormPreset = { name: "", targetInput: "", description: "" }
+  const preset = projectId ? (await getStoredProjectFormPreset(projectId) ?? defaultPreset) : defaultPreset
 
   return (
     <div className="space-y-5">

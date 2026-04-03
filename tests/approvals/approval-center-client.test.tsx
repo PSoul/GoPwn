@@ -2,7 +2,29 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ApprovalCenterClient } from "@/components/approvals/approval-center-client"
-import { approvals } from "@/lib/prototype-data"
+import type { ApprovalRecord } from "@/lib/prototype-types"
+
+const approvals: ApprovalRecord[] = [
+  {
+    id: "appr-test-001",
+    projectId: "proj-test",
+    projectName: "测试项目",
+    target: "example.com",
+    actionType: "端口扫描",
+    riskLevel: "高",
+    rationale: "需要确认开放端口",
+    impact: "可能触发 IDS",
+    mcpCapability: "端口扫描类",
+    tool: "fscan",
+    status: "待处理",
+    parameterSummary: "-h example.com -p 1-65535",
+    prerequisites: [],
+    stopCondition: "扫描完成",
+    blockingImpact: "阻塞后续漏洞扫描",
+    queuePosition: 1,
+    submittedAt: "2026-04-01 10:00",
+  },
+]
 
 describe("ApprovalCenterClient", () => {
   beforeEach(() => {

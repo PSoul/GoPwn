@@ -7,28 +7,63 @@ import {
   resetRealDnsConnectorTestAdapters,
   setRealDnsConnectorTestAdapters,
 } from "@/lib/mcp-connectors/real-dns-intelligence-connector"
-import { getProjectById, mcpTools } from "@/lib/prototype-data"
 import type { McpConnectorExecutionContext, McpConnectorResult } from "@/lib/mcp-connectors/types"
-import type { McpRunRecord } from "@/lib/prototype-types"
+import type { McpRunRecord, McpToolRecord, ProjectRecord } from "@/lib/prototype-types"
 
 const REAL_DNS_TEST_FLAG = "ENABLE_REAL_DNS_CONNECTOR_IN_TESTS"
 const initialRealDnsTestFlag = process.env[REAL_DNS_TEST_FLAG]
 
+const projectFixture: ProjectRecord = {
+  id: "proj-test-dns",
+  code: "TEST-DNS",
+  name: "DNS 测试项目",
+  targetInput: "example.com",
+  targets: ["example.com"],
+  description: "",
+  stage: "授权与范围定义",
+  status: "运行中",
+  pendingApprovals: 0,
+  openTasks: 0,
+  assetCount: 0,
+  evidenceCount: 0,
+  riskSummary: "",
+  summary: "",
+  lastActor: "test",
+  createdAt: "2026-03-26 22:00",
+  lastUpdated: "2026-03-26 22:00",
+}
+
+const toolFixture: McpToolRecord = {
+  id: "tool-dns-census",
+  capability: "DNS / 子域 / 证书情报类",
+  toolName: "dns-census",
+  version: "1.0",
+  riskLevel: "低",
+  status: "启用",
+  category: "侦察",
+  description: "被动域名情报",
+  inputMode: "目标域名",
+  outputMode: "JSON",
+  boundary: "外部目标交互",
+  requiresApproval: false,
+  endpoint: "",
+  owner: "平台内置",
+  defaultConcurrency: "1",
+  rateLimit: "",
+  timeout: "30s",
+  retry: "1",
+  lastCheck: "",
+  notes: "",
+}
+
 function buildDnsContext(target: string): McpConnectorExecutionContext {
-  const project = getProjectById("proj-huayao")
-  const tool = mcpTools.find((item) => item.toolName === "dns-census")
-
-  if (!project || !tool) {
-    throw new Error("Missing seeded project/tool context for connector tests.")
-  }
-
   const run: McpRunRecord = {
     id: "run-test-dns",
-    projectId: project.id,
-    projectName: project.name,
-    capability: tool.capability,
-    toolId: tool.id,
-    toolName: tool.toolName,
+    projectId: projectFixture.id,
+    projectName: projectFixture.name,
+    capability: toolFixture.capability,
+    toolId: toolFixture.id,
+    toolName: toolFixture.toolName,
     requestedAction: "采集证书与子域情报",
     target,
     riskLevel: "低",
@@ -44,9 +79,9 @@ function buildDnsContext(target: string): McpConnectorExecutionContext {
   return {
     approval: null,
     priorOutputs: {},
-    project,
+    project: projectFixture,
     run,
-    tool,
+    tool: toolFixture,
   }
 }
 

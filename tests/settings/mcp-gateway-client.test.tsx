@@ -3,13 +3,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { McpGatewayClient } from "@/components/settings/mcp-gateway-client"
 import { mcpBoundaryRules, mcpCapabilityRecords, mcpRegistrationFields } from "@/lib/platform-config"
-import { mcpTools } from "@/lib/prototype-data"
 import type {
   McpServerContractSummaryRecord,
   McpServerInvocationRecord,
   McpServerRecord,
   McpToolContractSummaryRecord,
+  McpToolRecord,
 } from "@/lib/prototype-types"
+
+const mcpTools: McpToolRecord[] = [
+  { id: "tool-dns-census", capability: "DNS / 子域 / 证书情报类", toolName: "dns-census", version: "1.0", riskLevel: "低", status: "启用", category: "侦察", description: "被动域名情报", inputMode: "目标域名", outputMode: "JSON", boundary: "外部目标交互", requiresApproval: false, endpoint: "", owner: "平台内置", defaultConcurrency: "1", rateLimit: "", timeout: "30s", retry: "1", lastCheck: "", notes: "" },
+  { id: "tool-web-surface", capability: "Web 页面探测类", toolName: "web-surface-map", version: "1.0", riskLevel: "中", status: "启用", category: "侦察", description: "Web 入口探测", inputMode: "URL", outputMode: "JSON", boundary: "外部目标交互", requiresApproval: false, endpoint: "", owner: "平台内置", defaultConcurrency: "1", rateLimit: "", timeout: "30s", retry: "1", lastCheck: "", notes: "" },
+  { id: "tool-port-scout", capability: "端口与服务探测类", toolName: "port-scout", version: "1.0", riskLevel: "中", status: "启用", category: "侦察", description: "端口扫描", inputMode: "IP/域名", outputMode: "JSON", boundary: "外部目标交互", requiresApproval: false, endpoint: "", owner: "平台内置", defaultConcurrency: "1", rateLimit: "", timeout: "60s", retry: "1", lastCheck: "", notes: "" },
+]
 
 const serverFixtures: McpServerRecord[] = [
   {

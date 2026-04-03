@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { projectMutationSchema } from "@/lib/project-write-schema"
-import { getDefaultProjectFormPreset } from "@/lib/prototype-store"
+import type { ProjectFormPreset } from "@/lib/prototype-types"
 import { createStoredProject } from "@/lib/project-repository"
 
 describe("simplified project model", () => {
@@ -14,7 +14,8 @@ describe("simplified project model", () => {
       }),
     ).not.toThrow()
 
-    expect(getDefaultProjectFormPreset()).toEqual({
+    const defaultPreset: ProjectFormPreset = { name: "", targetInput: "", description: "" }
+    expect(defaultPreset).toEqual({
       name: "",
       targetInput: "",
       description: "",

@@ -1,9 +1,9 @@
 import { ProjectForm } from "@/components/projects/project-form"
 import { PageHeader } from "@/components/shared/page-header"
-import { getDefaultProjectFormPreset } from "@/lib/prototype-store"
+import type { ProjectFormPreset } from "@/lib/prototype-types"
 
 export default async function NewProjectPage() {
-  const preset = getDefaultProjectFormPreset()
+  const preset: ProjectFormPreset = { name: "", targetInput: "", description: "" }
 
   return (
     <div className="space-y-5">
