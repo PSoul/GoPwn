@@ -1,5 +1,5 @@
 import { findStoredEnabledMcpServerByToolBinding } from "@/lib/mcp-server-repository"
-import { isWebGoatBaseUrl, normalizeUrlTarget } from "@/lib/orchestrator-target-scope"
+import { normalizeUrlTarget } from "@/lib/orchestrator-target-scope"
 import {
   appendUniquePlanItem,
   buildTcpLabFallbackPlanItems,
@@ -8,8 +8,8 @@ import {
 } from "@/lib/orchestrator-plan-builder"
 import type { McpToolRecord, OrchestratorPlanItem } from "@/lib/prototype-types"
 
-async function canUseHttpStructureDiscovery(baseUrl: string) {
-  return isWebGoatBaseUrl(baseUrl) && Boolean(await findStoredEnabledMcpServerByToolBinding("graphql-surface-check"))
+async function canUseHttpStructureDiscovery() {
+  return Boolean(await findStoredEnabledMcpServerByToolBinding("graphql-surface-check"))
 }
 
 export async function buildLocalLabFallbackPlanItems(
@@ -23,9 +23,7 @@ export async function buildLocalLabFallbackPlanItems(
   }
 
   const normalizedTarget = normalizeUrlTarget(baseUrl)
-  const webProbeTarget = isWebGoatBaseUrl(normalizedTarget) ? `${normalizedTarget}/login` : normalizedTarget
-  const actuatorTarget = `${normalizedTarget}/actuator`
-  const includeHttpStructure = await canUseHttpStructureDiscovery(normalizedTarget)
+  const includeHttpStructure = await canUseHttpStructureDiscovery()
   const parseCapability = findCapabilityByName(availableTools, "目标解析类")
   const webCapability = findCapabilityByKeywords(availableTools, ["web", "页面", "入口", "surface"])
   const evidenceCapability = findCapabilityByKeywords(availableTools, ["截图", "证据", "capture", "snapshot"])
@@ -53,7 +51,7 @@ export async function buildLocalLabFallbackPlanItems(
       ? {
           capability: webCapability,
           requestedAction: "识别本地靶场入口与响应特征",
-          target: webProbeTarget,
+          target: normalizedTarget,
           riskLevel: "低",
           rationale: "先获取入口、标题和响应特征，确认调度与结果沉淀链路是通的。",
         }
@@ -65,7 +63,7 @@ export async function buildLocalLabFallbackPlanItems(
       ? {
           capability: evidenceCapability,
           requestedAction: "采集本地靶场关键页面截图与 HTML 证据",
-          target: webProbeTarget,
+          target: normalizedTarget,
           riskLevel: "低",
           rationale: "在进入后续验证前先沉淀真实页面上下文，便于确认登录页、入口和最终结果是否一致。",
         }
@@ -75,22 +73,20 @@ export async function buildLocalLabFallbackPlanItems(
   if (structureCapability) {
     appendUniquePlanItem(items, {
       capability: structureCapability,
-      requestedAction: "识别 WebGoat Actuator 结构入口",
-      target: actuatorTarget,
+      requestedAction: "识别 HTTP / API 结构入口",
+      target: normalizedTarget,
       riskLevel: "低",
-      rationale: "先以低风险方式确认 Actuator 结构入口和暴露信号，再决定是否进入审批验证。",
+      rationale: "以低风险方式发现 API 结构入口和暴露面，再决定是否进入审批验证。",
     })
   }
 
   if (approvalScenario === "include-high-risk" && validationCapability) {
     appendUniquePlanItem(items, {
       capability: validationCapability,
-      requestedAction: isWebGoatBaseUrl(normalizedTarget) ? "验证 WebGoat Actuator 匿名暴露" : "受控登录绕过验证",
-      target: isWebGoatBaseUrl(normalizedTarget) ? actuatorTarget : `${normalizedTarget}/login`,
+      requestedAction: "受控安全验证",
+      target: normalizedTarget,
       riskLevel: "高",
-      rationale: isWebGoatBaseUrl(normalizedTarget)
-        ? "对本地 WebGoat 的 Spring Actuator 暴露面执行审批后受控验证，检查真实 finding 闭环。"
-        : "故意挂一条高风险动作，验证审批阻塞与恢复路径。",
+      rationale: "对本地靶场执行审批后受控验证，检查真实 finding 闭环。",
     })
   }
 

@@ -54,7 +54,8 @@ describe("ProjectDetailPage", () => {
     render(await ProjectFindingsResultsPage({ params: Promise.resolve({ projectId: fixture.project.id }) }))
 
     expect(screen.getByRole("heading", { level: 2, name: "漏洞与发现" })).toBeInTheDocument()
-    expect(screen.getByText("影响面")).toBeInTheDocument()
+    // Fixture has no seeded findings — page shows empty state or table depending on data
+    expect(screen.getByText("暂无漏洞与发现")).toBeInTheDocument()
     cleanup()
 
     render(await ProjectOperationsPage({ params: Promise.resolve({ projectId: fixture.project.id }) }))

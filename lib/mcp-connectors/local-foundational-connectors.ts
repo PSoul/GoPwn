@@ -78,7 +78,7 @@ const localDnsConnector: McpConnector = {
 
     const host = getHostFromTarget(run.target || getProjectPrimaryTarget(project))
     const root = getRootDomain(host)
-    const discoveredSubdomains = Array.from(new Set([host, `admin.${root}`, `assets.${root}`]))
+    const discoveredSubdomains = [host]
 
     return {
       status: "succeeded",
@@ -94,8 +94,8 @@ const localDnsConnector: McpConnector = {
         source: host,
       },
       summaryLines: [
-        `被动发现 ${discoveredSubdomains.length} 个候选域名或子域。`,
-        discoveredSubdomains.join(" / "),
+        `Smoke test: 仅返回原始主机名，真实子域发现需通过 MCP 工具执行。`,
+        host,
       ],
     }
   },
@@ -111,16 +111,12 @@ const localWebSurfaceConnector: McpConnector = {
     const targets = priorOutputs.discoveredSubdomains?.length
       ? priorOutputs.discoveredSubdomains
       : [getHostFromTarget(run.target || getProjectPrimaryTarget(project))]
-    const webEntries = targets.map((target, index) => ({
-      url: index === 0 ? `https://${target}/login` : `https://${target}/dashboard`,
-      title: index === 0 ? `${project.name} 统一入口` : `${project.name} 管理台`,
-      statusCode: index === 0 ? 200 : 302,
-      headers: [
-        "server: nginx",
-        "x-powered-by: Next.js",
-        index === 0 ? "x-frame-options: deny" : "location: /dashboard",
-      ],
-      fingerprint: index === 0 ? "Next.js + nginx 登录入口" : "管理台跳转入口",
+    const webEntries = targets.map((target) => ({
+      url: target.startsWith("http") ? target : `https://${target}`,
+      title: "(待探测)",
+      statusCode: 0,
+      headers: [],
+      fingerprint: "(smoke test placeholder)",
     }))
 
     return {
@@ -134,7 +130,7 @@ const localWebSurfaceConnector: McpConnector = {
       structuredContent: {
         webEntries,
       },
-      summaryLines: [`识别到 ${webEntries.length} 个 Web 入口。`, webEntries.map((entry) => entry.url).join(" / ")],
+      summaryLines: [`Smoke test: ${webEntries.length} 个占位 Web 入口，真实探测需通过 MCP 工具执行。`],
     }
   },
 }
@@ -146,44 +142,20 @@ const localAuthGuardConnector: McpConnector = {
   execute: ({ run, signal }) => {
     throwIfExecutionAborted(signal)
 
-    const validatedTarget = run.target
-    const findingTitle = run.requestedAction.includes("登录")
-      ? "登录链路存在受控认证绕过候选"
-      : "匿名接口存在鉴权防护缺口候选"
-    const responseSignals = run.requestedAction.includes("登录")
-      ? [
-          "GET /login -> 200",
-          "POST /login?preview=1 返回 legacy-auth 调试头",
-          "跳转链路暴露 dashboard 前置上下文标识",
-        ]
-      : [
-          "GET /report/list -> 200",
-          "响应头暴露内部 trace id",
-          "匿名请求可抵达预期资源模型",
-        ]
-
     return {
       status: "succeeded",
       connectorKey: "local-auth-guard-check",
       mode: "local",
       outputs: {
-        validatedTargets: [validatedTarget],
-        generatedFindings: [findingTitle],
+        validatedTargets: [run.target],
       },
-      rawOutput: responseSignals,
+      rawOutput: ["Smoke test: 受控验证占位，真实验证需通过 MCP 工具执行。"],
       structuredContent: {
-        validatedTarget,
-        finding: {
-          affectedSurface: validatedTarget,
-          severity: "高危",
-          status: "待复核",
-          summary: "审批通过后的受控验证命中高价值异常响应，需要继续结合证据和人工复核形成最终结论。",
-          title: findingTitle,
-        },
-        responseSignals,
-        verdict: "当前结果先进入漏洞与发现列表，等待研究员继续复核证据。",
+        validatedTarget: run.target,
       },
-      summaryLines: ["审批通过后的受控验证已执行，产生了新的高价值结果。", findingTitle],
+      summaryLines: [
+        "Smoke test: 受控验证占位，真实验证需通过 MCP 工具执行。",
+      ],
     }
   },
 }
