@@ -12,12 +12,13 @@ MCP = 四肢     接触目标、调用外部工具、采集证据、回传结构
 
 ## 当前状态
 
-- 版本: `v0.5.0`
+- 版本: `v0.8.0`
 - 数据层: PostgreSQL via Prisma 7.x (`@prisma/adapter-pg`)，唯一数据层
-- 测试: 178 单元测试 + 14 E2E 测试
+- 测试: 206+ 单元测试 + 14 E2E 测试
 - MCP: 14 个本地 MCP Server（36+ 工具）
 - 靶场: 13 个 Docker 容器（DVWA / Juice Shop / WebGoat / Redis / SSH / Tomcat / Elasticsearch / MongoDB 等）
 - 编排: 多轮 LLM 自动编排循环，支持自动续跑、并行执行、轮间自我反思
+- LLM 分析: 三级 LLM profile（orchestrator/reviewer/analyzer），语义化工具输出解析
 
 ## 技术栈
 
@@ -86,13 +87,20 @@ npm run dev
 ```
 app/                    页面 (21) + API 路由 (48)
 components/             业务 UI 组件
-lib/                    核心业务层
-  types/                10 个领域类型文件
-  api-compositions.ts   8 个聚合查询函数
-  orchestrator-*.ts     编排器 5 模块 (service / plan-builder / execution / target-scope / local-lab)
-  *-repository.ts       13 个 Prisma 数据仓库
-  prisma.ts             PrismaClient 单例
-  prisma-transforms.ts  20+ 模型双向转换
+lib/                    核心业务层（9 个领域子目录）
+  orchestration/        编排服务（多轮规划、执行、上下文构建）
+  mcp/                  MCP 注册、执行引擎、调度器
+  mcp-connectors/       MCP 连接器实现（stdio/real/local）
+  llm/                  LLM prompt 工程与调用日志
+  llm-provider/         LLM 客户端（OpenAI-compatible）
+  gateway/              MCP 调度网关
+  project/              项目 repository 与结果
+  analysis/             工具输出分析与失败诊断
+  infra/                基础设施（Prisma、transforms、local-lab）
+  settings/             配置管理
+  auth/                 认证与会话
+  data/                 资产/证据/审批 repository
+  types/                TypeScript 类型定义
 mcps/                   14 个本地 MCP Server (36+ 工具)
 docker/
   local-labs/           13 个 Docker 靶场定义
@@ -131,11 +139,13 @@ cd docker/local-labs && docker compose up -d
 | DVWA | 8081 | HTTP |
 | Juice Shop | 3000 | HTTP |
 | WebGoat | 18080 / 19090 | HTTP |
-| Redis | 6380 | TCP |
+| Redis | 6379 | TCP |
 | SSH | 2222 | TCP |
+| MySQL | 13307 | TCP |
+| MongoDB | 27017 | TCP |
 | Tomcat | 8888 | HTTP |
 | Elasticsearch | 9201 | HTTP |
-| MongoDB | 27018 | TCP |
+| WordPress | 8082 | HTTP |
 
 ## LLM 配置
 
@@ -174,7 +184,7 @@ LLM_REVIEWER_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
 ### AI Agent 能力
 - 30+ 可调配置参数（参考 Claude Code / Codex / Aider 设计）
 - 平台环境感知（OS / Shell / 可用工具）自动注入 LLM 决策上下文
-- 工具输出结构化压缩（15+ 工具专用提取器，按 token 预算自动摘要）
+- LLM 语义化工具输出分析（analyzer 自动提取 assets/evidence/findings）
 - 失败智能分析（9 类错误分类 + 重试建议 + 替代工具推荐）
 - 低 / 中风险工具批量并行执行，高风险串行审批
 - 轮间确定性自我反思（无额外 LLM 调用）
@@ -203,7 +213,8 @@ LLM_REVIEWER_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
 
 以下靶场已通过完整的 `LLM 编排 -> MCP 执行 -> 发现 -> 报告` 闭环验证：
 
-- **DVWA** — 3 轮自动编排，发现 Apache 版本泄露 + 过时版本
+- **DVWA** — 多轮自动编排，发现 Apache 版本泄露 + 过时版本
+- **DVWA Redis** — TCP 通用协议探测 + 未授权访问检测，4 资产、23 证据、1 高危发现（Redis 未授权访问）
 - **Juice Shop** — 真实 LLM 编排 + Web 探测 + 审批恢复 + 结果沉淀
 - **WebGoat** — 多次闭环验证，含 Actuator 匿名暴露发现 + 报告导出
 
@@ -217,7 +228,9 @@ LLM_REVIEWER_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
 | `docs/templates/mcp-connector-template.md` | MCP 接入模板 |
 | `docs/operations/local-docker-labs.md` | Docker 靶场操作文档 |
 | `docs/operations/llm-settings.md` | LLM 配置说明 |
-| `prompts/phase20-continued-refactoring.md` | 下一阶段开发 prompt |
+| `docs/operations/mcp-onboarding-guide.md` | MCP 接入操作指南 |
+| `docs/prompt-engineering.md` | Prompt 工程设计原则 |
+| `docs/development-guide.md` | 开发指南 |
 
 ## 开发阶段历史
 
@@ -237,6 +250,10 @@ LLM_REVIEWER_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
 | 19 | 架构重构 (类型拆分 / facade 删除 / 模块分解) | 已完成 |
 | 20 | 架构持续精简 + 二级模块拆分 | 已完成 |
 | 21 | UI/UX 全站审查 + 5 轮真实使用 Debug | 已完成 |
+| 22 | 真实渗透测试闭环验证 (多轮收敛 / 超时分离 / 覆盖检测) | 已完成 |
+| 22b | LLM Writeback — 语义分析替代工具特定解析器 | 已完成 |
+| 23 | 深度架构演进 (死代码清理 / 连接器工厂 / lib 领域化重组) | 已完成 |
+| 23b | TCP 通用化 + llmCode 持久化 + 多轮上下文增强 | 已完成 |
 
 ## 接手指南
 

@@ -262,6 +262,7 @@ model McpRun {
   requestedBy      String   @default("")
   connectorMode    String?  // local | real
   linkedApprovalId String?
+  llmCode          String?  // LLM-generated code for execute_code/execute_command (persisted for approval-resume)
   summaryLines     String[] @default([])
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

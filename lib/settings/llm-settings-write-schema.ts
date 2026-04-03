@@ -12,7 +12,7 @@ export const llmProfileWriteSchema = z
     apiKey: z.string().trim(),
     baseUrl: z.string().trim(),
     model: z.string().trim(),
-    timeoutMs: z.number().int().min(1000).max(120000),
+    timeoutMs: z.number().int().min(1000).max(600000),
     temperature: z.number().min(0).max(2),
     enabled: z.boolean(),
     contextWindowSize: z.number().int().min(4096).max(2000000).default(65536),

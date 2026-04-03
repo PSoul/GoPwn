@@ -11,8 +11,6 @@
 
 任何会触达目标环境的动作，优先通过 MCP 接入。平台内部的归一化、结果聚合、状态推进，不强制抽象成 MCP。
 
-本仓库的宿主合同以 `D:\dev\llmpentest-mcp-template` 为标准源；这里负责“接受并解释协议”，不是协议模板仓本身。
-
 ## 2. 当前真实接入链路
 
 1. LLM 或人工声明所需能力族。
@@ -22,15 +20,16 @@
 5. 连接器或真实 MCP client 执行动作。
 6. 输出被归一化并沉淀到资产、证据、发现、工作日志。
 
-关键代码位置：
+关键代码位置（Phase 23 重组后）：
 
-- `lib/mcp-registration-schema.ts`
-- `lib/mcp-server-repository.ts`
-- `lib/mcp-server-sqlite.ts`
-- `lib/mcp-connectors/registry.ts`
-- `lib/mcp-gateway-repository.ts`
-- `lib/mcp-execution-service.ts`
-- `lib/prototype-api.ts`
+- `lib/mcp/mcp-registration-schema.ts` — MCP 注册验证
+- `lib/mcp/mcp-server-repository.ts` — MCP server 持久化
+- `lib/mcp/mcp-execution-service.ts` — MCP 执行引擎
+- `lib/mcp-connectors/registry.ts` — 连接器注册表
+- `lib/gateway/mcp-dispatch-service.ts` — MCP 调度网关
+- `lib/gateway/mcp-run-repository.ts` — MCP 运行记录
+- `lib/compositions/control-compositions.ts` — 审批与调度控制聚合
+- `lib/compositions/dashboard-compositions.ts` — 仪表板数据聚合
 
 ## 3. 注册前必须准备什么
 
@@ -58,24 +57,14 @@
 
 - `docs/contracts/mcp-server-contract.md`
 
-协议标准源见：
-
-- `D:\dev\llmpentest-mcp-template`
-
 当前约束要点：
 
 - `inputSchema` 必填
 - `outputSchema` 必填
 - `toolName` 必须在单次 server 注册中唯一
 - `capability`、`boundary`、`riskLevel`、`resultMappings` 必须使用平台定义的枚举值
-- `endpoint`、`notes` 可以省略，宿主持久化时会归一为空字符串
-- 注册成功后会同时写入：
-  - SQLite MCP server 注册表
-  - JSON prototype store 的 `mcpServerContracts`
-  - JSON prototype store 的 `mcpToolContracts`
-  - 真实可调度 `mcpTools`
-
-当前宿主已经接受模板里的 `12` 个能力族、`8` 个结果映射和 `3` 个边界类型，但并非所有能力都已经完成真实连接器和结果归一化桥接。
+- `endpoint`、`notes` 可以省略
+- 注册成功后会写入 PostgreSQL 数据库（通过 Prisma ORM）
 
 ## 5. 接入步骤
 
@@ -102,15 +91,12 @@
 建议从模板开始：
 
 - `docs/templates/mcp-connector-template.md`
-- `D:\dev\llmpentest-mcp-template`
 
 ### Step 4. 在设置页注册
 
-进入：
+进入 `/settings/mcp-tools`，将合同 JSON 粘贴进 "MCP 契约注册" 区域。平台会先做字段校验，再执行真实注册。
 
-- `/settings/mcp-tools`
-
-将合同 JSON 粘贴进 “MCP 契约注册” 区域。平台会先做字段校验，再执行真实注册。
+或通过自动发现：项目启动时，`discoverAndRegisterMcpServers()` 会扫描 `mcps/` 目录下的本地 MCP 服务器并自动注册。
 
 ### Step 5. 如有真实执行器，再补连接器
 
@@ -118,9 +104,7 @@
 
 - 在 `lib/mcp-connectors/` 下实现连接器
 - 在 `lib/mcp-connectors/registry.ts` 注册
-- 如需外部 MCP stdio / SSE / streamable HTTP client，对接 `lib/mcp-client-service.ts`
-
-如果只是先完成协议对齐，而宿主还没有桥接该能力，可以先停在“已注册、待桥接”的状态，不必在本次接入里强行补全运行时。
+- 如需外部 MCP stdio / SSE / streamable HTTP client，对接 `lib/mcp/mcp-client-service.ts`
 
 ## 6. 测试要求
 
@@ -135,12 +119,11 @@
 - `tests/api/mcp-registration-api.test.ts`
 - `tests/api/mcp-tools-api.test.ts`
 - `tests/lib/real-web-surface-mcp-connector.test.ts`
-- `tests/settings/mcp-gateway-client.test.tsx`
 
 ## 7. 重要说明
 
 - 运行时默认不再 seed 任何演示 MCP server
 - 未注册的 server 不会出现在设置页
 - 未通过合同校验的 tool 不会进入调度候选池
-- 浏览器 E2E 已切到临时 store 目录，便于在空数据状态下稳定验证真实流程
 - 新 MCP server 的具体实现建议放在独立实现仓库或单独工作目录中，而不是继续直接耦合在宿主平台主仓里
+- 当前已有 14 个本地 MCP 服务器在 `mcps/` 目录下，涵盖 httpx_probe、dirsearch_scan、execute_code 等能力

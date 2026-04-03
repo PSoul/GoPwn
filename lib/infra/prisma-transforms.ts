@@ -411,6 +411,7 @@ export function toMcpRunRecord(db: any): McpRunRecord {
     updatedAt: dateToStr(db.updatedAt),
     connectorMode: db.connectorMode ?? undefined,
     linkedApprovalId: db.linkedApprovalId ?? undefined,
+    llmCode: db.llmCode ?? undefined,
     summaryLines: db.summaryLines ?? [],
   }
 }
@@ -432,6 +433,7 @@ export function fromMcpRunRecord(record: McpRunRecord): any {
     requestedBy: record.requestedBy ?? "",
     connectorMode: record.connectorMode,
     linkedApprovalId: record.linkedApprovalId,
+    llmCode: record.llmCode,
     summaryLines: record.summaryLines ?? [],
   }
 }

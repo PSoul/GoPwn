@@ -220,6 +220,34 @@ export async function runProjectLifecycleKickoff(projectId: string, input: Proje
       const nextPlan = await generateMultiRoundPlan(projectId, currentRound)
 
       if (!nextPlan || nextPlan.plan.items.length === 0) {
+        // Code-level guard: if 0 findings and only recon tools used, force active testing
+        const currentFindings = await listStoredProjectFindings(projectId)
+        const dbRuns = await prisma.mcpRun.findMany({ where: { projectId }, select: { toolName: true } })
+        const hasActiveTest = dbRuns.some(r => r.toolName === "execute_code" || r.toolName === "execute_command")
+
+        if (currentFindings.length === 0 && !hasActiveTest && currentRound <= maxRounds) {
+          console.warn(`[orchestrator] LLM returned empty plan at round ${currentRound} with 0 findings and no active testing. Injecting fallback execute_code items.`)
+          const fallbackPlan = await buildActiveTestingFallbackPlan(projectId)
+          if (fallbackPlan && fallbackPlan.plan.items.length > 0) {
+            upsertStoredWorkLogs([{
+              id: `work-auto-replan-fallback-${projectId}-${Date.now()}`,
+              category: "AI 规划",
+              summary: `第${currentRound}轮 LLM 返回空计划但 0 findings 且无主动测试，系统注入 ${fallbackPlan.plan.items.length} 条 execute_code 兜底动作`,
+              projectName: project.name,
+              actor: "orchestrator-auto-replan",
+              timestamp: formatTimestamp(),
+              status: "进行中",
+            }])
+            currentPlanPayload = fallbackPlan
+            const nextRoundStart = formatTimestamp()
+            execution = await executePlanItems(projectId, fallbackPlan.plan.items)
+            await recordOrchestratorRound(projectId, currentRound, nextRoundStart, execution, fallbackPlan.plan.items.length)
+            await prisma.projectSchedulerControl.updateMany({ where: { projectId }, data: { currentRound } })
+            if (execution.status !== "completed") break
+            continue
+          }
+        }
+
         upsertStoredWorkLogs([
           {
             id: `work-auto-replan-empty-${projectId}-${Date.now()}`,
@@ -402,6 +430,92 @@ export async function executeProjectLocalValidation(
     runs: execution.runs,
     status: execution.status,
   }
+}
+
+/**
+ * 当 LLM 返回空计划但 findings=0 且未做过主动测试时，
+ * 生成兜底的 execute_code 计划项，确保至少尝试主动漏洞测试。
+ */
+async function buildActiveTestingFallbackPlan(
+  projectId: string,
+): Promise<OrchestratorPlanPayload | null> {
+  const project = await getStoredProjectById(projectId)
+  if (!project) return null
+
+  const providerStatus = await getConfiguredLlmProviderStatus()
+  const availableTools = await getAvailableOrchestratorTools()
+  const hasExecuteCode = availableTools.some(t => t.toolName === "execute_code")
+
+  if (!hasExecuteCode) return null
+
+  // 根据目标类型生成通用主动测试项
+  const target = project.targets[0] || project.targetInput
+  const isHttp = target.startsWith("http")
+
+  const fallbackItems = isHttp
+    ? [
+        {
+          capability: "自主代码执行",
+          toolName: "execute_code",
+          target,
+          requestedAction: "GET 目标首页，分析 HTML 结构（表单、链接、参数），输出 JSON 格式的页面结构分析报告",
+          riskLevel: "低" as const,
+          rationale: "系统兜底：LLM 未安排主动测试，自动注入页面结构分析",
+        },
+        {
+          capability: "自主代码执行",
+          toolName: "execute_code",
+          target,
+          requestedAction: "基于首页分析结果，对发现的表单和参数进行注入类漏洞测试（SQL注入、XSS），输出 JSON 格式测试结果",
+          riskLevel: "中" as const,
+          rationale: "系统兜底：LLM 未安排主动测试，自动注入注入类漏洞验证",
+        },
+        {
+          capability: "自主代码执行",
+          toolName: "execute_code",
+          target,
+          requestedAction: "检测常见敏感路径和配置文件泄露（robots.txt、.env、备份文件、管理后台），输出 JSON 格式发现报告",
+          riskLevel: "低" as const,
+          rationale: "系统兜底：LLM 未安排主动测试，自动注入敏感路径检测",
+        },
+      ]
+    : [
+        {
+          capability: "自主代码执行",
+          toolName: "execute_code",
+          target,
+          requestedAction: "TCP 连接目标，读取 banner 信息，自动检测协议类型（Redis/SSH/MySQL/MongoDB/Elasticsearch等），输出 JSON 格式服务识别报告",
+          riskLevel: "低" as const,
+          rationale: "系统兜底：LLM 未安排主动测试，自动注入 TCP banner 探测",
+        },
+        {
+          capability: "自主代码执行",
+          toolName: "execute_code",
+          target,
+          requestedAction: "根据 banner 探测结果，对已识别的 TCP 服务进行未授权访问测试：尝试无密码连接并执行信息查询命令（如 Redis INFO、MongoDB listDatabases、Elasticsearch _cluster/health），输出 JSON 格式漏洞报告",
+          riskLevel: "中" as const,
+          rationale: "系统兜底：TCP 服务必须经过未授权访问测试才能收尾",
+        },
+        {
+          capability: "自主代码执行",
+          toolName: "execute_code",
+          target,
+          requestedAction: "对 TCP 服务进行常见弱口令和配置缺陷测试：尝试默认凭据登录、检查危险配置项（如 Redis CONFIG GET requirepass），输出 JSON 格式漏洞报告",
+          riskLevel: "中" as const,
+          rationale: "系统兜底：TCP 服务必须经过弱口令和配置检测才能收尾",
+        },
+      ]
+
+  const plan = await persistProjectOrchestratorPlan(
+    projectId,
+    normalizePlanRecord({
+      items: fallbackItems,
+      provider: providerStatus,
+      summary: "系统兜底：LLM 未安排主动测试，自动注入 execute_code 漏洞验证动作。",
+    }),
+  )
+
+  return { plan, provider: providerStatus }
 }
 
 export async function getProjectOrchestratorPanelPayload(projectId: string) {

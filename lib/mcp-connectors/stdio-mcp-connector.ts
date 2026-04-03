@@ -5,23 +5,8 @@ import { findStoredEnabledMcpServerByToolBinding } from "@/lib/mcp/mcp-server-re
 import type { McpConnector, McpConnectorExecutionContext, McpConnectorResult } from "@/lib/mcp-connectors/types"
 import type { McpServerRecord } from "@/lib/prototype-types"
 
-/**
- * Transient store for LLM-generated execute_code scripts, keyed by MCP run ID.
- * The code is set at dispatch time and consumed once at execution time.
- */
-const _llmCodeStore = new Map<string, string>()
-
-/** Store LLM-generated code for a run (called from dispatch) */
-export function setLlmCodeForRun(runId: string, code: string) {
-  _llmCodeStore.set(runId, code)
-}
-
-/** Consume LLM-generated code for a run (called once during execution) */
-function consumeLlmCodeForRun(runId: string): string | undefined {
-  const code = _llmCodeStore.get(runId)
-  if (code) _llmCodeStore.delete(runId)
-  return code
-}
+// LLM-generated code for execute_code is now persisted in the McpRun DB record (run.llmCode)
+// and read directly from the run object at execution time.
 
 function isStdioMcpTool(toolName: string): boolean {
   return getServerKeyByToolName(toolName) !== null
@@ -47,49 +32,90 @@ function buildExecuteCodeScript(target: string): string {
     const port = portStr || "80"
     return `
 const net = require('net');
-const client = new net.Socket();
-client.setTimeout(10000);
 const host = ${JSON.stringify(host)};
 const port = ${port};
-client.connect(port, host, () => {
-  setTimeout(() => { try { client.write('\\r\\n'); } catch {} }, 500);
-});
+
+// Multi-protocol probe: connect, wait for banner, then send protocol-specific commands
+const client = new net.Socket();
+client.setTimeout(10000);
 let data = Buffer.alloc(0);
+let identified = false;
+let probeSent = false;
+
+function finish(result) {
+  if (identified) return;
+  identified = true;
+  console.log(JSON.stringify(result));
+  client.destroy();
+}
+
+client.connect(port, host, () => {
+  // Wait 1s for services that send banners first (SSH, MySQL, FTP)
+  setTimeout(() => {
+    if (identified) return;
+    if (data.length === 0 && !probeSent) {
+      // No banner received — send Redis PING (harmless to most services)
+      probeSent = true;
+      try { client.write('PING\\r\\n'); } catch {}
+      // Also schedule an INFO command for Redis
+      setTimeout(() => {
+        if (!identified) {
+          try { client.write('INFO\\r\\n'); } catch {}
+        }
+      }, 1000);
+    }
+  }, 1000);
+});
+
 client.on('data', (chunk) => {
   data = Buffer.concat([data, chunk]);
   const text = data.toString('utf8');
-  if (text.includes('redis_version') || text.match(/^\\+|^-ERR|^\\$/m)) {
-    console.log(JSON.stringify({ service: 'Redis', port, banner: text.slice(0, 500), detail: 'Redis协议特征已识别' }));
-    client.destroy();
-  } else if (text.startsWith('SSH-')) {
-    console.log(JSON.stringify({ service: 'SSH', port, banner: text.trim().slice(0, 200), detail: 'SSH Banner已获取' }));
-    client.destroy();
-  } else if (data.length > 4 && data[3] === 0 && data[4] === 10) {
+
+  // Redis: responds to PING with +PONG, or INFO with bulk string containing redis_version
+  if (text.match(/^\\+PONG/m) || text.includes('redis_version')) {
+    finish({ service: 'Redis', port, banner: text.slice(0, 500), detail: 'Redis服务已识别，支持无认证命令执行' });
+  }
+  // Redis auth required
+  else if (text.match(/^-NOAUTH/m) || text.match(/^-ERR.*AUTH/m)) {
+    finish({ service: 'Redis', port, banner: text.slice(0, 200), detail: 'Redis服务需要认证' });
+  }
+  // SSH: sends banner immediately
+  else if (text.startsWith('SSH-')) {
+    finish({ service: 'SSH', port, banner: text.trim().slice(0, 200), detail: 'SSH Banner已获取' });
+  }
+  // MySQL: sends greeting packet on connect
+  else if (data.length > 4 && data[3] === 0 && data[4] === 10) {
     try {
       const version = data.slice(5, data.indexOf(0, 5)).toString('utf8');
-      console.log(JSON.stringify({ service: 'MySQL', port, version, detail: 'MySQL握手包已获取' }));
-    } catch { console.log(JSON.stringify({ service: 'MySQL', port, detail: 'MySQL协议特征已识别' })); }
-    client.destroy();
-  } else if (text.includes('MongoDB') || (data.length > 20 && data[12] === 1)) {
-    console.log(JSON.stringify({ service: 'MongoDB', port, banner: text.slice(0, 200), detail: 'MongoDB协议特征已识别' }));
-    client.destroy();
-  } else if (text.match(/^220[ -]/m)) {
-    console.log(JSON.stringify({ service: 'FTP/SMTP', port, banner: text.trim().slice(0, 200), detail: '220状态码服务Banner' }));
-    client.destroy();
-  } else if (data.length > 50) {
-    console.log(JSON.stringify({ service: 'unknown', port, banner: text.slice(0, 500), responseBytes: data.length, detail: '已获取服务响应，协议待识别' }));
-    client.destroy();
+      finish({ service: 'MySQL', port, version, detail: 'MySQL握手包已获取' });
+    } catch { finish({ service: 'MySQL', port, detail: 'MySQL协议特征已识别' }); }
+  }
+  // MongoDB
+  else if (text.includes('MongoDB') || (data.length > 20 && data[12] === 1)) {
+    finish({ service: 'MongoDB', port, banner: text.slice(0, 200), detail: 'MongoDB协议特征已识别' });
+  }
+  // FTP/SMTP
+  else if (text.match(/^220[ -]/m)) {
+    finish({ service: 'FTP/SMTP', port, banner: text.trim().slice(0, 200), detail: '220状态码服务Banner' });
+  }
+  // Elasticsearch/HTTP JSON response
+  else if (text.includes('"tagline"') || text.includes('"cluster_name"')) {
+    finish({ service: 'Elasticsearch', port, banner: text.slice(0, 500), detail: 'Elasticsearch HTTP API已识别' });
+  }
+  // Generic: accumulated enough data
+  else if (data.length > 100) {
+    finish({ service: 'unknown', port, banner: text.slice(0, 500), responseBytes: data.length, detail: '已获取服务响应，协议待识别' });
   }
 });
+
 client.on('timeout', () => {
   if (data.length > 0) {
-    console.log(JSON.stringify({ service: 'unknown', port, banner: data.toString('utf8').slice(0, 500), responseBytes: data.length, detail: '连接超时前已获取部分响应' }));
+    finish({ service: 'unknown', port, banner: data.toString('utf8').slice(0, 500), responseBytes: data.length, detail: '连接超时前已获取部分响应' });
   } else {
-    console.log(JSON.stringify({ error: 'connection timeout', port, detail: '连接超时，未获取到服务响应' }));
+    finish({ error: 'connection timeout', port, detail: '连接超时，未获取到服务响应' });
   }
-  client.destroy();
 });
-client.on('error', (e) => { console.log(JSON.stringify({ error: e.message, port })); });
+client.on('error', (e) => { finish({ error: e.message, port }); });
 `.trim()
   }
 
@@ -596,7 +622,7 @@ export const stdioMcpConnector: McpConnector = {
       ? { ...server, command: config.command, args: config.args }
       : server
 
-    const llmCode = consumeLlmCodeForRun(run.id)
+    const llmCode = run.llmCode
     const toolArgs = buildToolArguments(run.toolName, run.target, llmCode)
     const timeoutMs = getTimeoutForTool(run.toolName)
 

@@ -164,7 +164,7 @@ export async function buildLastRoundDetail(projectId: string): Promise<string> {
       const analysis = analyzeFailure(run.toolName, run.target, errorMsg)
       lines.push(formatFailureForPrompt(analysis))
     } else {
-      // 成功/其他状态的 run: 使用输出摘要
+      // 成功/其他状态的 run: 使用输出摘要 + 原始输出片段
       const relatedEvidence = evidence.find(
         (e) => e.linkedTaskTitle?.includes(run.toolName) || e.source?.includes(run.toolName),
       )
@@ -175,7 +175,13 @@ export async function buildLastRoundDetail(projectId: string): Promise<string> {
       const findingsText = summary.keyFindings.length > 0
         ? summary.keyFindings.map(f => `  · ${f}`).join("\n")
         : "  · (无输出)"
-      lines.push(`${statusIcon} ${run.toolName}(${run.target})\n${findingsText}`)
+
+      // 对于关键探测工具，附加截断的原始输出供 LLM 分析
+      const isReconTool = ["httpx_probe", "httpx_tech_detect", "dirsearch_scan", "execute_code", "execute_command"].includes(run.toolName)
+      const rawSnippet = isReconTool && rawOutput.length > 0
+        ? `\n  原始输出片段: ${rawOutput.slice(0, 1500)}${rawOutput.length > 1500 ? "...(truncated)" : ""}`
+        : ""
+      lines.push(`${statusIcon} ${run.toolName}(${run.target})\n${findingsText}${rawSnippet}`)
     }
   }
 
@@ -328,7 +334,6 @@ export function buildMultiRoundBrainPrompt(input: {
     input.failedToolsSummary ? `\n[持续失败的工具 — 请勿再次调度]\n${input.failedToolsSummary}` : "",
     "",
     "输出要求：",
-    "- 如果你认为当前结果已经足够完整，返回 items: [] 并在 summary 中说明收尾原因。",
     "- 不要重复已经成功执行过的相同动作（相同工具+相同目标）。",
     "- 不要调度上面列出的「持续失败的工具」，除非你有明确理由认为失败原因已解决。",
     "- 优先覆盖尚未使用的能力维度。",
@@ -337,15 +342,21 @@ export function buildMultiRoundBrainPrompt(input: {
     "- 范围约束：只能围绕项目输入目标本身及其子域展开。",
     "- target 格式：tcp_connect 和 tcp_banner_grab 的 target 必须为 host:port 格式（如 1.2.3.4:443）；要探测多个端口请拆分为多条 item。",
     "",
-    "收敛原则（重要）：",
+    "**禁止在 0 findings 时提前收尾**（最高优先级规则）：",
+    `- 当前漏洞/发现数量为 ${input.findingCount}。`,
+    input.findingCount === 0
+      ? "- **你的漏洞/发现数量为 0，这意味着你还没有做任何主动漏洞测试。你绝对不能返回 items: [] 收尾！**"
+      : "",
+    "- 如果漏洞/发现数量为 0，**绝对禁止**返回 items: [] 收尾，无论你认为信息收集是否充分。",
+    "- 0 findings 说明你还没有做主动漏洞测试。你必须安排 execute_code 进行主动验证（SQLi/XSS/命令注入/未授权访问等）。",
+    "- Web 应用目标必须至少经过一轮 execute_code 主动漏洞测试才允许收尾。",
+    "- 典型的渗透测试流程：第 1 轮信息收集 → 第 2-3 轮主动漏洞测试（execute_code）→ 第 4-5 轮深度验证或收尾。",
+    "- 如果前几轮只做了信息收集（httpx_probe/dirsearch_scan 等），你现在必须进入主动测试阶段。",
+    "",
+    "收敛原则（在满足上述 0 findings 规则后生效）：",
+    "- 只有当 findings > 0 且已完成主动漏洞测试后，才可以返回 items: [] 并在 summary 中说明收尾原因。",
     "- 单个目标通常 3-5 轮足够完成全部信息收集和漏洞验证，不要为了凑轮次而重复低价值动作。",
-    "- 当大部分能力维度已覆盖、或多个工具连续失败/超时时，应果断返回 items: [] 收尾。",
     "- 已经超时或失败过的工具，再次调度大概率仍会失败，不要浪费轮次。",
     "- 质量优先于覆盖面：一个有效发现胜过十个失败的探测。",
-    "",
-    "**禁止在 0 findings 时提前收尾**（极其重要）：",
-    "- 如果当前漏洞/发现数量为 0，**禁止**返回 items: [] 收尾。",
-    "- 0 findings 说明你还没有做主动漏洞测试。你必须至少安排 execute_code 主动验证（SQLi/XSS/命令注入测试）后才能考虑收尾。",
-    "- Web 应用目标必须至少经过一轮 execute_code 主动漏洞测试才允许收尾。",
   ].filter(Boolean).join("\n")
 }

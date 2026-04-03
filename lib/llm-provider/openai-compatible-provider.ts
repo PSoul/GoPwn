@@ -134,6 +134,61 @@ function mapPurposeToPhase(purpose: "orchestrator" | "reviewer"): LlmCallPhase {
   return purpose === "reviewer" ? "reviewing" : "planning"
 }
 
+const JSON_OUTPUT_INSTRUCTION = "\n\n**你必须以纯 JSON 格式输出，不要包含任何非 JSON 文本。**"
+
+/**
+ * 尝试使用 response_format: json_object 发送请求。
+ * 如果 provider 返回 400（不支持 response_format），自动降级重试：
+ * 移除 response_format 并在 system prompt 中追加 JSON 输出指令。
+ */
+async function fetchWithJsonFormatFallback(
+  profile: OpenAiCompatibleProfileConfig,
+  messages: Array<{ role: string; content: string }>,
+  options: { temperature: number; stream: boolean; signal?: AbortSignal; dispatcher?: ProxyAgent },
+): Promise<Response> {
+  const url = `${normalizeBaseUrl(profile.baseUrl)}/chat/completions`
+  const headers = {
+    "content-type": "application/json",
+    authorization: `Bearer ${profile.apiKey}`,
+  }
+
+  const body: Record<string, unknown> = {
+    model: profile.model,
+    messages,
+    response_format: { type: "json_object" },
+    temperature: options.temperature,
+    ...(options.stream ? { stream: true } : {}),
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+    signal: options.signal,
+    ...(options.dispatcher ? { dispatcher: options.dispatcher } : {}),
+  } as RequestInit)
+
+  if (response.status === 400) {
+    // Provider 不支持 response_format，降级重试
+    console.warn(`[llm] Provider returned 400 with response_format, retrying without it...`)
+    const fallbackMessages = messages.map((m, i) =>
+      i === 0 ? { ...m, content: m.content + JSON_OUTPUT_INSTRUCTION } : m,
+    )
+    delete body.response_format
+    body.messages = fallbackMessages
+
+    return fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal: options.signal,
+      ...(options.dispatcher ? { dispatcher: options.dispatcher } : {}),
+    } as RequestInit)
+  }
+
+  return response
+}
+
 export function createOpenAiCompatibleProvider(config: OpenAiCompatibleConfig): LlmProvider {
   return {
     getStatus: () => buildOpenAiCompatibleStatus(config),
@@ -160,24 +215,10 @@ export function createOpenAiCompatibleProvider(config: OpenAiCompatibleConfig): 
         const dispatcher = getProxyDispatcher()
         const userPrompt = buildToolAnalysisPrompt(input)
 
-        const response = await fetch(`${normalizeBaseUrl(profile.baseUrl)}/chat/completions`, {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            authorization: `Bearer ${profile.apiKey}`,
-          },
-          body: JSON.stringify({
-            model: profile.model,
-            messages: [
-              { role: "system", content: ANALYZER_BRAIN_SYSTEM_PROMPT },
-              { role: "user", content: userPrompt },
-            ],
-            response_format: { type: "json_object" },
-            temperature: 0.1,
-          }),
-          signal: controller.signal,
-          ...(dispatcher ? { dispatcher } : {}),
-        } as RequestInit)
+        const response = await fetchWithJsonFormatFallback(profile, [
+          { role: "system", content: ANALYZER_BRAIN_SYSTEM_PROMPT },
+          { role: "user", content: userPrompt },
+        ], { temperature: 0.1, stream: false, signal: controller.signal, dispatcher })
 
         if (!response.ok) {
           throw new Error(`LLM analysis request failed with status ${response.status}.`)
@@ -211,133 +252,128 @@ export function createOpenAiCompatibleProvider(config: OpenAiCompatibleConfig): 
 
     async generatePlan(input) {
       const profile = input.purpose === "reviewer" ? config.reviewer ?? config.orchestrator : config.orchestrator
-      const controller = new AbortController()
-      const timeoutHandle = setTimeout(() => controller.abort(), profile.timeoutMs)
-      const startTime = Date.now()
+      const maxRetries = 2
 
-      // Create LLM call log for tracking
-      const callLog = input.projectId
-        ? await createLlmCallLog({
-            projectId: input.projectId,
-            role: mapPurposeToRole(input.purpose),
-            phase: mapPurposeToPhase(input.purpose),
-            prompt: input.prompt,
-            model: profile.model,
-            provider: "openai-compatible",
-          })
-        : null
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        const controller = new AbortController()
+        const timeoutHandle = setTimeout(() => controller.abort(), profile.timeoutMs)
+        const startTime = Date.now()
 
-      try {
-        const useStreaming = Boolean(input.projectId)
+        // Create LLM call log for tracking (only on first attempt)
+        const callLog = attempt === 0 && input.projectId
+          ? await createLlmCallLog({
+              projectId: input.projectId,
+              role: mapPurposeToRole(input.purpose),
+              phase: mapPurposeToPhase(input.purpose),
+              prompt: input.prompt,
+              model: profile.model,
+              provider: "openai-compatible",
+            })
+          : null
 
-        const dispatcher = getProxyDispatcher()
+        try {
+          const useStreaming = Boolean(input.projectId)
 
-        const response = await fetch(`${normalizeBaseUrl(profile.baseUrl)}/chat/completions`, {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            authorization: `Bearer ${profile.apiKey}`,
-          },
-          body: JSON.stringify({
-            model: profile.model,
-            messages: [
-              {
-                role: "system",
-                content: getSystemPrompt(input.purpose),
-              },
-              {
-                role: "user",
-                content: input.prompt,
-              },
-            ],
-            response_format: {
-              type: "json_object",
-            },
+          const dispatcher = getProxyDispatcher()
+
+          const response = await fetchWithJsonFormatFallback(profile, [
+            { role: "system", content: getSystemPrompt(input.purpose) },
+            { role: "user", content: input.prompt },
+          ], {
             temperature: profile.temperature,
-            ...(useStreaming ? { stream: true } : {}),
-          }),
-          signal: controller.signal,
-          ...(dispatcher ? { dispatcher } : {}),
-        } as RequestInit)
+            stream: useStreaming,
+            signal: controller.signal,
+            dispatcher,
+          })
 
-        if (!response.ok) {
-          throw new Error(`LLM provider request failed with status ${response.status}.`)
-        }
+          if (!response.ok) {
+            throw new Error(`LLM provider request failed with status ${response.status}.`)
+          }
 
-        let content: string
+          let content: string
 
-        if (useStreaming && response.body) {
-          // Streaming mode: read chunks and log incrementally
-          content = ""
-          const reader = response.body.getReader()
-          const decoder = new TextDecoder()
-          let lastFlush = Date.now()
+          if (useStreaming && response.body) {
+            // Streaming mode: read chunks and log incrementally
+            content = ""
+            const reader = response.body.getReader()
+            const decoder = new TextDecoder()
+            let lastFlush = Date.now()
 
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) break
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
 
-            const text = decoder.decode(value, { stream: true })
-            const lines = text.split("\n")
+              const text = decoder.decode(value, { stream: true })
+              const lines = text.split("\n")
 
-            for (const line of lines) {
-              if (!line.startsWith("data: ")) continue
-              const data = line.slice(6).trim()
-              if (data === "[DONE]") continue
+              for (const line of lines) {
+                if (!line.startsWith("data: ")) continue
+                const data = line.slice(6).trim()
+                if (data === "[DONE]") continue
 
-              try {
-                const chunk = JSON.parse(data) as {
-                  choices?: Array<{ delta?: { content?: string } }>
-                }
-                const delta = chunk.choices?.[0]?.delta?.content
-                if (delta) {
-                  content += delta
-                  // Flush to DB every ~500ms
-                  if (callLog && Date.now() - lastFlush > 500) {
-                    await appendLlmCallResponse(callLog.id, content.slice(callLog.response.length))
-                    lastFlush = Date.now()
+                try {
+                  const chunk = JSON.parse(data) as {
+                    choices?: Array<{ delta?: { content?: string } }>
                   }
+                  const delta = chunk.choices?.[0]?.delta?.content
+                  if (delta) {
+                    content += delta
+                    // Flush to DB every ~500ms
+                    if (callLog && Date.now() - lastFlush > 500) {
+                      await appendLlmCallResponse(callLog.id, content.slice(callLog.response.length))
+                      lastFlush = Date.now()
+                    }
+                  }
+                } catch {
+                  // Skip malformed SSE chunks
                 }
-              } catch {
-                // Skip malformed SSE chunks
               }
             }
+          } else {
+            // Non-streaming mode
+            const payload = (await response.json()) as {
+              choices?: Array<{ message?: { content?: string } }>
+            }
+            content = payload.choices?.[0]?.message?.content ?? ""
           }
-        } else {
-          // Non-streaming mode
-          const payload = (await response.json()) as {
-            choices?: Array<{ message?: { content?: string } }>
+
+          if (!content) {
+            throw new Error("LLM provider returned an empty assistant message.")
           }
-          content = payload.choices?.[0]?.message?.content ?? ""
-        }
 
-        if (!content) {
-          throw new Error("LLM provider returned an empty assistant message.")
-        }
+          const durationMs = Date.now() - startTime
 
-        const durationMs = Date.now() - startTime
+          // Complete the log
+          if (callLog) {
+            await completeLlmCallLog(callLog.id, {
+              response: content,
+              durationMs,
+            })
+          }
 
-        // Complete the log
-        if (callLog) {
-          await completeLlmCallLog(callLog.id, {
-            response: content,
-            durationMs,
-          })
+          return {
+            provider: "openai-compatible",
+            model: profile.model,
+            content: safeParsePlanContent(content),
+          }
+        } catch (error) {
+          clearTimeout(timeoutHandle)
+          const isRetryable = error instanceof TypeError && error.message === "fetch failed"
+          if (isRetryable && attempt < maxRetries) {
+            console.warn(`[llm] generatePlan attempt ${attempt + 1} failed (fetch), retrying in 5s...`)
+            await new Promise(r => setTimeout(r, 5000))
+            continue
+          }
+          if (callLog) {
+            await failLlmCallLog(callLog.id, error instanceof Error ? error.message : "Unknown error")
+          }
+          throw error
+        } finally {
+          clearTimeout(timeoutHandle)
         }
-
-        return {
-          provider: "openai-compatible",
-          model: profile.model,
-          content: safeParsePlanContent(content),
-        }
-      } catch (error) {
-        if (callLog) {
-          await failLlmCallLog(callLog.id, error instanceof Error ? error.message : "Unknown error")
-        }
-        throw error
-      } finally {
-        clearTimeout(timeoutHandle)
       }
+
+      throw new Error("LLM generatePlan exhausted all retries")
     },
   }
 }

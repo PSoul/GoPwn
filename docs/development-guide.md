@@ -1,6 +1,6 @@
 # 开发指南
 
-> 最后更新: 2026-04-02
+> 最后更新: 2026-04-03
 
 ---
 
@@ -33,24 +33,21 @@ PORT=3001 npx next dev    # 3000 可能被 Juice Shop 占用
 cd docker/local-labs && docker compose up -d
 ```
 
-### 环境变量 (.env.local)
+### 环境变量 (.env)
 
 ```bash
 # 数据库
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/llmpentest"
+DATABASE_URL="postgresql://pentest:pentest@localhost:5432/pentest?schema=public"
 
 # LLM 配置
 LLM_PROVIDER=openai-compatible
 LLM_API_KEY=sk-xxxx
-LLM_BASE_URL=https://api.openai.com/v1
-LLM_ORCHESTRATOR_MODEL=gpt-4
-LLM_TIMEOUT_MS=180000
+LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+LLM_ORCHESTRATOR_MODEL=qwen3.6-plus
+LLM_TIMEOUT_MS=300000    # 推理模型建议 5 分钟
 
-# E2E 测试模式（跳过 CSRF 检查）
-E2E_TEST_MODE=true
-
-# HTTP 代理（可选）
-HTTP_PROXY=http://127.0.0.1:7890
+# HTTP 代理（可选，用于访问外部 LLM API）
+# HTTPS_PROXY=http://127.0.0.1:7890
 ```
 
 ---
@@ -63,15 +60,20 @@ app/                 Next.js 页面和 API 路由
 ├── api/             48 个 API 路由
 └── login/           登录页
 components/          React 组件（100+）
-lib/                 核心业务逻辑（70+ 文件）
+lib/                 核心业务逻辑（9 个子目录，Phase 23 重组）
+├── analysis/        工具输出分析与失败诊断
+├── auth/            认证与会话管理
 ├── compositions/    聚合查询层
-├── execution/       MCP 执行引擎
+├── data/            资产/证据/审批/工作日志 repository
 ├── gateway/         MCP 调度网关
-├── llm-provider/    LLM 客户端
-├── mcp-connectors/  MCP 连接器
-├── project/         项目 repository
-├── results/         结果 repository
-├── scheduler-control/ 调度控制
+├── infra/           基础设施（Prisma、API handler、local-lab）
+├── llm/             LLM prompt 工程与调用日志
+├── llm-provider/    LLM 客户端（OpenAI-compatible）
+├── mcp/             MCP 注册、执行引擎、调度器
+├── mcp-connectors/  MCP 连接器实现
+├── orchestration/   编排服务（多轮规划、执行、上下文构建）
+├── project/         项目 repository 与结果
+├── settings/        配置管理（agent-config、LLM schema）
 └── types/           TypeScript 类型定义
 mcps/                14 个本地 MCP 服务器
 prisma/              数据库 schema

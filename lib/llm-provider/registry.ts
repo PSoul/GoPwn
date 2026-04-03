@@ -80,7 +80,7 @@ export async function resolveLlmProvider() {
       apiKey,
       baseUrl,
       model: analyzerModel,
-      timeoutMs: Math.min(Number.isFinite(timeoutMs) ? timeoutMs : 120000, 60000),
+      timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : 120000,
       temperature: 0.1,
     },
   })

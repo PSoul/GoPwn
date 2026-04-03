@@ -1,6 +1,6 @@
 # Prompt 工程设计
 
-> 最后更新: 2026-04-02
+> 最后更新: 2026-04-03
 > 核心原则：只教通用方法论，不给任何具体代码示例或靶场特定路径。LLM 必须自主思考。
 
 ---
@@ -120,9 +120,21 @@
 
 ---
 
+## 多轮 Anti-Early-Termination 机制
+
+为防止 LLM 在只做了侦察后就返回空计划，平台实现了两层保护：
+
+1. **Prompt 层**：动态注入当前 `findingCount`，明确告知 LLM "你的漏洞发现数量为 0，绝对不能返回 items: [] 收尾"
+2. **代码层兜底**：如果 LLM 仍返回空计划且 findingCount=0 且无 execute_code 历史，系统自动注入 fallback 主动测试计划项
+
+相关代码：
+- `lib/orchestration/orchestrator-context-builder.ts` — buildMultiRoundBrainPrompt
+- `lib/orchestration/orchestrator-service.ts` — buildActiveTestingFallbackPlan
+
 ## 已知局限
 
 - 模型能力差异显著：Claude/GPT-4 生成的 execute_code 脚本质量远高于小模型
-- DeepSeek V3.2 在 CSRF token 处理上的自主能力有限
-- 第 2 轮 LLM 有时返回空计划（可能因上下文不足或模型过于保守）
+- DeepSeek V3.2 在 CSRF token 处理上的自主能力有限，且不支持 response_format（已自动降级）
+- 部分 provider 返回 400 on response_format（已内置 fallback 机制）
+- approval-resume 循环可能导致重复规划相同测试（待优化去重逻辑）
 - 优化方向：增强多轮 context 传递、使用更大模型、或增加专用工具减少对 execute_code 的依赖

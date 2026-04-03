@@ -119,6 +119,7 @@ export interface McpRunRecord {
   updatedAt: string
   connectorMode?: "local" | "real"
   linkedApprovalId?: string
+  llmCode?: string
   summaryLines: string[]
 }
 

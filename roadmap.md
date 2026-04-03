@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-04-03`
-- Current focus: Phase 23 深度架构演进已完成 — 死代码清理（~4000+ 行）、MCP 连接器简化（净减 ~250+ 行）、lib/ 领域化重组（54 文件 → 9 子目录）。下一步: 配置真实 LLM 进行 DVWA/WebGoat 端到端验证，确认 writeback 管线在实战中的效果。
+- Current focus: Phase 23b TCP 通用化与实战验证已完成 — TCP 通用协议探测、llmCode 数据库持久化、多轮上下文增强。Redis 端到端验证成功（4 资产、23 证据、1 高危发现）。下一步: 测试 SSH/MySQL/MongoDB 等其他 TCP 靶场目标，优化审批-恢复循环去重。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
 
 ## Phase 17a: Prisma 数据层迁移 (Prisma Data Layer Migration)
@@ -987,17 +987,43 @@
 - [x] 206 个测试全部通过
 - [x] 无 barrel re-export 兼容层
 
+## Phase 23b: TCP 通用化与实战验证 (TCP Generalization & Live Validation)
+
+- Status: Completed on `2026-04-03`
+- Branch: `refactor/phase23-deep-architecture-evolution`
+- Goal: 解决 Redis 渗透测试 72 证据 0 发现的 bug，建立通用 TCP 服务渗透测试流水线，使平台能对任意 TCP 服务进行自动化安全评估。
+
+### 交付清单
+
+1. **TCP 通用协议探测** — `stdio-mcp-connector.ts` fallback 脚本从无效 `\r\n` 改为 `PING\r\n`+`INFO\r\n` 多协议探针，自动识别 Redis/SSH/MySQL/MongoDB/Elasticsearch/FTP/SMTP
+2. **llmCode 数据库持久化** — 新增 `McpRun.llmCode` 字段（Prisma schema + types + transforms），LLM 生成的 execute_code 脚本从内存 Map 迁移到 PostgreSQL，解决审批-恢复周期代码丢失 bug
+3. **TCP 服务测试方法论** — `llm-brain-prompt.ts` 新增 5 步 TCP 测试方法论（banner→未授权→弱口令→配置→信息泄露）+ analyzer 规则 #7（TCP 未授权访问判定标准）
+4. **TCP fallback 计划增强** — `orchestrator-service.ts` TCP 兜底从 1 项扩展为 3 项（banner 探测 + 未授权访问 + 弱口令/配置检测）
+5. **多轮上下文增强** — `orchestrator-context-builder.ts` 注入 execute_code 实际 rawOutput（截断 2000 字符）给 LLM 下一轮规划
+6. **OpenAI 兼容层增强** — `openai-compatible-provider.ts` 新增 `fetchWithJsonFormatFallback()` 自动降级 response_format
+7. **运维文档全面更新** — LLM 设置、MCP 接入指南、Docker 靶场操作手册、开发指南、prompt 工程文档
+
+### 验收标准
+
+- [x] Redis(6379) 端到端验证: 4 资产、23 证据、1 高危发现（未授权访问）
+- [x] TCP fallback 脚本能正确识别 Redis 协议并发送 PING/INFO 探针
+- [x] llmCode 在审批-恢复周期中正确持久化和恢复
+- [x] LLM prompt 不包含任何靶场特定代码或具体攻击 payload
+
+### 已知待办
+
+- [ ] SSH(2222)/MySQL(13307)/MongoDB(27017)/Tomcat(8888)/WordPress(8082) 靶场验证
+- [ ] 审批-恢复循环去重（每次 resume 触发新 lifecycle kickoff 导致 run 指数增长）
+
 ## Recommended Next Phase
 
-- Name: `Phase 22 - 真实渗透测试闭环验证 (Real Pentest Closure Validation)`
-- Spec: `prompts/phase22-real-pentest-validation.md`
-- Goal: 使用当前 Prisma 数据层 + Phase 22a 重构后的 UI 对 Docker 靶场进行完整端到端渗透测试闭环验证；优化多目标项目的并行编排；加强 MCP 连接器错误恢复与结果标准化。
+- Name: `Phase 24 - 多协议靶场全面验证与审批去重 (Multi-Protocol Target Validation & Approval Dedup)`
+- Goal: 在 Phase 23b TCP 通用化基础上，对所有 Docker 靶场目标完成端到端验证，并解决审批-恢复循环导致的计划膨胀问题。
 - Priorities:
-  1. 对 DVWA/WebGoat/Juice Shop 各执行一次完整的 LLM 编排 → MCP 执行 → 发现 → 报告闭环
-  2. 多目标项目编排：同一项目覆盖多个靶场目标，验证并行调度和作用域隔离
-  3. MCP 连接器增强：超时/重试改进、结构化错误返回、执行日志可视化
+  1. 对 SSH(2222)/MySQL(13307)/MongoDB(27017)/Tomcat(8888)/WordPress(8082) 执行完整 LLM 编排 → MCP 执行 → 发现闭环
+  2. 审批-恢复去重：解决每次 resume 触发新 lifecycle kickoff 导致指数级 run 增长的问题
+  3. 多目标项目编排：同一项目覆盖多个靶场目标，验证并行调度和作用域隔离
   4. CI 就绪化：GitHub Actions 配置 PostgreSQL service + vitest + playwright
-  5. 剩余 UI/UX 问题：P1-5 审批策略页重构、P1-8 验证码交互改造、P2-2 深色模式补充截图
 
 ## Notes for Future LLM Sessions
 

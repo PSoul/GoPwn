@@ -1,7 +1,7 @@
 import { listBuiltInMcpTools } from "@/lib/mcp/built-in-mcp-tools"
 import { Prisma } from "@/lib/generated/prisma/client"
 import { prisma } from "@/lib/infra/prisma"
-import { setLlmCodeForRun } from "@/lib/mcp-connectors/stdio-mcp-connector"
+// llmCode is now persisted in the McpRun DB record (no longer uses in-memory Map)
 import {
   toMcpRunRecord,
   fromMcpRunRecord,
@@ -188,6 +188,7 @@ function createRunRecord({
     createdAt: timestamp,
     updatedAt: timestamp,
     linkedApprovalId,
+    llmCode: input.code,
     summaryLines,
   } satisfies McpRunRecord
 }
@@ -403,10 +404,6 @@ export async function dispatchStoredMcpRun(projectId: string, input: McpDispatch
   })
 
   await prisma.mcpRun.create({ data: fromMcpRunRecord(executedRun) })
-  // Store LLM-generated code for execute_code/execute_command tools
-  if (input.code && (resolvedEnabledTool.toolName === "execute_code" || resolvedEnabledTool.toolName === "execute_command")) {
-    setLlmCodeForRun(executedRun.id, input.code)
-  }
   await prisma.project.updateMany({
     where: { id: projectId },
     data: {

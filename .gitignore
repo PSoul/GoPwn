@@ -21,4 +21,6 @@ tmp-review/
 tsconfig.tsbuildinfo
 screenshots/
 mcps/*/bin/
+mcps/*/reports/
+*.afg
 *.txt
