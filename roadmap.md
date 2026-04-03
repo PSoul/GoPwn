@@ -1017,13 +1017,17 @@
 
 ## Recommended Next Phase
 
-- Name: `Phase 24 - 多协议靶场全面验证与审批去重 (Multi-Protocol Target Validation & Approval Dedup)`
-- Goal: 在 Phase 23b TCP 通用化基础上，对所有 Docker 靶场目标完成端到端验证，并解决审批-恢复循环导致的计划膨胀问题。
+- Name: `Phase 24 - 概念精简 + 实时仪表盘 (Concept Simplification & Realtime Dashboard)`
+- Spec: `docs/superpowers/specs/2026-04-04-phase24-concept-simplification-realtime-dashboard-design.md`
+- Plan: `docs/superpowers/plans/2026-04-04-phase24-concept-simplification-implementation.md`
+- Prompt: `docs/prompts/2026-04-04-phase24-concept-simplification-prompt.md`
+- Goal: 将用户概念从 11 个精简为 4 个（项目/资产/漏洞/审批内联），新增 SSE 实时推送，重设计项目工作区为实时仪表盘，使平台从开发者工具进化为安全团队可用工具。
 - Priorities:
-  1. 对 SSH(2222)/MySQL(13307)/MongoDB(27017)/Tomcat(8888)/WordPress(8082) 执行完整 LLM 编排 → MCP 执行 → 发现闭环
-  2. 审批-恢复去重：解决每次 resume 触发新 lifecycle kickoff 导致指数级 run 增长的问题
-  3. 多目标项目编排：同一项目覆盖多个靶场目标，验证并行调度和作用域隔离
-  4. CI 就绪化：GitHub Actions 配置 PostgreSQL service + vitest + playwright
+  1. 数据模型调整：Finding 增强（含证据字段）、Evidence 降级、Bug 修复（事务保护/ID碰撞/索引）
+  2. SSE 实时推送：项目级事件总线 + 9 个事件发射点 + 前端 Hook
+  3. 项目工作区重设计：实时仪表盘（指标卡片 + 漏洞/资产/执行日志三 Tab）
+  4. 导航精简：侧边栏 5 项，删除 Evidence/Approvals 独立页面
+  5. 审批内联 + 中风险自动化
 
 ## Notes for Future LLM Sessions
 
