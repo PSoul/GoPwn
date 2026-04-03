@@ -6,7 +6,7 @@ import {
   type OpenAiCompatibleProfileConfig,
 } from "@/lib/llm-provider/openai-compatible-provider"
 
-async function buildProfileConfig(profileId: "orchestrator" | "reviewer") {
+async function buildProfileConfig(profileId: "orchestrator" | "reviewer" | "analyzer") {
   const profile = await getStoredLlmProfile(profileId)
 
   if (
@@ -34,11 +34,13 @@ async function buildProfileConfig(profileId: "orchestrator" | "reviewer") {
 export async function resolveLlmProvider() {
   const orchestratorProfile = await buildProfileConfig("orchestrator")
   const reviewerProfile = await buildProfileConfig("reviewer")
+  const analyzerProfile = await buildProfileConfig("analyzer")
 
   if (orchestratorProfile) {
     return createOpenAiCompatibleProvider({
       orchestrator: orchestratorProfile,
       reviewer: reviewerProfile ?? orchestratorProfile,
+      analyzer: analyzerProfile ?? orchestratorProfile,
     })
   }
 
@@ -47,6 +49,7 @@ export async function resolveLlmProvider() {
   const baseUrl = process.env.LLM_BASE_URL
   const orchestratorModel = process.env.LLM_ORCHESTRATOR_MODEL
   const reviewerModel = process.env.LLM_REVIEWER_MODEL ?? orchestratorModel ?? ""
+  const analyzerModel = process.env.LLM_ANALYZER_MODEL ?? orchestratorModel ?? ""
   const timeoutMs = Number(process.env.LLM_TIMEOUT_MS ?? 120000)
 
   if (
@@ -73,17 +76,26 @@ export async function resolveLlmProvider() {
       timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : 120000,
       temperature: 0.1,
     },
+    analyzer: {
+      apiKey,
+      baseUrl,
+      model: analyzerModel,
+      timeoutMs: Math.min(Number.isFinite(timeoutMs) ? timeoutMs : 120000, 60000),
+      temperature: 0.1,
+    },
   })
 }
 
 export async function getConfiguredLlmProviderStatus() {
   const orchestratorProfile = await buildProfileConfig("orchestrator")
   const reviewerProfile = await buildProfileConfig("reviewer")
+  const analyzerProfile = await buildProfileConfig("analyzer")
 
   if (orchestratorProfile) {
     return buildOpenAiCompatibleStatus({
       orchestrator: orchestratorProfile,
       reviewer: reviewerProfile ?? orchestratorProfile,
+      analyzer: analyzerProfile ?? orchestratorProfile,
     })
   }
 

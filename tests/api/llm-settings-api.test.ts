@@ -19,7 +19,7 @@ describe("llm settings api route", () => {
       data: [
         { id: "orchestrator", provider: "openai-compatible", label: "Orchestrator", apiKey: "", baseUrl: "", model: "", timeoutMs: 120000, temperature: 0.2, enabled: false },
         { id: "reviewer", provider: "openai-compatible", label: "Reviewer", apiKey: "", baseUrl: "", model: "", timeoutMs: 120000, temperature: 0.2, enabled: false },
-        { id: "extractor", provider: "openai-compatible", label: "Extractor", apiKey: "", baseUrl: "", model: "", timeoutMs: 120000, temperature: 0.2, enabled: false },
+        { id: "analyzer", provider: "openai-compatible", label: "Analyzer", apiKey: "", baseUrl: "", model: "", timeoutMs: 120000, temperature: 0.2, enabled: false },
       ],
       skipDuplicates: true,
     })
@@ -39,7 +39,7 @@ describe("llm settings api route", () => {
 
     expect(response.status).toBe(200)
     expect(payload.profiles).toHaveLength(3)
-    expect(payload.profiles.map((item: { id: string }) => item.id)).toEqual(["orchestrator", "reviewer", "extractor"])
+    expect(payload.profiles.map((item: { id: string }) => item.id)).toEqual(["orchestrator", "reviewer", "analyzer"])
     expect(payload.profiles[0].apiKey).toBe("")
   })
 

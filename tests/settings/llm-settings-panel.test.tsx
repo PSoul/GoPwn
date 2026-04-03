@@ -30,9 +30,9 @@ const initialProfiles: LlmProfileRecord[] = [
     enabled: false,
   },
   {
-    id: "extractor",
+    id: "analyzer",
     provider: "openai-compatible",
-    label: "Default Extractor",
+    label: "Default Analyzer",
     apiKey: "",
     baseUrl: "",
     model: "",

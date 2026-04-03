@@ -1,5 +1,5 @@
-export type LlmCallRole = "orchestrator" | "reviewer" | "extractor"
-export type LlmCallPhase = "planning" | "reviewing" | "extracting" | "concluding"
+export type LlmCallRole = "orchestrator" | "reviewer" | "analyzer"
+export type LlmCallPhase = "planning" | "reviewing" | "analyzing" | "concluding"
 export type LlmCallStatus = "streaming" | "completed" | "failed"
 
 export interface LlmCallLogRecord {

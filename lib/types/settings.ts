@@ -1,6 +1,6 @@
 import type { Tone } from "./project"
 
-export type LlmProfileId = "orchestrator" | "reviewer" | "extractor"
+export type LlmProfileId = "orchestrator" | "reviewer" | "analyzer"
 
 export interface LlmProfileRecord {
   id: LlmProfileId
@@ -25,6 +25,7 @@ export interface LlmProviderStatus {
   baseUrl: string
   orchestratorModel: string
   reviewerModel: string
+  analyzerModel: string
   note: string
 }
 

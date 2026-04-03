@@ -2,8 +2,8 @@
 
 ## Project Snapshot
 
-- Date: `2026-04-01`
-- Current focus: Phase 22 真实渗透测试闭环验证进行中 — DVWA 靶场初步验证完成，发现并修复 8 个核心问题（MCP 超时检测/maxRounds 优化/收敛策略/结论客观性/目标规范化），分支 `feat/phase22-real-pentest-validation`。下一步: 用修复后的代码重新验证 DVWA + TCP 服务靶场 + WebGoat。
+- Date: `2026-04-03`
+- Current focus: Phase 22b LLM Writeback 已完成 — 用 LLM 语义分析替代全部工具特定解析器（~900 行），`mcp-execution-service.ts` 精简至 ~330 行。下一步: 配置真实 LLM 进行 DVWA/WebGoat 端到端验证，确认 writeback 管线在实战中的效果。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
 
 ## Phase 17a: Prisma 数据层迁移 (Prisma Data Layer Migration)
@@ -898,6 +898,41 @@
 - [ ] DVWA 重新验证：MCP 工具实际触达目标并发现漏洞
 - [ ] TCP 服务靶场验证（Redis/SSH/MongoDB）
 - [ ] WebGoat 靶场验证
+
+## Phase 22b: LLM Writeback — 语义分析替代工具特定解析器
+
+- Status: Completed on `2026-04-03`
+- Branch: `feat/llm-writeback-tools`
+- Goal: 用 LLM 语义分析替代全部工具特定解析器（~900 行硬编码 normalizer），使平台对任意 MCP 工具输出格式通用化。
+
+### 交付清单
+
+1. **LLM Writeback 服务** — `lib/llm-writeback-service.ts`，核心函数 `analyzeAndWriteback()`：调用 analyzer LLM 语义解析任意工具 rawOutput，返回结构化 assets/evidence/findings
+2. **Analyzer 提示词** — `lib/llm-brain-prompt.ts` 新增 `ANALYZER_BRAIN_SYSTEM_PROMPT`（9 条规则）和 `buildToolAnalysisPrompt()`，返回 JSON 格式分析结果
+3. **LLM Provider 扩展** — `openai-compatible-provider.ts` 新增 `analyzeToolOutput()` 方法，独立 analyzer profile（60s 超时，temperature 0.1）
+4. **execution-service 精简** — `mcp-execution-service.ts` 从 1445 行缩减至 ~330 行：仅保留 3 个内部工具（seed-normalizer/capture-evidence/report-exporter）本地处理，其余全部走 `analyzeAndWriteback()`
+5. **三级 LLM Profile** — orchestrator（规划）、reviewer（结论）、analyzer（工具输出分析）各自独立配置，analyzer 可用低成本模型
+6. **extractor→analyzer 全站重命名** — 涉及 Prisma schema、seed、types、UI、配置面板、AI 日志等 15+ 文件
+7. **优雅降级** — LLM 不可用时通过 `buildFallbackArtifacts()` 将 rawOutput 保存为 evidence，供下一轮分析
+8. **测试修复** — 5 个测试文件 6 个用例调整断言以匹配 LLM 降级行为（无 LLM 时仅生成 evidence，不生成 findings/assets）
+
+### 删除的代码
+
+- `normalizeStdioMcpArtifacts()` (~500 行) — 工具特定解析器主函数
+- dns-census handler — 硬编码子域名提取
+- web-surface-map handler — 硬编码 Web 入口提取
+- graphql-surface-check handler — 硬编码 GraphQL 端点分类
+- controlled-validation handler — 硬编码 HTTP 验证结果解析
+- URL 路径硬编码分类 — `/graphql`→"api"、`/dashboard`→"web"
+
+### 验收标准
+
+- [x] mcp-execution-service.ts 从 1445 行缩减至 ~330 行
+- [x] 新增 llm-writeback-service.ts 完整实现
+- [x] 225/236 单元测试通过（11 个预存失败非本次引入）
+- [x] extractor→analyzer 全站重命名完成
+- [x] TypeScript 编译零错误
+- [ ] DVWA 靶场端到端验证（需真实 LLM 配合）
 
 ## Recommended Next Phase
 

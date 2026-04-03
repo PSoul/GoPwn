@@ -1,8 +1,10 @@
 import { ProxyAgent } from "undici"
 
 import {
+  ANALYZER_BRAIN_SYSTEM_PROMPT,
   ORCHESTRATOR_BRAIN_SYSTEM_PROMPT,
   REVIEWER_BRAIN_SYSTEM_PROMPT,
+  buildToolAnalysisPrompt,
 } from "@/lib/llm-brain-prompt"
 import {
   createLlmCallLog,
@@ -10,7 +12,7 @@ import {
   completeLlmCallLog,
   failLlmCallLog,
 } from "@/lib/llm-call-logger"
-import type { LlmProvider } from "@/lib/llm-provider/types"
+import type { LlmAnalysisResult, LlmProvider } from "@/lib/llm-provider/types"
 import type { LlmCallPhase, LlmCallRole, LlmProviderStatus, OrchestratorPlanItem } from "@/lib/prototype-types"
 
 export type OpenAiCompatibleProfileConfig = {
@@ -24,6 +26,7 @@ export type OpenAiCompatibleProfileConfig = {
 type OpenAiCompatibleConfig = {
   orchestrator: OpenAiCompatibleProfileConfig
   reviewer?: OpenAiCompatibleProfileConfig
+  analyzer?: OpenAiCompatibleProfileConfig
 }
 
 function normalizeBaseUrl(baseUrl: string) {
@@ -54,6 +57,34 @@ function extractJsonCandidate(content: string) {
   return trimmed
 }
 
+function safeParseAnalysisContent(content: string): LlmAnalysisResult {
+  const parsed = JSON.parse(extractJsonCandidate(content)) as {
+    findings?: Array<{ title?: string; severity?: string; detail?: string; target?: string; recommendation?: string }>
+    assets?: Array<{ type?: string; value?: string; detail?: string }>
+    summary?: string
+  }
+
+  return {
+    findings: Array.isArray(parsed.findings)
+      ? parsed.findings.filter((f) => f.title && f.severity && f.detail).map((f) => ({
+          title: f.title!,
+          severity: f.severity!,
+          detail: f.detail!,
+          target: f.target,
+          recommendation: f.recommendation,
+        }))
+      : [],
+    assets: Array.isArray(parsed.assets)
+      ? parsed.assets.filter((a) => a.type && a.value).map((a) => ({
+          type: a.type!,
+          value: a.value!,
+          detail: a.detail,
+        }))
+      : [],
+    summary: parsed.summary ?? "LLM 分析完成。",
+  }
+}
+
 function safeParsePlanContent(content: string) {
   const parsed = JSON.parse(extractJsonCandidate(content)) as {
     items?: OrchestratorPlanItem[]
@@ -81,6 +112,7 @@ function isConfiguredProfile(config?: Partial<OpenAiCompatibleProfileConfig>) {
 export function buildOpenAiCompatibleStatus(config?: Partial<OpenAiCompatibleConfig>): LlmProviderStatus {
   const orchestrator = config?.orchestrator
   const reviewer = config?.reviewer
+  const analyzer = config?.analyzer
   const enabled = isConfiguredProfile(orchestrator)
 
   return {
@@ -89,6 +121,7 @@ export function buildOpenAiCompatibleStatus(config?: Partial<OpenAiCompatibleCon
     baseUrl: orchestrator?.baseUrl ?? reviewer?.baseUrl ?? "",
     orchestratorModel: orchestrator?.model ?? "",
     reviewerModel: reviewer?.model ?? orchestrator?.model ?? "",
+    analyzerModel: analyzer?.model ?? orchestrator?.model ?? "",
     note: enabled ? "OpenAI-compatible provider 已配置，可用于真实规划请求。" : "OpenAI-compatible provider 未配置，当前仅可使用本地回退策略。",
   }
 }
@@ -104,6 +137,78 @@ function mapPurposeToPhase(purpose: "orchestrator" | "reviewer"): LlmCallPhase {
 export function createOpenAiCompatibleProvider(config: OpenAiCompatibleConfig): LlmProvider {
   return {
     getStatus: () => buildOpenAiCompatibleStatus(config),
+
+    async analyzeToolOutput(input) {
+      const profile = config.analyzer ?? config.orchestrator
+      const controller = new AbortController()
+      const timeoutMs = Math.min(profile.timeoutMs, 60000) // 分析调用最多 60s
+      const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs)
+      const startTime = Date.now()
+
+      const callLog = input.projectId
+        ? await createLlmCallLog({
+            projectId: input.projectId,
+            role: "orchestrator",
+            phase: "analyzing" as LlmCallPhase,
+            prompt: `[分析] ${input.toolName}(${input.target})`,
+            model: profile.model,
+            provider: "openai-compatible",
+          })
+        : null
+
+      try {
+        const dispatcher = getProxyDispatcher()
+        const userPrompt = buildToolAnalysisPrompt(input)
+
+        const response = await fetch(`${normalizeBaseUrl(profile.baseUrl)}/chat/completions`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${profile.apiKey}`,
+          },
+          body: JSON.stringify({
+            model: profile.model,
+            messages: [
+              { role: "system", content: ANALYZER_BRAIN_SYSTEM_PROMPT },
+              { role: "user", content: userPrompt },
+            ],
+            response_format: { type: "json_object" },
+            temperature: 0.1,
+          }),
+          signal: controller.signal,
+          ...(dispatcher ? { dispatcher } : {}),
+        } as RequestInit)
+
+        if (!response.ok) {
+          throw new Error(`LLM analysis request failed with status ${response.status}.`)
+        }
+
+        const payload = (await response.json()) as {
+          choices?: Array<{ message?: { content?: string } }>
+        }
+        const content = payload.choices?.[0]?.message?.content ?? ""
+
+        if (!content) {
+          throw new Error("LLM analysis returned an empty response.")
+        }
+
+        const durationMs = Date.now() - startTime
+
+        if (callLog) {
+          await completeLlmCallLog(callLog.id, { response: content, durationMs })
+        }
+
+        return safeParseAnalysisContent(content)
+      } catch (error) {
+        if (callLog) {
+          await failLlmCallLog(callLog.id, error instanceof Error ? error.message : "Unknown error")
+        }
+        throw error
+      } finally {
+        clearTimeout(timeoutHandle)
+      }
+    },
+
     async generatePlan(input) {
       const profile = input.purpose === "reviewer" ? config.reviewer ?? config.orchestrator : config.orchestrator
       const controller = new AbortController()
@@ -251,6 +356,13 @@ export function buildOpenAiCompatibleStatusFromEnv() {
       baseUrl: process.env.LLM_BASE_URL ?? "",
       model: process.env.LLM_REVIEWER_MODEL ?? process.env.LLM_ORCHESTRATOR_MODEL ?? "",
       timeoutMs: Number(process.env.LLM_TIMEOUT_MS ?? 120000),
+      temperature: 0.1,
+    },
+    analyzer: {
+      apiKey: process.env.LLM_API_KEY ?? "",
+      baseUrl: process.env.LLM_BASE_URL ?? "",
+      model: process.env.LLM_ANALYZER_MODEL ?? process.env.LLM_ORCHESTRATOR_MODEL ?? "",
+      timeoutMs: Math.min(Number(process.env.LLM_TIMEOUT_MS ?? 120000), 60000),
       temperature: 0.1,
     },
   })

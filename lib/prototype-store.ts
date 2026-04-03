@@ -90,9 +90,9 @@ export const DEFAULT_LLM_PROFILES: LlmProfileRecord[] = [
     enabled: false,
   },
   {
-    id: "extractor",
+    id: "analyzer",
     provider: "openai-compatible",
-    label: "Default Extractor",
+    label: "Default Analyzer",
     apiKey: "",
     baseUrl: "",
     model: "",
@@ -133,9 +133,9 @@ export const PRODUCTION_LLM_PROFILES: LlmProfileRecord[] = [
     enabled: true,
   },
   {
-    id: "extractor",
+    id: "analyzer",
     provider: "openai-compatible",
-    label: "Default Extractor",
+    label: "Default Analyzer",
     apiKey: "sk-pryesvbybgrplivmlsrfsbluaoyctebqchsqjjfhbnjtkedc",
     baseUrl: "https://api.siliconflow.cn/v1",
     model: "Pro/deepseek-ai/DeepSeek-V3.2",

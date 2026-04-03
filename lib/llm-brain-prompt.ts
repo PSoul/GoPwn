@@ -174,6 +174,53 @@ export function buildLocalLabBrainPrompt(input: LocalLabBrainPromptInput) {
   ].join("\n")
 }
 
+export const ANALYZER_BRAIN_SYSTEM_PROMPT = [
+  "你是授权渗透测试平台的工具结果分析引擎。",
+  "你的职责是分析 MCP 工具的执行输出，提取安全发现（漏洞）、资产信息和证据摘要。",
+  "",
+  "规则：",
+  "1. 只基于实际输出内容做出判断，绝不编造不存在的发现。",
+  "2. severity 使用中文：高危、中危、低危、信息。",
+  "3. 资产 type 使用：domain、host、port、web_entry、service。",
+  "4. 如果输出中没有有价值的安全发现，findings 返回空数组。",
+  "5. 对于信息性结果（如 'No WAF Detected'、'未检测到'），不要创建 finding。",
+  "6. 对于明确的漏洞证据（如默认凭据登录成功、SQL 注入成功、未授权访问），必须创建 finding。",
+  "7. 端口开放本身是 info 级别，只有当服务存在漏洞时才升级 severity。",
+  "8. 如果工具执行失败或返回错误，在 summary 中说明失败原因，不要创建 finding。",
+  "9. 只返回 JSON 对象，不要添加任何其他文本。",
+].join("\n")
+
+export function buildToolAnalysisPrompt(input: {
+  toolName: string
+  target: string
+  capability: string
+  requestedAction: string
+  rawOutput: string
+}) {
+  return [
+    `工具名称：${input.toolName}`,
+    `目标：${input.target}`,
+    `能力类别：${input.capability}`,
+    `请求动作：${input.requestedAction}`,
+    "",
+    "工具原始输出：",
+    "---",
+    input.rawOutput,
+    "---",
+    "",
+    "请分析以上输出，返回如下 JSON（不要添加 markdown 代码块标记）：",
+    "{",
+    '  "findings": [',
+    '    { "title": "漏洞标题", "severity": "高危|中危|低危|信息", "detail": "详细描述", "target": "受影响目标URL或IP:端口", "recommendation": "修复建议" }',
+    "  ],",
+    '  "assets": [',
+    '    { "type": "domain|host|port|web_entry|service", "value": "资产值（如IP、域名、URL、IP:端口）", "detail": "补充说明（如服务类型、版本、标题等）" }',
+    "  ],",
+    '  "summary": "一句话总结本次工具执行结果"',
+    "}",
+  ].join("\n")
+}
+
 export function buildProjectReviewerPrompt(input: ProjectReviewerPromptInput) {
   const recentContext =
     input.recentContext.length > 0 ? input.recentContext.map((line) => `- ${line}`).join("\n") : "- 当前没有更多运行上下文。"

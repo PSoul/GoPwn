@@ -12,13 +12,13 @@ import type { LlmCallLogRecord, LlmCallRole } from "@/lib/prototype-types"
 const roleLabels: Record<LlmCallRole, string> = {
   orchestrator: "AI 规划推理",
   reviewer: "结论审阅",
-  extractor: "数据提取",
+  analyzer: "结果分析",
 }
 
 const roleTone: Record<LlmCallRole, "info" | "success" | "warning"> = {
   orchestrator: "info",
   reviewer: "success",
-  extractor: "warning",
+  analyzer: "warning",
 }
 
 const statusTone: Record<string, "info" | "success" | "danger" | "neutral"> = {
@@ -217,7 +217,7 @@ export function ProjectLlmLogPanel({
     { key: "all", label: "全部" },
     { key: "orchestrator", label: "AI 规划推理" },
     { key: "reviewer", label: "结论审阅" },
-    { key: "extractor", label: "数据提取" },
+    { key: "analyzer", label: "结果分析" },
   ]
 
   return (

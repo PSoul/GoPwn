@@ -2,7 +2,7 @@ import { z } from "zod"
 
 import type { LlmProfileId } from "@/lib/prototype-types"
 
-const profileIdEnum = z.enum(["orchestrator", "reviewer", "extractor"] satisfies [LlmProfileId, ...LlmProfileId[]])
+const profileIdEnum = z.enum(["orchestrator", "reviewer", "analyzer"] satisfies [LlmProfileId, ...LlmProfileId[]])
 
 export const llmProfileWriteSchema = z
   .object({

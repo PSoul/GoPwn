@@ -21,9 +21,9 @@ const roleMeta = {
     description: "负责审阅执行返回的结果、压缩摘要和帮助判断结论是否足够稳定。",
     icon: Eye,
   },
-  extractor: {
-    title: "轻量提取模型",
-    description: "用于提取字段、整理结果和执行轻量结构化任务，避免重模型占满所有链路。",
+  analyzer: {
+    title: "结果分析模型",
+    description: "负责分析 MCP 工具执行结果，提取漏洞发现和资产信息。可使用较低等级模型以节省成本。",
     icon: Cpu,
   },
 } as const

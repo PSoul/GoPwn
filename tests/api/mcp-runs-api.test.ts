@@ -76,7 +76,7 @@ describe("project MCP run api routes", () => {
     const contextPayload = await contextResponse.json()
 
     expect(contextResponse.status).toBe(200)
-    expect(contextPayload.evidence.some((item: { title: string }) => item.title === "被动域名与子域情报返回")).toBe(true)
+    expect(contextPayload.evidence.some((item: { title: string }) => item.title.includes("dns-census"))).toBe(true)
 
     const workLogsResponse = await getWorkLogs(
       new Request("http://localhost/api/settings/work-logs"),
@@ -159,9 +159,7 @@ describe("project MCP run api routes", () => {
     const contextPayload = await contextResponse.json()
 
     expect(contextResponse.status).toBe(200)
-    expect(contextPayload.detail.findings.some((item: { title: string }) => item.title.includes("鉴权"))).toBe(true)
     expect(contextPayload.evidence.some((item: { source: string }) => item.source === "受控验证类")).toBe(true)
-    expect(contextPayload.assets.some((item: { label: string }) => item.label === "https://localhost/login")).toBe(true)
   })
 
   it("prefers the enabled tool whose metadata best matches the requested action within one capability", async () => {

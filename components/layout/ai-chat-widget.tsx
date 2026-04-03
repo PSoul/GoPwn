@@ -11,13 +11,13 @@ import type { LlmCallLogRecord, LlmCallRole } from "@/lib/prototype-types"
 const roleLabels: Record<LlmCallRole, string> = {
   orchestrator: "规划",
   reviewer: "审阅",
-  extractor: "提取",
+  analyzer: "分析",
 }
 
 const roleBgColor: Record<LlmCallRole, string> = {
   orchestrator: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300",
   reviewer: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
-  extractor: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
+  analyzer: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
 }
 
 const STORAGE_KEY = "ai-chat-widget-expanded"
@@ -238,7 +238,7 @@ export function AiChatWidget() {
 
       {/* Role filter tabs */}
       <div className="flex gap-1 border-b border-slate-100 px-3 py-2 dark:border-slate-800">
-        {(["all", "orchestrator", "reviewer", "extractor"] as const).map((key) => (
+        {(["all", "orchestrator", "reviewer", "analyzer"] as const).map((key) => (
           <button
             key={key}
             type="button"

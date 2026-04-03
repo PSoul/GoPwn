@@ -406,7 +406,7 @@ model OrchestratorRound {
 // ──────────────────────────────────────────────
 
 model LlmProfile {
-  id               String  @id // orchestrator | reviewer | extractor
+  id               String  @id // orchestrator | reviewer | analyzer
   provider         String  @default("openai-compatible")
   label            String  @default("")
   apiKey           String  @default("")
@@ -459,8 +459,8 @@ model LlmCallLog {
   id          String    @id @default(cuid())
   projectId   String
   project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  role        String    // "orchestrator" | "reviewer" | "extractor"
-  phase       String    // "planning" | "reviewing" | "extracting" | "concluding"
+  role        String    // "orchestrator" | "reviewer" | "analyzer"
+  phase       String    // "planning" | "reviewing" | "analyzing" | "concluding"
   prompt      String
   response    String    @default("")
   status      String    @default("streaming") // "streaming" | "completed" | "failed"

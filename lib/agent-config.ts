@@ -23,8 +23,8 @@ export interface AgentConfig {
     orchestratorProfile: string
     /** 审阅器模型（弱模型，负责总结和结论） */
     reviewerProfile: string
-    /** 提取器模型（弱模型，负责结构化提取） */
-    extractorProfile: string
+    /** 分析器模型（可使用较低等级模型，负责工具结果分析和 write-back） */
+    analyzerProfile: string
     /** 推理深度: low=快速粗略, medium=平衡, high=深度分析 */
     reasoningEffort: "low" | "medium" | "high"
   }
@@ -112,7 +112,7 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig = {
   model: {
     orchestratorProfile: "orchestrator",
     reviewerProfile: "reviewer",
-    extractorProfile: "extractor",
+    analyzerProfile: "analyzer",
     reasoningEffort: "medium",
   },
   context: {

@@ -230,7 +230,8 @@ async function main() {
   }
   console.log(`  ✓ ${(store.mcpRuns ?? []).length} MCP runs`)
 
-  // LLM Profiles
+  // LLM Profiles — migrate old "extractor" to "analyzer"
+  await prisma.llmProfile.deleteMany({ where: { id: "extractor" } })
   for (const p of store.llmProfiles ?? []) {
     await prisma.llmProfile.upsert({
       where: { id: p.id },
