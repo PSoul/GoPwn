@@ -131,10 +131,10 @@ export async function closeAll(): Promise<void> {
  * Order matters: more specific patterns match first.
  */
 function inferCapability(name: string, description: string): string {
-  const text = `${name} ${description}`.toLowerCase()
+  // Code/command execution — match on raw name before lowercasing to avoid false positives
+  if (name === "execute_code" || name === "execute_command") return "code_execution"
 
-  // Code/command execution — match early to avoid false positives from description keywords
-  if (name.includes("execute_code") || name.includes("execute_command")) return "code_execution"
+  const text = `${name} ${description}`.toLowerCase()
 
   // DNS / subdomain / certificate intelligence
   if (text.includes("subdomain") || text.includes("subfinder")) return "dns_subdomain"
@@ -154,7 +154,7 @@ function inferCapability(name: string, description: string): string {
   // Web probing / tech detection / WAF
   if (text.includes("waf") || text.includes("wafw00f")) return "waf_detection"
   if (text.includes("tech_detect") || text.includes("technology") || text.includes("fingerprint")) return "fingerprint"
-  if (text.includes("httpx") || text.includes("probe") && text.includes("alive")) return "web_probe"
+  if (text.includes("httpx") || (text.includes("probe") && text.includes("alive"))) return "web_probe"
 
   // HTTP/API structure discovery (directory scan, path enum)
   if (text.includes("dirsearch") || text.includes("directory") || text.includes("recursive")) return "web_crawl"

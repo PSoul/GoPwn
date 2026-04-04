@@ -36,7 +36,7 @@ export function createStdioConnector(config: StdioConfig): McpConnector {
 
     const child = spawn(command, args, {
       stdio: ["pipe", "pipe", "pipe"],
-      cwd: cwd ?? undefined,
+      cwd,
       env: { ...process.env, ...extraEnv },
       shell: process.platform === "win32",
     })

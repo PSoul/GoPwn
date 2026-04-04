@@ -140,49 +140,43 @@ async function buildToolInput(toolName: string, target: string, action: string):
 
     // Array properties (e.g. httpx targets: string[])
     if (propType === "array") {
-      if (isTargetParam(name)) {
+      if (TARGET_PARAM_NAMES.has(name)) {
         input[name] = parsed.targets
       }
       continue
     }
 
-    // Target/URL params
-    if (isTargetParam(name)) {
+    if (TARGET_PARAM_NAMES.has(name)) {
       input[name] = target
-    } else if (["host", "hostname", "domain"].includes(name)) {
+    } else if (HOST_PARAM_NAMES.has(name)) {
       input[name] = parsed.host
     } else if (name === "port" || name === "ports") {
-      if (propType === "number") {
-        input[name] = parsed.port ?? undefined
-      } else {
-        // String type port (e.g. "80,443" or "1-65535")
-        input[name] = parsed.port ? String(parsed.port) : undefined
-      }
-    } else if (["action", "command", "description"].includes(name)) {
+      if (parsed.port == null) continue
+      input[name] = propType === "number" ? parsed.port : String(parsed.port)
+    } else if (ACTION_PARAM_NAMES.has(name)) {
       input[name] = action
     } else if (name === "query") {
-      // For search tools, use action as query
       input[name] = action || target
     } else if (name === "code") {
-      // For execute_code, action contains the code
       input[name] = action
     } else if (name === "language") {
       input[name] = "javascript"
     }
-    // Skip optional params like threads, timeout, noPing — let defaults apply
+    // Skip optional params (threads, timeout, noPing) — let tool defaults apply
   }
 
   return input
 }
 
-/** Known target parameter names */
-function isTargetParam(name: string): boolean {
-  return ["target", "targets", "url", "endpoint", "address"].includes(name)
-}
+const TARGET_PARAM_NAMES = new Set(["target", "targets", "url", "endpoint", "address"])
+const HOST_PARAM_NAMES = new Set(["host", "hostname", "domain"])
+const ACTION_PARAM_NAMES = new Set(["action", "command", "description"])
 
-/** Parse a target string into structured components */
-function parseTarget(target: string): { host: string; port: number | null; targets: string[] } {
-  // Try URL parsing first
+type ParsedTarget = { host: string; port: number | null; targets: string[] }
+
+/** Parse a target string into host, port, and array forms */
+function parseTarget(target: string): ParsedTarget {
+  // URL format (e.g. "http://127.0.0.1:8080/path")
   try {
     const url = new URL(target)
     return {
@@ -191,15 +185,15 @@ function parseTarget(target: string): { host: string; port: number | null; targe
       targets: [target],
     }
   } catch {
-    // Not a URL
+    // Not a URL — continue
   }
 
-  // Try host:port format (e.g. "127.0.0.1:8080")
-  const hostPortMatch = target.match(/^([^:]+):(\d+)$/)
-  if (hostPortMatch) {
+  // host:port format (e.g. "127.0.0.1:8080")
+  const match = target.match(/^([^:]+):(\d+)$/)
+  if (match) {
     return {
-      host: hostPortMatch[1],
-      port: parseInt(hostPortMatch[2], 10),
+      host: match[1],
+      port: parseInt(match[2], 10),
       targets: [target],
     }
   }
@@ -210,7 +204,6 @@ function parseTarget(target: string): { host: string; port: number | null; targe
     return { host: parts[0], port: null, targets: parts }
   }
 
-  // Plain host/IP
   return { host: target, port: null, targets: [target] }
 }
 
