@@ -1,0 +1,46 @@
+import type { ProjectLifecycle } from "@/lib/generated/prisma"
+import { InvalidTransitionError } from "./errors"
+
+type LifecycleEvent =
+  | "START"
+  | "PLAN_READY"
+  | "PLAN_FAILED"
+  | "ALL_DONE"
+  | "APPROVAL_NEEDED"
+  | "RESOLVED"
+  | "CONTINUE"
+  | "SETTLE"
+  | "SETTLED"
+  | "FAILED"
+  | "STOP"
+  | "STOPPED"
+  | "RETRY"
+
+const TRANSITIONS: Record<string, Partial<Record<LifecycleEvent, ProjectLifecycle>>> = {
+  idle:             { START: "planning" },
+  planning:         { PLAN_READY: "executing", PLAN_FAILED: "failed", STOP: "stopping" },
+  executing:        { ALL_DONE: "reviewing", APPROVAL_NEEDED: "waiting_approval", STOP: "stopping" },
+  waiting_approval: { RESOLVED: "executing", STOP: "stopping" },
+  reviewing:        { CONTINUE: "planning", SETTLE: "settling", STOP: "stopping" },
+  settling:         { SETTLED: "completed", FAILED: "failed" },
+  stopping:         { STOPPED: "stopped" },
+  completed:        {},
+  stopped:          {},
+  failed:           { RETRY: "planning", STOP: "stopping" },
+}
+
+export function transition(current: ProjectLifecycle, event: LifecycleEvent): ProjectLifecycle {
+  const next = TRANSITIONS[current]?.[event]
+  if (!next) {
+    throw new InvalidTransitionError(current, event)
+  }
+  return next
+}
+
+export function isTerminal(lifecycle: ProjectLifecycle): boolean {
+  return lifecycle === "completed" || lifecycle === "stopped"
+}
+
+export function isActive(lifecycle: ProjectLifecycle): boolean {
+  return !isTerminal(lifecycle) && lifecycle !== "idle" && lifecycle !== "failed"
+}

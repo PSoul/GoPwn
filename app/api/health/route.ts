@@ -1,18 +1,10 @@
-import { readdir } from "node:fs/promises"
-import { join } from "node:path"
+import { prisma } from "@/lib/infra/prisma"
 
-import { withApiHandler } from "@/lib/infra/api-handler"
-
-const STORE_DIR = join(process.cwd(), ".prototype-store")
-const APP_VERSION = process.env.npm_package_version ?? "0.0.0"
-
-export const GET = withApiHandler(async () => {
-  const timestamp = new Date().toISOString()
-
+export async function GET() {
   try {
-    await readdir(STORE_DIR)
-    return Response.json({ status: "ok", timestamp, version: APP_VERSION })
+    await prisma.$queryRaw`SELECT 1`
+    return Response.json({ status: "ok", database: "connected" })
   } catch {
-    return Response.json({ status: "degraded", timestamp, version: APP_VERSION, detail: "data store not accessible" })
+    return Response.json({ status: "error", database: "disconnected" }, { status: 503 })
   }
-})
+}

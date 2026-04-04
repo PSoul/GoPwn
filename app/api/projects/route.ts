@@ -1,19 +1,13 @@
-import { createStoredProject, listStoredProjects } from "@/lib/project/project-repository"
-import { projectMutationSchema } from "@/lib/project/project-write-schema"
-import { withApiHandler } from "@/lib/infra/api-handler"
+import { apiHandler, json } from "@/lib/infra/api-handler"
+import * as projectService from "@/lib/services/project-service"
 
-export const GET = withApiHandler(async () => {
-  const projects = await listStoredProjects()
-  return Response.json({ items: projects, total: projects.length })
+export const GET = apiHandler(async () => {
+  const projects = await projectService.listProjects()
+  return json(projects)
 })
 
-export const POST = withApiHandler(async (request) => {
-  const body = await request.json()
-  const parsed = projectMutationSchema.safeParse(body)
-
-  if (!parsed.success) {
-    return Response.json({ error: "Invalid project payload" }, { status: 400 })
-  }
-
-  return Response.json(await createStoredProject(parsed.data), { status: 201 })
+export const POST = apiHandler(async (req) => {
+  const body = (await req.json()) as { name: string; targetInput: string; description?: string }
+  const project = await projectService.createProject(body)
+  return json(project, 201)
 })

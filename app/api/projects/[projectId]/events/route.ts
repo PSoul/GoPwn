@@ -1,54 +1,33 @@
-import { subscribeProjectEvents } from "@/lib/infra/project-event-bus"
-import { getStoredProjectById } from "@/lib/project/project-repository"
+import { createPgListener } from "@/lib/infra/pg-listener"
 
 export const dynamic = "force-dynamic"
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ projectId: string }> },
-) {
+export async function GET(req: Request, { params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = await params
-  const project = await getStoredProjectById(projectId)
-
-  if (!project) {
-    return Response.json({ error: `Project '${projectId}' not found` }, { status: 404 })
-  }
-
   const encoder = new TextEncoder()
+
   const stream = new ReadableStream({
-    start(controller) {
-      // Send initial connection event
+    async start(controller) {
       controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "connected", projectId })}\n\n`))
 
-      // Subscribe to project events
-      const unsubscribe = subscribeProjectEvents(projectId, (event) => {
+      const listener = await createPgListener("project_events", (payload) => {
         try {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`))
-        } catch {
-          // stream closed
-          unsubscribe()
-        }
+          const event = JSON.parse(payload)
+          if (event.projectId === projectId) {
+            controller.enqueue(encoder.encode(`data: ${payload}\n\n`))
+          }
+        } catch { /* skip malformed */ }
       })
 
-      // Keepalive every 15 seconds
-      const keepalive = setInterval(() => {
-        try {
-          controller.enqueue(encoder.encode(":keepalive\n\n"))
-        } catch {
-          clearInterval(keepalive)
-          unsubscribe()
-        }
-      }, 15_000)
+      const heartbeat = setInterval(() => {
+        try { controller.enqueue(encoder.encode(": heartbeat\n\n")) }
+        catch { clearInterval(heartbeat) }
+      }, 15000)
 
-      // Handle abort (client disconnect)
-      _request.signal.addEventListener("abort", () => {
-        clearInterval(keepalive)
-        unsubscribe()
-        try {
-          controller.close()
-        } catch {
-          // already closed
-        }
+      req.signal.addEventListener("abort", () => {
+        clearInterval(heartbeat)
+        listener.close().catch(() => {})
+        try { controller.close() } catch {}
       })
     },
   })

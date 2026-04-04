@@ -1,6 +1,7 @@
-import { getDashboardPayload } from "@/lib/infra/api-compositions"
-import { withApiHandler } from "@/lib/infra/api-handler"
+import { apiHandler, json } from "@/lib/infra/api-handler"
+import * as dashboardService from "@/lib/services/dashboard-service"
 
-export const GET = withApiHandler(async () => {
-  return Response.json(await getDashboardPayload())
+export const GET = apiHandler(async () => {
+  const data = await dashboardService.getDashboardData()
+  return json(data)
 })

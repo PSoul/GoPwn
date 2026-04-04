@@ -1,73 +1,28 @@
 import { NextResponse } from "next/server"
+import { DomainError } from "@/lib/domain/errors"
 
-export type ApiErrorCode =
-  | "VALIDATION"
-  | "AUTH_REQUIRED"
-  | "AUTH_INVALID"
-  | "FORBIDDEN"
-  | "NOT_FOUND"
-  | "RATE_LIMITED"
-  | "INTERNAL"
-  | "SERVICE_UNAVAILABLE"
+type Handler = (req: Request, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>
 
-const STATUS_TO_CODE: Record<number, ApiErrorCode> = {
-  400: "VALIDATION",
-  401: "AUTH_REQUIRED",
-  403: "FORBIDDEN",
-  404: "NOT_FOUND",
-  429: "RATE_LIMITED",
-  500: "INTERNAL",
-  503: "SERVICE_UNAVAILABLE",
-}
-
-/**
- * Structured API error with HTTP status code and machine-readable error code.
- * Throw this inside API handlers for controlled error responses.
- */
-export class ApiError extends Error {
-  public readonly code: ApiErrorCode
-
-  constructor(
-    public readonly statusCode: number,
-    message: string,
-    code?: ApiErrorCode,
-  ) {
-    super(message)
-    this.name = "ApiError"
-    this.code = code ?? STATUS_TO_CODE[statusCode] ?? "INTERNAL"
-  }
-}
-
-type RouteContext = { params: Promise<Record<string, string>> }
-
-type HandlerFn = (request: Request, context: RouteContext) => Promise<Response>
-
-/**
- * Wraps an API route handler with unified error handling.
- *
- * - Catches thrown `ApiError` and returns its statusCode + message
- * - Catches unexpected errors and returns a generic 500
- * - Logs unexpected errors to stderr for server-side observability
- */
-export function withApiHandler(handler: HandlerFn): HandlerFn {
-  return async (request: Request, context: RouteContext) => {
+export function apiHandler(handler: Handler): Handler {
+  return async (req, ctx) => {
     try {
-      return await handler(request, context)
+      return await handler(req, ctx)
     } catch (error) {
-      if (error instanceof ApiError) {
+      if (error instanceof DomainError) {
         return NextResponse.json(
           { error: error.message, code: error.code },
           { status: error.statusCode },
         )
       }
-
-      const message = error instanceof Error ? error.message : String(error)
-      console.error(`[API] Unhandled error: ${request.method} ${request.url}`, message)
-
+      console.error("[api]", error)
       return NextResponse.json(
-        { error: "Internal server error", code: "INTERNAL" as ApiErrorCode },
+        { error: "Internal server error", code: "INTERNAL" },
         { status: 500 },
       )
     }
   }
+}
+
+export function json<T>(data: T, status = 200) {
+  return NextResponse.json(data, { status })
 }

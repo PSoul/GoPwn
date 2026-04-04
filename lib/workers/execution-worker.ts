@@ -1,0 +1,182 @@
+/**
+ * Execution worker — handles "execute_tool" jobs.
+ * Calls the MCP tool and queues result analysis.
+ */
+
+import * as projectRepo from "@/lib/repositories/project-repo"
+import * as mcpRunRepo from "@/lib/repositories/mcp-run-repo"
+import * as auditRepo from "@/lib/repositories/audit-repo"
+import { publishEvent } from "@/lib/infra/event-bus"
+import { createPgBossJobQueue } from "@/lib/infra/job-queue"
+import { callTool } from "@/lib/mcp"
+
+export async function handleExecuteTool(data: { projectId: string; mcpRunId: string }) {
+  const { projectId, mcpRunId } = data
+  console.log(`[execution] Executing tool for run ${mcpRunId}`)
+
+  const mcpRun = await mcpRunRepo.findById(mcpRunId)
+  if (!mcpRun) {
+    console.error(`[execution] McpRun ${mcpRunId} not found`)
+    return
+  }
+
+  // Check project is still active
+  const project = await projectRepo.findById(projectId)
+  if (!project || project.lifecycle === "stopped" || project.lifecycle === "stopping") {
+    console.warn(`[execution] Project ${projectId} is ${project?.lifecycle}, cancelling run`)
+    await mcpRunRepo.updateStatus(mcpRunId, "cancelled")
+    return
+  }
+
+  // Mark as running
+  await mcpRunRepo.updateStatus(mcpRunId, "running", { startedAt: new Date() })
+
+  await publishEvent({
+    type: "tool_started",
+    projectId,
+    timestamp: new Date().toISOString(),
+    data: { mcpRunId, toolName: mcpRun.toolName, target: mcpRun.target },
+  })
+
+  try {
+    // Build tool input from the requested action
+    const input = await buildToolInput(mcpRun.toolName, mcpRun.target, mcpRun.requestedAction)
+
+    // Call the MCP tool
+    const result = await callTool(mcpRun.toolName, input)
+
+    if (result.isError) {
+      await mcpRunRepo.updateStatus(mcpRunId, "failed", {
+        rawOutput: result.content,
+        error: result.content.slice(0, 1000),
+        completedAt: new Date(),
+      })
+
+      await publishEvent({
+        type: "tool_failed",
+        projectId,
+        timestamp: new Date().toISOString(),
+        data: { mcpRunId, toolName: mcpRun.toolName, error: result.content.slice(0, 500) },
+      })
+
+      console.warn(`[execution] Tool ${mcpRun.toolName} failed for ${mcpRun.target}: ${result.content.slice(0, 200)}`)
+    } else {
+      // Success — save output and queue analysis
+      await mcpRunRepo.updateStatus(mcpRunId, "succeeded", {
+        rawOutput: result.content,
+        completedAt: new Date(),
+      })
+
+      await publishEvent({
+        type: "tool_completed",
+        projectId,
+        timestamp: new Date().toISOString(),
+        data: {
+          mcpRunId,
+          toolName: mcpRun.toolName,
+          target: mcpRun.target,
+          outputLength: result.content.length,
+          durationMs: result.durationMs,
+        },
+      })
+
+      // Queue analysis
+      const queue = createPgBossJobQueue()
+      await queue.publish("analyze_result", {
+        projectId,
+        mcpRunId,
+        rawOutput: result.content,
+        toolName: mcpRun.toolName,
+        target: mcpRun.target,
+      })
+
+      console.log(`[execution] Tool ${mcpRun.toolName} succeeded for ${mcpRun.target} (${result.durationMs}ms, ${result.content.length} chars)`)
+    }
+
+    // Check if all runs in this round are complete
+    await checkRoundCompletion(projectId, mcpRun.round)
+
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error(`[execution] Error executing ${mcpRun.toolName}:`, message)
+
+    await mcpRunRepo.updateStatus(mcpRunId, "failed", {
+      error: message.slice(0, 1000),
+      completedAt: new Date(),
+    })
+
+    await publishEvent({
+      type: "tool_failed",
+      projectId,
+      timestamp: new Date().toISOString(),
+      data: { mcpRunId, toolName: mcpRun.toolName, error: message.slice(0, 500) },
+    })
+
+    await checkRoundCompletion(projectId, mcpRun.round)
+    throw err // pg-boss will retry
+  }
+}
+
+/**
+ * Build MCP tool input from the action description and tool schema.
+ * Looks up the tool's inputSchema to map target/action to expected parameter names.
+ */
+async function buildToolInput(toolName: string, target: string, action: string): Promise<Record<string, unknown>> {
+  const { findByToolName } = await import("@/lib/repositories/mcp-tool-repo")
+  const tool = await findByToolName(toolName)
+  const schema = (tool?.inputSchema ?? {}) as Record<string, unknown>
+  const properties = (schema.properties ?? {}) as Record<string, unknown>
+  const propNames = Object.keys(properties)
+
+  // If schema has specific property names, only populate those
+  if (propNames.length > 0) {
+    const input: Record<string, unknown> = {}
+    for (const name of propNames) {
+      if (["target", "url", "endpoint", "address"].includes(name)) {
+        input[name] = target
+      } else if (["host", "hostname", "domain"].includes(name)) {
+        // Extract hostname from URL if target is a URL
+        try {
+          const url = new URL(target)
+          input[name] = url.hostname
+        } catch {
+          input[name] = target
+        }
+      } else if (["port"].includes(name)) {
+        try {
+          const url = new URL(target)
+          input[name] = url.port ? parseInt(url.port, 10) : undefined
+        } catch {
+          // skip
+        }
+      } else if (["action", "command", "description", "query"].includes(name)) {
+        input[name] = action
+      }
+    }
+    return input
+  }
+
+  // Fallback: generic mapping
+  return { target, action }
+}
+
+/**
+ * Check if all runs in a round are complete and queue round_completed if so.
+ * Uses startAfter delay to allow analysis jobs to finish before review.
+ */
+async function checkRoundCompletion(projectId: string, round: number) {
+  const runs = await mcpRunRepo.findByProjectAndRound(projectId, round)
+  const terminal = ["succeeded", "failed", "cancelled"]
+  const allDone = runs.length > 0 && runs.every((r) => terminal.includes(r.status))
+
+  if (allDone) {
+    console.log(`[execution] All ${runs.length} runs in round ${round} complete`)
+    const queue = createPgBossJobQueue()
+    // Delay round_completed by 30s to let analysis/verification jobs finish
+    const startAfter = new Date(Date.now() + 30_000)
+    await queue.publish("round_completed", { projectId, round }, {
+      singletonKey: `round-complete-${projectId}-${round}`,
+      startAfter: startAfter.toISOString(),
+    })
+  }
+}

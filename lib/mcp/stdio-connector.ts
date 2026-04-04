@@ -1,0 +1,159 @@
+/**
+ * Stdio MCP connector — launches an MCP server as a child process
+ * and communicates via JSON-RPC over stdin/stdout.
+ */
+
+import { spawn, type ChildProcess } from "child_process"
+import type { McpConnector, McpToolInput, McpToolResult } from "./connector"
+
+type StdioConfig = {
+  command: string
+  args: string[]
+  timeoutMs?: number
+}
+
+type JsonRpcMessage = {
+  jsonrpc: "2.0"
+  id?: number
+  method?: string
+  params?: unknown
+  result?: unknown
+  error?: { code: number; message: string; data?: unknown }
+}
+
+export function createStdioConnector(config: StdioConfig): McpConnector {
+  const { command, args, timeoutMs = 60_000 } = config
+
+  let proc: ChildProcess | null = null
+  let nextId = 1
+  let buffer = ""
+  const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>()
+
+  function ensureProcess(): ChildProcess {
+    if (proc && !proc.killed) return proc
+
+    proc = spawn(command, args, {
+      stdio: ["pipe", "pipe", "pipe"],
+      env: { ...process.env },
+    })
+
+    proc.stdout!.setEncoding("utf8")
+    proc.stdout!.on("data", (chunk: string) => {
+      buffer += chunk
+      // Process complete JSON-RPC messages (newline-delimited)
+      const lines = buffer.split("\n")
+      buffer = lines.pop() ?? ""
+      for (const line of lines) {
+        if (!line.trim()) continue
+        try {
+          const msg = JSON.parse(line) as JsonRpcMessage
+          if (msg.id != null && pending.has(msg.id)) {
+            const p = pending.get(msg.id)!
+            pending.delete(msg.id)
+            if (msg.error) {
+              p.reject(new Error(`MCP error ${msg.error.code}: ${msg.error.message}`))
+            } else {
+              p.resolve(msg.result)
+            }
+          }
+        } catch {
+          // skip malformed
+        }
+      }
+    })
+
+    proc.on("exit", () => {
+      // Reject all pending requests
+      for (const [, p] of pending) {
+        p.reject(new Error("MCP server process exited"))
+      }
+      pending.clear()
+      proc = null
+    })
+
+    return proc
+  }
+
+  async function rpc(method: string, params?: unknown): Promise<unknown> {
+    const p = ensureProcess()
+    const id = nextId++
+
+    const msg: JsonRpcMessage = { jsonrpc: "2.0", id, method, params }
+    const line = JSON.stringify(msg) + "\n"
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        pending.delete(id)
+        reject(new Error(`MCP RPC timeout after ${timeoutMs}ms: ${method}`))
+      }, timeoutMs)
+
+      pending.set(id, {
+        resolve: (v) => { clearTimeout(timer); resolve(v) },
+        reject: (e) => { clearTimeout(timer); reject(e) },
+      })
+
+      p.stdin!.write(line, (err) => {
+        if (err) {
+          clearTimeout(timer)
+          pending.delete(id)
+          reject(err)
+        }
+      })
+    })
+  }
+
+  return {
+    async callTool(toolName: string, input: McpToolInput): Promise<McpToolResult> {
+      const start = Date.now()
+      try {
+        const result = (await rpc("tools/call", { name: toolName, arguments: input })) as {
+          content?: Array<{ type: string; text?: string }>
+          isError?: boolean
+        }
+
+        const textParts = (result?.content ?? [])
+          .filter((c) => c.type === "text" && c.text)
+          .map((c) => c.text!)
+
+        return {
+          content: textParts.join("\n"),
+          isError: result?.isError ?? false,
+          durationMs: Date.now() - start,
+        }
+      } catch (err) {
+        return {
+          content: err instanceof Error ? err.message : String(err),
+          isError: true,
+          durationMs: Date.now() - start,
+        }
+      }
+    },
+
+    async listTools() {
+      const result = (await rpc("tools/list")) as {
+        tools?: Array<{ name: string; description?: string; inputSchema?: unknown }>
+      }
+      return (result?.tools ?? []).map((t) => ({
+        name: t.name,
+        description: t.description ?? "",
+        inputSchema: t.inputSchema ?? {},
+      }))
+    },
+
+    async close() {
+      if (proc && !proc.killed) {
+        proc.kill("SIGTERM")
+        // Wait briefly for graceful shutdown
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(() => {
+            if (proc && !proc.killed) proc.kill("SIGKILL")
+            resolve()
+          }, 3000)
+          proc!.on("exit", () => { clearTimeout(timer); resolve() })
+        })
+      }
+      proc = null
+      pending.clear()
+    },
+  }
+}
