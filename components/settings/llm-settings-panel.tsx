@@ -110,6 +110,8 @@ export function LlmSettingsPanel({ initialProfiles }: { initialProfiles: LlmProf
                 <label className="space-y-2 text-sm">
                   <span className="font-medium text-slate-950 dark:text-white">API Key</span>
                   <Input
+                    type="password"
+                    autoComplete="off"
                     value={profile.apiKey}
                     onChange={(event) => updateProfile(profile.id, { apiKey: event.target.value })}
                     className="h-11 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"

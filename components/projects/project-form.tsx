@@ -52,8 +52,10 @@ export function ProjectForm({ mode, defaultValues, project }: ProjectFormProps) 
   const [isSaving, setIsSaving] = useState(false)
 
   const isBusy = isSaving || isRouting
-  const watchedValues = form.watch()
-  const normalizedTargets = normalizeTargets(watchedValues.targetInput)
+  const watchedName = form.watch("name")
+  const watchedDescription = form.watch("description")
+  const watchedTargetInput = form.watch("targetInput")
+  const normalizedTargets = normalizeTargets(watchedTargetInput)
 
   async function onSubmit(values: ProjectFormValues) {
     setErrorMessage(null)
@@ -173,9 +175,9 @@ export function ProjectForm({ mode, defaultValues, project }: ProjectFormProps) 
             <div className="rounded-item border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
               <div className="mb-2 flex items-center gap-2">
                 <FolderKanban className="h-4 w-4 text-slate-500" />
-                <p className="text-sm font-semibold text-slate-950 dark:text-white">{watchedValues.name || "未命名项目"}</p>
+                <p className="text-sm font-semibold text-slate-950 dark:text-white">{watchedName || "未命名项目"}</p>
               </div>
-              <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{watchedValues.description || "还没有填写项目说明。"}</p>
+              <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{watchedDescription || "还没有填写项目说明。"}</p>
             </div>
 
             <div className="rounded-item border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/70">

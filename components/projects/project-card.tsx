@@ -74,9 +74,8 @@ export function ProjectCard({
         </span>
       </div>
 
-      {/* Phase + Updated */}
-      <div className="mt-4 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-        <span>{PHASE_LABELS[project.currentPhase]}</span>
+      {/* Updated */}
+      <div className="mt-4 flex items-center justify-end text-xs text-slate-500 dark:text-slate-400">
         <span>{new Date(project.updatedAt).toLocaleDateString("zh-CN")}</span>
       </div>
 

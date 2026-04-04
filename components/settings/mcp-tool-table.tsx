@@ -32,7 +32,7 @@ export function McpToolTable({
   onSelectTool: (toolId: string) => void
 }) {
   return (
-    <div className="overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800">
+    <div className="overflow-x-auto rounded-3xl border border-slate-200/80 dark:border-slate-800">
       <Table>
         <TableHeader className="bg-slate-50/80 dark:bg-slate-900/70">
           <TableRow>

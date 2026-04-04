@@ -108,9 +108,9 @@ export function ProjectPipelineLogPanel({ projectId }: { projectId: string }) {
         <span className="text-xs text-slate-400">{total} 条</span>
       </div>
 
-      <div className="max-h-[500px] overflow-y-auto px-4 py-2 font-mono text-xs">
+      <div className="max-h-[500px] overflow-x-auto overflow-y-auto px-4 py-2 font-mono text-xs">
         {logs.length === 0 && (
-          <p className="py-8 text-center text-sm text-slate-400">暂无日志</p>
+          <p className="py-8 text-center text-sm text-slate-400" role="status">暂无日志</p>
         )}
         {logs.map((entry) => {
           const time = new Date(entry.createdAt).toLocaleTimeString("zh-CN", { hour12: false })
@@ -122,8 +122,9 @@ export function ProjectPipelineLogPanel({ projectId }: { projectId: string }) {
               key={entry.id}
               className={`border-b border-slate-50 py-1 dark:border-slate-900 ${isError ? "bg-red-50/50 dark:bg-red-950/20" : ""}`}
             >
-              <div
-                className="flex cursor-pointer items-start gap-2"
+              <button
+                type="button"
+                className="flex w-full cursor-pointer items-start gap-2 text-left"
                 onClick={() => setExpandedId(isExpanded ? null : entry.id)}
               >
                 <span className="shrink-0 text-slate-400">{time}</span>
@@ -139,7 +140,7 @@ export function ProjectPipelineLogPanel({ projectId }: { projectId: string }) {
                     <span className="ml-1 text-slate-400">[{(entry.duration / 1000).toFixed(1)}s]</span>
                   )}
                 </span>
-              </div>
+              </button>
               {isExpanded && entry.data != null && (
                 <pre className="ml-10 mt-1 max-h-40 overflow-auto rounded bg-slate-50 p-2 text-xs text-slate-600 dark:bg-slate-900 dark:text-slate-300">
                   {JSON.stringify(entry.data as Record<string, unknown>, null, 2)}

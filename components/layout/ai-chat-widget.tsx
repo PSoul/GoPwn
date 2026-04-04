@@ -142,7 +142,7 @@ export function AiChatWidget() {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex h-[500px] w-[360px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-950">
+    <div className="fixed bottom-6 right-6 z-50 flex h-[500px] w-[360px] max-w-[calc(100vw-3rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-950">
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
         <div className="flex items-center gap-2">
           <BrainCircuit className="h-4 w-4 text-slate-600 dark:text-slate-300" />
@@ -178,7 +178,7 @@ export function AiChatWidget() {
         ))}
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3" aria-live="polite">
         {chatLogs.length === 0 ? (
           <div className="flex h-full items-center justify-center text-xs text-slate-400">
             暂无 AI 对话记录
