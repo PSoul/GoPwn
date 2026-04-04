@@ -64,12 +64,30 @@ export async function handlePlanRound(data: { projectId: string; round: number }
       ? await mcpRunRepo.findByProjectAndRound(projectId, round - 1)
       : []
 
-    const previousSummary = previousRuns.length > 0
-      ? previousRuns.map((r) => {
-          const status = r.status === "succeeded" ? "✓" : "✗"
-          return `${status} ${r.toolName}(${r.target}): ${r.rawOutput?.slice(0, 200) ?? "(no output)"}`
-        }).join("\n")
+    // Build detailed previous round info with rawOutput for LLM context
+    let previousRoundDetails = previousRuns.length > 0
+      ? previousRuns.map((r) => ({
+          toolName: r.toolName,
+          target: r.target,
+          status: r.status,
+          rawOutput: r.rawOutput?.slice(0, 2000) ?? undefined,
+          error: r.error?.slice(0, 500) ?? undefined,
+        }))
       : undefined
+
+    // Total output size control — prevent exceeding LLM context
+    if (previousRoundDetails) {
+      const MAX_TOTAL_OUTPUT = 10000
+      const totalLength = previousRoundDetails.reduce((sum, r) => sum + (r.rawOutput?.length ?? 0), 0)
+      if (totalLength > MAX_TOTAL_OUTPUT) {
+        const ratio = MAX_TOTAL_OUTPUT / totalLength
+        for (const r of previousRoundDetails) {
+          if (r.rawOutput) {
+            r.rawOutput = r.rawOutput.slice(0, Math.floor(r.rawOutput.length * ratio)) + "...(truncated)"
+          }
+        }
+      }
+    }
 
     const plannerCtx: PlannerContext = {
       projectName: project.name,
@@ -88,7 +106,7 @@ export async function handlePlanRound(data: { projectId: string; round: number }
         status: f.status,
         severity: f.severity,
       })),
-      previousRoundSummary: previousSummary,
+      previousRoundDetails,
     }
 
     // Call LLM planner (with abort support)

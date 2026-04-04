@@ -22,6 +22,13 @@ export type PlannerContext = {
   assets: Array<{ kind: AssetKind; value: string; label: string }>
   findings: Array<{ title: string; status: string; severity: string }>
   previousRoundSummary?: string
+  previousRoundDetails?: Array<{
+    toolName: string
+    target: string
+    status: string
+    rawOutput?: string
+    error?: string
+  }>
 }
 
 export type AnalyzerContext = {
@@ -104,6 +111,21 @@ export type LlmPocCode = {
 
 // ── Prompt builders ──
 
+function formatPreviousRound(ctx: PlannerContext): string {
+  if (ctx.previousRoundDetails && ctx.previousRoundDetails.length > 0) {
+    return ctx.previousRoundDetails.map((run) => {
+      const icon = run.status === "succeeded" ? "✓" : "✗"
+      const output = run.rawOutput
+        ? `\n  原始输出:\n${run.rawOutput}`
+        : run.error
+          ? `\n  错误: ${run.error}`
+          : ""
+      return `### ${icon} ${run.toolName}(${run.target}) — ${run.status}${output}`
+    }).join("\n\n")
+  }
+  return ctx.previousRoundSummary ?? "(首轮，无历史)"
+}
+
 export async function buildPlannerPrompt(ctx: PlannerContext): Promise<LlmMessage[]> {
   const systemPrompt = await loadSystemPrompt()
   const toolList = ctx.availableTools
@@ -138,8 +160,8 @@ ${assetList}
 ## 已有发现
 ${findingList}
 
-## 上轮摘要
-${ctx.previousRoundSummary ?? "(首轮，无历史)"}
+## 上轮执行结果
+${formatPreviousRound(ctx)}
 
 ## 可用工具
 ${toolList}
@@ -330,22 +352,58 @@ ${ctx.evidence.rawOutput.slice(0, 5000)}
 }
 
 /**
- * Parse JSON from LLM response, handling markdown code blocks and preamble text.
+ * Parse JSON from LLM response with tolerance for common formatting issues:
+ * - Markdown code fences (```json ... ```)
+ * - Trailing commas before } or ]
+ * - Extra text before/after JSON
  */
 export function parseLlmJson<T>(text: string): T {
-  // Try 1: extract from markdown code block anywhere in text
-  const codeBlockMatch = text.match(/```(?:json)?\s*\n([\s\S]*?)\n\s*```/)
-  if (codeBlockMatch) {
-    return JSON.parse(codeBlockMatch[1].trim())
+  let cleaned = text.trim()
+
+  // Strip markdown code fence
+  cleaned = cleaned.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "")
+  cleaned = cleaned.trim()
+
+  // Try direct parse first (fast path)
+  try {
+    return JSON.parse(cleaned)
+  } catch {
+    // continue to recovery attempts
   }
 
-  // Try 2: find the first { and last } to extract JSON object
-  const firstBrace = text.indexOf("{")
-  const lastBrace = text.lastIndexOf("}")
-  if (firstBrace !== -1 && lastBrace > firstBrace) {
-    return JSON.parse(text.slice(firstBrace, lastBrace + 1))
+  // Remove trailing commas before } or ]
+  const noTrailingComma = cleaned.replace(/,\s*([\]}])/g, "$1")
+  try {
+    return JSON.parse(noTrailingComma)
+  } catch {
+    // continue
   }
 
-  // Try 3: parse the whole text as-is
-  return JSON.parse(text.trim())
+  // Try to extract first JSON object from mixed text
+  const objMatch = cleaned.match(/\{[\s\S]*\}/)
+  if (objMatch) {
+    try {
+      return JSON.parse(objMatch[0])
+    } catch {
+      try {
+        return JSON.parse(objMatch[0].replace(/,\s*([\]}])/g, "$1"))
+      } catch {
+        // continue
+      }
+    }
+  }
+
+  // Try to extract JSON array
+  const arrMatch = cleaned.match(/\[[\s\S]*\]/)
+  if (arrMatch) {
+    try {
+      return JSON.parse(arrMatch[0])
+    } catch {
+      // continue
+    }
+  }
+
+  throw new Error(
+    `LLM JSON 解析失败，所有恢复尝试均失败。\n原始内容前 500 字符: ${text.slice(0, 500)}`,
+  )
 }
