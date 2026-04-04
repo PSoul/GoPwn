@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
 import { Loader2, PlayCircle } from "lucide-react"
 
-import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
 import type { Project } from "@/lib/generated/prisma"
 import { LIFECYCLE_LABELS, PHASE_LABELS } from "@/lib/types/labels"

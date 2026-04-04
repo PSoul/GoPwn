@@ -6,7 +6,7 @@ import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
 import type { Approval, ApprovalStatus, RiskLevel } from "@/lib/generated/prisma"
-import { APPROVAL_STATUS_LABELS, RISK_LEVEL_LABELS } from "@/lib/types/labels"
+import { RISK_LEVEL_LABELS } from "@/lib/types/labels"
 import { apiFetch } from "@/lib/infra/api-client"
 
 type Tone = "neutral" | "info" | "success" | "warning" | "danger"
@@ -18,10 +18,8 @@ const riskTone: Record<RiskLevel, Tone> = {
 }
 
 export function ProjectApprovalBar({
-  projectId,
   initialApprovals,
 }: {
-  projectId: string
   initialApprovals: Approval[]
 }) {
   const [approvals, setApprovals] = useState(initialApprovals)

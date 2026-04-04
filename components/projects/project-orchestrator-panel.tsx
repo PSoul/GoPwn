@@ -20,11 +20,9 @@ type PlanItem = {
 }
 
 export function ProjectOrchestratorPanel({
-  projectId,
   plans,
   rounds,
 }: {
-  projectId: string
   plans: OrchestratorPlan[]
   rounds: OrchestratorRound[]
 }) {

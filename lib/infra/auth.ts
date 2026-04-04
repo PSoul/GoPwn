@@ -2,15 +2,17 @@ import { SignJWT, jwtVerify } from "jose"
 import { cookies } from "next/headers"
 import { UnauthorizedError } from "@/lib/domain/errors"
 
+let _jwtSecret: Uint8Array | null = null
+
 function getJwtSecret(): Uint8Array {
+  if (_jwtSecret) return _jwtSecret
   const secret = process.env.JWT_SECRET
   if (!secret && process.env.NODE_ENV === "production") {
     throw new Error("JWT_SECRET environment variable must be set in production")
   }
-  return new TextEncoder().encode(secret || "dev-secret-change-in-production")
+  _jwtSecret = new TextEncoder().encode(secret || "dev-secret-change-in-production")
+  return _jwtSecret
 }
-
-const JWT_SECRET = getJwtSecret()
 const COOKIE_NAME = "pentest_token"
 const EXPIRES_IN = "7d"
 
@@ -25,11 +27,11 @@ export async function signToken(payload: TokenPayload): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(EXPIRES_IN)
-    .sign(JWT_SECRET)
+    .sign(getJwtSecret())
 }
 
 export async function verifyToken(token: string): Promise<TokenPayload> {
-  const { payload } = await jwtVerify(token, JWT_SECRET)
+  const { payload } = await jwtVerify(token, getJwtSecret())
   return payload as unknown as TokenPayload
 }
 

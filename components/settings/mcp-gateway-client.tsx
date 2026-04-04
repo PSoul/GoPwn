@@ -29,7 +29,7 @@ export function McpGatewayClient({
   initialServers: McpServer[]
 }) {
   const [tools, setTools] = useState(initialTools)
-  const [servers, setServers] = useState(initialServers)
+  const [servers] = useState(initialServers)
   const [query, setQuery] = useState("")
   const [selectedToolId, setSelectedToolId] = useState(initialTools[0]?.id ?? "")
   const [draft, setDraft] = useState<McpTool | null>(initialTools[0] ? { ...initialTools[0] } : null)
@@ -43,8 +43,6 @@ export function McpGatewayClient({
   )
   const enabledCount = tools.filter((tool) => tool.enabled).length
   const coveredCapabilityCount = new Set(tools.map((tool) => tool.capability)).size
-  const connectedServerCount = servers.filter((server) => server.enabled).length
-
   useEffect(() => {
     if (filteredTools.length === 0) {
       if (selectedToolId || draft) {

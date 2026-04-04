@@ -45,7 +45,7 @@ export function ProjectLiveDashboard({
 }) {
   return (
     <div className="space-y-4">
-      <ProjectApprovalBar projectId={project.id} initialApprovals={initialApprovals} />
+      <ProjectApprovalBar initialApprovals={initialApprovals} />
 
       <div className="rounded-2xl border border-slate-200/80 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-950">
         <div className="flex flex-wrap items-center gap-3">

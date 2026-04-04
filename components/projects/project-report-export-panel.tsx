@@ -123,7 +123,7 @@ export function ProjectReportExportPanel({
             </div>
           ) : (
             <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50/80 px-6 py-10 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
-              当前项目还没有导出记录。点击"导出项目报告"后，这里会展示最新结果。
+              当前项目还没有导出记录。点击&ldquo;导出项目报告&rdquo;后，这里会展示最新结果。
             </div>
           )}
         </div>

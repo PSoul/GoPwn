@@ -6,7 +6,6 @@ import { BrainCircuit, Cpu, Eye, Workflow } from "lucide-react"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
 import { apiFetch } from "@/lib/infra/api-client"
 import type { LlmProfile } from "@/lib/generated/prisma"
 

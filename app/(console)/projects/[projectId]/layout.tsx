@@ -1,9 +1,7 @@
-import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { ProjectWorkspaceNav } from "@/components/projects/project-workspace-nav"
 import { StatusBadge } from "@/components/shared/status-badge"
-import { Button } from "@/components/ui/button"
 import * as projectService from "@/lib/services/project-service"
 import { LIFECYCLE_LABELS, PHASE_LABELS } from "@/lib/types/labels"
 

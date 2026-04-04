@@ -1,8 +1,6 @@
 "use client"
 
-import Link from "next/link"
 import { useMemo, useState } from "react"
-import { usePathname, useRouter } from "next/navigation"
 import { AlertTriangle, Boxes, FolderKanban, ShieldCheck } from "lucide-react"
 
 import { StatusBadge } from "@/components/shared/status-badge"
@@ -56,8 +54,6 @@ export function AssetCenterClient({
 }: {
   initialAssets: Asset[]
 }) {
-  const pathname = usePathname()
-  const router = useRouter()
   const [query, setQuery] = useState("")
   const [kindFilter, setKindFilter] = useState("all")
   const [page, setPage] = useState(1)

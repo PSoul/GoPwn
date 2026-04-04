@@ -5,7 +5,6 @@
 
 import * as projectRepo from "@/lib/repositories/project-repo"
 import * as mcpRunRepo from "@/lib/repositories/mcp-run-repo"
-import * as auditRepo from "@/lib/repositories/audit-repo"
 import { publishEvent } from "@/lib/infra/event-bus"
 import { createPgBossJobQueue } from "@/lib/infra/job-queue"
 import { callTool } from "@/lib/mcp"

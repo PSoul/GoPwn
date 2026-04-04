@@ -9,8 +9,6 @@ import { Switch } from "@/components/ui/switch"
 import { apiFetch } from "@/lib/infra/api-client"
 import type { LlmCallLog, LlmCallStatus } from "@/lib/generated/prisma"
 
-type LlmRole = "orchestrator" | "reviewer" | "analyzer"
-
 const roleLabels: Record<string, string> = {
   orchestrator: "AI 规划推理",
   reviewer: "结论审阅",

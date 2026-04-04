@@ -7,13 +7,6 @@ import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import type { McpRun, McpRunStatus, RiskLevel } from "@/lib/generated/prisma"
 import { MCP_RUN_STATUS_LABELS, RISK_LEVEL_LABELS, PHASE_LABELS } from "@/lib/types/labels"
 import { apiFetch } from "@/lib/infra/api-client"
