@@ -28,11 +28,10 @@ describe("prototype navigation", () => {
     vi.unstubAllGlobals()
   })
 
-  it("defines the six primary console destinations", () => {
+  it("defines the primary console destinations", () => {
     expect(prototypeNavigation.map((item) => item.href)).toEqual([
       "/dashboard",
       "/projects",
-      "/approvals",
       "/assets",
       "/vuln-center",
       "/settings",
@@ -50,6 +49,5 @@ describe("prototype navigation", () => {
     render(<AppShell title="仪表盘">content</AppShell>)
 
     expect((await screen.findAllByText("1")).length).toBeGreaterThan(0)
-    expect((await screen.findAllByText("2")).length).toBeGreaterThan(0)
   })
 })

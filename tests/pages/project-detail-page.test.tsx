@@ -21,18 +21,16 @@ vi.mock("next/navigation", async () => {
 })
 
 describe("ProjectDetailPage", () => {
-  it("shows the project overview with result entry links", async () => {
+  it("shows the project live dashboard with stats and tabs", async () => {
     const fixture = await createApprovedWorkflowFixture()
 
     render(await ProjectDetailPage({ params: Promise.resolve({ projectId: fixture.project.id }) }))
 
-    // New summary shows state-aware content and result links
-    expect(screen.getByText("最近动态")).toBeInTheDocument()
-    // Results hub has link entries for the 4 result sections
-    expect(screen.getAllByText("域名").length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText("站点").length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText("端口").length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText("漏洞").length).toBeGreaterThanOrEqual(1)
+    // Live dashboard shows project name and tabs
+    expect(screen.getByText(fixture.project.name)).toBeInTheDocument()
+    expect(screen.getByText("漏洞")).toBeInTheDocument()
+    expect(screen.getByText("资产")).toBeInTheDocument()
+    expect(screen.getByText("执行日志")).toBeInTheDocument()
   })
 
   it("renders dedicated result pages plus operations", async () => {
