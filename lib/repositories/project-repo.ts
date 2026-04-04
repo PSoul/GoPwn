@@ -60,6 +60,13 @@ export async function deleteById(id: string) {
   return prisma.project.delete({ where: { id } })
 }
 
+export async function findByLifecycles(states: readonly string[]) {
+  return prisma.project.findMany({
+    where: { lifecycle: { in: states as ProjectLifecycle[] } },
+    include: { targets: true },
+  })
+}
+
 export async function countByLifecycle() {
   return prisma.project.groupBy({
     by: ["lifecycle"],

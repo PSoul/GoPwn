@@ -8,11 +8,17 @@ export type JobOptions = {
   singletonKey?: string
 }
 
+export type SubscribeOptions = {
+  batchSize?: number
+  localConcurrency?: number
+  pollingIntervalSeconds?: number
+}
+
 export interface JobQueue {
   start(): Promise<void>
   stop(): Promise<void>
   publish(jobName: string, data: unknown, options?: JobOptions): Promise<string | null>
-  subscribe<T = unknown>(jobName: string, handler: (data: T) => Promise<void>): Promise<void>
+  subscribe<T = unknown>(jobName: string, handler: (data: T) => Promise<void>, options?: SubscribeOptions): Promise<void>
 }
 
 let bossInstance: PgBoss | null = null
@@ -59,14 +65,22 @@ export function createPgBossJobQueue(): JobQueue {
       })
     },
 
-    async subscribe<T = unknown>(jobName: string, handler: (data: T) => Promise<void>) {
+    async subscribe<T = unknown>(jobName: string, handler: (data: T) => Promise<void>, options?: SubscribeOptions) {
       await ensureStarted(boss)
       await boss.createQueue(jobName).catch(() => {}) // idempotent
-      await boss.work<T>(jobName, async (jobs) => {
-        for (const job of jobs) {
-          await handler(job.data)
-        }
-      })
+      await boss.work<T>(
+        jobName,
+        {
+          batchSize: options?.batchSize ?? 1,
+          localConcurrency: options?.localConcurrency ?? 1,
+          pollingIntervalSeconds: options?.pollingIntervalSeconds ?? 2,
+        },
+        async (jobs) => {
+          for (const job of jobs) {
+            await handler(job.data)
+          }
+        },
+      )
     },
   }
 }

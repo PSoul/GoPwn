@@ -1,8 +1,58 @@
 import "dotenv/config"
-import { createPgBossJobQueue } from "@/lib/infra/job-queue"
+import { createPgBossJobQueue, type JobQueue } from "@/lib/infra/job-queue"
 import { cleanupStale } from "@/lib/repositories/llm-log-repo"
 import { bootstrapMcp } from "@/lib/services/mcp-bootstrap"
 import { logger } from "@/lib/infra/logger"
+import * as projectRepo from "@/lib/repositories/project-repo"
+import * as mcpRunRepo from "@/lib/repositories/mcp-run-repo"
+import { createPipelineLogger } from "@/lib/infra/pipeline-logger"
+
+async function recoverStaleProjects(queue: JobQueue) {
+  const staleStates = ["planning", "executing", "reviewing", "settling"] as const
+  const staleProjects = await projectRepo.findByLifecycles(staleStates)
+
+  if (staleProjects.length === 0) return
+
+  logger.info({ count: staleProjects.length }, "found stale projects, attempting recovery")
+
+  for (const project of staleProjects) {
+    const log = createPipelineLogger(project.id, "recovery")
+
+    switch (project.lifecycle) {
+      case "planning":
+        log.warn("stale_recovery", `恢复卡死项目: planning → 重新规划第 ${project.currentRound + 1} 轮`)
+        await queue.publish("plan_round", { projectId: project.id, round: project.currentRound + 1 })
+        break
+
+      case "executing": {
+        const pending = await mcpRunRepo.countPendingByProject(project.id)
+        if (pending === 0) {
+          log.warn("stale_recovery", `恢复卡死项目: executing → 所有 run 已完成，触发轮次审阅`)
+          await queue.publish("round_completed", {
+            projectId: project.id,
+            round: project.currentRound,
+          }, { singletonKey: `round-complete-${project.id}-${project.currentRound}` })
+        } else {
+          log.warn("stale_recovery", `恢复卡死项目: executing → 还有 ${pending} 个 pending run，等待完成`)
+        }
+        break
+      }
+
+      case "reviewing":
+        log.warn("stale_recovery", `恢复卡死项目: reviewing → 重新触发轮次审阅`)
+        await queue.publish("round_completed", {
+          projectId: project.id,
+          round: project.currentRound,
+        }, { singletonKey: `round-complete-${project.id}-${project.currentRound}` })
+        break
+
+      case "settling":
+        log.warn("stale_recovery", `恢复卡死项目: settling → 重新触发结算`)
+        await queue.publish("settle_closure", { projectId: project.id })
+        break
+    }
+  }
+}
 
 async function main() {
   logger.info("starting worker process")
@@ -53,6 +103,9 @@ async function main() {
   })
 
   logger.info("all handlers registered, waiting for jobs")
+
+  // Recover stale projects from previous crashes
+  await recoverStaleProjects(queue)
 
   // Keep alive
   async function shutdown(signal: string) {

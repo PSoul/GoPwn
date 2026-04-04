@@ -58,6 +58,15 @@ export async function countByProjectAndStatus(projectId: string) {
   })
 }
 
+export async function countPendingByProject(projectId: string) {
+  return prisma.mcpRun.count({
+    where: {
+      projectId,
+      status: { in: ["pending", "scheduled", "running"] },
+    },
+  })
+}
+
 export async function cancelPendingByProject(projectId: string) {
   return prisma.mcpRun.updateMany({
     where: {
