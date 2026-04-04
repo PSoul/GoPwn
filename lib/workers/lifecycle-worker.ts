@@ -11,6 +11,7 @@ import * as auditRepo from "@/lib/repositories/audit-repo"
 import { prisma } from "@/lib/infra/prisma"
 import { publishEvent } from "@/lib/infra/event-bus"
 import { createPgBossJobQueue } from "@/lib/infra/job-queue"
+import { registerAbort, unregisterAbort } from "@/lib/infra/abort-registry"
 import { transition } from "@/lib/domain/lifecycle"
 import {
   getLlmProvider,
@@ -79,9 +80,14 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
       unverifiedFindings: unverified.length,
     }
 
+    const abortController = new AbortController()
+    registerAbort(projectId, abortController)
+
     const llm = await getLlmProvider(projectId, "reviewer")
     const messages = await buildReviewerPrompt(reviewerCtx)
-    const response = await llm.chat(messages, { jsonMode: true })
+    const response = await llm.chat(messages, { jsonMode: true, signal: abortController.signal })
+    unregisterAbort(projectId, abortController)
+
     const decision = parseLlmJson<LlmReviewDecision>(response.content)
 
     const queue = createPgBossJobQueue()
@@ -208,8 +214,10 @@ export async function handleSettleClosure(data: { projectId: string }) {
       detail: summary.slice(0, 5000),
     })
 
-    // Mark project as completed
-    await projectRepo.updateLifecycle(projectId, transition("settling", "SETTLED"))
+    // Mark project as completed (skip if already stopped — report still generated above)
+    if (project.lifecycle === "settling") {
+      await projectRepo.updateLifecycle(projectId, transition("settling", "SETTLED"))
+    }
 
     await publishEvent({
       type: "project_completed",

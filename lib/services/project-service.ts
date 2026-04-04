@@ -4,6 +4,7 @@ import { transition } from "@/lib/domain/lifecycle"
 import { NotFoundError } from "@/lib/domain/errors"
 import { publishEvent } from "@/lib/infra/event-bus"
 import { createPgBossJobQueue } from "@/lib/infra/job-queue"
+import { abortAllForProject } from "@/lib/infra/abort-registry"
 
 function generateCode() {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, "")
@@ -94,6 +95,9 @@ export async function stopProject(projectId: string) {
 
   await projectRepo.updateLifecycle(projectId, stoppingState)
 
+  // Abort all in-flight LLM calls for this project
+  abortAllForProject(projectId)
+
   // Cancel all pending/scheduled MCP runs for this project
   const { cancelPendingByProject } = await import("@/lib/repositories/mcp-run-repo")
   await cancelPendingByProject(projectId)
@@ -115,6 +119,10 @@ export async function stopProject(projectId: string) {
     action: "stopped",
     actor: "user",
   })
+
+  // Generate settlement report in background (best-effort)
+  const queue = createPgBossJobQueue()
+  await queue.publish("settle_closure", { projectId }).catch(() => {})
 
   return { lifecycle: stoppedState }
 }

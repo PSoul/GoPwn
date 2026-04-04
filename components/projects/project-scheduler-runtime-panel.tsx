@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, PauseCircle, PlayCircle, Square } from "lucide-react"
+import { Loader2, PlayCircle, Square } from "lucide-react"
 
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -47,27 +47,19 @@ export function ProjectSchedulerRuntimePanel({
   const [pendingStop, setPendingStop] = useState(false)
 
   const isTerminal = lifecycle === "completed" || lifecycle === "stopped" || lifecycle === "failed"
-  const canStart = lifecycle === "idle"
-  const canPause = lifecycle === "executing" || lifecycle === "planning"
-  const canResume = lifecycle === "waiting_approval"
+  const canStart = lifecycle === "idle" || lifecycle === "stopped" || lifecycle === "failed"
   const canStop = !isTerminal && lifecycle !== "stopping"
 
-  async function runLifecycleAction(action: "start" | "pause" | "resume" | "stop") {
+  async function runLifecycleAction(action: "start" | "stop") {
     setActiveAction(action)
     setMessage(null)
     try {
-      const payload = await apiFetch<{ project: Project }>(`/api/projects/${project.id}/lifecycle`, {
-        method: "PATCH",
-        body: JSON.stringify({ action }),
+      const payload = await apiFetch<{ lifecycle: string }>(`/api/projects/${project.id}/${action}`, {
+        method: "POST",
       })
-      if (payload.project) {
-        setLifecycle(payload.project.lifecycle)
-        setMessage(
-          action === "start" ? "项目已开始运行" :
-          action === "pause" ? "已暂停" :
-          action === "resume" ? "已恢复" :
-          "已停止"
-        )
+      if (payload.lifecycle) {
+        setLifecycle(payload.lifecycle as ProjectLifecycle)
+        setMessage(action === "start" ? "项目已开始运行" : "已停止")
         router.refresh()
       }
     } catch { /* best-effort */ } finally {
@@ -93,17 +85,7 @@ export function ProjectSchedulerRuntimePanel({
           <div className="flex items-center gap-2">
             {canStart && (
               <Button size="sm" className="rounded-full bg-sky-600 text-white hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-400" disabled={Boolean(activeAction)} onClick={() => runLifecycleAction("start")}>
-                <PlayCircle className="mr-1 h-3.5 w-3.5" /> 开始
-              </Button>
-            )}
-            {canPause && (
-              <Button variant="outline" size="sm" className="rounded-full" disabled={Boolean(activeAction)} onClick={() => runLifecycleAction("pause")}>
-                <PauseCircle className="mr-1 h-3.5 w-3.5" /> 暂停
-              </Button>
-            )}
-            {canResume && (
-              <Button size="sm" className="rounded-full bg-sky-600 text-white hover:bg-sky-700" disabled={Boolean(activeAction)} onClick={() => runLifecycleAction("resume")}>
-                <PlayCircle className="mr-1 h-3.5 w-3.5" /> 继续
+                <PlayCircle className="mr-1 h-3.5 w-3.5" /> {lifecycle === "idle" ? "开始" : "重新启动"}
               </Button>
             )}
             {canStop && (

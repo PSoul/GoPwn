@@ -13,6 +13,7 @@ import * as auditRepo from "@/lib/repositories/audit-repo"
 import { prisma } from "@/lib/infra/prisma"
 import { publishEvent } from "@/lib/infra/event-bus"
 import { createPgBossJobQueue } from "@/lib/infra/job-queue"
+import { registerAbort, unregisterAbort } from "@/lib/infra/abort-registry"
 import { transition } from "@/lib/domain/lifecycle"
 import { requiresApproval, type ApprovalPolicy } from "@/lib/domain/risk-policy"
 import {
@@ -84,10 +85,15 @@ export async function handlePlanRound(data: { projectId: string; round: number }
       previousRoundSummary: previousSummary,
     }
 
-    // Call LLM planner
+    // Call LLM planner (with abort support)
+    const abortController = new AbortController()
+    registerAbort(projectId, abortController)
+
     const llm = await getLlmProvider(projectId, "planner")
     const messages = await buildPlannerPrompt(plannerCtx)
-    const response = await llm.chat(messages, { jsonMode: true })
+    const response = await llm.chat(messages, { jsonMode: true, signal: abortController.signal })
+    unregisterAbort(projectId, abortController)
+
     const plan = parseLlmJson<LlmPlanResponse>(response.content)
 
     // Validate and cap plan items

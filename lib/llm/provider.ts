@@ -22,6 +22,7 @@ export type LlmCallOptions = {
   maxTokens?: number
   timeoutMs?: number
   jsonMode?: boolean
+  signal?: AbortSignal
 }
 
 export interface LlmProvider {

@@ -9,6 +9,7 @@ import * as findingRepo from "@/lib/repositories/finding-repo"
 import * as auditRepo from "@/lib/repositories/audit-repo"
 import { publishEvent } from "@/lib/infra/event-bus"
 import { createPgBossJobQueue } from "@/lib/infra/job-queue"
+import { registerAbort, unregisterAbort } from "@/lib/infra/abort-registry"
 import { prisma } from "@/lib/infra/prisma"
 import {
   getLlmProvider,
@@ -52,10 +53,15 @@ export async function handleAnalyzeResult(data: {
       existingAssets: existingAssets.map((a) => ({ kind: a.kind, value: a.value })),
     }
 
-    // Call LLM analyzer
+    // Call LLM analyzer (with abort support)
+    const abortController = new AbortController()
+    registerAbort(projectId, abortController)
+
     const llm = await getLlmProvider(projectId, "analyzer")
     const messages = await buildAnalyzerPrompt(analyzerCtx)
-    const response = await llm.chat(messages, { jsonMode: true })
+    const response = await llm.chat(messages, { jsonMode: true, signal: abortController.signal })
+    unregisterAbort(projectId, abortController)
+
     const analysis = parseLlmJson<LlmAnalysisResult>(response.content)
 
     let newAssetCount = 0

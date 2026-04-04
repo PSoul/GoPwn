@@ -55,10 +55,10 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
   const [phaseFilter, setPhaseFilter] = useState("all")
   const [lifecycleFilter, setLifecycleFilter] = useState("all")
   const [page, setPage] = useState(1)
-  const [pendingArchive, setPendingArchive] = useState<Project | null>(null)
-  const [lastArchivedProject, setLastArchivedProject] = useState<string | null>(null)
-  const [archiveError, setArchiveError] = useState<string | null>(null)
-  const [isArchiving, setIsArchiving] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<Project | null>(null)
+  const [lastDeletedProject, setLastDeletedProject] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const resetPage = useCallback(() => setPage(1), [])
 
@@ -106,37 +106,28 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
     },
   ]
 
-  async function handleArchiveConfirm() {
-    if (!pendingArchive) return
+  async function handleDeleteConfirm() {
+    if (!pendingDelete) return
 
-    setArchiveError(null)
-    setIsArchiving(true)
+    setDeleteError(null)
+    setIsDeleting(true)
 
     try {
-      const payload = await apiFetch<{ error?: string; project?: Project }>(
-        `/api/projects/${pendingArchive.id}/archive`,
-        { method: "POST" },
-      )
+      await apiFetch(`/api/projects/${pendingDelete.id}`, { method: "DELETE" })
 
-      if (!payload.project) {
-        setArchiveError(payload.error ?? "项目归档失败，请稍后再试。")
-        return
-      }
-
-      setProjectItems((current) =>
-        current.map((item) => (item.id === payload.project?.id ? payload.project : item)),
-      )
-      setLastArchivedProject(payload.project.name)
-      setPendingArchive(null)
+      const deletedName = pendingDelete.name
+      setProjectItems((current) => current.filter((item) => item.id !== pendingDelete.id))
+      setLastDeletedProject(deletedName)
+      setPendingDelete(null)
     } catch {
-      setArchiveError("项目归档失败，请稍后再试。")
+      setDeleteError("项目删除失败，请稍后再试。")
     } finally {
-      setIsArchiving(false)
+      setIsDeleting(false)
     }
   }
 
   return (
-    <SectionCard title="项目列表" description="支持搜索、筛选、详情跳转、编辑和归档操作。">
+    <SectionCard title="项目列表" description="支持搜索、筛选、详情跳转、编辑和删除操作。">
       <div className="space-y-4">
         <div className="grid gap-3 xl:grid-cols-[1.3fr_0.8fr_0.8fr]">
           <div className="relative">
@@ -187,15 +178,15 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
           ))}
         </div>
 
-        {lastArchivedProject ? (
-          <div className="rounded-item border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/80 dark:bg-amber-950/30 dark:text-amber-100">
-            {lastArchivedProject} 已归档。
+        {lastDeletedProject ? (
+          <div className="rounded-item border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900/80 dark:bg-emerald-950/30 dark:text-emerald-100">
+            {lastDeletedProject} 已删除。
           </div>
         ) : null}
 
-        {archiveError ? (
+        {deleteError ? (
           <div className="rounded-item border border-rose-200 bg-rose-50/90 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100">
-            {archiveError}
+            {deleteError}
           </div>
         ) : null}
 
@@ -204,7 +195,7 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
             <ProjectCard
               key={project.id}
               project={project}
-              onArchive={(p) => setPendingArchive(p)}
+              onDelete={(p) => setPendingDelete(p)}
             />
           ))}
         </div>
@@ -221,22 +212,22 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
         <Pagination page={page} pageSize={PAGE_SIZE} total={filteredProjects.length} onPageChange={setPage} />
       </div>
 
-      <AlertDialog open={Boolean(pendingArchive)} onOpenChange={(open) => !open && setPendingArchive(null)}>
+      <AlertDialog open={Boolean(pendingDelete)} onOpenChange={(open) => !open && setPendingDelete(null)}>
         <AlertDialogContent className="rounded-card border-slate-200 dark:border-slate-800">
           <AlertDialogHeader>
-            <AlertDialogTitle>确认关闭项目</AlertDialogTitle>
+            <AlertDialogTitle>确认删除项目</AlertDialogTitle>
             <AlertDialogDescription>
-              {pendingArchive?.name} 将被标记为归档完成。
+              确定要删除 {pendingDelete?.name} 吗？此操作不可恢复，项目的所有数据（资产、漏洞、证据等）将被永久删除。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-xl">取消</AlertDialogCancel>
             <AlertDialogAction
-              disabled={isArchiving}
+              disabled={isDeleting}
               className="rounded-xl bg-rose-600 text-white hover:bg-rose-700"
-              onClick={() => { void handleArchiveConfirm() }}
+              onClick={() => { void handleDeleteConfirm() }}
             >
-              {isArchiving ? "归档中..." : "确认归档"}
+              {isDeleting ? "删除中..." : "确认删除"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

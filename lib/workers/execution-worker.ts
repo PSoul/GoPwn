@@ -9,6 +9,19 @@ import { publishEvent } from "@/lib/infra/event-bus"
 import { createPgBossJobQueue } from "@/lib/infra/job-queue"
 import { callTool } from "@/lib/mcp"
 
+/** Max execution time per tool (5 minutes). Prevents runaway tools. */
+const TOOL_TIMEOUT_MS = 5 * 60 * 1000
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Tool execution timeout after ${ms}ms: ${label}`)), ms)
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v) },
+      (e) => { clearTimeout(timer); reject(e) },
+    )
+  })
+}
+
 export async function handleExecuteTool(data: { projectId: string; mcpRunId: string }) {
   const { projectId, mcpRunId } = data
   console.log(`[execution] Executing tool for run ${mcpRunId}`)
@@ -41,8 +54,12 @@ export async function handleExecuteTool(data: { projectId: string; mcpRunId: str
     // Build tool input from the requested action
     const input = await buildToolInput(mcpRun.toolName, mcpRun.target, mcpRun.requestedAction)
 
-    // Call the MCP tool
-    const result = await callTool(mcpRun.toolName, input)
+    // Call the MCP tool with timeout protection
+    const result = await withTimeout(
+      callTool(mcpRun.toolName, input),
+      TOOL_TIMEOUT_MS,
+      `${mcpRun.toolName}(${mcpRun.target})`,
+    )
 
     if (result.isError) {
       await mcpRunRepo.updateStatus(mcpRunId, "failed", {

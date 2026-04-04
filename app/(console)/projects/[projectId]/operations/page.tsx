@@ -7,7 +7,7 @@ import { ProjectOperationsPanel } from "@/components/projects/project-operations
 import { requireAuth } from "@/lib/infra/auth"
 import { getProject } from "@/lib/services/project-service"
 import { listByProject as listApprovals } from "@/lib/services/approval-service"
-import { getLlmProfiles } from "@/lib/services/settings-service"
+import { getLlmProfiles, getGlobalConfig } from "@/lib/services/settings-service"
 import * as mcpRunRepo from "@/lib/repositories/mcp-run-repo"
 
 export default async function ProjectOperationsPage({
@@ -25,10 +25,11 @@ export default async function ProjectOperationsPage({
     notFound()
   }
 
-  const [mcpRuns, approvals, llmProfiles] = await Promise.all([
+  const [mcpRuns, approvals, llmProfiles, globalConfig] = await Promise.all([
     mcpRunRepo.findByProject(projectId),
     listApprovals(projectId),
     getLlmProfiles(),
+    getGlobalConfig(),
   ])
 
   const orchestratorProfile = llmProfiles.find((p) => p.id === "orchestrator")
@@ -60,6 +61,7 @@ export default async function ProjectOperationsPage({
       <ProjectOperationsPanel
         project={project}
         approvals={approvals}
+        globalConfig={globalConfig ?? undefined}
       />
 
       <ProjectMcpRunsPanel

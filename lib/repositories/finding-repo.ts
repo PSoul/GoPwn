@@ -32,6 +32,31 @@ export async function create(data: {
   affectedTarget?: string
   recommendation?: string
 }) {
+  // De-duplicate: if same title + affectedTarget already exists in this project,
+  // update severity/summary instead of creating a duplicate
+  const existing = await prisma.finding.findFirst({
+    where: {
+      projectId: data.projectId,
+      title: data.title,
+      affectedTarget: data.affectedTarget ?? "",
+    },
+  })
+
+  if (existing) {
+    // Only upgrade severity, never downgrade
+    const severityRank: Record<string, number> = { info: 0, low: 1, medium: 2, high: 3, critical: 4 }
+    const shouldUpgrade = severityRank[data.severity] > severityRank[existing.severity]
+
+    return prisma.finding.update({
+      where: { id: existing.id },
+      data: {
+        ...(shouldUpgrade ? { severity: data.severity } : {}),
+        ...(data.summary ? { summary: data.summary } : {}),
+        ...(data.evidenceId ? { evidenceId: data.evidenceId } : {}),
+      },
+    })
+  }
+
   return prisma.finding.create({
     data: {
       projectId: data.projectId,

@@ -45,7 +45,7 @@ export function ProjectOperationsPanel({
     setIsSaving(true)
     setMessage(null)
     try {
-      await apiFetch(`/api/projects/${project.id}/approval-control`, {
+      await apiFetch("/api/settings/approval-policy", {
         method: "PATCH",
         body: JSON.stringify(config),
       })

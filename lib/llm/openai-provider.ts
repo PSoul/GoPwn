@@ -41,6 +41,15 @@ export function createOpenAIProvider(config: OpenAIConfig): LlmProvider {
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), timeoutMs)
 
+      // If an external signal is provided, abort our controller when it fires
+      if (options?.signal) {
+        if (options.signal.aborted) {
+          clearTimeout(timer)
+          throw new Error("LLM call aborted: project stopped")
+        }
+        options.signal.addEventListener("abort", () => controller.abort(), { once: true })
+      }
+
       const start = Date.now()
       try {
         const res = await fetch(url, {

@@ -7,7 +7,7 @@ import { Loader2, PlayCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import type { Project } from "@/lib/generated/prisma"
-import { LIFECYCLE_LABELS, PHASE_LABELS } from "@/lib/types/labels"
+import { PHASE_LABELS } from "@/lib/types/labels"
 import { apiFetch } from "@/lib/infra/api-client"
 
 export function ProjectSummary({
@@ -20,18 +20,16 @@ export function ProjectSummary({
   const [, startTransition] = useTransition()
 
   const isIdle = project.lifecycle === "idle"
-  const isRunning = project.lifecycle === "executing"
+  const isRunning = ["planning", "executing", "waiting_approval", "reviewing", "settling"].includes(project.lifecycle)
   const isCompleted = project.lifecycle === "completed"
   const isStopped = project.lifecycle === "stopped"
   const isFailed = project.lifecycle === "failed"
+  const canRestart = isStopped || isFailed
 
   async function handleStartProject() {
     setIsStarting(true)
     try {
-      await apiFetch(`/api/projects/${project.id}/scheduler-control`, {
-        method: "PATCH",
-        body: JSON.stringify({ lifecycle: "executing" }),
-      })
+      await apiFetch(`/api/projects/${project.id}/start`, { method: "POST" })
       startTransition(() => router.refresh())
     } catch { /* best-effort */ } finally {
       setIsStarting(false)
@@ -87,37 +85,29 @@ export function ProjectSummary({
         </div>
       )}
 
-      {isStopped && (
-        <div className="rounded-2xl border border-slate-200/80 bg-slate-50/60 px-5 py-4 dark:border-slate-800 dark:bg-slate-900/40">
-          <p className="text-sm font-medium text-slate-600 dark:text-slate-300">项目已停止</p>
+      {canRestart && (
+        <div className={`rounded-2xl border px-5 py-4 ${isFailed ? "border-rose-200/80 bg-rose-50/60 dark:border-rose-900/60 dark:bg-rose-950/20" : "border-slate-200/80 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-900/40"}`}>
+          <div className="flex items-center justify-between gap-3">
+            <p className={`text-sm font-medium ${isFailed ? "text-rose-700 dark:text-rose-300" : "text-slate-600 dark:text-slate-300"}`}>
+              {isFailed ? "项目执行失败" : "项目已停止"}
+            </p>
+            <Button
+              onClick={handleStartProject}
+              disabled={isStarting}
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+            >
+              {isStarting ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />重启中...</>
+              ) : (
+                <><PlayCircle className="mr-2 h-4 w-4" />重新启动</>
+              )}
+            </Button>
+          </div>
         </div>
       )}
 
-      {isFailed && (
-        <div className="rounded-2xl border border-rose-200/80 bg-rose-50/60 px-5 py-4 dark:border-rose-900/60 dark:bg-rose-950/20">
-          <p className="text-sm font-medium text-rose-700 dark:text-rose-300">项目执行失败</p>
-        </div>
-      )}
-
-      {/* Key metrics */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <div className="rounded-xl border border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
-          <p className="text-xs text-slate-500 dark:text-slate-400">生命周期</p>
-          <p className="mt-1 text-lg font-semibold text-slate-950 dark:text-white">{LIFECYCLE_LABELS[project.lifecycle]}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
-          <p className="text-xs text-slate-500 dark:text-slate-400">当前阶段</p>
-          <p className="mt-1 text-lg font-semibold text-slate-950 dark:text-white">{PHASE_LABELS[project.currentPhase]}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
-          <p className="text-xs text-slate-500 dark:text-slate-400">当前轮次</p>
-          <p className="mt-1 text-lg font-semibold text-slate-950 dark:text-white">{project.currentRound}/{project.maxRounds}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
-          <p className="text-xs text-slate-500 dark:text-slate-400">最后更新</p>
-          <p className="mt-1 text-lg font-semibold text-slate-950 dark:text-white">{new Date(project.updatedAt).toLocaleDateString("zh-CN")}</p>
-        </div>
-      </div>
     </div>
   )
 }

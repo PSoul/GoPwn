@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArchiveX, ExternalLink, Pencil } from "lucide-react"
+import { ExternalLink, Pencil, Trash2 } from "lucide-react"
 
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
@@ -25,10 +25,10 @@ const lifecycleTone: Record<ProjectLifecycle, { border: string; tone: Tone; puls
 
 export function ProjectCard({
   project,
-  onArchive,
+  onDelete,
 }: {
   project: Project
-  onArchive?: (project: Project) => void
+  onDelete?: (project: Project) => void
 }) {
   const config = lifecycleTone[project.lifecycle] ?? lifecycleTone.idle
 
@@ -94,15 +94,15 @@ export function ProjectCard({
             编辑
           </Link>
         </Button>
-        {onArchive && (
+        {onDelete && (
           <Button
             size="sm"
             variant="ghost"
             className="rounded-xl text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-            onClick={() => onArchive(project)}
+            onClick={() => onDelete(project)}
           >
-            <ArchiveX className="mr-1 h-3 w-3" />
-            归档
+            <Trash2 className="mr-1 h-3 w-3" />
+            删除
           </Button>
         )}
       </div>

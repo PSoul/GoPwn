@@ -6,6 +6,7 @@ import type { Project, Finding, Asset, Approval, ProjectLifecycle, PentestPhase 
 import { LIFECYCLE_LABELS, PHASE_LABELS } from "@/lib/types/labels"
 
 import { ProjectApprovalBar } from "./project-approval-bar"
+import { ProjectSummary } from "./project-summary"
 import { ProjectVulnTab } from "./project-vuln-tab"
 import { ProjectAssetTab } from "./project-asset-tab"
 
@@ -57,6 +58,8 @@ export function ProjectLiveDashboard({
           </span>
         </div>
       </div>
+
+      <ProjectSummary project={project} />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <div className="rounded-xl border border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">

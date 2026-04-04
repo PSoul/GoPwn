@@ -7,6 +7,7 @@ import * as findingRepo from "@/lib/repositories/finding-repo"
 import * as mcpRunRepo from "@/lib/repositories/mcp-run-repo"
 import * as auditRepo from "@/lib/repositories/audit-repo"
 import { publishEvent } from "@/lib/infra/event-bus"
+import { registerAbort, unregisterAbort } from "@/lib/infra/abort-registry"
 import { callTool } from "@/lib/mcp"
 import { prisma } from "@/lib/infra/prisma"
 import {
@@ -63,10 +64,15 @@ export async function handleVerifyFinding(data: { projectId: string; findingId: 
         : undefined,
     }
 
-    // Ask LLM to generate PoC code
+    // Ask LLM to generate PoC code (with abort support)
+    const abortController = new AbortController()
+    registerAbort(projectId, abortController)
+
     const llm = await getLlmProvider(projectId, "analyzer") // Use analyzer profile for PoC generation
     const messages = await buildVerifierPrompt(verifierCtx)
-    const response = await llm.chat(messages, { jsonMode: true })
+    const response = await llm.chat(messages, { jsonMode: true, signal: abortController.signal })
+    unregisterAbort(projectId, abortController)
+
     const pocSpec = parseLlmJson<LlmPocCode>(response.content)
 
     // Find a code execution tool — not hardcoded to "execute_code"
