@@ -123,7 +123,7 @@ export function useProjectEvents(projectId: string | null) {
         if (parsed.type === "connected") {
           dispatch({ type: "connected" })
         } else {
-          dispatch({ type: "event", event: parsed as ProjectEventData })
+          dispatch({ type: "event", event: parsed as unknown as ProjectEventData })
         }
       } catch {
         // ignore malformed events

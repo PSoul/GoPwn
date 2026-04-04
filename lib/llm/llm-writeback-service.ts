@@ -169,7 +169,9 @@ function convertAnalysisToArtifacts(
       owner: actor,
       createdAt: timestamp,
       updatedAt: timestamp,
-      rawOutput: [],
+      rawInput: context.run.llmCode ?? context.run.requestedAction,
+      rawOutput: rawResult.rawOutput ?? [],
+      remediationNote: llmFinding.recommendation ?? undefined,
     })
   }
 
