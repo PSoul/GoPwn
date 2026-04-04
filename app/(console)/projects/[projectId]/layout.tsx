@@ -4,7 +4,16 @@ import { notFound } from "next/navigation"
 import { ProjectWorkspaceNav } from "@/components/projects/project-workspace-nav"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { getStoredProjectById } from "@/lib/project/project-repository"
+import * as projectService from "@/lib/services/project-service"
+import { LIFECYCLE_LABELS, PHASE_LABELS } from "@/lib/types/labels"
+
+function lifecycleTone(lifecycle: string): "danger" | "success" | "neutral" | "warning" | "info" {
+  if (lifecycle === "waiting_approval" || lifecycle === "failed") return "danger"
+  if (lifecycle === "completed") return "success"
+  if (lifecycle === "stopped" || lifecycle === "idle") return "neutral"
+  if (lifecycle === "stopping" || lifecycle === "settling") return "warning"
+  return "info"
+}
 
 export default async function ProjectWorkspaceLayout({
   children,
@@ -14,22 +23,13 @@ export default async function ProjectWorkspaceLayout({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const project = await getStoredProjectById(projectId)
 
-  if (!project) {
+  let project
+  try {
+    project = await projectService.getProject(projectId)
+  } catch {
     notFound()
   }
-
-  const statusTone =
-    project.status === "等待审批"
-      ? "danger"
-      : project.status === "已完成"
-        ? "success"
-        : project.status === "已停止"
-          ? "neutral"
-          : project.status === "已暂停" || project.status === "待启动"
-            ? "warning"
-            : "info"
 
   return (
     <div className="space-y-4">
@@ -37,27 +37,27 @@ export default async function ProjectWorkspaceLayout({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-semibold text-slate-950 dark:text-white">{project.name}</h1>
-            <StatusBadge tone={statusTone}>{project.status}</StatusBadge>
+            <StatusBadge tone={lifecycleTone(project.lifecycle)}>
+              {LIFECYCLE_LABELS[project.lifecycle]}
+            </StatusBadge>
+            <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+              {PHASE_LABELS[project.currentPhase]}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
-              <span>资产 <strong className="text-slate-950 dark:text-white">{project.assetCount}</strong></span>
-              <span>证据 <strong className="text-slate-950 dark:text-white">{project.evidenceCount}</strong></span>
-              <span>审批 <strong className="text-slate-950 dark:text-white">{project.pendingApprovals}</strong></span>
+              <span>轮次 <strong className="text-slate-950 dark:text-white">{project.currentRound}/{project.maxRounds}</strong></span>
             </div>
-            <Button asChild variant="outline" size="sm" className="rounded-full">
-              <Link href={`/projects/${project.id}/edit`}>编辑</Link>
-            </Button>
           </div>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {project.targets.length > 0 ? (
             project.targets.map((target) => (
               <span
-                key={target}
+                key={target.id}
                 className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600 dark:bg-slate-900 dark:text-slate-300"
               >
-                {target}
+                [{target.type}] {target.value}
               </span>
             ))
           ) : (

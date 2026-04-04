@@ -9,29 +9,26 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type { AssetRecord } from "@/lib/prototype-types"
-import type { Tone } from "@/lib/prototype-types"
+import type { Asset, AssetKind } from "@/lib/generated/prisma"
+import { ASSET_KIND_LABELS } from "@/lib/types/labels"
 
-const typeTone: Record<string, Tone> = {
+type Tone = "neutral" | "info" | "success" | "warning" | "danger"
+
+const kindTone: Record<AssetKind, Tone> = {
   domain: "info",
-  host: "neutral",
+  subdomain: "info",
+  ip: "neutral",
   port: "neutral",
-  web_entry: "success",
   service: "warning",
-}
-
-const scopeTone: Record<string, Tone> = {
-  已确认: "success",
-  需人工判断: "warning",
-  待验证: "neutral",
-  超出范围: "danger",
+  webapp: "success",
+  api_endpoint: "success",
 }
 
 export function ProjectAssetTab({
   initialAssets,
 }: {
   projectId: string
-  initialAssets: AssetRecord[]
+  initialAssets: Asset[]
 }) {
   if (initialAssets.length === 0) {
     return (
@@ -49,8 +46,8 @@ export function ProjectAssetTab({
             <TableRow>
               <TableHead>标签</TableHead>
               <TableHead>类型</TableHead>
-              <TableHead>主机</TableHead>
-              <TableHead>范围状态</TableHead>
+              <TableHead>值</TableHead>
+              <TableHead>置信度</TableHead>
               <TableHead>最近发现</TableHead>
             </TableRow>
           </TableHeader>
@@ -58,23 +55,21 @@ export function ProjectAssetTab({
             {initialAssets.map((asset) => (
               <TableRow key={asset.id} className="bg-white/90 dark:bg-slate-950/70">
                 <TableCell className="font-medium text-slate-950 dark:text-white">
-                  {asset.label}
+                  {asset.label || asset.value}
                 </TableCell>
                 <TableCell>
-                  <StatusBadge tone={typeTone[asset.type] ?? "neutral"}>
-                    {asset.type}
+                  <StatusBadge tone={kindTone[asset.kind]}>
+                    {ASSET_KIND_LABELS[asset.kind]}
                   </StatusBadge>
                 </TableCell>
                 <TableCell className="text-sm text-slate-700 dark:text-slate-200">
-                  {asset.host}
-                </TableCell>
-                <TableCell>
-                  <StatusBadge tone={scopeTone[asset.scopeStatus] ?? "neutral"}>
-                    {asset.scopeStatus}
-                  </StatusBadge>
+                  {asset.value}
                 </TableCell>
                 <TableCell className="text-sm text-slate-600 dark:text-slate-300">
-                  {asset.lastSeen}
+                  {(asset.confidence * 100).toFixed(0)}%
+                </TableCell>
+                <TableCell className="text-sm text-slate-600 dark:text-slate-300">
+                  {new Date(asset.lastSeenAt).toLocaleDateString("zh-CN")}
                 </TableCell>
               </TableRow>
             ))}

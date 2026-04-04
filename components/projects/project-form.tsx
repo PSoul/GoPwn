@@ -13,35 +13,39 @@ import { Button } from "@/components/ui/button"
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { normalizeProjectTargets, SINGLE_USER_LABEL } from "@/lib/project/project-targets"
-import type { ProjectFormPreset, ProjectRecord } from "@/lib/prototype-types"
+import type { Project } from "@/lib/generated/prisma"
 import { apiFetch } from "@/lib/infra/api-client"
 
 const projectSchema = z.object({
   name: z.string().min(1, "项目名称不能为空").max(100, "项目名称最多 100 个字符"),
   targetInput: z.string().min(1, "请至少填写一个目标"),
   description: z.string().optional(),
-  approvalMode: z.enum(["default", "auto"]).default("default"),
 })
 type ProjectFormValues = z.infer<typeof projectSchema>
 
 type ProjectFormProps = {
   mode: "create" | "edit"
-  preset: ProjectFormPreset
-  project?: ProjectRecord
+  defaultValues?: { name?: string; targetInput?: string; description?: string }
+  project?: Project
 }
 
-export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
+function normalizeTargets(input: string): string[] {
+  return input
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+}
+
+export function ProjectForm({ mode, defaultValues, project }: ProjectFormProps) {
   const isEdit = mode === "edit"
   const router = useRouter()
   const [isRouting, startTransition] = useTransition()
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectSchema),
     defaultValues: {
-      name: preset.name ?? "",
-      targetInput: preset.targetInput ?? "",
-      description: preset.description ?? "",
-      approvalMode: (preset.approvalMode === "auto" ? "auto" : "default") as "default" | "auto",
+      name: defaultValues?.name ?? "",
+      targetInput: defaultValues?.targetInput ?? "",
+      description: defaultValues?.description ?? "",
     },
   })
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -49,7 +53,7 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
 
   const isBusy = isSaving || isRouting
   const watchedValues = form.watch()
-  const normalizedTargets = normalizeProjectTargets(watchedValues.targetInput)
+  const normalizedTargets = normalizeTargets(watchedValues.targetInput)
 
   async function onSubmit(values: ProjectFormValues) {
     setErrorMessage(null)
@@ -59,17 +63,12 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
     const endpoint = isEdit && project ? `/api/projects/${project.id}` : "/api/projects"
 
     try {
-      const response = await apiFetch(endpoint, {
+      const payload = await apiFetch<{ error?: string; project?: { id: string } }>(endpoint, {
         method,
-        headers: {
-          "content-type": "application/json",
-        },
         body: JSON.stringify(values),
       })
 
-      const payload = (await response.json()) as { error?: string; project?: { id: string } }
-
-      if (!response.ok || !payload.project) {
+      if (!payload.project) {
         setErrorMessage(payload.error ?? "项目保存失败，请稍后再试。")
         return
       }
@@ -91,7 +90,7 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
       <div className="space-y-5">
         <SectionCard
           title="项目基础信息"
-          description="新建和编辑项目只保留最小输入：项目名称、目标、项目说明。并发、审批、超时和重试统一回到探测工具与系统设置管理。"
+          description="填写项目名称、目标和说明。"
         >
           <div className="grid gap-5">
             <FormField
@@ -138,37 +137,12 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
                 </FormItem>
               )}
             />
-
-            {!isEdit && (
-              <FormField
-                control={form.control}
-                name="approvalMode"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>审批策略</FormLabel>
-                    <FormControl>
-                      <select
-                        {...field}
-                        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-950 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
-                      >
-                        <option value="default">默认审批策略（高风险操作需审批）</option>
-                        <option value="auto">全自动执行（跳过所有审批）</option>
-                      </select>
-                    </FormControl>
-                    <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-                      选择&ldquo;全自动&rdquo;后，该项目的所有探测工具调用将直接执行，不再进入审批队列。
-                    </p>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
           </div>
         </SectionCard>
 
         <SectionCard
           title={isEdit ? "确认修改" : "确认创建"}
-          description="保存后会进入项目工作台，优先查看结果表、阶段流转和任务调度。"
+          description="保存后会进入项目工作台。"
         >
           {errorMessage ? (
             <div className="mb-4 rounded-item border border-rose-200 bg-rose-50/90 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100">
@@ -194,7 +168,7 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
       </div>
 
       <div className="space-y-5">
-        <SectionCard title="项目预览" description="右侧预览帮助研究员确认当前项目输入会如何进入工作台。">
+        <SectionCard title="项目预览" description="右侧预览帮助确认当前项目输入。">
           <div className="space-y-4">
             <div className="rounded-item border border-slate-200/80 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60">
               <div className="mb-2 flex items-center gap-2">
@@ -234,9 +208,7 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
                 <p className="text-sm font-semibold text-slate-950 dark:text-white">审批策略</p>
               </div>
               <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
-                {watchedValues.approvalMode === "auto"
-                  ? "全自动执行：所有探测工具调用将直接运行，不进入审批队列。"
-                  : "默认审批策略：高风险操作需要人工审批后才能执行。"}
+                审批策略由全局设置统一管理。高风险操作需要人工审批后才能执行。
               </p>
             </div>
 
@@ -246,7 +218,7 @@ export function ProjectForm({ mode, preset, project }: ProjectFormProps) {
                 <p className="text-sm font-semibold text-slate-950 dark:text-white">工作台提示</p>
               </div>
               <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
-                当前平台为单用户模式，负责人固定为 {SINGLE_USER_LABEL}。并发、超时和重试在探测工具配置与系统设置中统一生效。
+                并发、超时和重试在探测工具配置与系统设置中统一生效。
               </p>
             </div>
           </div>

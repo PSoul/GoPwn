@@ -22,51 +22,50 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type { ProjectFindingRecord } from "@/lib/prototype-types"
+import type { Finding, FindingStatus, Severity } from "@/lib/generated/prisma"
+import { SEVERITY_LABELS, FINDING_STATUS_LABELS } from "@/lib/types/labels"
 import { apiFetch } from "@/lib/infra/api-client"
 
-const severityTone = {
-  高危: "danger",
-  中危: "warning",
-  低危: "info",
-  信息: "neutral",
-} as const
+type Tone = "neutral" | "info" | "success" | "warning" | "danger"
 
-const statusTone = {
-  待验证: "danger",
-  已确认: "success",
-  待复核: "warning",
-  已缓解: "neutral",
-} as const
-
-const statusOptions: ProjectFindingRecord["status"][] = ["待验证", "已确认", "待复核", "已缓解"]
-
-function getTraceHref(record: ProjectFindingRecord) {
-  return record.evidenceId.startsWith("EV-") ? `/evidence/${record.evidenceId}` : "/approvals"
+const severityTone: Record<Severity, Tone> = {
+  critical: "danger",
+  high: "danger",
+  medium: "warning",
+  low: "info",
+  info: "neutral",
 }
+
+const statusTone: Record<FindingStatus, Tone> = {
+  suspected: "warning",
+  verifying: "info",
+  verified: "success",
+  false_positive: "neutral",
+  remediated: "neutral",
+}
+
+const statusOptions: FindingStatus[] = ["suspected", "verifying", "verified", "false_positive", "remediated"]
 
 export function ProjectFindingsTable({
   findings: initialFindings,
   projectId,
 }: {
-  findings: ProjectFindingRecord[]
+  findings: Finding[]
   projectId: string
 }) {
   const router = useRouter()
   const [findings, setFindings] = useState(initialFindings)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
-  async function handleStatusChange(findingId: string, status: ProjectFindingRecord["status"]) {
+  async function handleStatusChange(findingId: string, status: FindingStatus) {
     setUpdatingId(findingId)
     try {
-      const res = await apiFetch(`/api/projects/${projectId}/results/findings`, {
+      const payload = await apiFetch<{ finding: Finding }>(`/api/projects/${projectId}/results/findings`, {
         method: "PATCH",
-        headers: { "content-type": "application/json" },
         body: JSON.stringify({ findingId, status }),
       })
-      if (res.ok) {
-        const { finding } = await res.json()
-        setFindings((prev) => prev.map((f) => (f.id === findingId ? finding : f)))
+      if (payload.finding) {
+        setFindings((prev) => prev.map((f) => (f.id === findingId ? payload.finding : f)))
         router.refresh()
       }
     } catch { /* best-effort */ } finally {
@@ -95,10 +94,9 @@ export function ProjectFindingsTable({
           <TableHeader className="bg-slate-50/80 dark:bg-slate-900/70">
             <TableRow>
               <TableHead>漏洞 / 发现</TableHead>
-              <TableHead>影响面</TableHead>
+              <TableHead>影响目标</TableHead>
               <TableHead>严重级别</TableHead>
               <TableHead>状态</TableHead>
-              <TableHead>追踪</TableHead>
               <TableHead>更新时间</TableHead>
             </TableRow>
           </TableHeader>
@@ -106,18 +104,22 @@ export function ProjectFindingsTable({
             {findings.map((finding) => (
               <TableRow key={finding.id} className="bg-white/90 dark:bg-slate-950/70">
                 <TableCell className="min-w-[320px]">
-                  <p className="font-medium text-slate-950 dark:text-white">{finding.title}</p>
-                  <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{finding.summary}</p>
+                  <Link href={`/projects/${projectId}/vuln/${finding.id}`} className="block">
+                    <p className="font-medium text-slate-950 dark:text-white">{finding.title}</p>
+                    <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{finding.summary}</p>
+                  </Link>
                 </TableCell>
-                <TableCell>{finding.affectedSurface}</TableCell>
+                <TableCell className="text-sm text-slate-700 dark:text-slate-200">
+                  {finding.affectedTarget}
+                </TableCell>
                 <TableCell>
-                  <StatusBadge tone={severityTone[finding.severity]}>{finding.severity}</StatusBadge>
+                  <StatusBadge tone={severityTone[finding.severity]}>{SEVERITY_LABELS[finding.severity]}</StatusBadge>
                 </TableCell>
                 <TableCell>
                   <Select
                     value={finding.status}
                     disabled={updatingId === finding.id}
-                    onValueChange={(value) => handleStatusChange(finding.id, value as ProjectFindingRecord["status"])}
+                    onValueChange={(value) => handleStatusChange(finding.id, value as FindingStatus)}
                   >
                     <SelectTrigger className="h-8 w-[100px] rounded-lg border-slate-200 text-xs dark:border-slate-700">
                       <SelectValue />
@@ -125,19 +127,14 @@ export function ProjectFindingsTable({
                     <SelectContent>
                       {statusOptions.map((opt) => (
                         <SelectItem key={opt} value={opt}>
-                          <StatusBadge tone={statusTone[opt]}>{opt}</StatusBadge>
+                          <StatusBadge tone={statusTone[opt]}>{FINDING_STATUS_LABELS[opt]}</StatusBadge>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </TableCell>
-                <TableCell>
-                  <Link href={getTraceHref(finding)} className="text-sm font-medium text-slate-700 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white">
-                    {finding.evidenceId}
-                  </Link>
-                </TableCell>
                 <TableCell className="text-sm text-slate-600 dark:text-slate-300">
-                  {finding.owner} · {finding.updatedAt}
+                  {new Date(finding.updatedAt).toLocaleDateString("zh-CN")}
                 </TableCell>
               </TableRow>
             ))}

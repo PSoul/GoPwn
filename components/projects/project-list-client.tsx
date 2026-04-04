@@ -26,32 +26,41 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Pagination } from "@/components/shared/pagination"
-import type { ProjectRecord } from "@/lib/prototype-types"
+import type { Project, ProjectLifecycle, PentestPhase } from "@/lib/generated/prisma"
+import { LIFECYCLE_LABELS, PHASE_LABELS } from "@/lib/types/labels"
 import { apiFetch } from "@/lib/infra/api-client"
 
 const PAGE_SIZE = 12
 
+const lifecyclePriority: Record<ProjectLifecycle, number> = {
+  executing: 0,
+  waiting_approval: 1,
+  planning: 2,
+  idle: 3,
+  reviewing: 4,
+  settling: 5,
+  stopping: 6,
+  stopped: 7,
+  completed: 8,
+  failed: 9,
+}
+
 type ProjectListClientProps = {
-  projects: ProjectRecord[]
+  projects: Project[]
 }
 
 export function ProjectListClient({ projects }: ProjectListClientProps) {
   const [projectItems, setProjectItems] = useState(projects)
   const [keyword, setKeyword] = useState("")
-  const [stageFilter, setStageFilter] = useState("全部阶段")
-  const [statusFilter, setStatusFilter] = useState("全部状态")
+  const [phaseFilter, setPhaseFilter] = useState("all")
+  const [lifecycleFilter, setLifecycleFilter] = useState("all")
   const [page, setPage] = useState(1)
-  const [pendingArchive, setPendingArchive] = useState<ProjectRecord | null>(null)
+  const [pendingArchive, setPendingArchive] = useState<Project | null>(null)
   const [lastArchivedProject, setLastArchivedProject] = useState<string | null>(null)
   const [archiveError, setArchiveError] = useState<string | null>(null)
   const [isArchiving, setIsArchiving] = useState(false)
 
   const resetPage = useCallback(() => setPage(1), [])
-
-  const stageOptions = useMemo(
-    () => ["全部阶段", ...Array.from(new Set(projectItems.map((project) => project.stage)))],
-    [projectItems],
-  )
 
   const filteredProjects = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase()
@@ -59,61 +68,57 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
     const filtered = projectItems.filter((project) => {
       const matchesKeyword =
         normalizedKeyword.length === 0 ||
-        [project.name, project.targetInput, project.code, project.description, project.riskSummary]
+        [project.name, project.code, project.description ?? ""]
           .join(" ")
           .toLowerCase()
           .includes(normalizedKeyword)
 
-      const matchesStage = stageFilter === "全部阶段" || project.stage === stageFilter
-      const matchesStatus = statusFilter === "全部状态" || project.status === statusFilter
+      const matchesPhase = phaseFilter === "all" || project.currentPhase === phaseFilter
+      const matchesLifecycle = lifecycleFilter === "all" || project.lifecycle === lifecycleFilter
 
-      return matchesKeyword && matchesStage && matchesStatus
+      return matchesKeyword && matchesPhase && matchesLifecycle
     })
 
-    // Sort: running/blocked first, then by update time
     return filtered.sort((a, b) => {
-      const priorityOrder: Record<string, number> = { 运行中: 0, 等待审批: 1, 待启动: 2, 已暂停: 3, 已完成: 4, 已停止: 5 }
-      const pa = priorityOrder[a.status] ?? 9
-      const pb = priorityOrder[b.status] ?? 9
+      const pa = lifecyclePriority[a.lifecycle] ?? 9
+      const pb = lifecyclePriority[b.lifecycle] ?? 9
       if (pa !== pb) return pa - pb
-      return b.lastUpdated.localeCompare(a.lastUpdated)
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     })
-  }, [keyword, projectItems, stageFilter, statusFilter])
+  }, [keyword, projectItems, phaseFilter, lifecycleFilter])
 
   const summaryCards = [
     { label: "筛选结果", value: `${filteredProjects.length}`, note: "当前可见项目" },
     {
       label: "阻塞项目",
-      value: `${filteredProjects.filter((project) => project.status === "等待审批").length}`,
+      value: `${filteredProjects.filter((p) => p.lifecycle === "waiting_approval").length}`,
       note: "需要优先清障",
     },
     {
-      label: "审批压力",
-      value: `${filteredProjects.reduce((sum, project) => sum + project.pendingApprovals, 0)}`,
-      note: "待处理审批动作",
+      label: "执行中",
+      value: `${filteredProjects.filter((p) => p.lifecycle === "executing").length}`,
+      note: "正在自动化测试",
     },
     {
-      label: "开放任务",
-      value: `${filteredProjects.reduce((sum, project) => sum + project.openTasks, 0)}`,
-      note: "需研究员继续接管",
+      label: "已完成",
+      value: `${filteredProjects.filter((p) => p.lifecycle === "completed").length}`,
+      note: "已完成全部测试",
     },
   ]
 
   async function handleArchiveConfirm() {
-    if (!pendingArchive) {
-      return
-    }
+    if (!pendingArchive) return
 
     setArchiveError(null)
     setIsArchiving(true)
 
     try {
-      const response = await apiFetch(`/api/projects/${pendingArchive.id}/archive`, {
-        method: "POST",
-      })
-      const payload = (await response.json()) as { error?: string; project?: ProjectRecord }
+      const payload = await apiFetch<{ error?: string; project?: Project }>(
+        `/api/projects/${pendingArchive.id}/archive`,
+        { method: "POST" },
+      )
 
-      if (!response.ok || !payload.project) {
+      if (!payload.project) {
         setArchiveError(payload.error ?? "项目归档失败，请稍后再试。")
         return
       }
@@ -139,36 +144,32 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
             <Input
               value={keyword}
               onChange={(event) => { setKeyword(event.target.value); resetPage() }}
-              placeholder="搜索项目名称、目标、项目编号或项目说明..."
+              placeholder="搜索项目名称、项目编号或项目说明..."
               className="h-11 rounded-2xl border-slate-200 bg-slate-50 pl-10 dark:border-slate-800 dark:bg-slate-900"
             />
           </div>
 
-          <Select value={stageFilter} onValueChange={(v) => { setStageFilter(v); resetPage() }}>
+          <Select value={phaseFilter} onValueChange={(v) => { setPhaseFilter(v); resetPage() }}>
             <SelectTrigger className="h-11 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
               <SelectValue placeholder="筛选阶段" />
             </SelectTrigger>
             <SelectContent>
-              {stageOptions.map((stage) => (
-                <SelectItem key={stage} value={stage}>
-                  {stage}
-                </SelectItem>
+              <SelectItem value="all">全部阶段</SelectItem>
+              {(Object.entries(PHASE_LABELS) as [PentestPhase, string][]).map(([key, label]) => (
+                <SelectItem key={key} value={key}>{label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); resetPage() }}>
+          <Select value={lifecycleFilter} onValueChange={(v) => { setLifecycleFilter(v); resetPage() }}>
             <SelectTrigger className="h-11 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
               <SelectValue placeholder="筛选状态" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="全部状态">全部状态</SelectItem>
-              <SelectItem value="运行中">运行中</SelectItem>
-              <SelectItem value="待启动">待启动</SelectItem>
-              <SelectItem value="已暂停">已暂停</SelectItem>
-              <SelectItem value="已停止">已停止</SelectItem>
-              <SelectItem value="等待审批">等待审批</SelectItem>
-              <SelectItem value="已完成">已完成</SelectItem>
+              <SelectItem value="all">全部状态</SelectItem>
+              {(Object.entries(LIFECYCLE_LABELS) as [ProjectLifecycle, string][]).map(([key, label]) => (
+                <SelectItem key={key} value={key}>{label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -188,7 +189,7 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
 
         {lastArchivedProject ? (
           <div className="rounded-item border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/80 dark:bg-amber-950/30 dark:text-amber-100">
-            {lastArchivedProject} 已归档，并已写入本地持久化存储与审计日志。
+            {lastArchivedProject} 已归档。
           </div>
         ) : null}
 
@@ -198,7 +199,6 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
           </div>
         ) : null}
 
-        {/* Card Grid */}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filteredProjects.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((project) => (
             <ProjectCard
@@ -226,7 +226,7 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>确认关闭项目</AlertDialogTitle>
             <AlertDialogDescription>
-              {pendingArchive?.name} 将被标记为归档完成。当前实现会保留数据本体，并把归档动作写入本地持久化存储与审计日志。
+              {pendingArchive?.name} 将被标记为归档完成。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -234,9 +234,7 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
             <AlertDialogAction
               disabled={isArchiving}
               className="rounded-xl bg-rose-600 text-white hover:bg-rose-700"
-              onClick={() => {
-                void handleArchiveConfirm()
-              }}
+              onClick={() => { void handleArchiveConfirm() }}
             >
               {isArchiving ? "归档中..." : "确认归档"}
             </AlertDialogAction>

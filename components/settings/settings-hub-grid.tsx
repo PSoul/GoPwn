@@ -2,16 +2,25 @@ import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 
 import { StatusBadge } from "@/components/shared/status-badge"
-import type { SettingsSectionRecord } from "@/lib/prototype-types"
 
-export function SettingsHubGrid({ sections }: { sections: SettingsSectionRecord[] }) {
+type Tone = "neutral" | "info" | "success" | "warning" | "danger"
+
+type SettingsSection = {
+  href: string
+  title: string
+  description: string
+  metric: string
+  tone: Tone
+}
+
+export function SettingsHubGrid({ sections }: { sections: SettingsSection[] }) {
   return (
     <div className="grid gap-4 xl:grid-cols-2">
       {sections.map((section) => (
         <Link
           key={section.href}
           href={section.href}
-          className="group rounded-card border border-slate-200/80 bg-white/90 p-5 transition-transform hover:-translate-y-0.5 dark:border-slate-800 dark:bg-slate-950/70"
+          className="group rounded-2xl border border-slate-200/80 bg-white/90 p-5 transition-transform hover:-translate-y-0.5 dark:border-slate-800 dark:bg-slate-950/70"
         >
           <div className="flex items-start justify-between gap-3">
             <div>

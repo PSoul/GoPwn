@@ -5,41 +5,41 @@ import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react"
 
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import type { ApprovalRecord } from "@/lib/prototype-types"
+import type { Approval, ApprovalStatus, RiskLevel } from "@/lib/generated/prisma"
+import { APPROVAL_STATUS_LABELS, RISK_LEVEL_LABELS } from "@/lib/types/labels"
 import { apiFetch } from "@/lib/infra/api-client"
 
-const riskTone = {
-  高: "danger",
-  中: "warning",
-  低: "info",
-} as const
+type Tone = "neutral" | "info" | "success" | "warning" | "danger"
 
-type Decision = "已批准" | "已拒绝" | "已延后"
+const riskTone: Record<RiskLevel, Tone> = {
+  low: "info",
+  medium: "warning",
+  high: "danger",
+}
 
 export function ProjectApprovalBar({
   projectId,
   initialApprovals,
 }: {
   projectId: string
-  initialApprovals: ApprovalRecord[]
+  initialApprovals: Approval[]
 }) {
   const [approvals, setApprovals] = useState(initialApprovals)
   const [expanded, setExpanded] = useState(false)
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
 
-  const pending = approvals.filter((a) => a.status === "待处理")
+  const pending = approvals.filter((a) => a.status === "pending")
 
-  async function handleDecision(approvalId: string, decision: Decision) {
+  async function handleDecision(approvalId: string, status: ApprovalStatus) {
     setProcessingIds((prev) => new Set(prev).add(approvalId))
     try {
-      const res = await apiFetch(`/api/approvals/${approvalId}`, {
+      const payload = await apiFetch<{ approval: Approval }>(`/api/approvals/${approvalId}`, {
         method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ decision }),
+        body: JSON.stringify({ status }),
       })
-      if (res.ok) {
+      if (payload.approval) {
         setApprovals((prev) =>
-          prev.map((a) => (a.id === approvalId ? { ...a, status: decision } : a)),
+          prev.map((a) => (a.id === approvalId ? payload.approval : a)),
         )
       }
     } catch { /* best-effort */ } finally {
@@ -53,7 +53,7 @@ export function ProjectApprovalBar({
 
   async function handleApproveAll() {
     await Promise.allSettled(
-      pending.map((a) => handleDecision(a.id, "已批准")),
+      pending.map((a) => handleDecision(a.id, "approved")),
     )
   }
 
@@ -102,7 +102,7 @@ export function ProjectApprovalBar({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <StatusBadge tone={riskTone[approval.riskLevel]}>
-                        {approval.riskLevel}风险
+                        {RISK_LEVEL_LABELS[approval.riskLevel]}
                       </StatusBadge>
                       <span className="text-sm font-medium text-slate-950 dark:text-white">
                         {approval.actionType}
@@ -111,9 +111,11 @@ export function ProjectApprovalBar({
                     <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
                       目标: {approval.target}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                      {approval.rationale}
-                    </p>
+                    {approval.rationale && (
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        {approval.rationale}
+                      </p>
+                    )}
                   </div>
                   <div className="flex shrink-0 gap-1.5">
                     <Button
@@ -121,7 +123,7 @@ export function ProjectApprovalBar({
                       variant="outline"
                       className="h-7 rounded-full px-3 text-xs text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
                       disabled={processingIds.has(approval.id)}
-                      onClick={() => handleDecision(approval.id, "已批准")}
+                      onClick={() => handleDecision(approval.id, "approved")}
                     >
                       批准
                     </Button>
@@ -130,7 +132,7 @@ export function ProjectApprovalBar({
                       variant="outline"
                       className="h-7 rounded-full px-3 text-xs text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/40"
                       disabled={processingIds.has(approval.id)}
-                      onClick={() => handleDecision(approval.id, "已拒绝")}
+                      onClick={() => handleDecision(approval.id, "rejected")}
                     >
                       拒绝
                     </Button>
@@ -139,7 +141,7 @@ export function ProjectApprovalBar({
                       variant="outline"
                       className="h-7 rounded-full px-3 text-xs"
                       disabled={processingIds.has(approval.id)}
-                      onClick={() => handleDecision(approval.id, "已延后")}
+                      onClick={() => handleDecision(approval.id, "deferred")}
                     >
                       延后
                     </Button>

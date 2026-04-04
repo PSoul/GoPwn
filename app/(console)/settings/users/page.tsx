@@ -8,8 +8,9 @@ import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
 import { Button } from "@/components/ui/button"
-import { apiFetch } from "@/lib/infra/api-client"
-import type { UserRole, UserStatus } from "@/lib/prototype-types"
+
+type UserRole = "admin" | "researcher" | "approver"
+type UserStatus = "active" | "disabled"
 
 interface UserItem {
   id: string
@@ -43,10 +44,10 @@ export default function UsersSettingsPage() {
 
   const loadUsers = useCallback(async () => {
     try {
-      const res = await apiFetch("/api/users")
+      const res = await fetch("/api/users")
       if (res.ok) {
         const data = await res.json()
-        setUsers(data.items)
+        setUsers(data.items ?? data)
       }
     } catch { /* best effort */ }
     setLoading(false)
@@ -62,7 +63,7 @@ export default function UsersSettingsPage() {
     }
     setSubmitting(true)
     try {
-      const res = await apiFetch("/api/users", {
+      const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -84,7 +85,7 @@ export default function UsersSettingsPage() {
   async function handleToggleStatus(user: UserItem) {
     const newStatus = user.status === "active" ? "disabled" : "active"
     try {
-      await apiFetch(`/api/users/${user.id}`, {
+      await fetch(`/api/users/${user.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
@@ -104,7 +105,6 @@ export default function UsersSettingsPage() {
         description="当前平台所有注册用户。管理员可以创建新用户、分配角色和管理账号状态。"
       >
         <div className="space-y-4">
-          {/* Actions */}
           <div className="flex justify-end">
             <Button size="sm" onClick={() => setShowForm(!showForm)} className="gap-1.5 rounded-full">
               <Plus className="h-3.5 w-3.5" />
@@ -112,47 +112,24 @@ export default function UsersSettingsPage() {
             </Button>
           </div>
 
-          {/* Create form */}
           {showForm && (
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">邮箱</label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                    placeholder="user@company.local"
-                  />
+                  <input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="user@company.local" />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">密码</label>
-                  <input
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                    placeholder="至少 8 位"
-                  />
+                  <input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="至少 8 位" />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">显示名称</label>
-                  <input
-                    type="text"
-                    value={formData.displayName}
-                    onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                    placeholder="张三"
-                  />
+                  <input type="text" value={formData.displayName} onChange={(e) => setFormData({ ...formData, displayName: e.target.value })} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="张三" />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">角色</label>
-                  <select
-                    value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                  >
+                  <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
                     <option value="researcher">研究员</option>
                     <option value="approver">审批员</option>
                     <option value="admin">管理员</option>
@@ -171,7 +148,6 @@ export default function UsersSettingsPage() {
             </div>
           )}
 
-          {/* User table */}
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
@@ -187,7 +163,6 @@ export default function UsersSettingsPage() {
                     <th className="px-4 py-2.5 text-left font-medium text-slate-600 dark:text-slate-400">邮箱</th>
                     <th className="px-4 py-2.5 text-left font-medium text-slate-600 dark:text-slate-400">角色</th>
                     <th className="px-4 py-2.5 text-left font-medium text-slate-600 dark:text-slate-400">状态</th>
-                    <th className="px-4 py-2.5 text-left font-medium text-slate-600 dark:text-slate-400">最近登录</th>
                     <th className="px-4 py-2.5 text-right font-medium text-slate-600 dark:text-slate-400">操作</th>
                   </tr>
                 </thead>
@@ -196,9 +171,7 @@ export default function UsersSettingsPage() {
                     const RoleIcon = roleIcons[user.role]
                     return (
                       <tr key={user.id} className="border-b border-slate-100 last:border-0 dark:border-slate-800/50">
-                        <td className="px-4 py-3">
-                          <span className="font-medium text-slate-900 dark:text-white">{user.displayName}</span>
-                        </td>
+                        <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{user.displayName}</td>
                         <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{user.email}</td>
                         <td className="px-4 py-3">
                           <span className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-300">
@@ -211,16 +184,8 @@ export default function UsersSettingsPage() {
                             {user.status === "active" ? "正常" : "已禁用"}
                           </StatusBadge>
                         </td>
-                        <td className="px-4 py-3 text-xs text-slate-400">
-                          {user.lastLoginAt || "从未登录"}
-                        </td>
                         <td className="px-4 py-3 text-right">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleToggleStatus(user)}
-                            className="text-xs"
-                          >
+                          <Button size="sm" variant="ghost" onClick={() => handleToggleStatus(user)} className="text-xs">
                             {user.status === "active" ? "禁用" : "启用"}
                           </Button>
                         </td>

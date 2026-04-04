@@ -10,31 +10,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type { McpToolRecord } from "@/lib/prototype-types"
+import type { McpTool, RiskLevel } from "@/lib/generated/prisma"
+import { RISK_LEVEL_LABELS } from "@/lib/types/labels"
 import { cn } from "@/lib/utils"
 
-function getRiskTone(riskLevel: McpToolRecord["riskLevel"]) {
-  if (riskLevel === "高") {
-    return "danger" as const
-  }
+type Tone = "neutral" | "info" | "success" | "warning" | "danger"
 
-  if (riskLevel === "中") {
-    return "warning" as const
-  }
-
-  return "success" as const
-}
-
-function getStatusTone(status: McpToolRecord["status"]) {
-  if (status === "异常") {
-    return "danger" as const
-  }
-
-  if (status === "启用") {
-    return "success" as const
-  }
-
-  return "neutral" as const
+const riskTone: Record<RiskLevel, Tone> = {
+  low: "info",
+  medium: "warning",
+  high: "danger",
 }
 
 export function McpToolTable({
@@ -42,7 +27,7 @@ export function McpToolTable({
   selectedToolId,
   onSelectTool,
 }: {
-  tools: McpToolRecord[]
+  tools: McpTool[]
   selectedToolId?: string
   onSelectTool: (toolId: string) => void
 }) {
@@ -55,8 +40,7 @@ export function McpToolTable({
             <TableHead>能力分类</TableHead>
             <TableHead>边界 / 审批</TableHead>
             <TableHead>风险级别</TableHead>
-            <TableHead>并发 / 速率</TableHead>
-            <TableHead>最近巡检</TableHead>
+            <TableHead>超时</TableHead>
             <TableHead>状态</TableHead>
             <TableHead className="text-right">操作</TableHead>
           </TableRow>
@@ -75,28 +59,27 @@ export function McpToolTable({
               >
                 <TableCell>
                   <p className="font-medium text-slate-950 dark:text-white">{tool.toolName}</p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">v{tool.version}</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tool.serverName}</p>
                 </TableCell>
                 <TableCell>
                   <p>{tool.capability}</p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tool.category}</p>
                 </TableCell>
                 <TableCell>
                   <p className="text-sm text-slate-700 dark:text-slate-200">{tool.boundary}</p>
                   <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    {tool.requiresApproval ? "默认需要审批" : "默认自动执行"}
+                    {tool.requiresApproval ? "需要审批" : "自动执行"}
                   </p>
                 </TableCell>
                 <TableCell>
-                  <StatusBadge tone={getRiskTone(tool.riskLevel)}>风险 {tool.riskLevel}</StatusBadge>
+                  <StatusBadge tone={riskTone[tool.riskLevel]}>{RISK_LEVEL_LABELS[tool.riskLevel]}</StatusBadge>
+                </TableCell>
+                <TableCell className="text-sm text-slate-600 dark:text-slate-300">
+                  {tool.timeout}ms
                 </TableCell>
                 <TableCell>
-                  <p>{tool.defaultConcurrency}</p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tool.rateLimit}</p>
-                </TableCell>
-                <TableCell>{tool.lastCheck}</TableCell>
-                <TableCell>
-                  <StatusBadge tone={getStatusTone(tool.status)}>{tool.status}</StatusBadge>
+                  <StatusBadge tone={tool.enabled ? "success" : "neutral"}>
+                    {tool.enabled ? "已启用" : "已停用"}
+                  </StatusBadge>
                 </TableCell>
                 <TableCell className="text-right">
                   <Button

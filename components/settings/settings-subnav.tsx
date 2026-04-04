@@ -1,7 +1,20 @@
 import Link from "next/link"
 
-import { settingsSections } from "@/lib/settings/platform-config"
 import { cn } from "@/lib/utils"
+
+type NavSection = {
+  href: string
+  title: string
+}
+
+const settingsSections: NavSection[] = [
+  { href: "/settings/llm", title: "LLM 模型" },
+  { href: "/settings/mcp-tools", title: "探测工具" },
+  { href: "/settings/approval-policy", title: "审批策略" },
+  { href: "/settings/audit-logs", title: "审计日志" },
+  { href: "/settings/system-status", title: "系统状态" },
+  { href: "/settings/users", title: "用户管理" },
+]
 
 export function SettingsSubnav({ currentHref }: { currentHref: string }) {
   return (

@@ -1,17 +1,19 @@
-import { cookies } from "next/headers"
-
 import { AppShell } from "@/components/layout/app-shell"
-import { readSessionToken, AUTH_COOKIE_NAME } from "@/lib/auth/auth-session"
+import { requireAuth } from "@/lib/infra/auth"
 
 export default async function ConsoleLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const cookieStore = await cookies()
-  const token = cookieStore.get(AUTH_COOKIE_NAME)?.value
-  const session = await readSessionToken(token)
-  const user = session ? { displayName: session.displayName, role: session.role } : undefined
+  let user: { displayName: string; role: string } | undefined
+
+  try {
+    const session = await requireAuth()
+    user = { displayName: session.account, role: session.role }
+  } catch {
+    // middleware handles redirect — this is a safety net
+  }
 
   return <AppShell user={user}>{children}</AppShell>
 }

@@ -2,30 +2,27 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
 import { SystemControlPanel } from "@/components/settings/system-control-panel"
-import { getApprovalPolicyPayload } from "@/lib/infra/api-compositions"
+import { requireAuth } from "@/lib/infra/auth"
+import { getGlobalConfig } from "@/lib/services/settings-service"
 
 export default async function ApprovalPolicySettingsPage() {
-  const payload = await getApprovalPolicyPayload()
+  await requireAuth()
+  const config = await getGlobalConfig()
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="审批策略"
-        description="审批在这个平台里是对 MCP 调用的风险闸门，而不是默认工作中心，所以单独放进策略页管理。"
+        description="审批是对 MCP 调用的风险闸门，单独放进策略页管理。"
       />
 
       <SettingsSubnav currentHref="/settings/approval-policy" />
 
       <SectionCard
         title="审批与范围控制"
-        description="这里统一管理审批开关、默认放行模式、范围规则与紧急停止策略。"
+        description="管理审批开关、默认放行模式与范围规则。"
       >
-        <SystemControlPanel
-          overview={payload.overview}
-          approvalControl={payload.approvalControl}
-          approvalPolicies={payload.approvalPolicies}
-          scopeRules={payload.scopeRules}
-        />
+        <SystemControlPanel initialConfig={config ?? { id: "", approvalEnabled: true, autoApproveLowRisk: false, autoApproveMediumRisk: false }} />
       </SectionCard>
     </div>
   )

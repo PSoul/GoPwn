@@ -1,59 +1,106 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { AlertTriangle, Boxes, FolderKanban, ShieldCheck } from "lucide-react"
 
-import { AssetTable } from "@/components/assets/asset-table"
 import { StatusBadge } from "@/components/shared/status-badge"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { getPreferredAssetViewKey } from "@/lib/data/asset-view-selection"
-import type { AssetCollectionView } from "@/lib/prototype-types"
+import type { Asset, AssetKind } from "@/lib/generated/prisma"
+import { ASSET_KIND_LABELS } from "@/lib/types/labels"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Input } from "@/components/ui/input"
+import { Pagination } from "@/components/shared/pagination"
+
+type Tone = "neutral" | "info" | "success" | "warning" | "danger"
+
+const kindTone: Record<AssetKind, Tone> = {
+  domain: "info",
+  subdomain: "info",
+  ip: "neutral",
+  port: "neutral",
+  service: "warning",
+  webapp: "success",
+  api_endpoint: "success",
+}
+
+const ASSET_PAGE_SIZE = 25
+
+const kindFilterOptions: Array<{ label: string; value: string }> = [
+  { label: "全部类型", value: "all" },
+  { label: "域名", value: "domain" },
+  { label: "子域名", value: "subdomain" },
+  { label: "IP", value: "ip" },
+  { label: "端口", value: "port" },
+  { label: "服务", value: "service" },
+  { label: "Web 应用", value: "webapp" },
+  { label: "API 端点", value: "api_endpoint" },
+]
 
 export function AssetCenterClient({
-  views,
-  initialView,
+  initialAssets,
 }: {
-  views: AssetCollectionView[]
-  initialView?: string | null
+  initialAssets: Asset[]
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const selectedKey = getPreferredAssetViewKey(views, initialView ?? null)
-  const selectedView = views.find((view) => view.key === selectedKey) ?? views[0]
+  const [query, setQuery] = useState("")
+  const [kindFilter, setKindFilter] = useState("all")
+  const [page, setPage] = useState(1)
 
-  const uniqueAssets = useMemo(() => {
-    const deduped = new Map<string, (typeof views)[number]["items"][number]>()
+  const projectCount = useMemo(
+    () => new Set(initialAssets.map((a) => a.projectId)).size,
+    [initialAssets],
+  )
 
-    views.flatMap((view) => view.items).forEach((asset) => {
-      deduped.set(asset.id, asset)
+  const filteredAssets = useMemo(() => {
+    return initialAssets.filter((asset) => {
+      if (kindFilter !== "all" && asset.kind !== kindFilter) return false
+      if (query) {
+        const q = query.trim().toLowerCase()
+        const haystack = [asset.value, asset.label, asset.kind].join(" ").toLowerCase()
+        if (!haystack.includes(q)) return false
+      }
+      return true
     })
+  }, [initialAssets, kindFilter, query])
 
-    return [...deduped.values()]
-  }, [views])
-
-  const inScopeCount = uniqueAssets.filter((asset) => asset.scopeStatus === "已确认").length
-  const pendingCount = uniqueAssets.filter((asset) => asset.scopeStatus !== "已确认").length
-  const projectCount = new Set(uniqueAssets.map((asset) => asset.projectId)).size
+  const paginatedAssets = useMemo(
+    () => filteredAssets.slice((page - 1) * ASSET_PAGE_SIZE, page * ASSET_PAGE_SIZE),
+    [filteredAssets, page],
+  )
 
   const summaryCards = [
     {
       label: "资产总数",
-      value: String(uniqueAssets.length),
+      value: String(initialAssets.length),
       detail: "所有项目汇总的统一资产视图。",
       icon: Boxes,
     },
     {
-      label: "已确认范围",
-      value: String(inScopeCount),
-      detail: "已确认可继续推进验证与证据沉淀的对象。",
+      label: "高置信度",
+      value: String(initialAssets.filter((a) => a.confidence >= 0.8).length),
+      detail: "置信度 80% 以上的资产数量。",
       icon: ShieldCheck,
     },
     {
-      label: "待验证 / 需人工判断",
-      value: String(pendingCount),
-      detail: "仍需继续判断归属、授权或技术真实性的对象。",
+      label: "低置信度 / 待验证",
+      value: String(initialAssets.filter((a) => a.confidence < 0.8).length),
+      detail: "仍需继续判断真实性的对象。",
       icon: AlertTriangle,
     },
     {
@@ -64,21 +111,13 @@ export function AssetCenterClient({
     },
   ]
 
-  const handleViewChange = (nextView: string) => {
-    router.replace(`${pathname}?view=${nextView}`, { scroll: false })
-  }
-
-  if (!selectedView) {
-    return null
-  }
-
   return (
     <div className="space-y-5">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {summaryCards.map((card) => (
           <div
             key={card.label}
-            className="rounded-card border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-950"
+            className="rounded-2xl border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-950"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -94,50 +133,89 @@ export function AssetCenterClient({
         ))}
       </div>
 
-      <section className="rounded-hero border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
+      <section className="rounded-2xl border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
         <div className="flex flex-col gap-4 border-b border-slate-200/80 pb-4 dark:border-slate-800">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                Asset Workspace
-              </p>
-              <h2 className="mt-2 text-[24px] font-semibold tracking-tight text-slate-950 dark:text-white">{selectedView.label}</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">{selectedView.description}</p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <StatusBadge tone={selectedView.key === "pending-review" ? "warning" : "neutral"}>
-                {selectedView.count} 条真实记录
-              </StatusBadge>
-              {selectedView.key === "pending-review" ? (
-                <Link
-                  href="/projects"
-                  className="rounded-full border border-slate-200 px-4 py-2 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900"
-                >
-                  查看相关项目
-                </Link>
-              ) : null}
-            </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+              Asset Workspace
+            </p>
+            <h2 className="mt-2 text-[24px] font-semibold tracking-tight text-slate-950 dark:text-white">资产中心</h2>
           </div>
 
-          <Tabs value={selectedView.key} onValueChange={handleViewChange}>
-            <TabsList className="h-auto w-full justify-start gap-2 overflow-x-auto rounded-panel bg-slate-100/85 p-2 dark:bg-slate-900/80">
-              {views.map((view) => (
-                <TabsTrigger
-                  key={view.key}
-                  value={view.key}
-                  className="rounded-2xl px-4 py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-950"
-                >
-                  <span>{view.label}</span>
-                  <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">{view.count}</span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+          <div className="grid gap-3 xl:grid-cols-[1.3fr_0.8fr]">
+            <Input
+              value={query}
+              onChange={(event) => { setQuery(event.target.value); setPage(1) }}
+              placeholder="搜索资产值、标签..."
+              className="h-11 rounded-2xl border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
+            />
+            <Select value={kindFilter} onValueChange={(value) => { setKindFilter(value); setPage(1) }}>
+              <SelectTrigger className="h-11 rounded-2xl border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+                <SelectValue placeholder="资产类型" />
+              </SelectTrigger>
+              <SelectContent>
+                {kindFilterOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
-        <div className="pt-5">
-          <AssetTable view={selectedView} />
+        <div className="mt-4 overflow-hidden rounded-xl border border-slate-200/80 dark:border-slate-800">
+          <Table>
+            <TableHeader className="bg-slate-50/80 dark:bg-slate-900/70">
+              <TableRow>
+                <TableHead>标签</TableHead>
+                <TableHead>类型</TableHead>
+                <TableHead>值</TableHead>
+                <TableHead>置信度</TableHead>
+                <TableHead>最近发现</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginatedAssets.length > 0 ? (
+                paginatedAssets.map((asset) => (
+                  <TableRow key={asset.id} className="bg-white/90 dark:bg-slate-950/70">
+                    <TableCell className="font-medium text-slate-950 dark:text-white">
+                      {asset.label || asset.value}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge tone={kindTone[asset.kind]}>
+                        {ASSET_KIND_LABELS[asset.kind]}
+                      </StatusBadge>
+                    </TableCell>
+                    <TableCell className="text-sm text-slate-700 dark:text-slate-200">
+                      {asset.value}
+                    </TableCell>
+                    <TableCell className="text-sm text-slate-600 dark:text-slate-300">
+                      {(asset.confidence * 100).toFixed(0)}%
+                    </TableCell>
+                    <TableCell className="text-sm text-slate-600 dark:text-slate-300">
+                      {new Date(asset.lastSeenAt).toLocaleDateString("zh-CN")}
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="px-6 py-16 text-center">
+                    <p className="text-sm font-medium text-slate-950 dark:text-white">当前没有匹配结果</p>
+                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                      {query || kindFilter !== "all"
+                        ? "调整搜索词或类型筛选后再看一次。"
+                        : "等真实任务执行后，这里会自动出现对应的资产对象。"}
+                    </p>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <div className="mt-4">
+          <Pagination page={page} pageSize={ASSET_PAGE_SIZE} total={filteredAssets.length} onPageChange={setPage} />
         </div>
       </section>
     </div>

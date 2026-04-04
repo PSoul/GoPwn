@@ -1,10 +1,14 @@
 import { Activity, Database, ServerCog, Workflow } from "lucide-react"
 
-import type { SystemStatusRecord } from "@/lib/prototype-types"
+type StatusItem = {
+  title: string
+  value: string
+  description: string
+}
 
 const icons = [ServerCog, Workflow, Activity, Database]
 
-export function SystemStatusGrid({ items }: { items: SystemStatusRecord[] }) {
+export function SystemStatusGrid({ items }: { items: StatusItem[] }) {
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       {items.map((item, index) => {
@@ -13,7 +17,7 @@ export function SystemStatusGrid({ items }: { items: SystemStatusRecord[] }) {
         return (
           <div
             key={item.title}
-            className="rounded-card border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70"
+            className="rounded-2xl border border-slate-200/80 bg-white/90 p-5 dark:border-slate-800 dark:bg-slate-950/70"
           >
             <div className="flex items-start justify-between gap-3">
               <div>

@@ -27,21 +27,13 @@ export function AppSidebar({ pathname }: { pathname: string }) {
 
     async function loadBadges() {
       try {
-        const response = await apiFetch("/api/dashboard", {
-          signal: controller.signal,
-        })
+        const payload = await apiFetch<{
+          totalProjects?: number
+        }>("/api/dashboard", { signal: controller.signal })
 
-        if (!response.ok) {
-          return
-        }
-
-        const payload = (await response.json()) as {
-          metrics?: Array<{ label?: string; value?: string }>
-        }
-        const metrics = Array.isArray(payload.metrics) ? payload.metrics : []
-        const projectTotal = metrics.find((metric) => metric.label === "项目总数")?.value ?? ""
+        const total = payload.totalProjects ?? 0
         setDynamicBadges({
-          "/projects": projectTotal && projectTotal !== "0" ? projectTotal : "",
+          "/projects": total > 0 ? String(total) : "",
         })
       } catch {
         // ignore sidebar badge refresh failures and fall back to no badges

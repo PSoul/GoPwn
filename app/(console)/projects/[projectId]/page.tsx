@@ -1,34 +1,36 @@
 import { notFound } from "next/navigation"
 
 import { ProjectLiveDashboard } from "@/components/projects/project-live-dashboard"
-import { listStoredAssets } from "@/lib/data/asset-repository"
-import { listStoredProjectApprovals } from "@/lib/data/approval-repository"
-import { getStoredProjectById, getStoredProjectDetailById } from "@/lib/project/project-repository"
-import { listStoredProjectFindings } from "@/lib/project/project-results-repository"
+import { requireAuth } from "@/lib/infra/auth"
+import { getProject } from "@/lib/services/project-service"
+import { listByProject as listAssets } from "@/lib/services/asset-service"
+import * as findingRepo from "@/lib/repositories/finding-repo"
+import { listByProject as listApprovals } from "@/lib/services/approval-service"
 
 export default async function ProjectDetailPage({
   params,
 }: {
   params: Promise<{ projectId: string }>
 }) {
+  await requireAuth()
   const { projectId } = await params
-  const project = await getStoredProjectById(projectId)
-  const detail = await getStoredProjectDetailById(projectId)
 
-  if (!project || !detail) {
+  let project
+  try {
+    project = await getProject(projectId)
+  } catch {
     notFound()
   }
 
   const [assets, findings, approvals] = await Promise.all([
-    listStoredAssets(projectId),
-    listStoredProjectFindings(projectId),
-    listStoredProjectApprovals(projectId),
+    listAssets(projectId),
+    findingRepo.findByProject(projectId),
+    listApprovals(projectId),
   ])
 
   return (
     <ProjectLiveDashboard
       project={project}
-      detail={detail}
       initialFindings={findings}
       initialAssets={assets}
       initialApprovals={approvals}

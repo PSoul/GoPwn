@@ -1,90 +1,58 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { jwtVerify } from "jose"
 
-import { readSessionToken } from "@/lib/auth/auth-session"
-import { ensureCsrfCookie, verifyCsrfToken } from "@/lib/auth/csrf"
-import { loginLimiter, apiLimiter } from "@/lib/auth/rate-limit"
+const COOKIE_NAME = "pentest_token"
+
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET || "dev-secret-change-in-production"
+  return new TextEncoder().encode(secret)
+}
 
 function getLoginRedirect(request: NextRequest) {
   const url = new URL("/login", request.url)
   url.searchParams.set("from", request.nextUrl.pathname)
-
   return NextResponse.redirect(url)
 }
 
-function getClientIp(request: NextRequest): string {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    request.headers.get("x-real-ip") ??
-    "unknown"
-  )
-}
-
-function rateLimitResponse(retryAfterMs: number): NextResponse {
-  return NextResponse.json(
-    { error: "Too many requests" },
-    {
-      status: 429,
-      headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) },
-    },
-  )
+async function verifySession(request: NextRequest): Promise<boolean> {
+  const token = request.cookies.get(COOKIE_NAME)?.value
+  if (!token) return false
+  try {
+    await jwtVerify(token, getJwtSecret())
+    return true
+  } catch {
+    return false
+  }
 }
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
-  const session = await readSessionToken(request.cookies.get("prototype_session")?.value)
   const isApiRoute = pathname.startsWith("/api")
   const isPublicPage = pathname === "/login"
-  const isLoginApi = pathname === "/api/auth/login"
-  const isPublicApi = isLoginApi || pathname === "/api/auth/logout" || pathname === "/api/auth/captcha" || pathname === "/api/health"
+  const isPublicApi =
+    pathname === "/api/auth/login" ||
+    pathname === "/api/auth/logout" ||
+    pathname === "/api/health"
 
-  // Rate limiting — login endpoint (stricter)
-  if (isLoginApi && request.method === "POST") {
-    const ip = getClientIp(request)
-    const result = loginLimiter(ip)
-    if (!result.allowed) {
-      return rateLimitResponse(result.retryAfterMs)
-    }
-  }
+  const authenticated = await verifySession(request)
 
-  // Rate limiting — general API
-  if (isApiRoute && !isLoginApi) {
-    const ip = getClientIp(request)
-    const result = apiLimiter(ip)
-    if (!result.allowed) {
-      return rateLimitResponse(result.retryAfterMs)
-    }
-  }
-
-  if (isApiRoute && !isPublicApi && !session) {
+  // Unauthenticated API requests (except public endpoints)
+  if (isApiRoute && !isPublicApi && !authenticated) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  if (!isApiRoute && !isPublicPage && !session) {
+  // Unauthenticated page requests (except login)
+  if (!isApiRoute && !isPublicPage && !authenticated) {
     return getLoginRedirect(request)
   }
 
-  if (isPublicPage && session) {
+  // Redirect authenticated users away from login page
+  if (isPublicPage && authenticated) {
     return NextResponse.redirect(new URL("/dashboard", request.url))
   }
 
-  // CSRF verification for authenticated API mutations
-  // Skip in E2E/test mode to avoid captcha + CSRF friction in automated tests
-  const isTestMode = process.env.E2E_TEST_MODE === "true"
-  if (isApiRoute && !isPublicApi && session && !isTestMode) {
-    const csrfError = verifyCsrfToken(request)
-    if (csrfError) {
-      return csrfError
-    }
-  }
-
-  // Ensure CSRF cookie exists for authenticated users
-  const response = NextResponse.next()
-  if (session) {
-    return ensureCsrfCookie(request, response)
-  }
-
-  return response
+  return NextResponse.next()
 }
 
 export const config = {
