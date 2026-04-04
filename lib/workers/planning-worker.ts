@@ -14,6 +14,7 @@ import { prisma } from "@/lib/infra/prisma"
 import { publishEvent } from "@/lib/infra/event-bus"
 import { createPgBossJobQueue } from "@/lib/infra/job-queue"
 import { registerAbort, unregisterAbort } from "@/lib/infra/abort-registry"
+import { createPipelineLogger } from "@/lib/infra/pipeline-logger"
 import { transition } from "@/lib/domain/lifecycle"
 import { requiresApproval, type ApprovalPolicy } from "@/lib/domain/risk-policy"
 import {
@@ -27,17 +28,22 @@ import type { RiskLevel, PentestPhase } from "@/lib/generated/prisma"
 
 export async function handlePlanRound(data: { projectId: string; round: number }) {
   const { projectId, round } = data
-  console.log(`[planning] Starting round ${round} for project ${projectId}`)
+  const log = createPipelineLogger(projectId, "plan_round", { round })
+  log.info("started", `开始规划第 ${round} 轮`)
 
   const project = await projectRepo.findById(projectId)
   if (!project) {
-    console.error(`[planning] Project ${projectId} not found`)
+    log.error("failed", `项目 ${projectId} 不存在`)
     return
   }
 
-  // Only proceed if project is in planning state (startProject already transitioned idle→planning)
+  if (project.lifecycle === "stopped" || project.lifecycle === "stopping") {
+    log.info("skipped", `项目已 ${project.lifecycle}，跳过规划`)
+    return
+  }
+
   if (project.lifecycle !== "planning") {
-    console.warn(`[planning] Project ${projectId} is in ${project.lifecycle} state, skipping plan`)
+    log.warn("skipped", `项目处于 ${project.lifecycle} 状态，跳过规划`)
     return
   }
 
@@ -89,6 +95,9 @@ export async function handlePlanRound(data: { projectId: string; round: number }
     const abortController = new AbortController()
     registerAbort(projectId, abortController)
 
+    const timer = log.startTimer()
+    log.info("llm_call", "调用 planner LLM")
+
     const llm = await getLlmProvider(projectId, "planner")
     const messages = await buildPlannerPrompt(plannerCtx)
     const response = await llm.chat(messages, { jsonMode: true, signal: abortController.signal })
@@ -98,6 +107,8 @@ export async function handlePlanRound(data: { projectId: string; round: number }
 
     // Validate and cap plan items
     const items = (plan.items ?? []).slice(0, 5)
+
+    log.info("llm_response", `LLM 返回 ${items.length} 个计划项`, { summary: plan.summary, phase: plan.phase }, timer.elapsed())
 
     // Save plan to database
     await prisma.orchestratorPlan.upsert({
@@ -213,13 +224,12 @@ export async function handlePlanRound(data: { projectId: string; round: number }
       detail: `Round ${round}: ${items.length} tasks planned (${plan.phase})`,
     })
 
-    console.log(`[planning] Round ${round} planned: ${items.length} tasks for ${plan.phase}`)
+    log.info("completed", `规划完成: ${items.length} 个任务 (${plan.phase})`)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    console.error(`[planning] Failed for project ${projectId} round ${round}:`, message)
+    log.error("failed", `规划失败: ${message}`, { error: message })
 
     try {
-      await projectRepo.updateLifecycle(projectId, "failed")
       await prisma.orchestratorRound.update({
         where: { projectId_round: { projectId, round } },
         data: { status: "failed" },

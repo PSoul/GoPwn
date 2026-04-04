@@ -7,6 +7,7 @@ import * as projectRepo from "@/lib/repositories/project-repo"
 import * as mcpRunRepo from "@/lib/repositories/mcp-run-repo"
 import { publishEvent } from "@/lib/infra/event-bus"
 import { createPgBossJobQueue } from "@/lib/infra/job-queue"
+import { createPipelineLogger } from "@/lib/infra/pipeline-logger"
 import { callTool } from "@/lib/mcp"
 
 /** Max execution time per tool (5 minutes). Prevents runaway tools. */
@@ -24,18 +25,22 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 
 export async function handleExecuteTool(data: { projectId: string; mcpRunId: string }) {
   const { projectId, mcpRunId } = data
-  console.log(`[execution] Executing tool for run ${mcpRunId}`)
+  let log = createPipelineLogger(projectId, "execute_tool")
+  log.info("started", `执行工具 run ${mcpRunId}`)
 
   const mcpRun = await mcpRunRepo.findById(mcpRunId)
   if (!mcpRun) {
-    console.error(`[execution] McpRun ${mcpRunId} not found`)
+    log.error("failed", `McpRun ${mcpRunId} 不存在`)
     return
   }
+
+  // Re-create logger with round info
+  log = createPipelineLogger(projectId, "execute_tool", { round: mcpRun.round })
 
   // Check project is still active
   const project = await projectRepo.findById(projectId)
   if (!project || project.lifecycle === "stopped" || project.lifecycle === "stopping") {
-    console.warn(`[execution] Project ${projectId} is ${project?.lifecycle}, cancelling run`)
+    log.warn("cancelled", `项目已 ${project?.lifecycle ?? "deleted"}，取消执行`)
     await mcpRunRepo.updateStatus(mcpRunId, "cancelled")
     return
   }
@@ -54,6 +59,9 @@ export async function handleExecuteTool(data: { projectId: string; mcpRunId: str
     // Build tool input from the requested action
     const input = await buildToolInput(mcpRun.toolName, mcpRun.target, mcpRun.requestedAction)
 
+    const timer = log.startTimer()
+    log.info("mcp_call", `调用 ${mcpRun.toolName}(${mcpRun.target})`, { input })
+
     // Call the MCP tool with timeout protection
     const result = await withTimeout(
       callTool(mcpRun.toolName, input),
@@ -68,6 +76,8 @@ export async function handleExecuteTool(data: { projectId: string; mcpRunId: str
         completedAt: new Date(),
       })
 
+      log.warn("mcp_response", `工具返回错误`, { error: result.content.slice(0, 500) }, timer.elapsed())
+
       await publishEvent({
         type: "tool_failed",
         projectId,
@@ -75,13 +85,26 @@ export async function handleExecuteTool(data: { projectId: string; mcpRunId: str
         data: { mcpRunId, toolName: mcpRun.toolName, error: result.content.slice(0, 500) },
       })
 
-      console.warn(`[execution] Tool ${mcpRun.toolName} failed for ${mcpRun.target}: ${result.content.slice(0, 200)}`)
+      // Even on error, if there's substantial output, try to analyze it
+      if (result.content && result.content.length > 50) {
+        const queue = createPgBossJobQueue()
+        await queue.publish("analyze_result", {
+          projectId,
+          mcpRunId,
+          rawOutput: result.content,
+          toolName: mcpRun.toolName,
+          target: mcpRun.target,
+        })
+        log.info("mcp_response", `工具报告错误但有输出 (${result.content.length} 字符)，已提交分析`)
+      }
     } else {
       // Success — save output and queue analysis
       await mcpRunRepo.updateStatus(mcpRunId, "succeeded", {
         rawOutput: result.content,
         completedAt: new Date(),
       })
+
+      log.info("mcp_response", `工具返回 ${result.content.length} 字符`, { durationMs: result.durationMs }, timer.elapsed())
 
       await publishEvent({
         type: "tool_completed",
@@ -105,16 +128,14 @@ export async function handleExecuteTool(data: { projectId: string; mcpRunId: str
         toolName: mcpRun.toolName,
         target: mcpRun.target,
       })
-
-      console.log(`[execution] Tool ${mcpRun.toolName} succeeded for ${mcpRun.target} (${result.durationMs}ms, ${result.content.length} chars)`)
     }
 
     // Check if all runs in this round are complete
-    await checkRoundCompletion(projectId, mcpRun.round)
+    await checkRoundCompletion(projectId, mcpRun.round, log)
 
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    console.error(`[execution] Error executing ${mcpRun.toolName}:`, message)
+    log.error("failed", `执行失败: ${message}`, { error: message })
 
     await mcpRunRepo.updateStatus(mcpRunId, "failed", {
       error: message.slice(0, 1000),
@@ -128,8 +149,8 @@ export async function handleExecuteTool(data: { projectId: string; mcpRunId: str
       data: { mcpRunId, toolName: mcpRun.toolName, error: message.slice(0, 500) },
     })
 
-    await checkRoundCompletion(projectId, mcpRun.round)
-    throw err // pg-boss will retry
+    // Don't throw — MCP tools have side effects, should not auto-retry
+    await checkRoundCompletion(projectId, mcpRun.round, log)
   }
 }
 
@@ -228,13 +249,13 @@ function parseTarget(target: string): ParsedTarget {
  * Check if all runs in a round are complete and queue round_completed if so.
  * Uses startAfter delay to allow analysis jobs to finish before review.
  */
-async function checkRoundCompletion(projectId: string, round: number) {
+async function checkRoundCompletion(projectId: string, round: number, log: ReturnType<typeof createPipelineLogger>) {
   const runs = await mcpRunRepo.findByProjectAndRound(projectId, round)
   const terminal = ["succeeded", "failed", "cancelled"]
   const allDone = runs.length > 0 && runs.every((r) => terminal.includes(r.status))
 
   if (allDone) {
-    console.log(`[execution] All ${runs.length} runs in round ${round} complete`)
+    log.info("round_check", `第 ${round} 轮全部 ${runs.length} 个 run 完成`)
     const queue = createPgBossJobQueue()
     // Delay round_completed by 30s to let analysis/verification jobs finish
     const startAfter = new Date(Date.now() + 30_000)

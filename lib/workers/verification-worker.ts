@@ -8,6 +8,7 @@ import * as mcpRunRepo from "@/lib/repositories/mcp-run-repo"
 import * as auditRepo from "@/lib/repositories/audit-repo"
 import { publishEvent } from "@/lib/infra/event-bus"
 import { registerAbort, unregisterAbort } from "@/lib/infra/abort-registry"
+import { createPipelineLogger } from "@/lib/infra/pipeline-logger"
 import { callTool } from "@/lib/mcp"
 import { prisma } from "@/lib/infra/prisma"
 import {
@@ -20,17 +21,18 @@ import {
 
 export async function handleVerifyFinding(data: { projectId: string; findingId: string }) {
   const { projectId, findingId } = data
-  console.log(`[verification] Verifying finding ${findingId}`)
+  const log = createPipelineLogger(projectId, "verify_finding")
+  log.info("started", `验证发现 ${findingId}`)
 
   const finding = await findingRepo.findById(findingId)
   if (!finding) {
-    console.error(`[verification] Finding ${findingId} not found`)
+    log.error("failed", `Finding ${findingId} 不存在`)
     return
   }
 
   // Only verify suspected findings
   if (finding.status !== "suspected") {
-    console.warn(`[verification] Finding ${findingId} is ${finding.status}, skipping`)
+    log.info("skipped", `Finding ${findingId} 状态为 ${finding.status}，跳过验证`)
     return
   }
 
@@ -41,7 +43,7 @@ export async function handleVerifyFinding(data: { projectId: string; findingId: 
   })
 
   if (!project || project.lifecycle === "stopped" || project.lifecycle === "stopping") {
-    console.warn(`[verification] Project ${projectId} is ${project?.lifecycle}, skipping`)
+    log.warn("skipped", `项目已 ${project?.lifecycle ?? "deleted"}，跳过验证`)
     return
   }
 
@@ -68,12 +70,17 @@ export async function handleVerifyFinding(data: { projectId: string; findingId: 
     const abortController = new AbortController()
     registerAbort(projectId, abortController)
 
+    const timer = log.startTimer()
+    log.info("llm_call", `调用 verifier LLM 生成 PoC: ${finding.title}`)
+
     const llm = await getLlmProvider(projectId, "analyzer") // Use analyzer profile for PoC generation
     const messages = await buildVerifierPrompt(verifierCtx)
     const response = await llm.chat(messages, { jsonMode: true, signal: abortController.signal })
     unregisterAbort(projectId, abortController)
 
     const pocSpec = parseLlmJson<LlmPocCode>(response.content)
+
+    log.info("llm_response", `PoC 代码已生成 (${pocSpec.language})`, null, timer.elapsed())
 
     // Find a code execution tool — not hardcoded to "execute_code"
     const { findByCapability } = await import("@/lib/repositories/mcp-tool-repo")
@@ -94,6 +101,9 @@ export async function handleVerifyFinding(data: { projectId: string; findingId: 
     })
 
     await mcpRunRepo.updateStatus(mcpRun.id, "running", { startedAt: new Date() })
+
+    const pocTimer = log.startTimer()
+    log.info("mcp_call", `执行 PoC: ${codeToolName}(${finding.affectedTarget})`)
 
     // Execute the PoC via MCP
     const result = await callTool(codeToolName, {
@@ -117,6 +127,8 @@ export async function handleVerifyFinding(data: { projectId: string; findingId: 
       // If we can't parse, check for common success indicators
       verified = result.content.includes('"verified":true') || result.content.includes('"verified": true')
     }
+
+    log.info("mcp_response", `PoC 结果: ${verified ? "已验证" : "误报"}`, { verified }, pocTimer.elapsed())
 
     // Save PoC record
     await findingRepo.createPoc({
@@ -154,10 +166,10 @@ export async function handleVerifyFinding(data: { projectId: string; findingId: 
       detail: `${finding.title} (${finding.severity}): ${verified ? "已验证" : "误报"}`,
     })
 
-    console.log(`[verification] Finding "${finding.title}": ${verified ? "VERIFIED" : "FALSE POSITIVE"}`)
+    log.info("completed", `"${finding.title}": ${verified ? "VERIFIED" : "FALSE POSITIVE"}`)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    console.error(`[verification] Failed to verify finding ${findingId}:`, message)
+    log.error("failed", `验证失败: ${message}`, { error: message })
 
     // Revert to suspected on failure (don't mark as false positive on error)
     await findingRepo.updateStatus(findingId, "suspected").catch(() => {})

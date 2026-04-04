@@ -10,6 +10,7 @@ import * as auditRepo from "@/lib/repositories/audit-repo"
 import { publishEvent } from "@/lib/infra/event-bus"
 import { createPgBossJobQueue } from "@/lib/infra/job-queue"
 import { registerAbort, unregisterAbort } from "@/lib/infra/abort-registry"
+import { createPipelineLogger } from "@/lib/infra/pipeline-logger"
 import { prisma } from "@/lib/infra/prisma"
 import {
   getLlmProvider,
@@ -28,7 +29,8 @@ export async function handleAnalyzeResult(data: {
   target: string
 }) {
   const { projectId, mcpRunId, rawOutput, toolName, target } = data
-  console.log(`[analysis] Analyzing output from ${toolName} for ${target}`)
+  const log = createPipelineLogger(projectId, "analyze_result")
+  log.info("started", `分析 ${toolName} → ${target} 的输出`)
 
   // Get project info
   const project = await prisma.project.findUnique({
@@ -37,7 +39,7 @@ export async function handleAnalyzeResult(data: {
   })
 
   if (!project || project.lifecycle === "stopped" || project.lifecycle === "stopping") {
-    console.warn(`[analysis] Project ${projectId} is ${project?.lifecycle}, skipping analysis`)
+    log.warn("skipped", `项目已 ${project?.lifecycle ?? "deleted"}，跳过分析`)
     return
   }
 
@@ -57,12 +59,17 @@ export async function handleAnalyzeResult(data: {
     const abortController = new AbortController()
     registerAbort(projectId, abortController)
 
+    const timer = log.startTimer()
+    log.info("llm_call", "调用 analyzer LLM")
+
     const llm = await getLlmProvider(projectId, "analyzer")
     const messages = await buildAnalyzerPrompt(analyzerCtx)
     const response = await llm.chat(messages, { jsonMode: true, signal: abortController.signal })
     unregisterAbort(projectId, abortController)
 
     const analysis = parseLlmJson<LlmAnalysisResult>(response.content)
+
+    log.info("llm_response", `提取 ${analysis.assets?.length ?? 0} 资产, ${analysis.findings?.length ?? 0} 发现`, null, timer.elapsed())
 
     let newAssetCount = 0
     let newFindingCount = 0
@@ -104,7 +111,8 @@ export async function handleAnalyzeResult(data: {
 
         newAssetCount++
       } catch (err) {
-        console.warn(`[analysis] Failed to create asset ${asset.value}:`, err)
+        const errMsg = err instanceof Error ? err.message : String(err)
+        log.warn("parse_result", `创建资产 ${asset.value} 失败`, { error: errMsg })
       }
     }
 
@@ -144,7 +152,8 @@ export async function handleAnalyzeResult(data: {
           })
         }
       } catch (err) {
-        console.warn(`[analysis] Failed to create finding "${finding.title}":`, err)
+        const errMsg = err instanceof Error ? err.message : String(err)
+        log.warn("parse_result", `创建发现 "${finding.title}" 失败`, { error: errMsg })
       }
     }
 
@@ -185,10 +194,10 @@ export async function handleAnalyzeResult(data: {
       detail: `${toolName}: +${newAssetCount} assets, +${newFindingCount} findings`,
     })
 
-    console.log(`[analysis] Done: +${newAssetCount} assets, +${newFindingCount} findings from ${toolName}`)
+    log.info("completed", `+${newAssetCount} 资产, +${newFindingCount} 发现`)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    console.error(`[analysis] Failed analyzing ${toolName} output:`, message)
+    log.error("failed", `分析失败: ${message}`, { error: message })
 
     // Still save raw evidence even if analysis fails
     await evidenceRepo.create({

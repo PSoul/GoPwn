@@ -12,6 +12,7 @@ import { prisma } from "@/lib/infra/prisma"
 import { publishEvent } from "@/lib/infra/event-bus"
 import { createPgBossJobQueue } from "@/lib/infra/job-queue"
 import { registerAbort, unregisterAbort } from "@/lib/infra/abort-registry"
+import { createPipelineLogger } from "@/lib/infra/pipeline-logger"
 import { transition } from "@/lib/domain/lifecycle"
 import {
   getLlmProvider,
@@ -23,16 +24,17 @@ import {
 
 export async function handleRoundCompleted(data: { projectId: string; round: number }) {
   const { projectId, round } = data
-  console.log(`[lifecycle] Round ${round} completed for project ${projectId}`)
+  const log = createPipelineLogger(projectId, "round_completed", { round })
+  log.info("started", `第 ${round} 轮完成，开始审阅`)
 
   const project = await projectRepo.findById(projectId)
   if (!project) {
-    console.error(`[lifecycle] Project ${projectId} not found`)
+    log.error("failed", `项目 ${projectId} 不存在`)
     return
   }
 
   if (project.lifecycle === "stopped" || project.lifecycle === "stopping") {
-    console.warn(`[lifecycle] Project ${projectId} is ${project.lifecycle}, skipping`)
+    log.info("skipped", `项目已 ${project.lifecycle}，跳过审阅`)
     return
   }
 
@@ -83,6 +85,9 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
     const abortController = new AbortController()
     registerAbort(projectId, abortController)
 
+    const timer = log.startTimer()
+    log.info("llm_call", "调用 reviewer LLM")
+
     const llm = await getLlmProvider(projectId, "reviewer")
     const messages = await buildReviewerPrompt(reviewerCtx)
     const response = await llm.chat(messages, { jsonMode: true, signal: abortController.signal })
@@ -90,20 +95,20 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
 
     const decision = parseLlmJson<LlmReviewDecision>(response.content)
 
+    log.info("llm_response", `审阅决策: ${decision.decision}`, { nextPhase: decision.nextPhase, reasoning: decision.reasoning }, timer.elapsed())
+
     const queue = createPgBossJobQueue()
 
     if (decision.decision === "settle" || round >= project.maxRounds) {
       // Time to wrap up
-      console.log(`[lifecycle] Reviewer decision: SETTLE (round ${round}/${project.maxRounds})`)
-      console.log(`[lifecycle] Reasoning: ${decision.reasoning}`)
+      log.info("state_transition", `SETTLE (第 ${round}/${project.maxRounds} 轮)`, { reasoning: decision.reasoning })
 
       await projectRepo.updateLifecycle(projectId, transition("reviewing", "SETTLE"))
       await queue.publish("settle_closure", { projectId })
     } else {
       // Continue with next round
       const nextPhase = decision.nextPhase ?? project.currentPhase
-      console.log(`[lifecycle] Reviewer decision: CONTINUE → ${nextPhase} (round ${round + 1})`)
-      console.log(`[lifecycle] Reasoning: ${decision.reasoning}`)
+      log.info("state_transition", `CONTINUE → ${nextPhase} (第 ${round + 1} 轮)`, { reasoning: decision.reasoning })
 
       await projectRepo.updateLifecycle(projectId, transition("reviewing", "CONTINUE"))
       await queue.publish("plan_round", { projectId, round: round + 1 })
@@ -136,9 +141,11 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
       actor: "system",
       detail: `Round ${round}: ${decision.decision} → ${decision.nextPhase ?? "settle"}. ${decision.reasoning.slice(0, 200)}`,
     })
+
+    log.info("completed", `审阅完成: ${decision.decision}`)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    console.error(`[lifecycle] Error handling round completion:`, message)
+    log.error("failed", `审阅失败: ${message}`, { error: message })
 
     // On reviewer failure, try to continue anyway with next round
     // (don't block the pipeline on reviewer errors)
@@ -155,11 +162,14 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
         }
         const queue = createPgBossJobQueue()
         await queue.publish("plan_round", { projectId, round: round + 1 })
+        log.warn("recovery", `审阅失败但已恢复，继续第 ${round + 1} 轮`)
       } catch {
         await projectRepo.updateLifecycle(projectId, "failed").catch(() => {})
+        log.error("recovery_failed", "恢复也失败了，项目标记为 failed")
       }
     } else {
       await projectRepo.updateLifecycle(projectId, "failed").catch(() => {})
+      log.error("failed", "已达最大轮次且审阅失败，项目标记为 failed")
     }
 
     throw err
@@ -168,11 +178,12 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
 
 export async function handleSettleClosure(data: { projectId: string }) {
   const { projectId } = data
-  console.log(`[lifecycle] Settling project ${projectId}`)
+  const log = createPipelineLogger(projectId, "settle_closure")
+  log.info("started", "开始结算项目")
 
   const project = await projectRepo.findById(projectId)
   if (!project) {
-    console.error(`[lifecycle] Project ${projectId} not found`)
+    log.error("failed", `项目 ${projectId} 不存在`)
     return
   }
 
@@ -205,6 +216,8 @@ export async function handleSettleClosure(data: { projectId: string }) {
       ...findings.filter((f) => f.severity === "info").map((f) => `- ${f.title}`),
     ].join("\n")
 
+    log.info("report", `报告生成: ${verified.length} 已验证, ${findings.length} 总发现, ${assets.length} 资产`)
+
     // Save final report as an audit event
     await auditRepo.create({
       projectId,
@@ -233,10 +246,10 @@ export async function handleSettleClosure(data: { projectId: string }) {
       },
     })
 
-    console.log(`[lifecycle] Project ${projectId} completed: ${verified.length} verified findings out of ${findings.length} total`)
+    log.info("completed", `项目结算完成: ${verified.length} 已验证漏洞 / ${findings.length} 总发现`)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    console.error(`[lifecycle] Error settling project:`, message)
+    log.error("failed", `结算失败: ${message}`, { error: message })
 
     await projectRepo.updateLifecycle(projectId, "failed").catch(() => {})
 

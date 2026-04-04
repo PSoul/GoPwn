@@ -2,23 +2,24 @@ import "dotenv/config"
 import { createPgBossJobQueue } from "@/lib/infra/job-queue"
 import { cleanupStale } from "@/lib/repositories/llm-log-repo"
 import { bootstrapMcp } from "@/lib/services/mcp-bootstrap"
+import { logger } from "@/lib/infra/logger"
 
 async function main() {
-  console.log("[worker] Starting worker process...")
+  logger.info("starting worker process")
 
   // Cleanup stale data from previous crashes
   const cleaned = await cleanupStale()
   if (cleaned.count > 0) {
-    console.log(`[worker] Cleaned up ${cleaned.count} stale LLM call logs`)
+    logger.info({ cleaned: cleaned.count }, "cleaned stale LLM call logs")
   }
 
   // Bootstrap MCP: load servers from manifest and discover tools
   const mcp = await bootstrapMcp()
-  console.log(`[worker] MCP bootstrap: ${mcp.servers.loaded} servers, ${mcp.tools.synced} tools`)
+  logger.info({ servers: mcp.servers.loaded, tools: mcp.tools.synced }, "MCP bootstrap complete")
 
   const queue = createPgBossJobQueue()
   await queue.start()
-  console.log("[worker] pg-boss started")
+  logger.info("pg-boss started")
 
   // Register job handlers
   await queue.subscribe("plan_round", async (data) => {
@@ -51,13 +52,13 @@ async function main() {
     await handleSettleClosure(data as { projectId: string })
   })
 
-  console.log("[worker] All handlers registered. Waiting for jobs...")
+  logger.info("all handlers registered, waiting for jobs")
 
   // Keep alive
   async function shutdown(signal: string) {
-    console.log(`[worker] ${signal} received, shutting down...`)
+    logger.info({ signal }, "shutting down")
     const { closeAll } = await import("@/lib/mcp/registry")
-    await closeAll().catch((err) => console.error("[worker] Error closing MCP connectors:", err))
+    await closeAll().catch((err) => logger.error({ err }, "error closing MCP connectors"))
     await queue.stop()
     process.exit(0)
   }
@@ -67,6 +68,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("[worker] Fatal error:", err)
+  logger.fatal({ err }, "fatal error")
   process.exit(1)
 })
