@@ -11,6 +11,7 @@ import {
   updateStoredProjectSchedulerControl,
 } from "@/lib/project/project-scheduler-control-repository"
 import { prisma } from "@/lib/infra/prisma"
+import { emitProjectEvent } from "@/lib/infra/project-event-bus"
 import { discoverAndRegisterMcpServers } from "@/lib/mcp/mcp-auto-discovery"
 import { upsertStoredWorkLogs } from "@/lib/data/work-log-repository"
 import { filterPlanItemsToProjectScope } from "@/lib/orchestration/orchestrator-target-scope"
@@ -170,6 +171,7 @@ export async function runProjectLifecycleKickoff(projectId: string, input: Proje
 
   // Record first round
   await recordOrchestratorRound(projectId, currentRound, roundStartedAt, execution, planPayload.plan.items.length)
+  emitProjectEvent(projectId, "round_completed", { round: currentRound, status: execution.status, message: `第${currentRound}轮执行完成` })
 
   // Update round counter in scheduler control
   await prisma.projectSchedulerControl.updateMany({
@@ -268,6 +270,7 @@ export async function runProjectLifecycleKickoff(projectId: string, input: Proje
       execution = await executePlanItems(projectId, nextPlan.plan.items)
 
       await recordOrchestratorRound(projectId, currentRound, nextRoundStart, execution, nextPlan.plan.items.length)
+      emitProjectEvent(projectId, "round_completed", { round: currentRound, status: execution.status, message: `第${currentRound}轮执行完成` })
 
       // Update round counter
       await prisma.projectSchedulerControl.updateMany({
@@ -288,6 +291,7 @@ export async function runProjectLifecycleKickoff(projectId: string, input: Proje
       projectId,
       `项目在第${currentRound}轮后完成所有 AI 规划。`,
     )
+    emitProjectEvent(projectId, "project_completed", { message: `项目在第${currentRound}轮后完成所有规划` })
   }
 
   return {

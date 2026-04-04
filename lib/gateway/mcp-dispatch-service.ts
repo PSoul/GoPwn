@@ -1,3 +1,4 @@
+import { emitProjectEvent } from "@/lib/infra/project-event-bus"
 import { listBuiltInMcpTools } from "@/lib/mcp/built-in-mcp-tools"
 import { Prisma } from "@/lib/generated/prisma/client"
 import { prisma } from "@/lib/infra/prisma"
@@ -389,6 +390,12 @@ export async function dispatchStoredMcpRun(projectId: string, input: McpDispatch
     const auditLog = createAuditLog(`MCP 调度待审批：${project.name} -> ${input.requestedAction}`, "待审批", project.name)
     await prisma.auditLog.create({ data: fromLogRecord(auditLog) })
     await createStoredSchedulerTaskFromRun(pendingRun, enabledTool?.retry)
+
+    emitProjectEvent(projectId, "approval_needed", {
+      message: `${input.requestedAction} 需要审批`,
+      approvalId: approval.id,
+      riskLevel: input.riskLevel,
+    })
 
     const finalApproval = await prisma.approval.findUnique({ where: { id: approval.id } })
     return {

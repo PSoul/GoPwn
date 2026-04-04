@@ -27,6 +27,7 @@ import type {
   McpWorkflowSmokePayload,
   ProjectRecord,
 } from "@/lib/prototype-types"
+import { emitProjectEvent } from "@/lib/infra/project-event-bus"
 
 const TASK_LEASE_DURATION_MS = 30_000
 const TASK_HEARTBEAT_INTERVAL_MS = 5_000
@@ -217,6 +218,13 @@ export async function processStoredSchedulerTask(
     ]),
   })
 
+  emitProjectEvent(task.projectId, "tool_started", {
+    message: `${task.toolName} 开始执行`,
+    toolName: task.toolName,
+    runId: run.id,
+    target: task.target,
+  })
+
   const controller = new AbortController()
   registerActiveExecution(run.id, controller)
 
@@ -284,6 +292,13 @@ export async function processStoredSchedulerTask(
       lastError: undefined,
       status: "completed",
       summaryLines: Array.from(new Set([...claimedTask.summaryLines, ...result.run.summaryLines])),
+    })
+
+    emitProjectEvent(task.projectId, "tool_completed", {
+      message: `${task.toolName} 执行完成`,
+      toolName: task.toolName,
+      runId: run.id,
+      status: "succeeded",
     })
 
     return {

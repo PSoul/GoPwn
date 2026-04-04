@@ -16,6 +16,7 @@ import type {
   ApprovalRecord,
   ProjectKnowledgeItem,
 } from "@/lib/prototype-types"
+import { emitProjectEvent } from "@/lib/infra/project-event-bus"
 
 const approvalStatusPriority: Record<ApprovalRecord["status"], number> = {
   待处理: 0,
@@ -227,6 +228,13 @@ export async function updateStoredApprovalDecision(approvalId: string, input: Ap
       }
     }
   }
+  // Emit SSE event
+  emitProjectEvent(result.projectId, "approval_resolved", {
+    message: `审批 ${result.id} ${input.decision}`,
+    approvalId: result.id,
+    decision: input.decision,
+  })
+
   // Re-read the approval to get the latest queuePosition
   const final = await prisma.approval.findUnique({ where: { id: approvalId } })
   return final ? toApprovalRecord(final) : result

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/infra/prisma"
 import { toAssetRecord, fromAssetRecord } from "@/lib/infra/prisma-transforms"
+import { emitProjectEvent } from "@/lib/infra/project-event-bus"
 import type { AssetRecord } from "@/lib/prototype-types"
 
 export async function listStoredAssets(projectId?: string) {
@@ -38,5 +39,16 @@ export async function upsertStoredAssets(records: AssetRecord[]) {
       })
     }),
   )
+
+  // Emit SSE events per project
+  const projectIds = [...new Set(records.map((r) => r.projectId))]
+  for (const pid of projectIds) {
+    const total = await prisma.asset.count({ where: { projectId: pid } })
+    emitProjectEvent(pid, "asset_discovered", {
+      message: `发现 ${records.filter((r) => r.projectId === pid).length} 个资产`,
+      totalAssets: total,
+    })
+  }
+
   return records
 }

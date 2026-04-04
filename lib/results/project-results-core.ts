@@ -1,5 +1,6 @@
 import { Prisma } from "@/lib/generated/prisma/client"
 import { prisma } from "@/lib/infra/prisma"
+import { emitProjectEvent } from "@/lib/infra/project-event-bus"
 import {
   toProjectRecord,
   toProjectDetailRecord,
@@ -369,6 +370,21 @@ export async function upsertStoredProjectFindings(records: ProjectFindingRecord[
       })
     }),
   )
+
+  // Emit SSE events per project
+  const projectIds = [...new Set(records.map((r) => r.projectId))]
+  for (const pid of projectIds) {
+    const [totalVulns, totalHigh] = await Promise.all([
+      prisma.finding.count({ where: { projectId: pid } }),
+      prisma.finding.count({ where: { projectId: pid, severity: "高危" } }),
+    ])
+    emitProjectEvent(pid, "vuln_found", {
+      message: `发现 ${records.filter((r) => r.projectId === pid).length} 个漏洞`,
+      totalVulns,
+      totalHigh,
+    })
+  }
+
   return records
 }
 
