@@ -20,7 +20,7 @@ const metricMeta = {
   项目总数: { href: "/projects", icon: FolderKanban },
   已发现资产: { href: "/assets", icon: Network },
   已发现漏洞: { href: "/projects", icon: ShieldAlert },
-  待审批动作: { href: "/approvals", icon: ClipboardCheck },
+  待审批动作: { href: "/projects", icon: ClipboardCheck },
 } as const
 
 const toneStyles: Record<Tone, string> = {

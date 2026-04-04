@@ -146,7 +146,7 @@ export function ProjectSummary({
               {waitingApproval.length > 0 && (
                 <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
                   <span>⏳ {waitingApproval.length} 个任务等待审批</span>
-                  <Link href="/approvals" className="font-medium underline hover:text-amber-800 dark:hover:text-amber-200">前往审批 →</Link>
+                  <Link href={`/projects/${project.id}/operations`} className="font-medium underline hover:text-amber-800 dark:hover:text-amber-200">前往审批 →</Link>
                 </div>
               )}
             </div>
@@ -199,13 +199,7 @@ export function ProjectSummary({
       {/* Key metrics — flat row, clickable cards */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {detail.resultMetrics.map((metric) => {
-          const hrefMap: Record<string, string> = {
-            "域名": `/projects/${project.id}/results/domains`,
-            "站点": `/projects/${project.id}/results/sites`,
-            "开放端口": `/projects/${project.id}/results/network`,
-            "漏洞线索": `/projects/${project.id}/results/findings`,
-          }
-          const href = hrefMap[metric.label]
+          const href = `/projects/${project.id}`
           return (
             <Link
               key={metric.label}

@@ -65,14 +65,12 @@ test("vuln center page loads and shows stats cards", async ({ page }) => {
   // Filters should be visible
   await expect(page.getByPlaceholder("搜索漏洞标题、影响面、项目...")).toBeVisible()
 
-  // Evidence archive collapsible
-  await expect(page.getByText("执行证据归档")).toBeVisible()
 })
 
-test("/evidence redirects to /vuln-center", async ({ page }) => {
+test("/evidence returns 404 (page removed)", async ({ page }) => {
   await loginAsResearcher(page)
-  await page.goto("/evidence")
-  await expect(page).toHaveURL(/\/vuln-center$/, { timeout: 10_000 })
+  const response = await page.goto("/evidence")
+  expect(response?.status()).toBe(404)
 })
 
 test("project list renders card grid layout", async ({ page }) => {
@@ -88,7 +86,7 @@ test("project list renders card grid layout", async ({ page }) => {
   await expect(page.getByPlaceholder("搜索项目名称、目标、项目编号或项目说明...")).toBeVisible()
 })
 
-test("project workspace shows 7-tab layout with 站点 and AI 日志 tabs", async ({ page }) => {
+test("project workspace shows live dashboard with 3-tab layout", async ({ page }) => {
   await loginAsResearcher(page)
 
   // Create a project first
@@ -113,28 +111,18 @@ test("project workspace shows 7-tab layout with 站点 and AI 日志 tabs", asyn
 
   await expect(page).toHaveURL(new RegExp(`/projects/${projectId}$`), { timeout: 15_000 })
 
-  // Check 7-tab structure: 概览/域名/站点/端口/漏洞/执行控制/AI日志
-  await expect(page.getByRole("tab", { name: "概览" })).toBeVisible()
-  await expect(page.getByRole("tab", { name: "域名" })).toBeVisible()
-  await expect(page.getByRole("tab", { name: "站点" })).toBeVisible()
-  await expect(page.getByRole("tab", { name: "端口" })).toBeVisible()
+  // Check 3-tab live dashboard: 漏洞/资产/执行日志
   await expect(page.getByRole("tab", { name: "漏洞" })).toBeVisible()
-  await expect(page.getByRole("tab", { name: "执行控制" })).toBeVisible()
-  await expect(page.getByRole("tab", { name: "AI 日志" })).toBeVisible()
-
-  // Navigate to AI logs tab
-  await page.getByRole("tab", { name: "AI 日志" }).click()
-  const aiLogTab = page.getByRole("tab", { name: "AI 日志" })
-  await expect(aiLogTab).toBeVisible()
-  await expect(aiLogTab).toHaveAttribute("aria-selected", "true", { timeout: 5_000 })
+  await expect(page.getByRole("tab", { name: "资产" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "执行日志" })).toBeVisible()
 })
 
 test("AI chat widget is present and toggleable", async ({ page }) => {
   await loginAsResearcher(page)
 
   // Navigate to a simple page to avoid HMR disruption on dashboard
-  await page.goto("/approvals")
-  await expect(page.getByRole("heading", { name: "审批中心" })).toBeVisible({ timeout: 10_000 })
+  await page.goto("/projects")
+  await expect(page.getByRole("heading", { name: "项目列表" })).toBeVisible({ timeout: 10_000 })
 
   // Wait for page to settle (HMR/compilation)
   await page.waitForTimeout(1000)

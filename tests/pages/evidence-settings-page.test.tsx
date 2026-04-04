@@ -3,36 +3,18 @@ import { describe, expect, it } from "vitest"
 
 import ApprovalPolicySettingsPage from "@/app/(console)/settings/approval-policy/page"
 import AuditLogsSettingsPage from "@/app/(console)/settings/audit-logs/page"
-import EvidenceDetailPage from "@/app/(console)/evidence/[evidenceId]/page"
 import VulnCenterPage from "@/app/(console)/vuln-center/page"
 import LlmSettingsPage from "@/app/(console)/settings/llm/page"
 import McpToolsSettingsPage from "@/app/(console)/settings/mcp-tools/page"
 import SettingsPage from "@/app/(console)/settings/page"
 import SystemStatusSettingsPage from "@/app/(console)/settings/system-status/page"
 import WorkLogsSettingsPage from "@/app/(console)/settings/work-logs/page"
-import { upsertStoredEvidence } from "@/lib/data/evidence-repository"
-import { createWorkflowFixture } from "@/tests/helpers/project-fixtures"
 
-describe("Evidence and settings pages", () => {
-  it("renders the vuln center and evidence detail flow", async () => {
-    const fixture = await createWorkflowFixture()
+describe("Vuln center and settings pages", () => {
+  it("renders the vuln center", async () => {
     render(<VulnCenterPage />)
     expect(screen.getByRole("heading", { name: "漏洞中心" })).toBeInTheDocument()
     cleanup()
-
-    await upsertStoredEvidence([
-      {
-        ...fixture.evidence[0],
-        screenshotArtifactPath: "proj-test/run-test/page.png",
-        htmlArtifactPath: "proj-test/run-test/page.html",
-      },
-    ])
-
-    render(await EvidenceDetailPage({ params: Promise.resolve({ evidenceId: fixture.evidence[0].id }) }))
-    expect(screen.getByText("原始输出")).toBeInTheDocument()
-    expect(screen.getByRole("heading", { name: `证据详情 · ${fixture.evidence[0].id}` })).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "打开截图" })).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "打开 HTML" })).toBeInTheDocument()
   })
 
   it("renders the settings hub", async () => {

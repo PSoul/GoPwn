@@ -177,7 +177,7 @@ function buildDashboardRecentResults({
       title: finding.title,
       subtitle: finding.affectedSurface,
       meta: `${finding.severity} · ${finding.updatedAt}`,
-      href: `/projects/${finding.projectId}/results/findings`,
+      href: `/projects/${finding.projectId}`,
       status: finding.status,
       tone: finding.status === "已确认" ? ("warning" as const) : ("info" as const),
       sortAt: finding.updatedAt,

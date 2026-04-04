@@ -275,11 +275,7 @@ export function ProjectSchedulerRuntimePanel({
                         {task.status === "waiting_approval" && (
                           <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
                             需要审批后才能继续执行。
-                            {task.linkedApprovalId ? (
-                              <Link href="/approvals" className="ml-1 font-medium underline hover:text-amber-800 dark:hover:text-amber-200">前往审批中心 →</Link>
-                            ) : (
-                              <Link href="/approvals" className="ml-1 font-medium underline hover:text-amber-800 dark:hover:text-amber-200">查看审批 →</Link>
-                            )}
+                            <Link href={`/projects/${projectId}/operations`} className="ml-1 font-medium underline hover:text-amber-800 dark:hover:text-amber-200">查看审批 →</Link>
                           </p>
                         )}
                         {task.lastError && <p className="mt-0.5 text-xs text-rose-600 dark:text-rose-400">{task.lastError}</p>}

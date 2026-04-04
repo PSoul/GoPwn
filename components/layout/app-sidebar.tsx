@@ -40,11 +40,8 @@ export function AppSidebar({ pathname }: { pathname: string }) {
         }
         const metrics = Array.isArray(payload.metrics) ? payload.metrics : []
         const projectTotal = metrics.find((metric) => metric.label === "项目总数")?.value ?? ""
-        const approvalTotal = metrics.find((metric) => metric.label === "待审批动作")?.value ?? ""
-
         setDynamicBadges({
           "/projects": projectTotal && projectTotal !== "0" ? projectTotal : "",
-          "/approvals": approvalTotal && approvalTotal !== "0" ? approvalTotal : "",
         })
       } catch {
         // ignore sidebar badge refresh failures and fall back to no badges

@@ -38,7 +38,6 @@ export default function VulnCenterPage() {
   const [severityFilter, setSeverityFilter] = useState("全部")
   const [statusFilter, setStatusFilter] = useState("全部")
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
-  const [evidenceOpen, setEvidenceOpen] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -202,7 +201,7 @@ export default function VulnCenterPage() {
                     </div>
                     <div className="mt-3 flex gap-2">
                       <Button asChild size="sm" variant="outline" className="rounded-full">
-                        <Link href={`/projects/${finding.projectId}/results/findings`}>查看项目漏洞</Link>
+                        <Link href={`/projects/${finding.projectId}`}>查看项目漏洞</Link>
                       </Button>
                       {finding.evidenceId && (
                         <Button asChild size="sm" variant="ghost" className="rounded-full">
@@ -218,29 +217,6 @@ export default function VulnCenterPage() {
         )}
       </div>
 
-      {/* Evidence Archive — Collapsible */}
-      <div className="rounded-3xl border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-950">
-        <button
-          type="button"
-          className="flex w-full items-center justify-between px-5 py-4 text-left"
-          onClick={() => setEvidenceOpen(!evidenceOpen)}
-        >
-          <span className="text-sm font-medium text-slate-950 dark:text-white">
-            执行证据归档
-          </span>
-          <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${evidenceOpen ? "rotate-180" : ""}`} />
-        </button>
-        {evidenceOpen && (
-          <div className="border-t border-slate-100 px-5 py-4 dark:border-slate-800">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              原始证据和执行记录已迁移至各项目的「上下文」标签页中查看。
-            </p>
-            <Button asChild size="sm" variant="outline" className="mt-3 rounded-full">
-              <Link href="/projects">前往项目列表</Link>
-            </Button>
-          </div>
-        )}
-      </div>
     </div>
   )
 }

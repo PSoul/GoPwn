@@ -82,12 +82,14 @@ export function AssetRelations({ asset }: { asset: AssetRecord }) {
           <div className="rounded-3xl border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-950/70">
             <p className="text-sm font-semibold text-slate-950 dark:text-white">关联证据编号</p>
             <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{asset.linkedEvidenceId}</p>
-            <Button asChild variant="ghost" className="mt-3 h-auto rounded-full px-0 text-sky-700 hover:text-sky-800 dark:text-sky-300 dark:hover:text-sky-200">
-              <Link href={`/evidence/${asset.linkedEvidenceId}`}>
-                查看证据链路
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
-            </Button>
+            {asset.projectId && (
+              <Button asChild variant="ghost" className="mt-3 h-auto rounded-full px-0 text-sky-700 hover:text-sky-800 dark:text-sky-300 dark:hover:text-sky-200">
+                <Link href={`/projects/${asset.projectId}`}>
+                  查看项目详情
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
       </SectionCard>

@@ -8,19 +8,11 @@ vi.mock("next/navigation", () => ({
   }),
 }))
 
-import ApprovalsPage from "@/app/(console)/approvals/page"
 import AssetsPage from "@/app/(console)/assets/page"
 import AssetDetailPage from "@/app/(console)/assets/[assetId]/page"
 import { createWorkflowFixture } from "@/tests/helpers/project-fixtures"
 
-describe("Approvals and assets pages", () => {
-  it("renders the approvals center", async () => {
-    render(await ApprovalsPage())
-
-    expect(screen.getByText("审批中心")).toBeInTheDocument()
-    expect(screen.getByText("待处理审批")).toBeInTheDocument()
-  })
-
+describe("Assets pages", () => {
   it("renders asset list and asset detail profile", async () => {
     const fixture = await createWorkflowFixture({ workflow: "with-approval" })
     render(await AssetsPage({ searchParams: Promise.resolve({}) }))
