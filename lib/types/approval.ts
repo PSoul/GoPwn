@@ -4,6 +4,7 @@ export interface ApprovalControl {
   enabled: boolean
   mode: string
   autoApproveLowRisk: boolean
+  autoApproveMediumRisk: boolean
   description: string
   note: string
 }
@@ -35,6 +36,7 @@ export interface ApprovalDecisionInput {
 export interface ApprovalControlPatch {
   enabled?: boolean
   autoApproveLowRisk?: boolean
+  autoApproveMediumRisk?: boolean
   note?: string
 }
 

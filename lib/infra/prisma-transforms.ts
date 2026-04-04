@@ -281,6 +281,8 @@ export function toEvidenceRecord(db: any): EvidenceRecord {
     capturedUrl: db.capturedUrl ?? undefined,
     screenshotArtifactPath: db.screenshotArtifactPath ?? undefined,
     htmlArtifactPath: db.htmlArtifactPath ?? undefined,
+    createdAt: db.createdAt ? dateToStr(db.createdAt) : undefined,
+    updatedAt: db.updatedAt ? dateToStr(db.updatedAt) : undefined,
   }
 }
 
@@ -370,7 +372,14 @@ export function toFindingRecord(db: any): ProjectFindingRecord {
     affectedSurface: db.affectedSurface ?? "",
     evidenceId: db.evidenceId ?? "",
     owner: db.owner ?? "",
+    createdAt: dateToStr(db.createdAt),
     updatedAt: dateToStr(db.updatedAt),
+    rawInput: db.rawInput ?? undefined,
+    rawOutput: db.rawOutput ?? [],
+    screenshotPath: db.screenshotPath ?? undefined,
+    htmlArtifactPath: db.htmlArtifactPath ?? undefined,
+    capturedUrl: db.capturedUrl ?? undefined,
+    remediationNote: db.remediationNote ?? undefined,
   }
 }
 
@@ -383,8 +392,14 @@ export function fromFindingRecord(record: ProjectFindingRecord): any {
     title: record.title,
     summary: record.summary,
     affectedSurface: record.affectedSurface,
-    evidenceId: record.evidenceId,
+    evidenceId: record.evidenceId || null,
     owner: record.owner,
+    rawInput: record.rawInput,
+    rawOutput: record.rawOutput,
+    screenshotPath: record.screenshotPath,
+    htmlArtifactPath: record.htmlArtifactPath,
+    capturedUrl: record.capturedUrl,
+    remediationNote: record.remediationNote,
   }
 }
 
@@ -729,6 +744,7 @@ export function toApprovalControlRecord(db: any): ApprovalControl {
     enabled: db.enabled ?? true,
     mode: db.mode ?? "",
     autoApproveLowRisk: db.autoApproveLowRisk ?? true,
+    autoApproveMediumRisk: db.autoApproveMediumRisk ?? true,
     description: db.description ?? "",
     note: db.note ?? "",
   }
@@ -739,6 +755,7 @@ export function fromApprovalControlRecord(record: ApprovalControl): any {
     enabled: record.enabled,
     mode: record.mode,
     autoApproveLowRisk: record.autoApproveLowRisk,
+    autoApproveMediumRisk: record.autoApproveMediumRisk,
     description: record.description,
     note: record.note,
   }

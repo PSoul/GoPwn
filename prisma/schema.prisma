@@ -187,6 +187,7 @@ model Asset {
 
   @@index([projectId])
   @@index([type])
+  @@index([scopeStatus])
   @@map("assets")
 }
 
@@ -214,8 +215,13 @@ model Evidence {
   capturedUrl            String?
   screenshotArtifactPath String?
   htmlArtifactPath       String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @default(now()) @updatedAt
+
+  findings               Finding[]
 
   @@index([projectId])
+  @@index([createdAt])
   @@map("evidence")
 }
 
@@ -224,20 +230,30 @@ model Evidence {
 // ──────────────────────────────────────────────
 
 model Finding {
-  id              String   @id
-  projectId       String
-  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  severity        String   // 高危 | 中危 | 低危 | 情报
-  status          String   @default("待验证")
-  title           String
-  summary         String   @default("")
-  affectedSurface String   @default("")
-  evidenceId      String   @default("")
-  owner           String   @default("")
-  updatedAt       DateTime @updatedAt
+  id               String   @id
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  severity         String   // 高危 | 中危 | 低危 | 情报
+  status           String   @default("待验证")
+  title            String
+  summary          String   @default("")
+  affectedSurface  String   @default("")
+  evidenceId       String?
+  evidence         Evidence? @relation(fields: [evidenceId], references: [id], onDelete: SetNull)
+  owner            String   @default("")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  rawInput         String?
+  rawOutput        String[] @default([])
+  screenshotPath   String?
+  htmlArtifactPath String?
+  capturedUrl      String?
+  remediationNote  String?
 
   @@index([projectId])
   @@index([severity])
+  @@index([projectId, severity])
+  @@index([status])
   @@map("findings")
 }
 
@@ -425,8 +441,9 @@ model GlobalApprovalControl {
   id                 String  @id @default("global")
   enabled            Boolean @default(true)
   mode               String  @default("高风险需审批")
-  autoApproveLowRisk Boolean @default(true)
-  description        String  @default("")
+  autoApproveLowRisk    Boolean @default(true)
+  autoApproveMediumRisk Boolean @default(true)
+  description           String  @default("")
   note               String  @default("")
 
   @@map("global_approval_control")
@@ -475,6 +492,7 @@ model LlmCallLog {
 
   @@index([projectId])
   @@index([projectId, role])
+  @@index([status])
   @@map("llm_call_logs")
 }
 

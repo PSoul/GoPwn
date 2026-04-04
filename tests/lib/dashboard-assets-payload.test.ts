@@ -101,21 +101,6 @@ describe("dashboard and asset payload regrouping", () => {
       },
     ])
 
-    await upsertStoredProjectFindings([
-      {
-        id: "finding-1",
-        projectId: created.project.id,
-        severity: "中危",
-        status: "已确认",
-        title: "Spring Actuator 暴露",
-        summary: "存在未授权访问风险。",
-        affectedSurface: "/actuator",
-        evidenceId: "evidence-2",
-        owner: "研究员席位",
-        updatedAt: "2026-03-27 10:05",
-      },
-    ])
-
     await upsertStoredEvidence([
       {
         id: "evidence-1",
@@ -133,6 +118,40 @@ describe("dashboard and asset payload regrouping", () => {
         linkedAssetLabel: "demo.example.com",
         timeline: ["2026-03-27 10:01"],
         verdict: "入口已确认",
+      },
+      {
+        id: "evidence-2",
+        projectId: created.project.id,
+        projectName: created.project.name,
+        title: "Actuator 端点暴露",
+        source: "http-validation",
+        confidence: "高",
+        conclusion: "已确认暴露",
+        linkedApprovalId: "",
+        rawOutput: ["200 OK /actuator"],
+        screenshotNote: "",
+        structuredSummary: ["Actuator 端点可访问"],
+        linkedTaskTitle: "指纹复核",
+        linkedAssetLabel: "",
+        timeline: ["2026-03-27 10:04"],
+        verdict: "已确认",
+      },
+    ])
+
+    await upsertStoredProjectFindings([
+      {
+        id: "finding-1",
+        projectId: created.project.id,
+        severity: "中危",
+        status: "已确认",
+        title: "Spring Actuator 暴露",
+        summary: "存在未授权访问风险。",
+        affectedSurface: "/actuator",
+        evidenceId: "evidence-2",
+        owner: "研究员席位",
+        createdAt: "2026-03-27 10:00",
+        updatedAt: "2026-03-27 10:05",
+        rawOutput: [],
       },
     ])
 

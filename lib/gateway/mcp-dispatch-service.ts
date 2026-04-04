@@ -221,6 +221,7 @@ function shouldRequireApproval({
   projectAutoApproveLowRisk,
   globalControlEnabled,
   globalAutoApproveLowRisk,
+  globalAutoApproveMediumRisk,
   tool,
 }: {
   input: McpDispatchInput
@@ -228,6 +229,7 @@ function shouldRequireApproval({
   projectAutoApproveLowRisk: boolean
   globalControlEnabled: boolean
   globalAutoApproveLowRisk: boolean
+  globalAutoApproveMediumRisk: boolean
   tool: McpToolRecord
 }) {
   if (!globalControlEnabled || !projectControlEnabled) {
@@ -240,6 +242,10 @@ function shouldRequireApproval({
 
   if (input.riskLevel === "低") {
     return !(globalAutoApproveLowRisk && projectAutoApproveLowRisk)
+  }
+
+  if (input.riskLevel === "中") {
+    return !globalAutoApproveMediumRisk
   }
 
   return true
@@ -288,7 +294,7 @@ export async function dispatchStoredMcpRun(projectId: string, input: McpDispatch
   const globalControlRow = await prisma.globalApprovalControl.findUnique({ where: { id: "global" } })
   const globalControl = globalControlRow
     ? toGAC(globalControlRow)
-    : { enabled: true, mode: "", autoApproveLowRisk: true, description: "", note: "" }
+    : { enabled: true, mode: "", autoApproveLowRisk: true, autoApproveMediumRisk: true, description: "", note: "" }
 
   // Helper to push activity into detail JSON
   const pushActivityPrisma = async (title: string, detailText: string, tone: string) => {
@@ -342,6 +348,7 @@ export async function dispatchStoredMcpRun(projectId: string, input: McpDispatch
     projectAutoApproveLowRisk: detail.approvalControl.autoApproveLowRisk,
     globalControlEnabled: globalControl.enabled,
     globalAutoApproveLowRisk: globalControl.autoApproveLowRisk,
+    globalAutoApproveMediumRisk: globalControl.autoApproveMediumRisk,
     tool: resolvedEnabledTool,
   })
 

@@ -8,6 +8,7 @@ const globalApprovalControl: ApprovalControl = {
   enabled: true,
   mode: "高风险需审批",
   autoApproveLowRisk: true,
+  autoApproveMediumRisk: true,
   description: "全局审批策略",
   note: "",
 }

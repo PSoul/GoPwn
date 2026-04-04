@@ -43,7 +43,7 @@ const detail: ProjectDetailRecord = {
   assetGroups: [],
   findings: [],
   currentStage: { title: "授权与范围定义", summary: "", blocker: "", owner: "admin", updatedAt: "2026-04-01 10:00" },
-  approvalControl: { enabled: true, mode: "高风险需审批", autoApproveLowRisk: true, description: "", note: "" },
+  approvalControl: { enabled: true, mode: "高风险需审批", autoApproveLowRisk: true, autoApproveMediumRisk: true, description: "", note: "" },
   closureStatus: { state: "running", label: "运行中", tone: "info", summary: "", blockers: [], reportExported: false, finalConclusionGenerated: false },
   finalConclusion: null,
 }

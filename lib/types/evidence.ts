@@ -17,4 +17,6 @@ export interface EvidenceRecord {
   capturedUrl?: string
   screenshotArtifactPath?: string
   htmlArtifactPath?: string
+  createdAt?: string
+  updatedAt?: string
 }

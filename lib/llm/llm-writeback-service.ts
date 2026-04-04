@@ -10,6 +10,7 @@
  * - 新增 MCP 工具时零适配成本
  * - 发现漏洞的能力取决于 LLM 的分析能力，而非正则匹配
  */
+import { createHash } from "crypto"
 import type { McpConnectorExecutionContext, McpConnectorResult } from "@/lib/mcp-connectors/types"
 import { resolveLlmProvider } from "@/lib/llm-provider/registry"
 import type { LlmAnalysisResult } from "@/lib/llm-provider/types"
@@ -35,7 +36,8 @@ type NormalizedExecutionArtifacts = {
 const MAX_RAW_OUTPUT_CHARS = 8000
 
 function makeEvidenceId(run: McpRunRecord) {
-  return `EV-${formatDayStamp()}-${run.id.replace(/^run-/, "").replace(/[^a-z0-9]+/gi, "").slice(0, 12)}`
+  const hash = createHash("md5").update(run.id).digest("hex").slice(0, 16)
+  return `EV-${formatDayStamp()}-${hash}`
 }
 
 function buildRawOutputText(rawResult: Extract<McpConnectorResult, { status: "succeeded" }>): string {
@@ -165,7 +167,9 @@ function convertAnalysisToArtifacts(
       affectedSurface: target,
       evidenceId,
       owner: actor,
+      createdAt: timestamp,
       updatedAt: timestamp,
+      rawOutput: [],
     })
   }
 

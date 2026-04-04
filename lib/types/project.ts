@@ -121,7 +121,14 @@ export interface ProjectFindingRecord {
   affectedSurface: string
   evidenceId: string
   owner: string
+  createdAt: string
   updatedAt: string
+  rawInput?: string
+  rawOutput: string[]
+  screenshotPath?: string
+  htmlArtifactPath?: string
+  capturedUrl?: string
+  remediationNote?: string
 }
 
 export interface ProjectStageSnapshot {

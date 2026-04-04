@@ -117,6 +117,7 @@ export async function getStoredGlobalApprovalControl() {
     enabled: true,
     mode: "高风险需审批",
     autoApproveLowRisk: true,
+    autoApproveMediumRisk: true,
     description: "大部分 MCP 调用直接执行并写入审计，只有高风险验证和敏感探测动作进入人工审批。",
     note: "",
   } satisfies ApprovalControl
@@ -213,8 +214,19 @@ export async function updateStoredApprovalDecision(approvalId: string, input: Ap
     return nextApproval
   })
 
-  // 6. Sync MCP runs (outside transaction — it manages its own writes)
-  await syncStoredMcpRunsAfterApprovalDecision(result)
+  // 6. Sync MCP runs (outside transaction — it manages its own writes) with retry
+  let syncAttempt = 0
+  while (syncAttempt < 2) {
+    try {
+      await syncStoredMcpRunsAfterApprovalDecision(result)
+      break
+    } catch (error) {
+      syncAttempt++
+      if (syncAttempt >= 2) {
+        console.error(`[approval] syncStoredMcpRunsAfterApprovalDecision failed after retry:`, error)
+      }
+    }
+  }
   // Re-read the approval to get the latest queuePosition
   const final = await prisma.approval.findUnique({ where: { id: approvalId } })
   return final ? toApprovalRecord(final) : result
@@ -224,10 +236,12 @@ export async function updateStoredGlobalApprovalControl(patch: ApprovalControlPa
   const current = await getStoredGlobalApprovalControl()
   const enabled = patch.enabled ?? current.enabled
   const autoApproveLowRisk = patch.autoApproveLowRisk ?? current.autoApproveLowRisk
+  const autoApproveMediumRisk = patch.autoApproveMediumRisk ?? current.autoApproveMediumRisk
   const nextControl: ApprovalControl = {
     ...current,
     enabled,
     autoApproveLowRisk,
+    autoApproveMediumRisk,
     mode: buildApprovalMode(enabled, autoApproveLowRisk),
     description: buildGlobalApprovalDescription(enabled, autoApproveLowRisk),
     note: patch.note ?? current.note,
@@ -256,6 +270,7 @@ export async function updateStoredProjectApprovalControl(projectId: string, patc
   const currentControl = (detail.approvalControl ?? {}) as unknown as ApprovalControl
   const enabled = patch.enabled ?? currentControl.enabled
   const autoApproveLowRisk = patch.autoApproveLowRisk ?? currentControl.autoApproveLowRisk
+  const autoApproveMediumRisk = patch.autoApproveMediumRisk ?? currentControl.autoApproveMediumRisk
   const nextMode = buildApprovalMode(enabled, autoApproveLowRisk)
   const nextNote = patch.note ?? currentControl.note
   const now = formatTimestamp()
@@ -263,6 +278,7 @@ export async function updateStoredProjectApprovalControl(projectId: string, patc
     ...currentControl,
     enabled,
     autoApproveLowRisk,
+    autoApproveMediumRisk,
     mode: nextMode,
     description: buildProjectApprovalDescription(enabled, autoApproveLowRisk),
     note: nextNote,

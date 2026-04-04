@@ -285,6 +285,7 @@ export const defaultGlobalApprovalControl: ApprovalControl = {
   enabled: true,
   mode: "高风险审批，低风险自动通过",
   autoApproveLowRisk: true,
+  autoApproveMediumRisk: true,
   description: "大部分 MCP 调用直接执行并写入审计，只有高风险验证、敏感路径探测和需要突破默认约束的动作才进入审批。",
   note: "审批关闭时不等于完全失控，系统仍保留审计、速率限制、超时和紧急停止。",
 }

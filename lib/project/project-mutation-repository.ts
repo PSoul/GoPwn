@@ -193,6 +193,7 @@ function buildProjectDetail(project: ProjectRecord, approvalMode?: string): Proj
           enabled: false,
           mode: "全自动执行",
           autoApproveLowRisk: true,
+          autoApproveMediumRisk: true,
           description: "该项目已设置为全自动执行，所有工具调用将直接运行，不进入审批队列。",
           note: "",
         }
@@ -200,6 +201,7 @@ function buildProjectDetail(project: ProjectRecord, approvalMode?: string): Proj
           enabled: defaultGlobalApprovalControl.enabled,
           mode: defaultGlobalApprovalControl.mode,
           autoApproveLowRisk: defaultGlobalApprovalControl.autoApproveLowRisk,
+          autoApproveMediumRisk: defaultGlobalApprovalControl.autoApproveMediumRisk,
           description: "审批开关由系统设置与 MCP 工具契约统一控制，项目页只展示当前生效状态。",
           note: defaultGlobalApprovalControl.note,
         },
