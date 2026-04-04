@@ -355,6 +355,11 @@ export async function listStoredProjectFindings(projectId?: string) {
   return rows.map(toFindingRecord)
 }
 
+export async function getStoredFindingById(findingId: string) {
+  const row = await prisma.finding.findUnique({ where: { id: findingId } })
+  return row ? toFindingRecord(row) : null
+}
+
 export async function upsertStoredProjectFindings(records: ProjectFindingRecord[]) {
   if (!records.length) {
     return []

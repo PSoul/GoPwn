@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation"
 
-import { ProjectResultsHub } from "@/components/projects/project-results-hub"
-import { ProjectSummary } from "@/components/projects/project-summary"
+import { ProjectLiveDashboard } from "@/components/projects/project-live-dashboard"
 import { listStoredAssets } from "@/lib/data/asset-repository"
+import { listStoredProjectApprovals } from "@/lib/data/approval-repository"
 import { getStoredProjectById, getStoredProjectDetailById } from "@/lib/project/project-repository"
+import { listStoredProjectFindings } from "@/lib/project/project-results-repository"
 
 export default async function ProjectDetailPage({
   params,
@@ -18,12 +19,19 @@ export default async function ProjectDetailPage({
     notFound()
   }
 
-  const assets = await listStoredAssets(projectId)
+  const [assets, findings, approvals] = await Promise.all([
+    listStoredAssets(projectId),
+    listStoredProjectFindings(projectId),
+    listStoredProjectApprovals(projectId),
+  ])
 
   return (
-    <div className="space-y-4">
-      <ProjectSummary project={project} detail={detail} />
-      <ProjectResultsHub project={project} detail={detail} assets={assets} />
-    </div>
+    <ProjectLiveDashboard
+      project={project}
+      detail={detail}
+      initialFindings={findings}
+      initialAssets={assets}
+      initialApprovals={approvals}
+    />
   )
 }
