@@ -25,9 +25,12 @@ async function getConnector(serverName: string): Promise<McpConnector | null> {
   let connector: McpConnector
 
   if (server.transport === "stdio" && server.command) {
+    const envVars = server.envJson ? JSON.parse(server.envJson) as Record<string, string> : undefined
     connector = createStdioConnector({
       command: server.command,
       args: server.args,
+      cwd: server.cwd ?? undefined,
+      env: envVars,
       timeoutMs: 120_000,
     })
   } else {

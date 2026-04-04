@@ -69,6 +69,8 @@ export async function upsertServer(data: {
   transport: string
   command?: string
   args?: string[]
+  cwd?: string
+  envJson?: string
   endpoint?: string
 }) {
   return prisma.mcpServer.upsert({
@@ -78,6 +80,8 @@ export async function upsertServer(data: {
       transport: data.transport,
       command: data.command,
       args: data.args,
+      cwd: data.cwd,
+      envJson: data.envJson,
       endpoint: data.endpoint,
     },
   })

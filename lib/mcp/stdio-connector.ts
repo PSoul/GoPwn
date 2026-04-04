@@ -9,6 +9,8 @@ import type { McpConnector, McpToolInput, McpToolResult } from "./connector"
 type StdioConfig = {
   command: string
   args: string[]
+  cwd?: string
+  env?: Record<string, string>
   timeoutMs?: number
 }
 
@@ -22,7 +24,7 @@ type JsonRpcMessage = {
 }
 
 export function createStdioConnector(config: StdioConfig): McpConnector {
-  const { command, args, timeoutMs = 60_000 } = config
+  const { command, args, cwd, env: extraEnv, timeoutMs = 60_000 } = config
 
   let proc: ChildProcess | null = null
   let nextId = 1
@@ -34,7 +36,9 @@ export function createStdioConnector(config: StdioConfig): McpConnector {
 
     proc = spawn(command, args, {
       stdio: ["pipe", "pipe", "pipe"],
-      env: { ...process.env },
+      cwd: cwd ?? undefined,
+      env: { ...process.env, ...extraEnv },
+      shell: process.platform === "win32",
     })
 
     proc.stdout!.setEncoding("utf8")
@@ -60,6 +64,15 @@ export function createStdioConnector(config: StdioConfig): McpConnector {
           // skip malformed
         }
       }
+    })
+
+    proc.on("error", (err) => {
+      console.error(`[stdio-connector] Process error: ${err.message}`)
+      for (const [, p] of pending) {
+        p.reject(new Error(`MCP server process error: ${err.message}`))
+      }
+      pending.clear()
+      proc = null
     })
 
     proc.on("exit", () => {

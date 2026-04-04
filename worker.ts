@@ -1,6 +1,7 @@
 import "dotenv/config"
 import { createPgBossJobQueue } from "@/lib/infra/job-queue"
 import { cleanupStale } from "@/lib/repositories/llm-log-repo"
+import { bootstrapMcp } from "@/lib/services/mcp-bootstrap"
 
 async function main() {
   console.log("[worker] Starting worker process...")
@@ -10,6 +11,10 @@ async function main() {
   if (cleaned.count > 0) {
     console.log(`[worker] Cleaned up ${cleaned.count} stale LLM call logs`)
   }
+
+  // Bootstrap MCP: load servers from manifest and discover tools
+  const mcp = await bootstrapMcp()
+  console.log(`[worker] MCP bootstrap: ${mcp.servers.loaded} servers, ${mcp.tools.synced} tools`)
 
   const queue = createPgBossJobQueue()
   await queue.start()

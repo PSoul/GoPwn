@@ -322,6 +322,8 @@ model McpServer {
   transport      String
   command        String?
   args           String[] @default([])
+  cwd            String?
+  envJson        String?  /// JSON-encoded env vars for stdio process
   endpoint       String?
   enabled        Boolean  @default(true)
   createdAt      DateTime @default(now())
