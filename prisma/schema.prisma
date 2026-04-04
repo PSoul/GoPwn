@@ -128,6 +128,7 @@ model Project {
   rounds        OrchestratorRound[]
   llmCallLogs   LlmCallLog[]
   auditEvents   AuditEvent[]
+  pipelineLogs  PipelineLog[]
 
   @@map("projects")
 }
@@ -457,4 +458,28 @@ model GlobalConfig {
   autoApproveMediumRisk Boolean @default(true)
 
   @@map("global_config")
+}
+
+// ──────────────────────────────────────────────
+// Pipeline Logs (debug/observability)
+// ──────────────────────────────────────────────
+
+model PipelineLog {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  round     Int?
+  jobType   String
+  jobId     String?
+  stage     String
+  level     String
+  message   String
+  data      Json?
+  duration  Int?
+  createdAt DateTime @default(now())
+
+  @@index([projectId, createdAt])
+  @@index([projectId, round])
+  @@index([level])
+  @@map("pipeline_logs")
 }
