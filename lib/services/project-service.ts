@@ -60,7 +60,8 @@ export async function createProject(data: { name: string; targetInput: string; d
 
 export async function startProject(projectId: string) {
   const project = await getProject(projectId)
-  const nextLifecycle = transition(project.lifecycle, "START")
+  const event = project.lifecycle === "failed" ? "RETRY" as const : "START" as const
+  const nextLifecycle = transition(project.lifecycle, event)
 
   await projectRepo.updateLifecycle(projectId, nextLifecycle)
 

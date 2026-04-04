@@ -20,7 +20,10 @@ export function createOpenAIProvider(config: OpenAIConfig): LlmProvider {
     name: "openai-compatible",
 
     async chat(messages: LlmMessage[], options?: LlmCallOptions): Promise<LlmResponse> {
-      const url = `${baseUrl.replace(/\/+$/, "")}/v1/chat/completions`
+      const cleanBase = baseUrl.replace(/\/+$/, "")
+      const url = cleanBase.endsWith("/v1")
+        ? `${cleanBase}/chat/completions`
+        : `${cleanBase}/v1/chat/completions`
       const temperature = options?.temperature ?? defaultTemperature
       const timeoutMs = options?.timeoutMs ?? defaultTimeoutMs
 
