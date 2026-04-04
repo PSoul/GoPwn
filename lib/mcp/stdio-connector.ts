@@ -34,15 +34,43 @@ export function createStdioConnector(config: StdioConfig): McpConnector {
   function ensureProcess(): ChildProcess {
     if (proc && !proc.killed) return proc
 
-    proc = spawn(command, args, {
+    const child = spawn(command, args, {
       stdio: ["pipe", "pipe", "pipe"],
       cwd: cwd ?? undefined,
       env: { ...process.env, ...extraEnv },
       shell: process.platform === "win32",
     })
 
-    proc.stdout!.setEncoding("utf8")
-    proc.stdout!.on("data", (chunk: string) => {
+    // Register error handler IMMEDIATELY before any other listeners
+    // to prevent unhandled 'error' events from crashing the process
+    child.on("error", (err) => {
+      console.error(`[stdio-connector] Process error (${command}): ${err.message}`)
+      for (const [, p] of pending) {
+        p.reject(new Error(`MCP server process error: ${err.message}`))
+      }
+      pending.clear()
+      proc = null
+    })
+
+    child.on("exit", (code) => {
+      console.warn(`[stdio-connector] Process exited (${command}) code=${code}`)
+      for (const [, p] of pending) {
+        p.reject(new Error("MCP server process exited"))
+      }
+      pending.clear()
+      proc = null
+    })
+
+    // Capture stderr for diagnostics
+    child.stderr?.setEncoding("utf8")
+    child.stderr?.on("data", (chunk: string) => {
+      // Only log first 500 chars per chunk to avoid flooding
+      const trimmed = chunk.length > 500 ? chunk.slice(0, 500) + "..." : chunk
+      console.error(`[stdio-connector:${command}:stderr] ${trimmed.trim()}`)
+    })
+
+    child.stdout!.setEncoding("utf8")
+    child.stdout!.on("data", (chunk: string) => {
       buffer += chunk
       // Process complete JSON-RPC messages (newline-delimited)
       const lines = buffer.split("\n")
@@ -66,24 +94,7 @@ export function createStdioConnector(config: StdioConfig): McpConnector {
       }
     })
 
-    proc.on("error", (err) => {
-      console.error(`[stdio-connector] Process error: ${err.message}`)
-      for (const [, p] of pending) {
-        p.reject(new Error(`MCP server process error: ${err.message}`))
-      }
-      pending.clear()
-      proc = null
-    })
-
-    proc.on("exit", () => {
-      // Reject all pending requests
-      for (const [, p] of pending) {
-        p.reject(new Error("MCP server process exited"))
-      }
-      pending.clear()
-      proc = null
-    })
-
+    proc = child
     return proc
   }
 

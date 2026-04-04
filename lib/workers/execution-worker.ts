@@ -118,45 +118,100 @@ export async function handleExecuteTool(data: { projectId: string; mcpRunId: str
 
 /**
  * Build MCP tool input from the action description and tool schema.
- * Looks up the tool's inputSchema to map target/action to expected parameter names.
+ * Parses the tool's inputSchema to map target/action to expected parameter names and types.
  */
 async function buildToolInput(toolName: string, target: string, action: string): Promise<Record<string, unknown>> {
   const { findByToolName } = await import("@/lib/repositories/mcp-tool-repo")
   const tool = await findByToolName(toolName)
   const schema = (tool?.inputSchema ?? {}) as Record<string, unknown>
-  const properties = (schema.properties ?? {}) as Record<string, unknown>
+  const properties = (schema.properties ?? {}) as Record<string, { type?: string; items?: unknown }>
   const propNames = Object.keys(properties)
 
-  // If schema has specific property names, only populate those
-  if (propNames.length > 0) {
-    const input: Record<string, unknown> = {}
-    for (const name of propNames) {
-      if (["target", "url", "endpoint", "address"].includes(name)) {
-        input[name] = target
-      } else if (["host", "hostname", "domain"].includes(name)) {
-        // Extract hostname from URL if target is a URL
-        try {
-          const url = new URL(target)
-          input[name] = url.hostname
-        } catch {
-          input[name] = target
-        }
-      } else if (["port"].includes(name)) {
-        try {
-          const url = new URL(target)
-          input[name] = url.port ? parseInt(url.port, 10) : undefined
-        } catch {
-          // skip
-        }
-      } else if (["action", "command", "description", "query"].includes(name)) {
-        input[name] = action
-      }
-    }
-    return input
+  if (propNames.length === 0) {
+    return { target, action }
   }
 
-  // Fallback: generic mapping
-  return { target, action }
+  const input: Record<string, unknown> = {}
+  const parsed = parseTarget(target)
+
+  for (const name of propNames) {
+    const propSchema = properties[name]
+    const propType = propSchema?.type
+
+    // Array properties (e.g. httpx targets: string[])
+    if (propType === "array") {
+      if (isTargetParam(name)) {
+        input[name] = parsed.targets
+      }
+      continue
+    }
+
+    // Target/URL params
+    if (isTargetParam(name)) {
+      input[name] = target
+    } else if (["host", "hostname", "domain"].includes(name)) {
+      input[name] = parsed.host
+    } else if (name === "port" || name === "ports") {
+      if (propType === "number") {
+        input[name] = parsed.port ?? undefined
+      } else {
+        // String type port (e.g. "80,443" or "1-65535")
+        input[name] = parsed.port ? String(parsed.port) : undefined
+      }
+    } else if (["action", "command", "description"].includes(name)) {
+      input[name] = action
+    } else if (name === "query") {
+      // For search tools, use action as query
+      input[name] = action || target
+    } else if (name === "code") {
+      // For execute_code, action contains the code
+      input[name] = action
+    } else if (name === "language") {
+      input[name] = "javascript"
+    }
+    // Skip optional params like threads, timeout, noPing — let defaults apply
+  }
+
+  return input
+}
+
+/** Known target parameter names */
+function isTargetParam(name: string): boolean {
+  return ["target", "targets", "url", "endpoint", "address"].includes(name)
+}
+
+/** Parse a target string into structured components */
+function parseTarget(target: string): { host: string; port: number | null; targets: string[] } {
+  // Try URL parsing first
+  try {
+    const url = new URL(target)
+    return {
+      host: url.hostname,
+      port: url.port ? parseInt(url.port, 10) : null,
+      targets: [target],
+    }
+  } catch {
+    // Not a URL
+  }
+
+  // Try host:port format (e.g. "127.0.0.1:8080")
+  const hostPortMatch = target.match(/^([^:]+):(\d+)$/)
+  if (hostPortMatch) {
+    return {
+      host: hostPortMatch[1],
+      port: parseInt(hostPortMatch[2], 10),
+      targets: [target],
+    }
+  }
+
+  // Comma-separated list (e.g. "http://a.com, http://b.com")
+  if (target.includes(",")) {
+    const parts = target.split(",").map((s) => s.trim()).filter(Boolean)
+    return { host: parts[0], port: null, targets: parts }
+  }
+
+  // Plain host/IP
+  return { host: target, port: null, targets: [target] }
 }
 
 /**

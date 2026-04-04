@@ -65,7 +65,7 @@ export async function handleVerifyFinding(data: { projectId: string; findingId: 
 
     // Ask LLM to generate PoC code
     const llm = await getLlmProvider(projectId, "analyzer") // Use analyzer profile for PoC generation
-    const messages = buildVerifierPrompt(verifierCtx)
+    const messages = await buildVerifierPrompt(verifierCtx)
     const response = await llm.chat(messages, { jsonMode: true })
     const pocSpec = parseLlmJson<LlmPocCode>(response.content)
 

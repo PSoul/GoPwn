@@ -80,7 +80,7 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
     }
 
     const llm = await getLlmProvider(projectId, "reviewer")
-    const messages = buildReviewerPrompt(reviewerCtx)
+    const messages = await buildReviewerPrompt(reviewerCtx)
     const response = await llm.chat(messages, { jsonMode: true })
     const decision = parseLlmJson<LlmReviewDecision>(response.content)
 

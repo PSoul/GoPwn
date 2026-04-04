@@ -54,7 +54,7 @@ export async function handleAnalyzeResult(data: {
 
     // Call LLM analyzer
     const llm = await getLlmProvider(projectId, "analyzer")
-    const messages = buildAnalyzerPrompt(analyzerCtx)
+    const messages = await buildAnalyzerPrompt(analyzerCtx)
     const response = await llm.chat(messages, { jsonMode: true })
     const analysis = parseLlmJson<LlmAnalysisResult>(response.content)
 

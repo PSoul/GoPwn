@@ -12,7 +12,16 @@ if (!projectId) {
 }
 
 async function main() {
+  // Delete in dependency order (children first)
+  await prisma.poc.deleteMany({ where: { finding: { projectId } } })
+  await prisma.finding.deleteMany({ where: { projectId } })
+  await prisma.evidence.deleteMany({ where: { projectId } })
+  await prisma.approval.deleteMany({ where: { projectId } })
+  await prisma.fingerprint.deleteMany({ where: { asset: { projectId } } })
+  await prisma.asset.deleteMany({ where: { projectId } })
+  await prisma.orchestratorPlan.deleteMany({ where: { projectId } })
   await prisma.orchestratorRound.deleteMany({ where: { projectId } })
+  await prisma.auditEvent.deleteMany({ where: { projectId } })
   await prisma.llmCallLog.deleteMany({ where: { projectId } })
   await prisma.mcpRun.deleteMany({ where: { projectId } })
   await prisma.project.update({

@@ -86,7 +86,7 @@ export async function handlePlanRound(data: { projectId: string; round: number }
 
     // Call LLM planner
     const llm = await getLlmProvider(projectId, "planner")
-    const messages = buildPlannerPrompt(plannerCtx)
+    const messages = await buildPlannerPrompt(plannerCtx)
     const response = await llm.chat(messages, { jsonMode: true })
     const plan = parseLlmJson<LlmPlanResponse>(response.content)
 

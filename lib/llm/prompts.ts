@@ -8,6 +8,7 @@
 import type { LlmMessage } from "./provider"
 import type { PentestPhase, AssetKind } from "@/lib/generated/prisma"
 import { PHASE_LABELS } from "@/lib/domain/phases"
+import { loadSystemPrompt } from "./system-prompt"
 
 // ── Types ──
 
@@ -103,19 +104,8 @@ export type LlmPocCode = {
 
 // ── Prompt builders ──
 
-const SYSTEM_BASE = `你是一个专业的安全评估AI助手。你的角色是协助进行授权的安全评估工作。
-你必须：
-- 只对明确授权的目标进行测试
-- 使用合理的测试方法论，不要暴力破解或造成服务中断
-- 如实报告发现，不夸大也不遗漏
-- 对发现的问题提供修复建议
-
-重要原则：
-- 不要假设端口号对应特定服务，先探测再判断
-- 不要生成破坏性的测试用例
-- 每一步都要有明确的目的和预期结果`
-
-export function buildPlannerPrompt(ctx: PlannerContext): LlmMessage[] {
+export async function buildPlannerPrompt(ctx: PlannerContext): Promise<LlmMessage[]> {
+  const systemPrompt = await loadSystemPrompt()
   const toolList = ctx.availableTools
     .map((t) => `- ${t.toolName} (${t.capability}): ${t.description}`)
     .join("\n")
@@ -131,7 +121,7 @@ export function buildPlannerPrompt(ctx: PlannerContext): LlmMessage[] {
   const phaseLabel = PHASE_LABELS[ctx.currentPhase]
 
   return [
-    { role: "system", content: SYSTEM_BASE },
+    { role: "system", content: systemPrompt },
     {
       role: "user",
       content: `# 安全评估规划 — 第 ${ctx.round}/${ctx.maxRounds} 轮
@@ -184,13 +174,14 @@ ${toolList}
   ]
 }
 
-export function buildAnalyzerPrompt(ctx: AnalyzerContext): LlmMessage[] {
+export async function buildAnalyzerPrompt(ctx: AnalyzerContext): Promise<LlmMessage[]> {
+  const systemPrompt = await loadSystemPrompt()
   const existingAssets = ctx.existingAssets.length > 0
     ? ctx.existingAssets.map((a) => `  [${a.kind}] ${a.value}`).join("\n")
     : "  (无)"
 
   return [
-    { role: "system", content: SYSTEM_BASE },
+    { role: "system", content: systemPrompt },
     {
       role: "user",
       content: `# 工具输出分析
@@ -247,11 +238,12 @@ ${ctx.rawOutput.length > 15_000 ? `\n(输出已截断，原始长度 ${ctx.rawOu
   ]
 }
 
-export function buildReviewerPrompt(ctx: ReviewerContext): LlmMessage[] {
+export async function buildReviewerPrompt(ctx: ReviewerContext): Promise<LlmMessage[]> {
+  const systemPrompt = await loadSystemPrompt()
   const phaseLabel = PHASE_LABELS[ctx.currentPhase]
 
   return [
-    { role: "system", content: SYSTEM_BASE },
+    { role: "system", content: systemPrompt },
     {
       role: "user",
       content: `# 轮次审查决策
@@ -290,9 +282,10 @@ ${ctx.roundSummary}
   ]
 }
 
-export function buildVerifierPrompt(ctx: VerifierContext): LlmMessage[] {
+export async function buildVerifierPrompt(ctx: VerifierContext): Promise<LlmMessage[]> {
+  const systemPrompt = await loadSystemPrompt()
   return [
-    { role: "system", content: SYSTEM_BASE },
+    { role: "system", content: systemPrompt },
     {
       role: "user",
       content: `# PoC 验证代码生成

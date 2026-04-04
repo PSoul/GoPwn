@@ -127,19 +127,58 @@ export async function closeAll(): Promise<void> {
 
 /**
  * Infer a capability category from tool name and description.
+ * Categories align with the pentest methodology's "能力族" (capability families).
+ * Order matters: more specific patterns match first.
  */
 function inferCapability(name: string, description: string): string {
   const text = `${name} ${description}`.toLowerCase()
 
-  if (text.includes("dns") || text.includes("subdomain") || text.includes("whois")) return "dns_enum"
-  if (text.includes("port") || text.includes("scan") || text.includes("nmap")) return "port_scan"
-  if (text.includes("crawl") || text.includes("spider") || text.includes("directory")) return "web_crawl"
+  // Code/command execution — match early to avoid false positives from description keywords
+  if (name.includes("execute_code") || name.includes("execute_command")) return "code_execution"
+
+  // DNS / subdomain / certificate intelligence
+  if (text.includes("subdomain") || text.includes("subfinder")) return "dns_subdomain"
+  if (text.includes("whois") || text.includes("icp")) return "dns_whois"
+  if (text.includes("dns")) return "dns_enum"
+
+  // External intelligence (FOFA, GitHub recon)
+  if (text.includes("fofa") || text.includes("shodan")) return "external_intel"
+  if (text.includes("github") && (text.includes("recon") || text.includes("search"))) return "external_intel"
+
+  // Port scanning / host discovery / service identification
+  if (text.includes("host_discovery") || text.includes("alive")) return "host_discovery"
+  if (text.includes("port") && text.includes("scan")) return "port_scan"
+  if (text.includes("full_scan") || text.includes("comprehensive")) return "asset_scan"
+  if (text.includes("bruteforce") || text.includes("brute")) return "credential_test"
+
+  // Web probing / tech detection / WAF
+  if (text.includes("waf") || text.includes("wafw00f")) return "waf_detection"
+  if (text.includes("tech_detect") || text.includes("technology") || text.includes("fingerprint")) return "fingerprint"
+  if (text.includes("httpx") || text.includes("probe") && text.includes("alive")) return "web_probe"
+
+  // HTTP/API structure discovery (directory scan, path enum)
+  if (text.includes("dirsearch") || text.includes("directory") || text.includes("recursive")) return "web_crawl"
+
+  // HTTP packet interaction
+  if (text.includes("http_request") || text.includes("http_raw") || text.includes("http_batch")) return "http_interaction"
+  if (text.includes("curl") && text.includes("request")) return "http_interaction"
+
+  // TCP/UDP packet interaction
+  if (text.includes("tcp_connect") || text.includes("tcp_banner") || text.includes("netcat")) return "tcp_interaction"
+  if (text.includes("udp")) return "tcp_interaction"
+
+  // POC / vulnerability scanning
+  if (text.includes("vuln") || text.includes("poc") || text.includes("afrog")) return "vuln_scan"
+  if (text.includes("web_scan") && text.includes("vuln")) return "vuln_scan"
+
+  // Encode/decode / crypto
+  if (text.includes("encode") || text.includes("decode") || text.includes("hash") || text.includes("crypto") || text.includes("jwt")) return "crypto_tool"
+
+  // File operations
+  if (text.includes("read_file") || text.includes("write_file")) return "file_io"
+
+  // Screenshot / evidence
   if (text.includes("screenshot") || text.includes("capture")) return "screenshot"
-  if (text.includes("sql") || text.includes("inject")) return "vuln_scan"
-  if (text.includes("execute") || text.includes("code") || text.includes("script")) return "code_execution"
-  if (text.includes("http") || text.includes("request") || text.includes("fetch")) return "http_interaction"
-  if (text.includes("graphql")) return "api_discovery"
-  if (text.includes("fingerprint") || text.includes("tech") || text.includes("wappalyzer")) return "fingerprint"
 
   return "general"
 }

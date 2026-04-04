@@ -10,6 +10,7 @@ import { prisma } from "@/lib/infra/prisma"
 
 export type { LlmProvider, LlmMessage, LlmResponse, LlmCallOptions } from "./provider"
 export { parseLlmJson } from "./prompts"
+export { loadSystemPrompt, invalidatePromptCache } from "./system-prompt"
 export {
   buildPlannerPrompt,
   buildAnalyzerPrompt,
