@@ -2,9 +2,37 @@
 
 ## Project Snapshot
 
-- Date: `2026-04-03`
-- Current focus: Phase 23b TCP 通用化与实战验证已完成 — TCP 通用协议探测、llmCode 数据库持久化、多轮上下文增强。Redis 端到端验证成功（4 资产、23 证据、1 高危发现）。下一步: 测试 SSH/MySQL/MongoDB 等其他 TCP 靶场目标，优化审批-恢复循环去重。
+- Date: `2026-04-04`
+- Current focus: Phase 24 概念精简 + 实时仪表盘已完成 — 用户概念从 11 个压缩到 4 个（Project/Asset/Vulnerability/Approval-inline），Evidence 降级为内部概念，SSE 实时推送基础设施就绪，项目首页改为 Live Dashboard（3-Tab: 漏洞/资产/执行日志），导航精简为 5 项。下一步: 生产可用性加固（竞态条件修复、查询优化、SSE 健壮性增强）。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
+
+## Phase 24: 概念精简 + 实时仪表盘 (Concept Simplification + Realtime Dashboard)
+
+- Status: Completed on `2026-04-04`
+- Branch: `docs/phase24-concept-simplification-design`
+- Goal: 将用户概念从 11 个压缩到 4 个（Project/Asset/Vulnerability/Approval-inline），新增 SSE 实时推送，重设计项目工作区为实时仪表盘。
+
+### 交付清单
+
+1. **数据模型增强** — Finding 新增 6 个证据字段（rawInput/rawOutput/screenshotPath/capturedUrl/remediationNote/createdAt），Evidence 新增时间戳，GlobalApprovalControl 新增 autoApproveMediumRisk，5 个缺失索引补全
+2. **Bug 修复** — 证据 ID 碰撞（MD5 hash）、审批事务保护（sync 重试逻辑）
+3. **SSE 实时推送基础设施** — `project-event-bus.ts` 进程内 EventEmitter + SSE API 端点 + `useProjectEvents` React Hook（auto-reconnect）+ 8 个写入点发射事件（asset_discovered/vuln_found/tool_started/tool_completed/approval_needed/approval_resolved/round_completed/project_completed）
+4. **LLM Writeback 调整** — Finding 创建时从 MCP 执行结果填充 rawInput/rawOutput/remediationNote
+5. **前端重设计** — 项目首页 `ProjectLiveDashboard`（3-Tab: 漏洞/资产/执行日志）+ 7 个新组件 + 漏洞详情页
+6. **路由清理** — 删除 9 个页面 + 5 个孤立组件（-1512 行），导航精简为 5 项（仪表盘/项目/资产/漏洞/设置）
+7. **审批自动化** — 中风险操作默认自动执行
+
+### 验收标准
+
+- [x] Finding 模型含 rawInput/rawOutput 等新字段
+- [x] Evidence 页面已删除，导航精简为 5 项
+- [x] SSE 端点工作（`/api/projects/[id]/events`）
+- [x] 项目首页为 3-Tab 实时仪表盘
+- [x] 漏洞详情页含原始输入输出
+- [x] TypeScript 编译无错误
+- [x] 非超时单元测试全部通过
+
+---
 
 ## Phase 17a: Prisma 数据层迁移 (Prisma Data Layer Migration)
 
