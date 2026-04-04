@@ -9,6 +9,7 @@ import { ProjectApprovalBar } from "./project-approval-bar"
 import { ProjectSummary } from "./project-summary"
 import { ProjectVulnTab } from "./project-vuln-tab"
 import { ProjectAssetTab } from "./project-asset-tab"
+import { ProjectPipelineLogPanel } from "./project-pipeline-log-panel"
 
 type Tone = "neutral" | "info" | "success" | "warning" | "danger"
 
@@ -88,12 +89,16 @@ export function ProjectLiveDashboard({
         <TabsList>
           <TabsTrigger value="vulns">漏洞</TabsTrigger>
           <TabsTrigger value="assets">资产</TabsTrigger>
+          <TabsTrigger value="logs">调试日志</TabsTrigger>
         </TabsList>
         <TabsContent value="vulns">
           <ProjectVulnTab projectId={project.id} initialFindings={initialFindings} />
         </TabsContent>
         <TabsContent value="assets">
           <ProjectAssetTab projectId={project.id} initialAssets={initialAssets} />
+        </TabsContent>
+        <TabsContent value="logs">
+          <ProjectPipelineLogPanel projectId={project.id} />
         </TabsContent>
       </Tabs>
     </div>

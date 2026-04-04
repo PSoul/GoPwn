@@ -76,7 +76,7 @@ export async function handleExecuteTool(data: { projectId: string; mcpRunId: str
         completedAt: new Date(),
       })
 
-      log.warn("mcp_response", `工具返回错误`, { error: result.content.slice(0, 500) }, timer.elapsed())
+      log.warn("mcp_response", `工具返回错误`, { error: result.content.slice(0, 500) })
 
       await publishEvent({
         type: "tool_failed",
