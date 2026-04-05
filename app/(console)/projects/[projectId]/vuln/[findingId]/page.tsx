@@ -17,7 +17,9 @@ export default async function FindingDetailPage({
     notFound()
   }
 
+  // findById already includes pocs, asset, evidence
   const poc = finding.pocs?.[0] ?? null
+  const evidence = finding.evidence ?? null
 
-  return <FindingDetail finding={finding} projectId={projectId} poc={poc} />
+  return <FindingDetail finding={finding} projectId={projectId} poc={poc} evidence={evidence} />
 }
