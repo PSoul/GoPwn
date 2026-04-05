@@ -21,7 +21,7 @@ type LifecycleEvent =
 
 const TRANSITIONS: Record<string, Partial<Record<LifecycleEvent, ProjectLifecycle>>> = {
   idle:             { START: "planning", START_REACT: "executing" },
-  planning:         { PLAN_READY: "executing", PLAN_FAILED: "failed", STOP: "stopping" },
+  planning:         { PLAN_READY: "executing", PLAN_FAILED: "failed", START_REACT: "executing", STOP: "stopping" },
   executing:        { ALL_DONE: "reviewing", APPROVAL_NEEDED: "waiting_approval", STOP: "stopping" },
   waiting_approval: { RESOLVED: "executing", STOP: "stopping" },
   reviewing:        { CONTINUE: "planning", CONTINUE_REACT: "executing", SETTLE: "settling", STOP: "stopping" },

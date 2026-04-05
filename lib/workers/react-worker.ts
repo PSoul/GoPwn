@@ -61,8 +61,14 @@ export async function handleReactRound(data: {
   registerAbort(projectId, abortController)
 
   try {
-    // Transition to executing
-    await projectRepo.updateLifecycle(projectId, transition(project.lifecycle, "START_REACT"))
+    // Transition to executing (skip if already executing — e.g. retry after failure)
+    if (project.lifecycle !== "executing") {
+      const event =
+        project.lifecycle === "failed" ? "RETRY_REACT" as const
+        : project.lifecycle === "reviewing" ? "CONTINUE_REACT" as const
+        : "START_REACT" as const
+      await projectRepo.updateLifecycle(projectId, transition(project.lifecycle, event))
+    }
 
     // Create/update round record
     await prisma.orchestratorRound.upsert({
@@ -84,7 +90,7 @@ export async function handleReactRound(data: {
     const controlFunctions = getControlFunctions()
     const allFunctions = [...mcpFunctions, ...controlFunctions]
 
-    // Build initial context
+    // Build initial context with available tool names
     const reactCtx: ReactContext = {
       projectName: project.name,
       targets: project.targets.map((t) => ({ value: t.value, type: t.type })),
@@ -96,10 +102,11 @@ export async function handleReactRound(data: {
       scopeDescription: scopePolicy.describe(),
       assets: assets.map((a) => ({ kind: a.kind, value: a.value, label: a.label })),
       findings: findings.map((f) => ({ title: f.title, severity: f.severity, affectedTarget: f.affectedTarget, status: f.status })),
+      availableTools: enabledTools.map((t) => ({ name: t.toolName, description: t.description || "" })),
     }
 
     const systemPrompt = await buildReactSystemPrompt(reactCtx)
-    const initialMessage = `开始第 ${round} 轮渗透测试。目标: ${project.targets.map((t) => t.value).join(", ")}。请分析当前状态并选择第一个工具。`
+    const initialMessage = `开始第 ${round} 轮渗透测试。目标: ${project.targets.map((t) => t.value).join(", ")}。请立即选择第一个工具并调用。`
 
     const ctxManager = new ReactContextManager(systemPrompt, initialMessage)
     const llm = await getLlmProvider(projectId, "react")
@@ -130,17 +137,16 @@ export async function handleReactRound(data: {
 
       // Parse LLM response
       if (!response.functionCall) {
-        // No function call — LLM finished reasoning without calling a tool
+        // No function call — LLM returned text without selecting a tool
         lastThought = response.content
-        stopReason = "llm_no_action"
-        log.info("llm_no_action", `LLM 未调用工具: ${response.content.slice(0, 200)}`, null, timer.elapsed())
-        // Add as assistant message so context is preserved, then continue
+        log.info("llm_no_action", `LLM 未调用工具 (step ${stepIndex}): ${response.content.slice(0, 200)}`, null, timer.elapsed())
         ctxManager.addAssistantMessage(response.content)
-        // If LLM didn't call a function, treat as done
+        stopReason = "llm_no_action"
         break
       }
 
       const { name: fnName, arguments: fnArgsStr } = response.functionCall
+      const toolCallId = response.toolCallId ?? ""
       const thought = response.content || ""
       lastThought = thought
 
@@ -157,11 +163,11 @@ export async function handleReactRound(data: {
           await projectRepo.updatePhaseAndRound(projectId, doneArgs.phase_suggestion as PentestPhase, round)
         }
 
-        ctxManager.addAssistantMessage(thought, { name: fnName, arguments: fnArgsStr })
+        ctxManager.addAssistantMessage(thought, { name: fnName, arguments: fnArgsStr }, toolCallId)
         ctxManager.addToolResult({
           stepIndex, toolName: "done", target: "", functionName: fnName,
           output: `Round ended by LLM decision. Summary: ${doneArgs.summary ?? ""}`,
-          status: "succeeded", thought,
+          status: "succeeded", thought, toolCallId,
         })
         break
       }
@@ -183,11 +189,11 @@ export async function handleReactRound(data: {
         })
         log.info("finding_reported", `LLM 直接报告: ${findingArgs.title}`)
 
-        ctxManager.addAssistantMessage(thought, { name: fnName, arguments: fnArgsStr })
+        ctxManager.addAssistantMessage(thought, { name: fnName, arguments: fnArgsStr }, toolCallId)
         ctxManager.addToolResult({
           stepIndex, toolName: "report_finding", target: findingArgs.target, functionName: fnName,
           output: `Finding reported: ${findingArgs.title} [${findingArgs.severity}]`,
-          status: "succeeded", thought,
+          status: "succeeded", thought, toolCallId,
         })
 
         await publishEvent({
@@ -209,11 +215,11 @@ export async function handleReactRound(data: {
       // Check scope
       if (targetValue && !scopePolicy.isInScope(targetValue)) {
         log.warn("scope_exceeded", `目标 ${targetValue} 超出 scope`)
-        ctxManager.addAssistantMessage(thought, { name: fnName, arguments: fnArgsStr })
+        ctxManager.addAssistantMessage(thought, { name: fnName, arguments: fnArgsStr }, toolCallId)
         ctxManager.addToolResult({
           stepIndex, toolName: fnName, target: targetValue, functionName: fnName,
           output: `目标 "${targetValue}" 超出 scope 范围，已记录但未执行。Scope: ${scopePolicy.describe()}`,
-          status: "failed", thought,
+          status: "failed", thought, toolCallId,
         })
         await publishEvent({
           type: "scope_exceeded",
@@ -277,10 +283,10 @@ export async function handleReactRound(data: {
       })
 
       // Add to context
-      ctxManager.addAssistantMessage(thought, { name: fnName, arguments: fnArgsStr })
+      ctxManager.addAssistantMessage(thought, { name: fnName, arguments: fnArgsStr }, toolCallId)
       ctxManager.addToolResult({
         stepIndex, toolName: fnName, target: targetValue, functionName: fnName,
-        output: toolOutput, status: toolStatus, thought,
+        output: toolOutput, status: toolStatus, thought, toolCallId,
       })
 
       // Queue async analysis for successful results
@@ -310,8 +316,8 @@ export async function handleReactRound(data: {
         data: { round, stepIndex, toolName: fnName, status: toolStatus, outputPreview: toolOutput.slice(0, 300) },
       })
 
-      // Refresh assets/findings every 3 steps for updated system prompt
-      if ((stepIndex + 1) % 3 === 0) {
+      // Refresh assets/findings every 5 steps for updated system prompt
+      if ((stepIndex + 1) % 5 === 0) {
         const freshAssets = await assetRepo.findByProject(projectId)
         const freshFindings = await findingRepo.findByProject(projectId)
         reactCtx.stepIndex = stepIndex + 1

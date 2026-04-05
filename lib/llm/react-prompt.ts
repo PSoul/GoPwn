@@ -3,6 +3,9 @@
  *
  * Constructs a structured prompt for the iterative Thought→Action→Observation loop.
  * Follows the same principle as prompts.ts: teach methodology, never give specific exploit code.
+ *
+ * Key design: instructs LLM to ALWAYS call a tool — never return plain text.
+ * Inspired by Claude Code / Codex CLI tool-calling patterns.
  */
 
 import type { PentestPhase, AssetKind } from "@/lib/generated/prisma"
@@ -27,6 +30,8 @@ export type ReactContext = {
     affectedTarget: string
     status: string
   }>
+  /** Optional: available tool names for inclusion in prompt. */
+  availableTools?: Array<{ name: string; description: string }>
 }
 
 // ── Prompt builder ──
@@ -62,16 +67,34 @@ export async function buildReactSystemPrompt(
 
   const sections: string[] = []
 
-  // ── 角色 ──
+  // ── 基础方法论（仅参考，不含交互式指令） ──
   if (basePrompt) {
     sections.push(basePrompt)
   }
 
-  sections.push(`# 角色
+  // ── 角色与执行模式 ──
+  sections.push(`# 你的角色
 
-你是一个 ReAct（Reasoning + Acting）安全评估 Agent。你将以迭代方式执行渗透测试：
-每一步先 **思考（Thought）** 当前局势，然后选择一个 **动作（Action）** 调用工具，
-观察工具返回的 **结果（Observation）** 后再决定下一步。`)
+你是一个全自动 ReAct（Reasoning + Acting）安全评估 Agent，运行在自动化渗透测试平台中。
+
+## 核心执行规则
+
+**你必须在每次响应中调用一个 tool/function。** 这是强制性的：
+- 要执行测试动作 → 调用对应的 MCP 工具
+- 要报告发现 → 调用 \`report_finding\`
+- 要结束本轮 → 调用 \`done\`
+- **绝不允许只返回文本而不调用任何 tool。** 纯文本响应将被视为错误。
+
+你处于自动化循环中，不存在"用户"可以查看你的文本输出。你的思考（Thought）应放在 content 中，但必须同时选择一个 tool 调用。
+
+## 执行模式
+
+每一步：
+1. **Thought**（放在 content 中）：分析上一步结果，决定下一步行动
+2. **Action**（通过 tool_call）：调用一个工具执行操作
+3. **Observation**（由系统提供）：工具返回的结果
+
+循环直到你调用 \`done()\` 结束本轮。`)
 
   // ── 项目信息 ──
   sections.push(`# 项目信息
@@ -79,7 +102,7 @@ export async function buildReactSystemPrompt(
 - 项目: ${ctx.projectName}
 - 当前阶段: ${phaseLabel} (${ctx.currentPhase})
 - 轮次: ${ctx.round}/${ctx.maxRounds}
-- 步骤: ${ctx.stepIndex}/${ctx.maxSteps}
+- 本轮最多步骤: ${ctx.maxSteps}
 
 ## 测试目标
 ${targetList}`)
@@ -103,16 +126,34 @@ ${assetList}`)
 
 ${findingList}`)
 
+  // ── 可用工具（如果提供） ──
+  if (ctx.availableTools && ctx.availableTools.length > 0) {
+    const toolList = ctx.availableTools
+      .map((t) => `- **${t.name}**: ${t.description}`)
+      .join("\n")
+    sections.push(`# 可用工具
+
+以下是你可以通过 function call 调用的 MCP 工具：
+
+${toolList}
+
+此外还有两个控制函数：
+- **done**: 结束当前轮次，传入 summary（本轮总结）和可选的 phase_suggestion（建议下一阶段）
+- **report_finding**: 直接报告安全发现，传入 title、severity、target、detail`)
+  }
+
   // ── 行为准则 ──
   sections.push(`# 行为准则
 
-1. **先思考再行动**：每一步必须先分析当前已知信息和目标状态，明确本步的目的，再选择最合适的工具
+1. **每步必须调用工具**：分析放在 content（Thought），同时必须选择一个 tool 调用
 2. **根据实际结果决策**：不要预设工具执行结果，根据上一步的 Observation 动态调整策略
 3. **发现新目标立即测试**：当工具输出中出现新的端口、服务、路径、参数时，在后续步骤中立即对其进行深入测试
 4. **测试充分时调用 done()**：当攻击面已充分覆盖、没有更多有价值的测试方向时，果断调用 done() 结束本轮
 5. **不重复测试**：已经测试过的目标和方法不要重复执行，换用不同工具或不同参数
 6. **优先高价值目标**：优先测试最可能存在漏洞的目标——暴露的管理接口、已知脆弱版本的服务、存在输入点的页面
-7. **阶段意识**：当前处于「${phaseLabel}」阶段，合理安排测试深度与广度的平衡`)
+7. **阶段意识**：当前处于「${phaseLabel}」阶段，合理安排测试深度与广度的平衡
+8. **工具参数准确**：调用工具时严格按照其 JSON Schema 提供参数，不要遗漏必填字段
+9. **错误恢复**：如果工具调用失败，分析错误原因后换一个工具或修正参数重试`)
 
   return sections.join("\n\n")
 }

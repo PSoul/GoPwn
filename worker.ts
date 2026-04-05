@@ -1,4 +1,7 @@
 import "dotenv/config"
+import dns from "node:dns"
+// Force IPv4 DNS to avoid Node.js defaulting to IPv6 (causes fetch failures on Windows)
+dns.setDefaultResultOrder("ipv4first")
 import { createPgBossJobQueue, type JobQueue } from "@/lib/infra/job-queue"
 import { cleanupStale } from "@/lib/repositories/llm-log-repo"
 import { bootstrapMcp } from "@/lib/services/mcp-bootstrap"

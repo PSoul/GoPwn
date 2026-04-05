@@ -129,7 +129,10 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
       log.info("state_transition", `CONTINUE → ${nextPhase} (第 ${round + 1} 轮)`, { reasoning: decision.reasoning })
 
       await projectRepo.updateLifecycle(projectId, transition("reviewing", "CONTINUE_REACT"))
-      await queue.publish("react_round", { projectId, round: round + 1 }, { expireInSeconds: 1800 })
+      await queue.publish("react_round", { projectId, round: round + 1 }, {
+        expireInSeconds: 1800,
+        singletonKey: `react-round-${projectId}-${round + 1}`,
+      })
     }
 
     await publishEvent({
@@ -179,7 +182,10 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
           await projectRepo.updateLifecycle(projectId, transition("reviewing", "CONTINUE_REACT"))
         }
         const queue = createPgBossJobQueue()
-        await queue.publish("react_round", { projectId, round: round + 1 }, { expireInSeconds: 1800 })
+        await queue.publish("react_round", { projectId, round: round + 1 }, {
+          expireInSeconds: 1800,
+          singletonKey: `react-round-${projectId}-${round + 1}`,
+        })
         log.warn("recovery", `审阅失败但已恢复，继续第 ${round + 1} 轮`)
       } catch {
         await projectRepo.updateLifecycle(projectId, "failed").catch(() => {})

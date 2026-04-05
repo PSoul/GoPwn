@@ -67,11 +67,13 @@ export async function startProject(projectId: string) {
   await projectRepo.updateLifecycle(projectId, nextLifecycle)
 
   const queue = createPgBossJobQueue()
+  const nextRound = project.currentRound + 1
   await queue.publish("react_round", {
     projectId,
-    round: project.currentRound + 1,
+    round: nextRound,
   }, {
     expireInSeconds: 1800, // ReAct round 最长 30 分钟
+    singletonKey: `react-round-${projectId}-${nextRound}`,
   })
 
   await publishEvent({

@@ -4,13 +4,22 @@
  */
 
 export type LlmMessage = {
-  role: "system" | "user" | "assistant" | "function"
+  role: "system" | "user" | "assistant" | "function" | "tool"
   content: string | null
   name?: string
+  /** Legacy function_call format (deprecated by OpenAI) */
   function_call?: {
     name: string
     arguments: string
   }
+  /** Modern tool_calls format */
+  tool_calls?: Array<{
+    id: string
+    type: "function"
+    function: { name: string; arguments: string }
+  }>
+  /** For role:"tool" messages — references the tool_call id */
+  tool_call_id?: string
 }
 
 export type LlmResponse = {
@@ -24,6 +33,8 @@ export type LlmResponse = {
     name: string
     arguments: string
   }
+  /** The tool_call ID from the modern tools API response */
+  toolCallId?: string
 }
 
 export type OpenAIFunctionDef = {

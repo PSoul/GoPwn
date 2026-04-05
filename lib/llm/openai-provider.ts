@@ -1,6 +1,9 @@
 /**
  * OpenAI-compatible LLM provider.
  * Works with OpenAI, Azure OpenAI, vLLM, Ollama, and any OpenAI-compatible API.
+ *
+ * Supports both legacy `functions` format and modern `tools` format.
+ * Sends requests using the modern `tools` format; parses responses from both.
  */
 
 import type { LlmProvider, LlmMessage, LlmResponse, LlmCallOptions } from "./provider"
@@ -38,11 +41,30 @@ export function createOpenAIProvider(config: OpenAIConfig): LlmProvider {
         body.response_format = { type: "json_object" }
       }
 
-      if (options?.functions) {
-        body.functions = options.functions
-      }
-      if (options?.function_call) {
-        body.function_call = options.function_call
+      // Convert functions to modern `tools` format
+      if (options?.functions && options.functions.length > 0) {
+        body.tools = options.functions.map((fn) => ({
+          type: "function",
+          function: {
+            name: fn.name,
+            description: fn.description,
+            parameters: fn.parameters,
+          },
+        }))
+
+        // Map function_call option to tool_choice
+        if (options?.function_call) {
+          if (options.function_call === "auto") {
+            body.tool_choice = "auto"
+          } else if (options.function_call === "none") {
+            body.tool_choice = "none"
+          } else if (typeof options.function_call === "object" && "name" in options.function_call) {
+            body.tool_choice = {
+              type: "function",
+              function: { name: options.function_call.name },
+            }
+          }
+        }
       }
 
       const controller = new AbortController()
@@ -78,7 +100,14 @@ export function createOpenAIProvider(config: OpenAIConfig): LlmProvider {
           choices: Array<{
             message: {
               content: string | null
+              /** Legacy format */
               function_call?: { name: string; arguments: string }
+              /** Modern format */
+              tool_calls?: Array<{
+                id: string
+                type: "function"
+                function: { name: string; arguments: string }
+              }>
             }
           }>
           model: string
@@ -98,7 +127,15 @@ export function createOpenAIProvider(config: OpenAIConfig): LlmProvider {
           durationMs,
         }
 
-        if (message?.function_call) {
+        // Parse function call from response — try modern format first, fall back to legacy
+        if (message?.tool_calls && message.tool_calls.length > 0) {
+          const tc = message.tool_calls[0]
+          result.functionCall = {
+            name: tc.function.name,
+            arguments: tc.function.arguments,
+          }
+          result.toolCallId = tc.id
+        } else if (message?.function_call) {
           result.functionCall = {
             name: message.function_call.name,
             arguments: message.function_call.arguments,

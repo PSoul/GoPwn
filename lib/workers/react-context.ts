@@ -2,6 +2,8 @@
  * ReAct loop context manager.
  * Maintains the message list for iterative LLM calls with sliding-window
  * compression to stay within token budgets.
+ *
+ * Uses the modern OpenAI `tools` message format (role:"tool" + tool_call_id).
  */
 
 import type { LlmMessage } from "@/lib/llm/provider"
@@ -22,6 +24,11 @@ function estimateTokens(messages: LlmMessage[]): number {
     if (m.content) chars += m.content.length
     if (m.function_call) {
       chars += m.function_call.name.length + m.function_call.arguments.length
+    }
+    if (m.tool_calls) {
+      for (const tc of m.tool_calls) {
+        chars += tc.function.name.length + tc.function.arguments.length
+      }
     }
     if (m.name) chars += m.name.length
   }
@@ -45,10 +52,17 @@ interface ToolStep {
   output: string
   status: string
   thought?: string
+  toolCallId: string
   /** Index of the assistant message that preceded this result. */
   assistantMsgIdx: number
-  /** Index of the function-result message. */
-  functionMsgIdx: number
+  /** Index of the tool-result message. */
+  toolMsgIdx: number
+}
+
+/** Auto-incrementing tool_call ID generator for context coherence. */
+let toolCallCounter = 0
+export function generateToolCallId(): string {
+  return `call_${Date.now()}_${++toolCallCounter}`
 }
 
 export class ReactContextManager {
@@ -75,24 +89,43 @@ export class ReactContextManager {
   }
 
   /**
-   * Append an assistant message. If the assistant is requesting a function
-   * call, include the function_call field (content should be null in that case
-   * per OpenAI spec).
+   * Append an assistant message with a tool_calls request.
+   * Uses the modern `tools` format: assistant message has `tool_calls` array.
    */
   addAssistantMessage(
     content: string | null,
     functionCall?: { name: string; arguments: string },
+    toolCallId?: string,
   ): void {
     const msg: LlmMessage = { role: "assistant", content }
-    if (functionCall) {
-      msg.function_call = functionCall
+    if (functionCall && toolCallId) {
+      // Modern format: tool_calls array on assistant message
+      msg.tool_calls = [{
+        id: toolCallId,
+        type: "function",
+        function: {
+          name: functionCall.name,
+          arguments: functionCall.arguments,
+        },
+      }]
+    } else if (functionCall) {
+      // Fallback: generate a tool_call_id if none provided
+      const id = generateToolCallId()
+      msg.tool_calls = [{
+        id,
+        type: "function",
+        function: {
+          name: functionCall.name,
+          arguments: functionCall.arguments,
+        },
+      }]
     }
     this.messages.push(msg)
   }
 
   /**
-   * Record a tool result as a function-role message and optionally compress
-   * older steps to stay within the token budget.
+   * Record a tool result using the modern `role: "tool"` format with `tool_call_id`.
+   * Optionally compress older steps to stay within the token budget.
    */
   addToolResult(step: {
     stepIndex: number
@@ -102,26 +135,40 @@ export class ReactContextManager {
     output: string
     status: string
     thought?: string
+    toolCallId?: string
   }): void {
     const assistantMsgIdx = this.messages.length - 1 // last msg should be assistant
 
     // Truncate individual output to cap size
     const truncatedOutput = truncate(step.output, MAX_OUTPUT_CHARS)
 
-    const functionMsg: LlmMessage = {
-      role: "function",
-      name: step.functionName,
-      content: truncatedOutput,
+    // Resolve tool_call_id: use provided, or extract from assistant message's tool_calls
+    let toolCallId = step.toolCallId ?? ""
+    if (!toolCallId) {
+      const lastMsg = this.messages[assistantMsgIdx]
+      if (lastMsg?.tool_calls?.[0]) {
+        toolCallId = lastMsg.tool_calls[0].id
+      } else {
+        toolCallId = generateToolCallId()
+      }
     }
-    this.messages.push(functionMsg)
 
-    const functionMsgIdx = this.messages.length - 1
+    // Modern format: role: "tool" with tool_call_id
+    const toolMsg: LlmMessage = {
+      role: "tool",
+      content: truncatedOutput,
+      tool_call_id: toolCallId,
+    }
+    this.messages.push(toolMsg)
+
+    const toolMsgIdx = this.messages.length - 1
 
     this.steps.push({
       ...step,
       output: truncatedOutput,
+      toolCallId,
       assistantMsgIdx,
-      functionMsgIdx,
+      toolMsgIdx,
     })
 
     // Check if compression is needed
@@ -145,7 +192,7 @@ export class ReactContextManager {
 
     // Build summary lines for old steps
     const summaryLines: string[] = stepsToCompress.map((s) => {
-      const statusTag = s.status === "success" ? "OK" : s.status.toUpperCase()
+      const statusTag = s.status === "succeeded" ? "OK" : s.status.toUpperCase()
       return `[Step ${s.stepIndex}] ${s.toolName} → ${s.target} (${statusTag})`
     })
 
@@ -153,7 +200,7 @@ export class ReactContextManager {
     const indicesToRemove = new Set<number>()
     for (const s of stepsToCompress) {
       indicesToRemove.add(s.assistantMsgIdx)
-      indicesToRemove.add(s.functionMsgIdx)
+      indicesToRemove.add(s.toolMsgIdx)
     }
 
     // Never remove the system prompt (0) or initial user message (1)
@@ -184,17 +231,15 @@ export class ReactContextManager {
 
     // Update step indices to reflect new message positions
     const recentSteps = this.steps.slice(this.steps.length - RECENT_WINDOW)
-    // Recompute indices by scanning newMessages
     for (const step of recentSteps) {
-      // Find the function message for this step by matching role + name + content
       for (let i = 0; i < newMessages.length; i++) {
         const m = newMessages[i]
         if (
-          m.role === "function" &&
-          m.name === step.functionName &&
+          m.role === "tool" &&
+          m.tool_call_id === step.toolCallId &&
           m.content === step.output
         ) {
-          step.functionMsgIdx = i
+          step.toolMsgIdx = i
           step.assistantMsgIdx = i - 1
           break
         }
