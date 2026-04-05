@@ -36,4 +36,5 @@ export interface BannerGrabResponse {
   banner: string;
   hex: string;
   timing: { connect: number; firstByte: number };
+  probeSent?: string;
 }

@@ -44,8 +44,9 @@ export async function handleAnalyzeResult(data: {
   }
 
   try {
-    // Get existing assets to avoid duplicates
+    // Get existing assets and findings to avoid duplicates
     const existingAssets = await assetRepo.findByProject(projectId)
+    const existingFindings = await findingRepo.findByProject(projectId)
 
     const analyzerCtx: AnalyzerContext = {
       projectName: project.name,
@@ -53,6 +54,11 @@ export async function handleAnalyzeResult(data: {
       target,
       rawOutput,
       existingAssets: existingAssets.map((a) => ({ kind: a.kind, value: a.value })),
+      existingFindings: existingFindings.map((f) => ({
+        title: f.title,
+        severity: f.severity,
+        affectedTarget: f.affectedTarget,
+      })),
     }
 
     // Call LLM analyzer (with abort support)

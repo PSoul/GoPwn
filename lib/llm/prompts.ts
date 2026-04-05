@@ -37,6 +37,7 @@ export type AnalyzerContext = {
   target: string
   rawOutput: string
   existingAssets: Array<{ kind: AssetKind; value: string }>
+  existingFindings?: Array<{ title: string; severity: string; affectedTarget: string }>
 }
 
 export type ReviewerContext = {
@@ -194,7 +195,12 @@ ${toolList}
 - riskLevel 为 high 的操作需要人工审批
 - **重要**: target 字段必须是真实的网络地址（IP、IP:端口、URL、域名），绝不能使用描述性文字或中文占位符。正确示例: "127.0.0.1:6379"、"http://127.0.0.1:8080"。错误示例: "127.0.0.1:非HTTP端口"、"目标域名"
 - toolName 必须完全匹配上面可用工具列表中的名称
-- action 字段用于描述具体操作，平台会根据工具的 inputSchema 自动映射参数。你只需提供 toolName、target 和自然语言 action 即可`,
+- action 字段用于描述具体操作，平台会根据工具的 inputSchema 自动映射参数。你只需提供 toolName、target 和自然语言 action 即可
+- **例外: execute_code 工具** — 当 toolName 为 execute_code 时，action 字段必须包含**可直接执行的 JavaScript 代码**（不是自然语言描述）。代码应输出 JSON 格式结果到 stdout。示例格式:
+  \`\`\`
+  const http = require('http'); const req = http.get('目标URL', (res) => { let d=''; res.on('data',c=>d+=c); res.on('end',()=>console.log(JSON.stringify({status:res.statusCode,headers:res.headers,body:d.slice(0,2000)}))); }); req.on('error',e=>console.log(JSON.stringify({error:e.message}))); req.setTimeout(10000,()=>{req.destroy();console.log(JSON.stringify({error:'timeout'}))});
+  \`\`\`
+  对于 TCP 服务，使用 net 模块连接并读取 banner。代码必须是合法的 Node.js 且能独立运行。`,
     },
   ]
 }
@@ -203,6 +209,10 @@ export async function buildAnalyzerPrompt(ctx: AnalyzerContext): Promise<LlmMess
   const systemPrompt = await loadSystemPrompt()
   const existingAssets = ctx.existingAssets.length > 0
     ? ctx.existingAssets.map((a) => `  [${a.kind}] ${a.value}`).join("\n")
+    : "  (无)"
+
+  const existingFindings = (ctx.existingFindings ?? []).length > 0
+    ? ctx.existingFindings!.map((f) => `  [${f.severity}] ${f.title} → ${f.affectedTarget}`).join("\n")
     : "  (无)"
 
   return [
@@ -217,6 +227,9 @@ export async function buildAnalyzerPrompt(ctx: AnalyzerContext): Promise<LlmMess
 
 ## 已有资产（避免重复）
 ${existingAssets}
+
+## 已有发现（避免重复！如果下面的发现已覆盖同类问题，请勿再次报告）
+${existingFindings}
 
 ## 工具原始输出
 \`\`\`

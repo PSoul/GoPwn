@@ -24,15 +24,49 @@ export async function findSuspected(projectId: string) {
 
 /**
  * Normalize a finding title for dedup comparison.
- * Strips whitespace, punctuation variations, and common LLM rephrasing patterns.
+ * Strips whitespace, punctuation, and maps common Chinese↔English equivalents.
  */
 function normalizeTitle(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[\s\-_]+/g, " ")           // normalize whitespace/dashes
-    .replace(/[（(].*?[)）]/g, "")        // strip parenthetical notes
+  let t = title.toLowerCase()
+
+  // Map common Chinese terms to English equivalents for cross-language dedup
+  const zhEnMap: [RegExp, string][] = [
+    [/cookie\s*安全属性缺失|cookie\s*security\s*attributes?\s*missing/gi, "cookie-no-secure-flag"],
+    [/服务器?版本[信息]?暴露|server\s*version\s*(info(rmation)?\s*)?disclos(ure|ed)|server\s*header\s*leak/gi, "server-version-disclosure"],
+    [/目录(浏览|列举|遍历)|directory\s*(listing|browsing|traversal)/gi, "directory-listing"],
+    [/信息泄[露漏]|information\s*(disclos(ure|ed)|leak(age)?)/gi, "info-disclosure"],
+    [/缺少.*安全头|missing\s*security\s*headers?|安全头[缺未].*配置/gi, "missing-security-headers"],
+    [/x-frame-options\s*(缺失|missing|未设置)/gi, "missing-x-frame-options"],
+    [/x-content-type-options\s*(缺失|missing|未设置)/gi, "missing-x-content-type-options"],
+    [/弱口令|weak\s*password|弱密码|default\s*(credential|password)/gi, "weak-password"],
+    [/未授权访问|unauth(orized|enticated)\s*access/gi, "unauthorized-access"],
+    [/sql\s*注入|sql\s*injection/gi, "sql-injection"],
+    [/跨站脚本|xss|cross[- ]site\s*scripting/gi, "xss"],
+    [/http\s*only.*cookie|cookie.*http\s*only/gi, "cookie-no-httponly"],
+  ]
+
+  for (const [re, replacement] of zhEnMap) {
+    if (re.test(t)) {
+      t = replacement
+      break
+    }
+  }
+
+  return t
+    .replace(/[\s\-_]+/g, " ")
+    .replace(/[（(].*?[)）]/g, "")
     .replace(/漏洞|vulnerability|issue/gi, "")
     .trim()
+}
+
+/** Extract root host from an affectedTarget (strip path, port) for broader dedup matching */
+function extractRootHost(target: string): string {
+  try {
+    const url = new URL(target.startsWith("http") ? target : `http://${target}`)
+    return url.hostname
+  } catch {
+    return target.split("/")[0].split(":")[0]
+  }
 }
 
 export async function create(data: {
@@ -57,16 +91,19 @@ export async function create(data: {
     },
   })
 
-  // Fuzzy match: find all findings for same target, compare normalized titles
+  // Fuzzy match: find ALL findings in the project, compare normalized titles
+  // Match by (normalized title + root host) rather than (exact title + exact path)
   if (!existing) {
     const candidates = await prisma.finding.findMany({
-      where: {
-        projectId: data.projectId,
-        affectedTarget: target,
-      },
+      where: { projectId: data.projectId },
     })
     const normalizedNew = normalizeTitle(data.title)
-    existing = candidates.find((c) => normalizeTitle(c.title) === normalizedNew) ?? null
+    const rootHost = extractRootHost(target)
+    existing = candidates.find((c) => {
+      const sameTitle = normalizeTitle(c.title) === normalizedNew
+      const sameHost = extractRootHost(c.affectedTarget) === rootHost
+      return sameTitle && sameHost
+    }) ?? null
   }
 
   if (existing) {
