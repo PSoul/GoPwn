@@ -69,6 +69,7 @@ export type LlmPlanItem = {
 }
 
 export type LlmPlanResponse = {
+  strategy: string
   summary: string
   phase: PentestPhase
   items: LlmPlanItem[]
@@ -168,11 +169,37 @@ ${formatPreviousRound(ctx)}
 ${toolList}
 
 ## 你的任务
-根据当前阶段和已有信息，规划本轮需要执行的探测任务。
 
+### 第一步：策略思考（必须）
+在列出具体任务之前，先分析当前局势：
+1. **进展评估**：当前第 ${ctx.round}/${ctx.maxRounds} 轮，已有哪些信息？上轮哪些成功/失败？
+2. **阶段判断**：根据已有信息，当前应处于哪个阶段？是否该推进到下一阶段？
+3. **深入方向**：哪些已有发现值得深入利用？（例如：发现了登录页→尝试弱口令；发现了版本号→搜索已知CVE；发现了开放服务→尝试未授权访问）
+4. **避免重复**：上轮已经做过的事情不要重复，失败的方法要换新思路
+
+### 阶段推进指南
+- **recon（1-2轮）**：端口扫描、banner抓取、目录扫描、技术栈识别。如果已有足够资产信息，应推进到 discovery
+- **discovery（2-4轮）**：深入Web结构、API发现、认证分析、参数探测。如果已有攻击面地图，应推进到 assessment
+- **assessment（3-7轮）**：**主动测试漏洞**——SQL注入、XSS、命令注入、弱口令、未授权访问、SSRF。这是发现真正漏洞的阶段！
+- **verification（7-9轮）**：验证已发现的疑似漏洞，收集PoC证据
+- **reporting（10轮）**：输出最终报告
+
+**关键：不要在 recon/discovery 阶段停留太久！** 如果已有足够的资产和攻击面信息，必须推进到 assessment 阶段开始主动测试。10 轮测试中，至少有 4 轮应该在 assessment 或更高阶段。
+
+### 从发现到利用的推理
+当你发现以下信息时，应主动安排对应的后续测试：
+- 发现登录页 → 尝试常见弱口令组合（通过 execute_code 或 http_raw_request）
+- 发现数据库服务（MySQL/Redis/MongoDB）→ 测试未授权访问或默认凭据
+- 发现版本号 → 分析是否有已知漏洞
+- 发现表单/参数 → 测试注入类漏洞（SQL注入、XSS、命令注入）
+- 发现 API 端点 → 测试越权访问、参数篡改
+- 发现管理面板 → 测试默认凭据、绕过认证
+
+### 第二步：输出 JSON
 请以 JSON 格式回复，结构如下：
 \`\`\`json
 {
+  "strategy": "当前策略思考：分析局势、判断阶段、选择攻击方向（2-3句话）",
   "summary": "本轮规划概述",
   "phase": "建议的当前阶段(recon|discovery|assessment|verification|reporting)",
   "items": [
@@ -188,7 +215,7 @@ ${toolList}
 }
 \`\`\`
 
-注意：
+### 规则
 - 每轮最多规划 5 个任务，优先覆盖最重要的测试点
 - 根据已有资产和发现避免重复探测
 - 对非 HTTP 服务，先用 banner 探测确认协议类型

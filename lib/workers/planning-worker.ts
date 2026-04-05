@@ -126,7 +126,7 @@ export async function handlePlanRound(data: { projectId: string; round: number }
     // Validate and cap plan items
     const items = (plan.items ?? []).slice(0, 5)
 
-    log.info("llm_response", `LLM 返回 ${items.length} 个计划项`, { summary: plan.summary, phase: plan.phase }, timer.elapsed())
+    log.info("llm_response", `LLM 返回 ${items.length} 个计划项`, { strategy: plan.strategy, summary: plan.summary, phase: plan.phase }, timer.elapsed())
 
     // Save plan to database
     await prisma.orchestratorPlan.upsert({
