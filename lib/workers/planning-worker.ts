@@ -65,7 +65,7 @@ export async function handlePlanRound(data: { projectId: string; round: number }
       : []
 
     // Build detailed previous round info with rawOutput for LLM context
-    let previousRoundDetails = previousRuns.length > 0
+    const previousRoundDetails = previousRuns.length > 0
       ? previousRuns.map((r) => ({
           toolName: r.toolName,
           target: r.target,

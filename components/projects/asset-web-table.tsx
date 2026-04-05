@@ -4,11 +4,10 @@ import type { Asset } from "@/lib/generated/prisma"
 import { ASSET_KIND_LABELS } from "@/lib/types/labels"
 
 type Props = {
-  projectId: string
   assets: Asset[] // kind: webapp | api_endpoint
 }
 
-export function AssetWebTable({ projectId, assets }: Props) {
+export function AssetWebTable({ assets }: Props) {
   if (assets.length === 0) {
     return <p className="text-sm text-zinc-600 py-8 text-center">暂未发现 Web 应用或 API 端点</p>
   }

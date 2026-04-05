@@ -15,7 +15,7 @@ type Props = {
 export function AssetPageTabs({ projectId, assets }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const currentTab = searchParams.get("tab") ?? "domains"
+  const currentTab = searchParams?.get("tab") ?? "domains"
 
   // Split assets by kind
   const domains = assets.filter((a) => a.kind === "domain" || a.kind === "subdomain")
@@ -47,7 +47,7 @@ export function AssetPageTabs({ projectId, assets }: Props) {
         <AssetHostsTable projectId={projectId} assets={hosts} />
       </TabsContent>
       <TabsContent value="web">
-        <AssetWebTable projectId={projectId} assets={web} />
+        <AssetWebTable assets={web} />
       </TabsContent>
     </Tabs>
   )
