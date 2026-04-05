@@ -86,14 +86,14 @@ async function main() {
   logger.info("pg-boss started")
 
   // Register job handlers
-  await queue.subscribe("plan_round", async (data) => {
-    const { handlePlanRound } = await import("@/lib/workers/planning-worker")
-    await handlePlanRound(data as { projectId: string; round: number })
+  // TODO(Plan C): Replace with react-worker handler
+  // plan_round and execute_tool are now handled by the ReAct worker
+  await queue.subscribe("plan_round", async (_data) => {
+    logger.warn("plan_round job received but planning-worker has been removed — will be replaced by react-worker in Plan C")
   })
 
-  await queue.subscribe("execute_tool", async (data) => {
-    const { handleExecuteTool } = await import("@/lib/workers/execution-worker")
-    await handleExecuteTool(data as { projectId: string; mcpRunId: string })
+  await queue.subscribe("execute_tool", async (_data) => {
+    logger.warn("execute_tool job received but execution-worker has been removed — will be replaced by react-worker in Plan C")
   })
 
   await queue.subscribe("analyze_result", async (data) => {
