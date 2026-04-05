@@ -68,3 +68,4 @@ mcps/*/reports/
 # OS
 .DS_Store
 Thumbs.db
+xbow-benchmarks/

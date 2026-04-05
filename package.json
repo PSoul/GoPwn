@@ -20,7 +20,9 @@
     "test:watch": "vitest",
     "start": "next start",
     "worker": "tsx worker.ts",
-    "worker:dev": "tsx watch worker.ts"
+    "worker:dev": "tsx watch worker.ts",
+    "xbow:catalog": "tsx scripts/xbow-eval/benchmark-catalog.ts",
+    "xbow:eval": "tsx scripts/xbow-eval/run-eval.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

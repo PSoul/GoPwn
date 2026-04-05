@@ -166,7 +166,7 @@ export async function buildToolInput(toolName: string, target: string, action: s
 /**
  * Build MCP tool input from LLM's function call arguments.
  * In ReAct mode, the LLM directly provides structured arguments via function calling.
- * Falls back to buildToolInput() if the LLM arguments are empty/invalid.
+ * Merges LLM args with schema-based fallback to fill in any missing required fields.
  */
 export async function buildToolInputFromFunctionArgs(
   toolName: string,
@@ -174,8 +174,35 @@ export async function buildToolInputFromFunctionArgs(
   target: string,
   action: string,
 ): Promise<Record<string, unknown>> {
-  if (functionArgs && Object.keys(functionArgs).length > 0) {
+  if (!functionArgs || Object.keys(functionArgs).length === 0) {
+    return buildToolInput(toolName, target, action)
+  }
+
+  // Check if any required fields are missing — if so, merge with fallback
+  const { findByToolName } = await import("@/lib/repositories/mcp-tool-repo")
+  const tool = await findByToolName(toolName)
+  const schema = (tool?.inputSchema ?? {}) as Record<string, unknown>
+  const required = (schema.required ?? []) as string[]
+
+  const missingRequired = required.filter((field) => {
+    const val = functionArgs[field]
+    return val === undefined || val === null || val === ""
+  })
+
+  if (missingRequired.length === 0) {
     return functionArgs
   }
-  return buildToolInput(toolName, target, action)
+
+  // Merge: LLM args + fallback for missing fields
+  const fallback = await buildToolInput(toolName, target, action)
+  const merged = { ...fallback, ...functionArgs }
+
+  // Remove fields that are still undefined/null after merge
+  for (const key of Object.keys(merged)) {
+    if (merged[key] === undefined || merged[key] === null) {
+      delete merged[key]
+    }
+  }
+
+  return merged
 }
