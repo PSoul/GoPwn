@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronDown, ChevronUp, Router, ShieldCheck } from "lucide-react"
+import { ChevronDown, ChevronUp } from "lucide-react"
 
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
@@ -23,6 +23,7 @@ const statusTone: Record<McpRunStatus, Tone> = {
   cancelled: "neutral",
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const riskTone: Record<RiskLevel, Tone> = {
   low: "success",
   medium: "warning",

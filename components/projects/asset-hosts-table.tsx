@@ -24,13 +24,26 @@ export function AssetHostsTable({ projectId, assets }: Props) {
       // Find child service
       const serviceAsset = assets.find((a) => a.kind === "service" && a.parentId === portAsset.id)
       const metadata = portAsset.metadata as Record<string, string> | null
+
+      // Determine service label: prefer child service asset, then metadata, then port label
+      const serviceLabel = serviceAsset?.label ?? metadata?.service ?? ""
+      // If service label contains HTTP or there are webapp/api_endpoint children, it's HTTP
+      const hasHttpChildren = assets.some(
+        (a) => (a.kind === "webapp" || a.kind === "api_endpoint") &&
+        a.value.includes(`:${portAsset.value}`)
+      )
+      const isHttp = hasHttpChildren ||
+        serviceLabel.toLowerCase().includes("http") ||
+        portAsset.label.toLowerCase().includes("http") ||
+        (serviceAsset?.value ?? "").toLowerCase().includes("http")
+
       return {
         id: portAsset.id,
         host,
         ipAssetId: ipAsset?.id,
         port: portAsset.value,
-        protocol: metadata?.protocol ?? "TCP",
-        service: serviceAsset?.label ?? metadata?.service ?? "",
+        protocol: metadata?.protocol ?? (isHttp ? "HTTP" : "TCP"),
+        service: serviceLabel || portAsset.label || "",
         banner: metadata?.banner ?? serviceAsset?.value ?? "",
         firstSeenAt: portAsset.firstSeenAt,
       }

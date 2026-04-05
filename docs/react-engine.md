@@ -46,13 +46,13 @@ ReAct 模型的优势：
 ┌─────────────────────────────────────────────────────────────┐
 │                    ReAct 单轮循环                             │
 │                                                               │
-│  ┌───────┐    function_call     ┌──────────┐    callTool     │
+│  ┌───────┐    tool_calls        ┌──────────┐    callTool     │
 │  │  LLM  │ ──────────────────→ │  平台调度  │ ────────────→  │
 │  │       │                      │          │               MCP│
 │  │       │ ←────────────────── │          │ ←────────────  工具│
-│  └───────┘    role: function    └──────────┘   rawOutput     │
+│  └───────┘    role: tool        └──────────┘   rawOutput     │
 │                                                               │
-│  重复直到: done() / request_approval() / 30 步上限 / 错误     │
+│  重复直到: done() / report_finding() / 30 步上限 / 错误       │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -122,8 +122,8 @@ handleReactRound({ projectId, round })
 │
 ├─ 6. 进入 ReAct 循环 (step = 1..MAX_STEPS)
 │   │
-│   ├─ 6a. 调用 LLM（带 functions 参数）
-│   │       → 返回 function_call: { name, arguments }
+│   ├─ 6a. 调用 LLM（带 tools 参数）
+│   │       → 返回 tool_calls[0].function: { name, arguments }
 │   │
 │   ├─ 6b. 判断调用类型:
 │   │   ├─ done(summary, phase_suggestion)
@@ -132,9 +132,6 @@ handleReactRound({ projectId, round })
 │   │   ├─ report_finding(title, severity, target, detail)
 │   │   │   → 创建 Finding 记录，继续循环
 │   │   │
-│   │   ├─ request_approval(reason, risk_level)
-│   │   │   → 创建 Approval，记录 stopReason="approval_requested"，跳出循环
-│   │   │
 │   │   └─ MCP 工具 (e.g. httpx_probe, execute_code)
 │   │       ├─ 检查 scope policy（目标是否在范围内）
 │   │       ├─ 构建 MCP 输入参数 (buildToolInputFromFunctionArgs)
@@ -142,11 +139,11 @@ handleReactRound({ projectId, round })
 │   │       ├─ callTool() 执行（5 分钟超时）
 │   │       ├─ 更新 McpRun（succeeded/failed + rawOutput）
 │   │       ├─ 异步入队 analyze_result 作业
-│   │       └─ 将结果以 role: function 回填上下文
+│   │       └─ 将结果以 role: tool + tool_call_id 回填上下文
 │   │
 │   ├─ 6c. 发布 SSE 事件 (react_step_completed)
 │   │
-│   ├─ 6d. 每 3 步: 刷新系统提示（更新资产/发现列表）
+│   ├─ 6d. 每 5 步: 刷新系统提示（更新资产/发现列表）
 │   │
 │   └─ 6e. 检查中止信号 (AbortRegistry)
 │
@@ -155,9 +152,9 @@ handleReactRound({ projectId, round })
 └─ 9. 发布 round_completed 作业 → 触发 lifecycle-worker 审阅
 ```
 
-**LLM 无 function_call 的处理**:
+**LLM 无 tool_calls 的处理**:
 
-如果 LLM 返回纯文本而非 function_call（部分模型可能如此），react-worker 会：
+如果 LLM 返回纯文本而非 tool_calls（部分模型可能如此），react-worker 会：
 1. 将文本作为 assistant 消息加入上下文
 2. 记录 `stopReason = "llm_no_action"`
 3. 结束本轮
@@ -175,20 +172,22 @@ handleReactRound({ projectId, round })
 | `constructor(systemPrompt, initialUserMessage)` | 初始化：system + user 两条消息 |
 | `getMessages()` | 返回当前消息列表的副本（用于 LLM 调用） |
 | `updateSystemPrompt(newPrompt)` | 替换 index 0 处的系统提示 |
-| `addAssistantMessage(content, functionCall?)` | 追加 assistant 消息，可选 function_call 字段 |
-| `addToolResult(step)` | 追加 role: function 消息，并触发压缩检查 |
+| `addAssistantMessage(content, functionCall?, toolCallId?)` | 追加 assistant 消息，含 `tool_calls` 数组 |
+| `addToolResult(step)` | 追加 `role: "tool"` 消息（含 `tool_call_id`），并触发压缩检查 |
 
-**消息格式**:
+**消息格式**（使用 OpenAI 现代 `tools` 格式）:
 
 ```
 [0] { role: "system", content: "你是一个渗透测试 ReAct Agent..." }
 [1] { role: "user", content: "开始第 1 轮测试..." }
-[2] { role: "assistant", function_call: { name: "httpx_probe", arguments: "..." } }
-[3] { role: "function", name: "httpx_probe", content: "HTTP/200 ..." }
-[4] { role: "assistant", function_call: { name: "dirsearch_scan", arguments: "..." } }
-[5] { role: "function", name: "dirsearch_scan", content: "/login, /admin, /api ..." }
+[2] { role: "assistant", tool_calls: [{ id: "tc_1", type: "function", function: { name: "httpx_probe", arguments: "..." } }] }
+[3] { role: "tool", tool_call_id: "tc_1", content: "HTTP/200 ..." }
+[4] { role: "assistant", tool_calls: [{ id: "tc_2", type: "function", function: { name: "dirsearch_scan", arguments: "..." } }] }
+[5] { role: "tool", tool_call_id: "tc_2", content: "/login, /admin, /api ..." }
 ...
 ```
+
+> **注意**: Phase 24c 将消息格式从废弃的 `function_call` + `role: "function"` 升级为现代 `tool_calls` + `role: "tool"` 格式。`openai-provider.ts` 同步将请求中的 `functions` 参数转换为 `tools` 格式。
 
 **滑动窗口压缩**:
 
@@ -425,7 +424,7 @@ Worker 启动时检查卡住的项目：
 | 值 | 说明 | 中文标签 |
 |----|------|---------|
 | `llm_done` | LLM 主动调用 `done()` | LLM 主动停止 |
-| `llm_no_action` | LLM 返回纯文本无 function_call | LLM 结束推理 |
+| `llm_no_action` | LLM 返回纯文本无 tool_calls | LLM 结束推理 |
 | `max_steps` | 达到 MAX_STEPS_PER_ROUND 上限 | 达到步数上限 |
 | `aborted` | 用户手动停止或中止信号 | 用户中止 |
 | `error` | 不可恢复的执行错误 | 执行错误 |
@@ -581,7 +580,7 @@ react_round
 
 ### 当前限制
 
-1. **Function Calling 兼容性**: 并非所有 LLM 提供商都支持标准的 Function Calling 格式。部分模型（如 DeepSeek）可能不稳定
+1. **Function Calling 格式**: 已升级为 OpenAI 现代 `tools` 格式（Phase 24c）。旧的 `functions` 格式被 API 忽略导致 `llm_no_action`。部分非 OpenAI 兼容模型可能仍不稳定
 2. **上下文压缩信息损失**: 超过 5 步的历史被压缩为一行摘要，LLM 可能重复执行已完成的测试
 3. **无步骤级审批**: 当前版本所有工具调用自动批准。高风险工具（如 execute_code）在循环中途无法暂停请求人工确认
 4. **SSE 事件不可回放**: 页面重载后丢失实时步骤状态，需通过 Steps API 查询历史
@@ -590,7 +589,7 @@ react_round
 
 ### 未来方向
 
-1. **步骤级审批**: `request_approval` 控制函数完整实现 — 高风险工具在推理链中途请求人工确认
+1. **步骤级审批**: 高风险工具在推理链中途请求人工确认（控制函数待实现）
 2. **自适应步数限制**: 根据渗透阶段动态调整 MAX_STEPS_PER_ROUND（侦察阶段更多步，验证阶段更少步）
 3. **多 Agent 协作**: 多个 ReAct Agent 并行工作在不同目标/阶段上
 4. **Token 用量监控**: 记录每轮实际 token 消耗，生成成本报告

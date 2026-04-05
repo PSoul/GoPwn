@@ -2,10 +2,10 @@
 
 import { useMemo, useState, useCallback } from "react"
 import Link from "next/link"
-import { Search } from "lucide-react"
+import { ExternalLink, Pencil, Search, Trash2 } from "lucide-react"
 
 import { SectionCard } from "@/components/shared/section-card"
-import { ProjectCard } from "@/components/projects/project-card"
+import { StatusBadge } from "@/components/shared/status-badge"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -31,6 +32,21 @@ import { LIFECYCLE_LABELS, PHASE_LABELS } from "@/lib/types/labels"
 import { apiFetch } from "@/lib/infra/api-client"
 
 const PAGE_SIZE = 12
+
+type Tone = "neutral" | "info" | "success" | "warning" | "danger"
+
+const lifecycleToneMap: Record<ProjectLifecycle, Tone> = {
+  executing: "info",
+  idle: "neutral",
+  planning: "info",
+  completed: "success",
+  waiting_approval: "danger",
+  reviewing: "warning",
+  settling: "success",
+  stopping: "warning",
+  stopped: "neutral",
+  failed: "danger",
+}
 
 const lifecyclePriority: Record<ProjectLifecycle, number> = {
   executing: 0,
@@ -190,23 +206,70 @@ export function ProjectListClient({ projects }: ProjectListClientProps) {
           </div>
         ) : null}
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filteredProjects.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              onDelete={(p) => setPendingDelete(p)}
-            />
-          ))}
-        </div>
-
-        {filteredProjects.length === 0 && (
+        {filteredProjects.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50/80 px-6 py-16 text-center dark:border-slate-700 dark:bg-slate-900/50">
             <p className="text-sm text-slate-500 dark:text-slate-400">没有匹配的项目</p>
             <Button asChild className="mt-4 rounded-full" variant="outline">
               <Link href="/projects/new">新建项目</Link>
             </Button>
           </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>项目名称</TableHead>
+                <TableHead>状态</TableHead>
+                <TableHead>阶段</TableHead>
+                <TableHead>轮次</TableHead>
+                <TableHead>更新时间</TableHead>
+                <TableHead className="text-right">操作</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredProjects.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((project) => {
+                const tone = lifecycleToneMap[project.lifecycle] ?? "neutral"
+                return (
+                  <TableRow key={project.id}>
+                    <TableCell>
+                      <Link
+                        href={`/projects/${project.id}`}
+                        className="font-medium text-slate-950 hover:text-slate-700 dark:text-white dark:hover:text-slate-200"
+                      >
+                        {project.name}
+                      </Link>
+                      {project.description && (
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 line-clamp-1 max-w-xs">{project.description}</p>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge tone={tone}>{LIFECYCLE_LABELS[project.lifecycle]}</StatusBadge>
+                    </TableCell>
+                    <TableCell className="text-sm text-slate-600 dark:text-slate-300">{PHASE_LABELS[project.currentPhase]}</TableCell>
+                    <TableCell className="text-sm">{project.currentRound}/{project.maxRounds}</TableCell>
+                    <TableCell className="text-sm text-slate-500 dark:text-slate-400">{new Date(project.updatedAt).toLocaleDateString("zh-CN")}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button asChild size="sm" variant="ghost" className="h-8 w-8 p-0">
+                          <Link href={`/projects/${project.id}`}><ExternalLink className="h-3.5 w-3.5" /></Link>
+                        </Button>
+                        <Button asChild size="sm" variant="ghost" className="h-8 w-8 p-0">
+                          <Link href={`/projects/${project.id}/edit`}><Pencil className="h-3.5 w-3.5" /></Link>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                          onClick={() => setPendingDelete(project)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
         )}
 
         <Pagination page={page} pageSize={PAGE_SIZE} total={filteredProjects.length} onPageChange={setPage} />

@@ -3,7 +3,7 @@
 ## Project Snapshot
 
 - Date: `2026-04-05`
-- Current focus: feature/react-iterative-execution 已完成 — 批量"计划→执行→审阅"三阶段模型替换为 ReAct（Reason+Act）迭代执行引擎；LLM 在每轮内通过 OpenAI Function Calling 逐步选取 MCP 工具、获取结果、决定下一动作；新增 react-worker / react-context / react-prompt / use-react-steps / steps API；删除 planning-worker / execution-worker；生命周期新增 START_REACT / CONTINUE_REACT / RETRY_REACT 事件。下一步: 生产可用性加固（竞态条件修复、查询优化、SSE 健壮性增强）。
+- Current focus: Phase 24c E2E Bug 修复 + 前端优化已完成 — OpenAI tools 格式升级、Function Call 日志记录、项目列表表格化、资产折叠分组、协议自动检测、布局精简、IPv4 DNS 修复、重复作业防护。下一步: TCP 服务识别增强（LLM prompt 优化）、MCP 工具参数校验修复。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
 
 ## feature/react-iterative-execution: ReAct 迭代执行引擎 (ReAct Iterative Execution Engine)
@@ -14,10 +14,10 @@
 
 ### 交付清单
 
-1. **ReAct Worker** — 新增 `lib/workers/react-worker.ts` 处理 `react_round` 作业；单轮内最多 30 步（`MAX_STEPS_PER_ROUND`），每步：LLM function call 选择工具 → 执行 MCP 工具（超时 5 分钟）→ 将结果以 `tool` 角色回填消息列表 → LLM 继续推理；通过 `finish_round` / `request_approval` 控制函数终止轮次
+1. **ReAct Worker** — 新增 `lib/workers/react-worker.ts` 处理 `react_round` 作业；单轮内最多 30 步（`MAX_STEPS_PER_ROUND`），每步：LLM tool call 选择工具 → 执行 MCP 工具（超时 5 分钟）→ 将结果以 `tool` 角色回填消息列表 → LLM 继续推理；通过 `done` / `report_finding` 控制函数终止轮次
 2. **上下文管理器** — 新增 `lib/workers/react-context.ts`（`ReactContextManager`）；维护迭代消息历史，实现滑动窗口压缩（最近 5 步保留全量输出，更早步骤压缩至摘要），Token 预算 80 k
 3. **ReAct 提示词** — 新增 `lib/llm/react-prompt.ts`；根据项目目标/渗透阶段/轮次/历史摘要动态构建 Thought→Action→Observation 系统提示；`lib/llm/prompts.ts` 移除 planner 提示词；`lib/llm/index.ts` 更新导出
-4. **Function Calling 适配** — `lib/llm/function-calling.ts` 将 MCP 工具列表转换为 OpenAI functions 格式，提供 `finish_round` / `request_approval` 两个控制函数
+4. **Function Calling 适配** — `lib/llm/function-calling.ts` 将 MCP 工具列表转换为 OpenAI tools 格式，提供 `done` / `report_finding` 两个控制函数
 5. **生命周期扩展** — `lib/domain/lifecycle.ts` 新增 `START_REACT` / `CONTINUE_REACT` / `RETRY_REACT` 三个事件；`idle` / `reviewing` / `failed` 状态均可直接转入 `executing`，跳过 `planning` 状态
 6. **项目服务更新** — `lib/services/project-service.ts` 的 `startProject()` 直接发布 `react_round` 作业，不再经过规划阶段
 7. **生命周期 Worker 更新** — `lib/workers/lifecycle-worker.ts` 轮次审阅通过后发布下一轮 `react_round` 作业（`CONTINUE_REACT`），替代原 `plan_round` 发布逻辑
@@ -31,18 +31,50 @@
 - [x] `next build` 编译通过，无 TypeScript 错误
 - [x] 启动项目直接进入 `executing` 状态（跳过 `planning`）
 - [x] 单轮 ReAct 循环正常运行（LLM 逐步选工具 → 执行 → 回填结果）
-- [x] `finish_round` / `request_approval` 控制函数正确终止轮次
+- [x] `done` / `report_finding` 控制函数正确终止轮次
 - [x] 轮次审阅通过后自动发布下一轮 `react_round` 作业
 - [x] `use-react-steps` Hook 正确接收并展示步骤事件
 - [x] planning-worker / execution-worker 及其测试已删除，无残留引用
-- [ ] 端到端渗透测试闭环验证（待 Docker 靶场验证）
+- [x] 端到端渗透测试闭环验证（11 个 Docker 靶场，10 轮 ReAct 循环，47 资产/40+ 发现/58 工具调用）
 
 ### 下一步优先项
 
-- 对 DVWA / Juice Shop / WebGoat 进行完整的 ReAct 模式端到端验证
-- 调整 `MAX_STEPS_PER_ROUND` 和 `TOKEN_BUDGET` 的最优值
+- TCP 服务识别增强（27017/6379/13307 端口的 service 子资产未创建，需在 ReAct prompt 中加强 TCP banner 分析指导）
+- MCP 工具参数校验修复（部分轮次出现 -32602 参数错误）
 - 为 ReAct 步骤增加持久化存储（当前仅通过 SSE 实时推送，重载后丢失）
 - 考虑引入 ReAct 步骤级别的审批暂停（高风险工具在推理链中途请求人工确认）
+
+---
+
+## Phase 24c: E2E Bug 修复 + 前端优化 (E2E Debug + Frontend Polish)
+
+- Status: Completed on `2026-04-05`
+- Branch: `v2/backend-rewrite`
+- Goal: 修复 ReAct E2E 测试发现的 9 个 Bug，优化前端资产展示和项目管理界面。
+
+### 交付清单
+
+1. **OpenAI tools 格式升级** — `openai-provider.ts` 从废弃的 `functions` 格式升级为现代 `tools`/`tool_choice` 格式，修复 LLM 不返回 function call 的核心问题
+2. **ReactContextManager 现代化** — `react-context.ts` 从 `role: "function"` 改为 `role: "tool"` + `tool_call_id`，assistant 消息使用 `tool_calls` 数组
+3. **ReAct prompt 强化** — `react-prompt.ts` 添加强制 tool calling 指令，移除矛盾的"等待用户"措辞
+4. **call-logger 增强** — `call-logger.ts` 在 response 中附加 `[Function Call] name(args)` 详情
+5. **AI 日志面板增强** — 新增 `react` 角色过滤 + Function Call 结构化渲染
+6. **项目列表改表格** — `project-list-client.tsx` 从卡片网格重写为 Table 布局（项目名/状态/阶段/轮次/操作列）
+7. **资产折叠分组** — `asset-web-table.tsx` 从扁平表格重写为按 host:port 折叠分组，每组可展开/收起
+8. **协议自动检测** — `asset-hosts-table.tsx` 根据 webapp/api_endpoint 子资产自动判断 HTTP 协议；服务名用 portAsset.label 做 fallback
+9. **布局精简** — 项目详情 layout.tsx 删除 target 标签和 phase badge
+10. **Worker IPv4 DNS 修复** — `worker.ts` 添加 `dns.setDefaultResultOrder("ipv4first")`
+11. **重复作业防护** — `lifecycle-worker.ts` 和 `project-service.ts` 为 `react_round` 作业添加 `singletonKey`
+12. **生命周期修复** — `lifecycle.ts` 为 `planning` 状态添加 `START_REACT` 转换
+
+### 验收标准
+
+- [x] `next build` 编译通过
+- [x] 11 个 Docker 靶场 E2E 测试完成（10 轮，47 资产，40+ 发现，0 个 llm_no_action）
+- [x] 项目列表显示为表格
+- [x] Web & API 资产按 host:port 分组展示
+- [x] AI 日志显示 ReAct function call 详情
+- [x] 端口协议正确显示 HTTP/TCP
 
 ---
 

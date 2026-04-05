@@ -5,6 +5,7 @@ import { AlertTriangle } from "lucide-react"
 import { ProjectMcpRunsPanel } from "@/components/projects/project-mcp-runs-panel"
 import { ProjectOperationsPanel } from "@/components/projects/project-operations-panel"
 import { ProjectOrchestratorPanel } from "@/components/projects/project-orchestrator-panel"
+import { ProjectPipelineLogPanel } from "@/components/projects/project-pipeline-log-panel"
 import { requireAuth } from "@/lib/infra/auth"
 import { getProject } from "@/lib/services/project-service"
 import { listByProject as listApprovals } from "@/lib/services/approval-service"
@@ -82,6 +83,11 @@ export default async function ProjectOperationsPage({
         initialRuns={mcpRuns}
         readOnlyReason={readOnlyReason}
       />
+
+      <div>
+        <h3 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">执行日志</h3>
+        <ProjectPipelineLogPanel projectId={project.id} />
+      </div>
     </div>
   )
 }

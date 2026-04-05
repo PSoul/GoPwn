@@ -86,16 +86,16 @@ ReAct 循环在 `react-worker.ts` 中实现，核心逻辑如下：
 
 ```
 for stepIndex = 0..MAX_STEPS_PER_ROUND (30):
-  1. 调用 LLM（OpenAI Function Calling，functions = MCP工具 + 控制函数）
-  2. 若 LLM 无 function_call → 停止（llm_no_action）
-  3. 若 function_call.name == "done" → 记录 summary/phase_suggestion → 停止
-  4. 若 function_call.name == "report_finding" → 直接写 Finding → continue
+  1. 调用 LLM（OpenAI tools format，tools = MCP工具 + 控制函数）
+  2. 若 LLM 无 tool_calls → 停止（llm_no_action）
+  3. 若 tool_calls[0].function.name == "done" → 记录 summary/phase_suggestion → 停止
+  4. 若 tool_calls[0].function.name == "report_finding" → 直接写 Finding → continue
   5. 检查 scope → 超出则注入失败结果 → continue
   6. 执行 MCP 工具（TOOL_TIMEOUT_MS = 5min）
   7. 保存 McpRun，更新 OrchestratorRound 统计
   8. 将结果注入 ReactContextManager
   9. 发布 react_step_completed SSE 事件
-  10. 每 3 步刷新资产/发现列表，更新 system prompt
+  10. 每 5 步刷新资产/发现列表，更新 system prompt
 完成后 → 等待挂起分析（≤30s）→ 发布 round_completed job
 ```
 
@@ -252,7 +252,7 @@ lib/
 │
 ├── llm/             # LLM 提供者
 │   ├── provider.ts        # 抽象接口（含 OpenAIFunctionDef 类型）
-│   ├── openai-provider.ts # OpenAI 兼容实现（支持 functions + function_call）
+│   ├── openai-provider.ts # OpenAI 兼容实现（支持 tools + tool_choice）
 │   ├── call-logger.ts     # 调用日志装饰器
 │   ├── prompts.ts         # Reviewer 等角色 prompt
 │   ├── system-prompt.ts   # 文件加载系统提示（pentest-agent-prompt.md）

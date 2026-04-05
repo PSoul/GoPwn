@@ -52,6 +52,7 @@ export function looksLikeCode(text: string): boolean {
 }
 
 /** Generate a basic probe script when the LLM gave natural language instead of code */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function buildFallbackScript(target: string, _action: string): string {
   if (/^tcp:\/\//i.test(target) || (!target.startsWith("http") && /:\d+$/.test(target))) {
     const cleaned = target.replace(/^tcp:\/\//, "")

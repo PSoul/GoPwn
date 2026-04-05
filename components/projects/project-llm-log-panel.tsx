@@ -14,6 +14,7 @@ const roleLabels: Record<string, string> = {
   reviewer: "结论审阅",
   analyzer: "结果分析",
   planner: "AI 规划推理",
+  react: "ReAct 推理",
 }
 
 const roleTone: Record<string, "info" | "success" | "warning"> = {
@@ -21,6 +22,7 @@ const roleTone: Record<string, "info" | "success" | "warning"> = {
   reviewer: "success",
   analyzer: "warning",
   planner: "info",
+  react: "info",
 }
 
 const statusTone: Record<LlmCallStatus, "info" | "success" | "danger"> = {
@@ -150,9 +152,10 @@ export function ProjectLlmLogPanel({
 
   const roles = [
     { key: "all", label: "全部" },
-    { key: "orchestrator", label: "AI 规划推理" },
+    { key: "react", label: "ReAct 推理" },
     { key: "reviewer", label: "结论审阅" },
     { key: "analyzer", label: "结果分析" },
+    { key: "orchestrator", label: "AI 规划推理" },
   ]
 
   return (
@@ -256,6 +259,32 @@ export function ProjectLlmLogPanel({
                             ? renderResponseContent(log.response, log.status === "streaming")
                             : null
                           if (structured) return structured
+
+                          // Parse function call from logged response
+                          const fcMatch = log.response?.match(/\[Function Call\] (\w+)\(([\s\S]+)\)$/)
+                          const thought = fcMatch ? log.response.split("\n\n---\n[Function Call]")[0] : null
+                          if (fcMatch) {
+                            let fcArgs: Record<string, unknown> = {}
+                            try { fcArgs = JSON.parse(fcMatch[2]) } catch { /* raw args */ }
+                            return (
+                              <div className="space-y-2">
+                                {thought && (
+                                  <pre className="whitespace-pre-wrap text-xs leading-5 text-slate-700 dark:text-slate-200">{thought}</pre>
+                                )}
+                                <div className="rounded-lg border border-sky-200/80 bg-sky-50/50 px-3 py-2 dark:border-sky-800/60 dark:bg-sky-950/30">
+                                  <div className="flex items-center gap-2">
+                                    <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
+                                      {fcMatch[1]}
+                                    </span>
+                                  </div>
+                                  <pre className="mt-1 whitespace-pre-wrap text-xs leading-5 text-slate-600 dark:text-slate-300">
+                                    {JSON.stringify(fcArgs, null, 2)}
+                                  </pre>
+                                </div>
+                              </div>
+                            )
+                          }
+
                           return (
                             <pre className="whitespace-pre-wrap text-xs leading-5 text-slate-700 dark:text-slate-200">
                               {log.response || (log.status === "streaming" ? "正在输出中..." : "暂无内容")}

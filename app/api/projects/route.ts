@@ -9,5 +9,5 @@ export const GET = apiHandler(async () => {
 export const POST = apiHandler(async (req) => {
   const body = (await req.json()) as { name: string; targetInput: string; description?: string }
   const project = await projectService.createProject(body)
-  return json(project, 201)
+  return json({ project }, 201)
 })

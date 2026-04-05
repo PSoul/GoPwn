@@ -150,8 +150,8 @@ Worker 单元测试位于 `tests/lib/workers/`：
 1. `lifecycle-worker.ts` 监听生命周期变化，`running` 状态下触发 `react_round` 任务
 2. `react-worker.ts` 启动轮次主循环，通过 `react-context.ts` 构建当前上下文（历史步骤、资产、发现）
 3. `lib/llm/react-prompt.ts` 生成本轮 system/user prompt，`function-calling.ts` 定义可用工具的 function schema
-4. LLM 返回 function call → `tool-input-mapper.ts` 将参数映射为 MCP 执行输入 → MCP 网关执行 → 结果回写
-5. 循环重复直到 LLM 调用 `finish_round` 或达到最大步骤数（默认 30）
+4. LLM 返回 tool call → `tool-input-mapper.ts` 将参数映射为 MCP 执行输入 → MCP 网关执行 → 结果回写
+5. 循环重复直到 LLM 调用 `done` 控制函数或达到最大步骤数（默认 30）
 6. `analysis-worker.ts` 在必要时对工具输出进行深度分析
 
 ### 新增 ReAct 可用工具

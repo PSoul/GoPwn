@@ -37,13 +37,14 @@
 ```
 
 **与工具调用的集成方式**:
-- 使用 OpenAI Function Calling — LLM 不输出 JSON 计划，而是直接通过 `function_call` 字段选择工具
+- 使用 OpenAI 现代 `tools` 格式（Phase 24c 升级）— 请求体使用 `tools: [{type: "function", function: {...}}]` + `tool_choice`，而非废弃的 `functions` + `function_call`
 - MCP 工具由 `mcpToolsToFunctions()` 转换为 OpenAI functions 格式后传入
 - 控制函数（`done`、`report_finding`）通过 `getControlFunctions()` 附加，与 MCP 工具并列可选
-- LLM 响应为 `function_call: { name, arguments }` — 平台解析后分发执行
+- LLM 响应通过 `message.tool_calls[0].function.{name, arguments}` 解析（兼容旧 `function_call` 格式）
+- 工具结果以 `role: "tool"` + `tool_call_id` 回填消息列表
 
 **系统提示刷新机制**:
-- 每执行 3 步后，worker 重新查询数据库获取最新资产和发现
+- 每执行 5 步后，worker 重新查询数据库获取最新资产和发现
 - 调用 `ctxManager.updateSystemPrompt(updatedPrompt)` 原地替换消息列表第 0 条
 - 确保 LLM 始终看到最新的资产/漏洞状态，而不是轮次开始时的快照
 
@@ -51,7 +52,7 @@
 - `lib/llm/react-prompt.ts` — `buildReactSystemPrompt()` 实现
 - `lib/llm/system-prompt.ts` — `loadSystemPrompt()` 加载共享方法论，内存缓存，重启 worker 生效
 - `lib/llm/function-calling.ts` — `mcpToolsToFunctions()`、`getControlFunctions()`
-- `lib/workers/react-worker.ts` — ReAct 循环主体，Temperature 0.2，每 3 步刷新系统提示
+- `lib/workers/react-worker.ts` — ReAct 循环主体，Temperature 0.2，每 5 步刷新系统提示
 
 > **历史说明**: 旧架构的"编排器 User Prompt"（`buildProjectBrainPrompt`）和常量 `ORCHESTRATOR_BRAIN_SYSTEM_PROMPT` 已被本模板完全替代，不再存在于代码库中。
 
@@ -146,14 +147,14 @@
 ### 消息格式
 
 ```
-system     → ReAct 系统提示（buildReactSystemPrompt 输出，每 3 步刷新）
+system     → ReAct 系统提示（buildReactSystemPrompt 输出，每 5 步刷新）
 user       → 初始启动消息（"开始第 N 轮渗透测试，目标: ..."）
 [重复以下单元直至循环结束]:
-  assistant  → { content: thought, function_call: { name, arguments } }
-  function   → { name: toolName, content: toolOutput }
+  assistant  → { content: thought, tool_calls: [{ id, type: "function", function: { name, arguments } }] }
+  tool       → { tool_call_id, content: toolOutput }
 ```
 
-- 当 LLM 调用控制函数（`done` / `report_finding`）时，结果同样以 `function` 角色消息写回
+- 当 LLM 调用控制函数（`done` / `report_finding`）时，结果同样以 `tool` 角色消息写回
 - 当 LLM 未调用任何函数（纯文本回复）时，以 `assistant` 消息追加后结束循环（`stopReason: llm_no_action`）
 
 ### 滑动窗口压缩

@@ -47,7 +47,7 @@ export function AssetPageTabs({ projectId, assets }: Props) {
         <AssetHostsTable projectId={projectId} assets={hosts} />
       </TabsContent>
       <TabsContent value="web">
-        <AssetWebTable assets={web} />
+        <AssetWebTable assets={web} portAssets={assets.filter((a) => a.kind === "port")} />
       </TabsContent>
     </Tabs>
   )

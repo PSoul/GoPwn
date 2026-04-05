@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button"
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import type { Project } from "@/lib/generated/prisma"
 import { apiFetch } from "@/lib/infra/api-client"
 
 const projectSchema = z.object({
@@ -24,9 +23,8 @@ const projectSchema = z.object({
 type ProjectFormValues = z.infer<typeof projectSchema>
 
 type ProjectFormProps = {
-  mode: "create" | "edit"
+  mode: "create"
   defaultValues?: { name?: string; targetInput?: string; description?: string }
-  project?: Project
 }
 
 function normalizeTargets(input: string): string[] {
@@ -36,8 +34,7 @@ function normalizeTargets(input: string): string[] {
     .filter(Boolean)
 }
 
-export function ProjectForm({ mode, defaultValues, project }: ProjectFormProps) {
-  const isEdit = mode === "edit"
+export function ProjectForm({ defaultValues }: ProjectFormProps) {
   const router = useRouter()
   const [isRouting, startTransition] = useTransition()
   const form = useForm<ProjectFormValues>({
@@ -61,12 +58,9 @@ export function ProjectForm({ mode, defaultValues, project }: ProjectFormProps) 
     setErrorMessage(null)
     setIsSaving(true)
 
-    const method = isEdit ? "PATCH" : "POST"
-    const endpoint = isEdit && project ? `/api/projects/${project.id}` : "/api/projects"
-
     try {
-      const payload = await apiFetch<{ error?: string; project?: { id: string } }>(endpoint, {
-        method,
+      const payload = await apiFetch<{ error?: string; project?: { id: string } }>("/api/projects", {
+        method: "POST",
         body: JSON.stringify(values),
       })
 
@@ -143,7 +137,7 @@ export function ProjectForm({ mode, defaultValues, project }: ProjectFormProps) 
         </SectionCard>
 
         <SectionCard
-          title={isEdit ? "确认修改" : "确认创建"}
+          title="确认创建"
           description="保存后会进入项目工作台。"
         >
           {errorMessage ? (
@@ -158,13 +152,11 @@ export function ProjectForm({ mode, defaultValues, project }: ProjectFormProps) 
               disabled={isBusy}
               className="h-12 rounded-2xl bg-slate-950 px-6 text-base text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-200"
             >
-              {isBusy ? "提交中..." : isEdit ? "保存修改" : "创建项目"}
+              {isBusy ? "提交中..." : "创建项目"}
             </Button>
-            {project ? (
-              <Button asChild type="button" variant="outline" className="h-12 rounded-2xl px-6">
-                <Link href={`/projects/${project.id}`}>返回项目工作台</Link>
-              </Button>
-            ) : null}
+            <Button asChild type="button" variant="outline" className="h-12 rounded-2xl px-6">
+              <Link href="/projects">返回列表</Link>
+            </Button>
           </div>
         </SectionCard>
       </div>

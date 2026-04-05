@@ -3,7 +3,7 @@ import { getGlobalConfig, updateGlobalConfig } from "@/lib/services/settings-ser
 
 export const GET = apiHandler(async () => {
   const config = await getGlobalConfig()
-  return json(config)
+  return json({ config })
 })
 
 export const PATCH = apiHandler(async (req) => {
@@ -13,5 +13,5 @@ export const PATCH = apiHandler(async (req) => {
     autoApproveMediumRisk?: boolean
   }
   const config = await updateGlobalConfig(body)
-  return json(config)
+  return json({ config })
 })

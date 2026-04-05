@@ -28,10 +28,11 @@ export function AppSidebar({ pathname }: { pathname: string }) {
     async function loadBadges() {
       try {
         const payload = await apiFetch<{
+          projectCount?: number
           totalProjects?: number
         }>("/api/dashboard", { signal: controller.signal })
 
-        const total = payload.totalProjects ?? 0
+        const total = payload.projectCount ?? payload.totalProjects ?? 0
         setDynamicBadges({
           "/projects": total > 0 ? String(total) : "",
         })

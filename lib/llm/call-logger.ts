@@ -38,7 +38,14 @@ export function createLoggedProvider(provider: LlmProvider, ctx: LogContext): Ll
       try {
         const response = await provider.chat(messages, options)
 
-        await llmLogRepo.complete(log.id, response.content.slice(0, 100_000), response.durationMs)
+        // Include function call details in logged response
+        let loggedResponse = response.content
+        if (response.functionCall) {
+          const fcSummary = `\n\n---\n[Function Call] ${response.functionCall.name}(${response.functionCall.arguments})`
+          loggedResponse = (response.content || "") + fcSummary
+        }
+
+        await llmLogRepo.complete(log.id, loggedResponse.slice(0, 100_000), response.durationMs)
 
         await publishEvent({
           type: "llm_call_completed",
