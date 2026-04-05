@@ -102,6 +102,36 @@ export async function countPendingByProject(projectId: string) {
   })
 }
 
+/**
+ * Fail runs that have been stuck in "running" beyond the given age.
+ * Returns the number of runs that were force-failed.
+ */
+export async function failStaleRunningRuns(projectId: string, maxAgeMs: number = 10 * 60 * 1000) {
+  const cutoff = new Date(Date.now() - maxAgeMs)
+  const stale = await prisma.mcpRun.findMany({
+    where: {
+      projectId,
+      status: "running",
+      updatedAt: { lt: cutoff },
+    },
+    select: { id: true, round: true },
+  })
+  if (stale.length === 0) return 0
+
+  await prisma.mcpRun.updateMany({
+    where: { id: { in: stale.map((r) => r.id) } },
+    data: { status: "failed", error: "Force-failed: exceeded max running time", completedAt: new Date() },
+  })
+
+  // Trigger round completion check for affected rounds
+  const rounds = [...new Set(stale.map((r) => r.round))]
+  for (const round of rounds) {
+    void checkAndPublishRoundCompletion(projectId, round)
+  }
+
+  return stale.length
+}
+
 export async function cancelPendingByProject(projectId: string) {
   return prisma.mcpRun.updateMany({
     where: {

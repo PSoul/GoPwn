@@ -25,6 +25,12 @@ async function recoverStaleProjects(queue: JobQueue) {
         break
 
       case "executing": {
+        // First, force-fail any runs stuck in "running" for too long (>10 min)
+        const forceFailed = await mcpRunRepo.failStaleRunningRuns(project.id, 10 * 60 * 1000)
+        if (forceFailed > 0) {
+          log.warn("stale_recovery", `强制终止 ${forceFailed} 个超时 running run`)
+        }
+
         const pending = await mcpRunRepo.countPendingByProject(project.id)
         if (pending === 0) {
           log.warn("stale_recovery", `恢复卡死项目: executing → 所有 run 已完成，触发轮次审阅`)
@@ -69,6 +75,14 @@ async function main() {
 
   const queue = createPgBossJobQueue()
   await queue.start()
+
+  // Prevent unhandled pg-boss errors from crashing the worker
+  const { getBoss } = await import("@/lib/infra/job-queue")
+  const boss = getBoss()
+  boss.on("error", (err: Error) => {
+    logger.error({ err: err.message }, "pg-boss error (non-fatal)")
+  })
+
   logger.info("pg-boss started")
 
   // Register job handlers
@@ -107,9 +121,19 @@ async function main() {
   // Recover stale projects from previous crashes
   await recoverStaleProjects(queue)
 
+  // Periodic stale project recovery (every 5 minutes)
+  const staleInterval = setInterval(async () => {
+    try {
+      await recoverStaleProjects(queue)
+    } catch (err) {
+      logger.error({ err }, "periodic stale recovery failed")
+    }
+  }, 5 * 60 * 1000)
+
   // Keep alive
   async function shutdown(signal: string) {
     logger.info({ signal }, "shutting down")
+    clearInterval(staleInterval)
     const { closeAll } = await import("@/lib/mcp/registry")
     await closeAll().catch((err) => logger.error({ err }, "error closing MCP connectors"))
     await queue.stop()

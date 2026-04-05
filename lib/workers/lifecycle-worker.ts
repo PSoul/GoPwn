@@ -168,11 +168,27 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
         log.error("recovery_failed", "恢复也失败了，项目标记为 failed")
       }
     } else {
-      await projectRepo.updateLifecycle(projectId, "failed").catch(() => {})
-      log.error("failed", "已达最大轮次且审阅失败，项目标记为 failed")
+      // Max rounds reached — settle the project even if reviewer failed
+      // (don't mark as "failed" just because the reviewer LLM had an issue)
+      try {
+        const current = await projectRepo.findById(projectId)
+        if (current && current.lifecycle === "reviewing") {
+          await projectRepo.updateLifecycle(projectId, transition("reviewing", "SETTLE"))
+        } else if (current && current.lifecycle === "executing") {
+          await projectRepo.updateLifecycle(projectId, transition("executing", "ALL_DONE"))
+          await projectRepo.updateLifecycle(projectId, transition("reviewing", "SETTLE"))
+        }
+        const queue = createPgBossJobQueue()
+        await queue.publish("settle_closure", { projectId })
+        log.warn("recovery", "审阅失败但已达最大轮次，直接结算项目")
+      } catch {
+        await projectRepo.updateLifecycle(projectId, "failed").catch(() => {})
+        log.error("recovery_failed", "结算恢复也失败了，项目标记为 failed")
+      }
     }
 
-    throw err
+    // Don't re-throw — recovery already handled the situation.
+    // Re-throwing causes pg-boss retries that conflict with the recovery transition.
   }
 }
 
