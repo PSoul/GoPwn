@@ -7,9 +7,10 @@ import { ASSET_KIND_LABELS } from "@/lib/types/labels"
 type Props = {
   projectId: string
   assets: Asset[] // kind: domain | subdomain
+  ipLookup?: Map<string, string> // IP value -> asset ID
 }
 
-export function AssetDomainsTable({ projectId, assets }: Props) {
+export function AssetDomainsTable({ projectId, assets, ipLookup }: Props) {
   if (assets.length === 0) {
     return <p className="text-sm text-zinc-600 py-8 text-center">暂未发现域名资产</p>
   }
@@ -36,14 +37,20 @@ export function AssetDomainsTable({ projectId, assets }: Props) {
             <TableCell>
               {/* IP resolution: check metadata or related assets */}
               {asset.metadata && typeof asset.metadata === "object" && "resolvedIp" in (asset.metadata as Record<string, unknown>)
-                ? (
-                  <Link
-                    href={`/projects/${projectId}/assets/ip/${encodeURIComponent((asset.metadata as Record<string, string>).resolvedIp)}`}
-                    className="text-blue-400 hover:underline font-mono text-sm"
-                  >
-                    {(asset.metadata as Record<string, string>).resolvedIp}
-                  </Link>
-                )
+                ? (() => {
+                    const resolvedIp = (asset.metadata as Record<string, string>).resolvedIp
+                    const ipAssetId = ipLookup?.get(resolvedIp)
+                    return ipAssetId ? (
+                      <Link
+                        href={`/projects/${projectId}/assets/ip/${ipAssetId}`}
+                        className="text-blue-400 hover:underline font-mono text-sm"
+                      >
+                        {resolvedIp}
+                      </Link>
+                    ) : (
+                      <span className="font-mono text-sm text-zinc-400">{resolvedIp}</span>
+                    )
+                  })()
                 : <span className="text-zinc-600 text-sm">未解析</span>
               }
             </TableCell>

@@ -22,6 +22,12 @@ export function AssetPageTabs({ projectId, assets }: Props) {
   const hosts = assets.filter((a) => a.kind === "ip" || a.kind === "port" || a.kind === "service")
   const web = assets.filter((a) => a.kind === "webapp" || a.kind === "api_endpoint")
 
+  // Build IP value -> assetId lookup for domain table links
+  const ipLookup = new Map<string, string>()
+  for (const a of assets) {
+    if (a.kind === "ip") ipLookup.set(a.value, a.id)
+  }
+
   function handleTabChange(value: string) {
     router.replace(`/projects/${projectId}/assets?tab=${value}`, { scroll: false })
   }
@@ -35,7 +41,7 @@ export function AssetPageTabs({ projectId, assets }: Props) {
       </TabsList>
 
       <TabsContent value="domains">
-        <AssetDomainsTable projectId={projectId} assets={domains} />
+        <AssetDomainsTable projectId={projectId} assets={domains} ipLookup={ipLookup} />
       </TabsContent>
       <TabsContent value="hosts">
         <AssetHostsTable projectId={projectId} assets={hosts} />
