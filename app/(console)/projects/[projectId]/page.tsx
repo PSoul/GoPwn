@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation"
 
-import { ProjectLiveDashboard } from "@/components/projects/project-live-dashboard"
+import { ProjectOverview } from "@/components/projects/project-overview"
 import { requireAuth } from "@/lib/infra/auth"
 import { getProject } from "@/lib/services/project-service"
 import { listByProject as listAssets } from "@/lib/services/asset-service"
@@ -29,7 +29,7 @@ export default async function ProjectDetailPage({
   ])
 
   return (
-    <ProjectLiveDashboard
+    <ProjectOverview
       project={project}
       initialFindings={findings}
       initialAssets={assets}
