@@ -63,6 +63,24 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
       ...failed.map((r) => `  ✗ ${r.toolName}(${r.target}): ${r.error?.slice(0, 100) ?? "unknown error"}`),
     ].join("\n")
 
+    // Fetch ReAct-specific round metadata
+    const orchestratorRound = await prisma.orchestratorRound.findUnique({
+      where: { projectId_round: { projectId, round } },
+    })
+    const lastThought = runs.length > 0
+      ? runs
+          .filter((r) => r.thought)
+          .sort((a, b) => (b.stepIndex ?? 0) - (a.stepIndex ?? 0))[0]?.thought ?? null
+      : null
+
+    const reactContext = [
+      `ReAct 循环: ${orchestratorRound?.actualSteps ?? runs.length} 步`,
+      `停止原因: ${orchestratorRound?.stopReason ?? "unknown"}`,
+      lastThought ? `LLM 最后推理: ${lastThought.slice(0, 300)}` : null,
+    ].filter(Boolean).join("\n")
+
+    const fullRoundSummary = `${roundSummary}\n\n${reactContext}`
+
     // Transition to reviewing — must be in executing state
     // If in waiting_approval, resolve first
     if (project.lifecycle === "waiting_approval") {
@@ -76,7 +94,7 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
       currentPhase: project.currentPhase,
       round,
       maxRounds: project.maxRounds,
-      roundSummary,
+      roundSummary: fullRoundSummary,
       totalAssets,
       totalFindings: findings.length,
       unverifiedFindings: unverified.length,
@@ -110,8 +128,8 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
       const nextPhase = decision.nextPhase ?? project.currentPhase
       log.info("state_transition", `CONTINUE → ${nextPhase} (第 ${round + 1} 轮)`, { reasoning: decision.reasoning })
 
-      await projectRepo.updateLifecycle(projectId, transition("reviewing", "CONTINUE"))
-      await queue.publish("plan_round", { projectId, round: round + 1 })
+      await projectRepo.updateLifecycle(projectId, transition("reviewing", "CONTINUE_REACT"))
+      await queue.publish("react_round", { projectId, round: round + 1 }, { expireInSeconds: 1800 })
     }
 
     await publishEvent({
@@ -158,10 +176,10 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
         } else {
           // Fallback: try executing → reviewing → planning chain
           await projectRepo.updateLifecycle(projectId, transition("executing", "ALL_DONE"))
-          await projectRepo.updateLifecycle(projectId, transition("reviewing", "CONTINUE"))
+          await projectRepo.updateLifecycle(projectId, transition("reviewing", "CONTINUE_REACT"))
         }
         const queue = createPgBossJobQueue()
-        await queue.publish("plan_round", { projectId, round: round + 1 })
+        await queue.publish("react_round", { projectId, round: round + 1 }, { expireInSeconds: 1800 })
         log.warn("recovery", `审阅失败但已恢复，继续第 ${round + 1} 轮`)
       } catch {
         await projectRepo.updateLifecycle(projectId, "failed").catch(() => {})

@@ -20,12 +20,15 @@ async function recoverStaleProjects(queue: JobQueue) {
 
     switch (project.lifecycle) {
       case "planning":
-        log.warn("stale_recovery", `恢复卡死项目: planning → 重新规划第 ${project.currentRound + 1} 轮`)
-        await queue.publish("plan_round", { projectId: project.id, round: project.currentRound + 1 })
+        log.warn("stale_recovery", `恢复卡死项目: planning → 重新发起第 ${project.currentRound + 1} 轮 ReAct`)
+        await queue.publish("react_round", {
+          projectId: project.id,
+          round: project.currentRound + 1,
+        }, { expireInSeconds: 1800 })
         break
 
       case "executing": {
-        // First, force-fail any runs stuck in "running" for too long (>10 min)
+        // Force-fail any runs stuck in "running" for too long (>10 min)
         const forceFailed = await mcpRunRepo.failStaleRunningRuns(project.id, 10 * 60 * 1000)
         if (forceFailed > 0) {
           log.warn("stale_recovery", `强制终止 ${forceFailed} 个超时 running run`)
@@ -33,13 +36,22 @@ async function recoverStaleProjects(queue: JobQueue) {
 
         const pending = await mcpRunRepo.countPendingByProject(project.id)
         if (pending === 0) {
-          log.warn("stale_recovery", `恢复卡死项目: executing → 所有 run 已完成，触发轮次审阅`)
+          // No pending runs — ReAct loop may have finished but round_completed lost
+          log.warn("stale_recovery", `恢复卡死项目: executing → 无 pending run，触发轮次审阅`)
           await queue.publish("round_completed", {
             projectId: project.id,
             round: project.currentRound,
           }, { singletonKey: `round-complete-${project.id}-${project.currentRound}` })
         } else {
-          log.warn("stale_recovery", `恢复卡死项目: executing → 还有 ${pending} 个 pending run，等待完成`)
+          // ReAct loop crashed mid-execution — re-publish react_round
+          log.warn("stale_recovery", `恢复卡死项目: executing → 重新发起第 ${project.currentRound} 轮 ReAct`)
+          await queue.publish("react_round", {
+            projectId: project.id,
+            round: project.currentRound,
+          }, {
+            expireInSeconds: 1800,
+            singletonKey: `react-round-${project.id}-${project.currentRound}`,
+          })
         }
         break
       }
@@ -86,14 +98,9 @@ async function main() {
   logger.info("pg-boss started")
 
   // Register job handlers
-  // TODO(Plan C): Replace with react-worker handler
-  // plan_round and execute_tool are now handled by the ReAct worker
-  await queue.subscribe("plan_round", async (_data) => {
-    logger.warn("plan_round job received but planning-worker has been removed — will be replaced by react-worker in Plan C")
-  })
-
-  await queue.subscribe("execute_tool", async (_data) => {
-    logger.warn("execute_tool job received but execution-worker has been removed — will be replaced by react-worker in Plan C")
+  await queue.subscribe("react_round", async (data) => {
+    const { handleReactRound } = await import("@/lib/workers/react-worker")
+    await handleReactRound(data as { projectId: string; round: number })
   })
 
   await queue.subscribe("analyze_result", async (data) => {

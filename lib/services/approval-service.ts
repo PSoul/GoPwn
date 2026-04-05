@@ -3,7 +3,6 @@ import * as mcpRunRepo from "@/lib/repositories/mcp-run-repo"
 import * as auditRepo from "@/lib/repositories/audit-repo"
 import { NotFoundError, DomainError } from "@/lib/domain/errors"
 import { publishEvent } from "@/lib/infra/event-bus"
-import { createPgBossJobQueue } from "@/lib/infra/job-queue"
 import type { ApprovalStatus } from "@/lib/generated/prisma"
 
 export async function listByProject(projectId: string) {
@@ -20,13 +19,11 @@ export async function decide(approvalId: string, decision: ApprovalStatus, note?
   await approvalRepo.decide(approvalId, decision, note)
 
   if (decision === "approved" && approval.mcpRunId) {
-    // Dispatch the approved tool execution
-    const queue = createPgBossJobQueue()
+    // TODO(react): ReAct 模式下审批逻辑待重新设计。
+    // ReAct 循环内工具执行是内联的，不再通过独立 execute_tool job 派发。
+    // 未来审批将暂停 ReAct 循环，审批通过后恢复。
+    // 当前初版为全自动模式，此分支仅更新状态。
     await mcpRunRepo.updateStatus(approval.mcpRunId, "scheduled")
-    await queue.publish("execute_tool", {
-      projectId: approval.projectId,
-      mcpRunId: approval.mcpRunId,
-    })
   } else if (decision === "rejected" && approval.mcpRunId) {
     await mcpRunRepo.updateStatus(approval.mcpRunId, "cancelled")
   }

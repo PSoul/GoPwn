@@ -23,7 +23,10 @@ vi.mock("@/lib/repositories/finding-repo", () => ({
 vi.mock("@/lib/repositories/audit-repo", () => ({ create: vi.fn() }))
 vi.mock("@/lib/infra/prisma", () => ({
   prisma: {
-    orchestratorRound: { update: vi.fn().mockResolvedValue({}) },
+    orchestratorRound: {
+      update: vi.fn().mockResolvedValue({}),
+      findUnique: vi.fn().mockResolvedValue({ actualSteps: 5, stopReason: "llm_done" }),
+    },
   },
 }))
 vi.mock("@/lib/infra/event-bus", () => ({ publishEvent: vi.fn() }))
@@ -58,7 +61,7 @@ describe("lifecycle-worker: handleRoundCompleted", () => {
     })
   })
 
-  it("reviewer 决定 continue → 发布 plan_round", async () => {
+  it("reviewer 决定 continue → 发布 react_round", async () => {
     vi.mocked(projectRepo.findById).mockResolvedValue(mockProject({ lifecycle: "executing" }) as never)
 
     await handleRoundCompleted({ projectId: "proj-test-001", round: 1 })
@@ -66,7 +69,7 @@ describe("lifecycle-worker: handleRoundCompleted", () => {
     expect(mockLlmChat).toHaveBeenCalledTimes(1)
     const { createPgBossJobQueue } = await import("@/lib/infra/job-queue")
     const queue = createPgBossJobQueue()
-    expect(queue.publish).toHaveBeenCalledWith("plan_round", expect.objectContaining({ round: 2 }))
+    expect(queue.publish).toHaveBeenCalledWith("react_round", expect.objectContaining({ round: 2 }), expect.anything())
   })
 
   it("reviewer 决定 settle → 发布 settle_closure", async () => {

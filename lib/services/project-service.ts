@@ -61,15 +61,17 @@ export async function createProject(data: { name: string; targetInput: string; d
 
 export async function startProject(projectId: string) {
   const project = await getProject(projectId)
-  const event = project.lifecycle === "failed" ? "RETRY" as const : "START" as const
+  const event = project.lifecycle === "failed" ? "RETRY_REACT" as const : "START_REACT" as const
   const nextLifecycle = transition(project.lifecycle, event)
 
   await projectRepo.updateLifecycle(projectId, nextLifecycle)
 
   const queue = createPgBossJobQueue()
-  await queue.publish("plan_round", {
+  await queue.publish("react_round", {
     projectId,
     round: project.currentRound + 1,
+  }, {
+    expireInSeconds: 1800, // ReAct round 最长 30 分钟
   })
 
   await publishEvent({
