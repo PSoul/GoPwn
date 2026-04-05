@@ -1,6 +1,6 @@
 # 开发指南
 
-> 最后更新: 2026-04-03
+> 最后更新: 2026-04-05
 
 ---
 
@@ -60,24 +60,45 @@ app/                 Next.js 页面和 API 路由
 ├── api/             48 个 API 路由
 └── login/           登录页
 components/          React 组件（100+）
-lib/                 核心业务逻辑（9 个子目录，Phase 23 重组）
-├── analysis/        工具输出分析与失败诊断
+lib/                 核心业务逻辑
+├── workers/         后台任务 worker
+│   ├── react-worker.ts        ReAct 轮次执行主循环
+│   ├── react-context.ts       轮次上下文构建与管理
+│   ├── analysis-worker.ts     工具输出分析与失败诊断
+│   ├── verification-worker.ts 漏洞验证 worker
+│   └── lifecycle-worker.ts    项目生命周期状态机
+├── llm/             LLM prompt 工程与调用
+│   ├── react-prompt.ts        ReAct 循环 system/user prompt 构建
+│   ├── function-calling.ts    function calling 定义与响应解析
+│   ├── tool-input-mapper.ts   LLM 函数参数 → MCP 工具输入映射
+│   ├── prompts.ts             审阅者、分析器等专项 prompt
+│   ├── provider.ts            LLM provider 接口定义
+│   ├── openai-provider.ts     OpenAI-compatible 客户端实现
+│   ├── call-logger.ts         LLM 调用日志记录
+│   ├── system-prompt.ts       基础 system prompt 模板
+│   └── index.ts               统一导出
+├── domain/          领域规则与策略
+│   ├── lifecycle.ts           生命周期状态与转换规则
+│   ├── phases.ts              渗透测试阶段定义
+│   ├── risk-policy.ts         风险等级策略
+│   ├── errors.ts              领域错误类型
+│   └── scope-policy.ts        目标范围校验策略
+├── hooks/           React 自定义 Hooks
+│   ├── use-project-events.ts  订阅项目 SSE 事件流
+│   └── use-react-steps.ts     获取并订阅 ReAct 步骤数据
 ├── auth/            认证与会话管理
 ├── compositions/    聚合查询层
 ├── data/            资产/证据/审批/工作日志 repository
 ├── gateway/         MCP 调度网关
 ├── infra/           基础设施（Prisma、API handler、local-lab）
-├── llm/             LLM prompt 工程与调用日志
-├── llm-provider/    LLM 客户端（OpenAI-compatible）
 ├── mcp/             MCP 注册、执行引擎、调度器
 ├── mcp-connectors/  MCP 连接器实现
-├── orchestration/   编排服务（多轮规划、执行、上下文构建）
 ├── project/         项目 repository 与结果
 ├── settings/        配置管理（agent-config、LLM schema）
 └── types/           TypeScript 类型定义
 mcps/                14 个本地 MCP 服务器
 prisma/              数据库 schema
-tests/               单元测试（67 文件）
+tests/               单元测试
 e2e/                 E2E 测试（2 套件）
 docker/              Docker 基础设施
 docs/                文档
@@ -102,12 +123,54 @@ PLAYWRIGHT_WEB_PORT=3001 npx playwright test
 PLAYWRIGHT_WEB_PORT=3001 npx playwright test --ui  # 可视化模式
 ```
 
-### 测试约定
+### 测试文件位置
+
+Worker 单元测试位于 `tests/lib/workers/`：
+
+| 文件 | 说明 |
+|------|------|
+| `analysis-worker.test.ts` | 工具输出分析逻辑测试 |
+| `lifecycle-worker.test.ts` | 生命周期状态机转换测试 |
+| `verification-worker.test.ts` | 漏洞验证流程测试 |
+| `_helpers.ts` | 共享测试辅助工具（mock 工厂、fixtures） |
+
+其他测试约定：
 - API 测试: `tests/api/*.test.ts`
-- Lib 测试: `tests/lib/*.test.ts`
 - 页面测试: `tests/pages/*.test.ts`
-- 辅助工具: `tests/helpers/prisma-test-utils.ts`
 - 环境隔离: 部分测试使用 `// @vitest-environment node`
+
+---
+
+## ReAct 开发说明
+
+### ReAct 执行流程概览
+
+平台采用 ReAct（Reason + Act）模式驱动渗透测试，核心入口为 `lib/workers/react-worker.ts`：
+
+1. `lifecycle-worker.ts` 监听生命周期变化，`running` 状态下触发 `react_round` 任务
+2. `react-worker.ts` 启动轮次主循环，通过 `react-context.ts` 构建当前上下文（历史步骤、资产、发现）
+3. `lib/llm/react-prompt.ts` 生成本轮 system/user prompt，`function-calling.ts` 定义可用工具的 function schema
+4. LLM 返回 function call → `tool-input-mapper.ts` 将参数映射为 MCP 执行输入 → MCP 网关执行 → 结果回写
+5. 循环重复直到 LLM 调用 `finish_round` 或达到最大步骤数（默认 30）
+6. `analysis-worker.ts` 在必要时对工具输出进行深度分析
+
+### 新增 ReAct 可用工具
+
+在 `lib/llm/function-calling.ts` 中注册新的 function schema，参考已有工具的定义格式。`tool-input-mapper.ts` 负责将 function 参数映射为具体 MCP 调用参数，两处均需同步更新。
+
+### 调试 ReAct 步骤
+
+每个步骤执行后会写入 McpRun 记录（含 `stepIndex`、`thought`、`functionArgs`），可通过以下方式查看：
+
+```bash
+# API 查询
+GET /api/projects/{id}/rounds/{round}/steps
+
+# 实时监听（推荐开发调试时使用）
+GET /api/projects/{id}/events
+```
+
+前端订阅步骤更新使用 `lib/hooks/use-react-steps.ts`，该 hook 内部结合 SSE（`use-project-events.ts`）实现实时刷新。
 
 ---
 
@@ -143,7 +206,7 @@ PLAYWRIGHT_WEB_PORT=3001 npx playwright test --ui  # 可视化模式
 2. 实现 `index.mjs`（stdio JSON-RPC 接口）
 3. 启动项目时自动发现（`discoverAndRegisterMcpServers()`）
 4. 或手动注册：`POST /api/settings/mcp-servers/register`
-5. 在 `platform-config.ts` 中配置 capability 映射
+5. 在 `lib/llm/function-calling.ts` 中添加对应的 function schema，使 LLM 可在 ReAct 循环中调用
 
 ---
 

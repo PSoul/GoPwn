@@ -1,6 +1,6 @@
 # API 参考
 
-> 最后更新: 2026-04-02 | 48 个 API 路由
+> 最后更新: 2026-04-05 | 48 个 API 路由
 
 ---
 
@@ -44,7 +44,6 @@ curl -b cookies.txt -H "x-csrf-token: $CSRF" http://localhost:3001/api/...
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/projects/[id]/orchestrator/plan` | 手动触发 LLM 计划生成 |
 | POST | `/api/projects/[id]/orchestrator/local-validation` | 触发本地靶场验证 |
 | POST | `/api/projects/[id]/mcp-workflow/smoke-run` | 单次 MCP 工具测试 |
 
@@ -63,7 +62,14 @@ curl -b cookies.txt -H "x-csrf-token: $CSRF" http://localhost:3001/api/...
 | GET | `/api/projects/[id]/results/network` | 端口/服务资产 |
 | GET | `/api/projects/[id]/results/findings` | 漏洞/发现 |
 | GET | `/api/projects/[id]/mcp-runs` | MCP 运行历史 |
+| GET | `/api/projects/[id]/rounds/[round]/steps` | 获取指定轮次的 ReAct 步骤记录 |
 | POST | `/api/projects/[id]/report-export` | 导出报告 |
+
+### 实时事件
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/projects/[id]/events` | SSE 实时事件流（Server-Sent Events） |
 
 ### AI 日志
 
@@ -94,6 +100,118 @@ curl -b cookies.txt -H "x-csrf-token: $CSRF" http://localhost:3001/api/...
 
 ---
 
+## 关键接口详情
+
+### GET `/api/projects/[id]/rounds/[round]/steps`
+
+返回指定轮次内所有 ReAct 步骤记录（McpRun 记录），按 `stepIndex` 升序排列。
+
+**路径参数**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `id` | string | 项目 ID |
+| `round` | number | 轮次编号（从 1 开始） |
+
+**响应示例**
+
+```json
+{
+  "steps": [
+    {
+      "stepIndex": 1,
+      "thought": "需要先进行端口扫描以了解目标开放的服务",
+      "functionArgs": {
+        "tool": "nmap_scan",
+        "target": "192.168.1.1",
+        "ports": "1-1000"
+      },
+      "toolName": "nmap_scan",
+      "status": "completed",
+      "outputSummary": "发现开放端口：22, 80, 443",
+      "createdAt": "2026-04-05T10:23:00Z"
+    },
+    {
+      "stepIndex": 2,
+      "thought": "HTTP 服务已确认，接下来进行目录扫描",
+      "functionArgs": {
+        "tool": "dirsearch",
+        "url": "http://192.168.1.1"
+      },
+      "toolName": "dirsearch",
+      "status": "completed",
+      "outputSummary": "发现路径：/admin, /api, /login",
+      "createdAt": "2026-04-05T10:25:30Z"
+    }
+  ],
+  "totalSteps": 2,
+  "round": 1
+}
+```
+
+---
+
+### GET `/api/projects/[id]/events`
+
+SSE（Server-Sent Events）实时事件流，用于前端实时监听项目执行状态变化，无需轮询。
+
+**连接方式**
+
+```js
+const es = new EventSource(`/api/projects/${id}/events`, { withCredentials: true });
+es.onmessage = (e) => {
+  const event = JSON.parse(e.data);
+  console.log(event.type, event.payload);
+};
+```
+
+**事件类型**
+
+| 事件类型 | 触发时机 | payload 说明 |
+|----------|----------|-------------|
+| `react_step_started` | ReAct 步骤开始执行 | `{round, stepIndex, toolName, thought}` |
+| `react_step_completed` | ReAct 步骤执行完毕 | `{round, stepIndex, toolName, status, outputSummary}` |
+| `react_round_progress` | 轮次进度更新 | `{round, completedSteps, maxSteps}` |
+| `round_reviewed` | 审阅者完成轮次评审 | `{round, decision: "continue"/"settle", reason}` |
+| `lifecycle_changed` | 项目生命周期状态变化 | `{lifecycle: "running"/"paused"/"stopped"/"completed"}` |
+
+---
+
+## ReAct 执行模型
+
+平台采用 **ReAct（Reason + Act）** 模式驱动渗透测试，每轮由 LLM 自主决策工具调用序列，无需预先生成计划。
+
+### 轮次生命周期
+
+```
+lifecycle: "running"
+      ↓
+  触发 react_round 任务
+      ↓
+  LLM 通过 function calling 逐步选择工具
+  （每步：thought → 选择工具 → 执行 → 观察结果 → 下一步）
+      ↓
+  轮次结束条件（满足其一）：
+    • LLM 调用 finish_round 控制函数
+    • 达到最大步骤数（默认 30 步）
+      ↓
+  审阅者评审本轮结果
+    • continue  → 触发下一轮 react_round
+    • settle    → 触发 settle_closure（生成最终报告）
+```
+
+### 控制函数
+
+LLM 在 ReAct 循环中可调用以下内置控制函数（非 MCP 工具）：
+
+| 函数名 | 作用 |
+|--------|------|
+| `finish_round` | 主动结束当前轮次，触发审阅流程 |
+| `add_finding` | 记录发现的漏洞或安全问题 |
+| `update_asset` | 更新资产信息 |
+
+---
+
 ## 典型工作流 API 调用序列
 
 ```bash
@@ -104,24 +222,35 @@ POST /api/auth/login {account, password}
 POST /api/projects {name: "Test", targetInput: "http://target.com", description: "..."}
 # → 返回 project.id
 
-# 3. 启动项目（触发 LLM 编排）
+# 3. 启动项目（直接触发 react_round 任务，跳过规划阶段）
 PATCH /api/projects/{id}/scheduler-control {lifecycle: "running"}
-# → 后台开始执行，API 立即返回
+# → 后台开始 ReAct 执行，API 立即返回
 
-# 4. 轮询进度
+# 4a. 实时监听进度（推荐）
+GET /api/projects/{id}/events
+# → SSE 流，监听 react_step_started / react_step_completed / react_round_progress 等事件
+
+# 4b. 轮询进度（备选）
 GET /api/projects/{id}/operations
 # → 查看 mcpRuns, schedulerTasks, orchestratorRounds
 
-# 5. 处理审批（如有）
+# 5. 查看某轮次的 ReAct 步骤详情
+GET /api/projects/{id}/rounds/1/steps
+# → 返回该轮所有步骤，含 thought、functionArgs、执行结果
+
+# 6. 处理审批（如有高风险操作触发审批）
 GET /api/approvals?projectId={id}&status=pending
 PATCH /api/approvals/{approvalId} {decision: "approved", reason: "..."}
 
-# 6. 查看结果
+# 7. 审阅者评审轮次结果（continue 继续下一轮，settle 结案）
+# → 通过 round_reviewed 事件监听评审决策结果
+
+# 8. 查看结果
 GET /api/projects/{id}  # 含 finalConclusion
 GET /api/projects/{id}/results/findings
 GET /api/projects/{id}/results/domains
 GET /api/projects/{id}/results/network
 
-# 7. 导出报告
+# 9. 导出报告
 POST /api/projects/{id}/report-export
 ```
