@@ -40,6 +40,7 @@ screenshots/
 # Legacy
 .prototype-store/
 prompts/
+pages/
 
 # Template projects (reference only, not part of codebase)
 后台模板/
