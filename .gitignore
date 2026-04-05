@@ -26,7 +26,6 @@ test-results/
 
 # Debug & temp files
 debug/
-scripts/
 *.afg
 *.png
 tmp-review/
