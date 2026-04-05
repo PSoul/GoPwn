@@ -4,8 +4,13 @@
  */
 
 export type LlmMessage = {
-  role: "system" | "user" | "assistant"
-  content: string
+  role: "system" | "user" | "assistant" | "function"
+  content: string | null
+  name?: string
+  function_call?: {
+    name: string
+    arguments: string
+  }
 }
 
 export type LlmResponse = {
@@ -15,6 +20,16 @@ export type LlmResponse = {
   inputTokens?: number
   outputTokens?: number
   durationMs: number
+  functionCall?: {
+    name: string
+    arguments: string
+  }
+}
+
+export type OpenAIFunctionDef = {
+  name: string
+  description: string
+  parameters: Record<string, unknown>
 }
 
 export type LlmCallOptions = {
@@ -23,6 +38,8 @@ export type LlmCallOptions = {
   timeoutMs?: number
   jsonMode?: boolean
   signal?: AbortSignal
+  functions?: OpenAIFunctionDef[]
+  function_call?: "auto" | "none" | { name: string }
 }
 
 export interface LlmProvider {

@@ -15,18 +15,21 @@ type LifecycleEvent =
   | "STOP"
   | "STOPPED"
   | "RETRY"
+  | "START_REACT"
+  | "CONTINUE_REACT"
+  | "RETRY_REACT"
 
 const TRANSITIONS: Record<string, Partial<Record<LifecycleEvent, ProjectLifecycle>>> = {
-  idle:             { START: "planning" },
+  idle:             { START: "planning", START_REACT: "executing" },
   planning:         { PLAN_READY: "executing", PLAN_FAILED: "failed", STOP: "stopping" },
   executing:        { ALL_DONE: "reviewing", APPROVAL_NEEDED: "waiting_approval", STOP: "stopping" },
   waiting_approval: { RESOLVED: "executing", STOP: "stopping" },
-  reviewing:        { CONTINUE: "planning", SETTLE: "settling", STOP: "stopping" },
+  reviewing:        { CONTINUE: "planning", CONTINUE_REACT: "executing", SETTLE: "settling", STOP: "stopping" },
   settling:         { SETTLED: "completed", FAILED: "failed" },
   stopping:         { STOPPED: "stopped" },
   completed:        {},
   stopped:          {},
-  failed:           { RETRY: "planning", STOP: "stopping" },
+  failed:           { RETRY: "planning", RETRY_REACT: "executing", STOP: "stopping" },
 }
 
 export function transition(current: ProjectLifecycle, event: LifecycleEvent): ProjectLifecycle {

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/infra/prisma"
-import type { McpRunStatus, RiskLevel, PentestPhase } from "@/lib/generated/prisma"
+import type { McpRunStatus, RiskLevel, PentestPhase, Prisma } from "@/lib/generated/prisma"
 
 export async function findByProject(projectId: string) {
   return prisma.mcpRun.findMany({
@@ -33,8 +33,29 @@ export async function create(data: {
   riskLevel: RiskLevel
   phase: PentestPhase
   round: number
+  // ReAct 迭代执行支持
+  stepIndex?: number
+  thought?: string
+  functionArgs?: Prisma.InputJsonValue
 }) {
   return prisma.mcpRun.create({ data })
+}
+
+/** 按 stepIndex 排序查询（ReAct 步骤展示用） */
+export async function findByProjectRoundOrdered(projectId: string, round: number) {
+  return prisma.mcpRun.findMany({
+    where: { projectId, round },
+    include: { approval: true, tool: true },
+    orderBy: [{ stepIndex: "asc" }, { createdAt: "asc" }],
+  })
+}
+
+/** 更新 ReAct 相关字段 */
+export async function updateReactFields(id: string, data: {
+  thought?: string
+  functionArgs?: Prisma.InputJsonValue
+}) {
+  return prisma.mcpRun.update({ where: { id }, data })
 }
 
 const TERMINAL_STATUSES: McpRunStatus[] = ["succeeded", "failed", "cancelled"]

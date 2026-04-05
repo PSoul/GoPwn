@@ -291,6 +291,11 @@ model McpRun {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
+  // ReAct 迭代执行支持
+  stepIndex       Int?         // ReAct 步骤序号（0-based），null 表示非 ReAct 模式
+  thought         String?      // LLM 在此步骤的推理内容
+  functionArgs    Json?        // LLM 输出的 function call arguments
+
   approval        Approval?
   evidence        Evidence[]
   pocs            Poc[]
@@ -389,6 +394,11 @@ model OrchestratorRound {
   newFindingCount Int          @default(0)
   startedAt       DateTime     @default(now())
   completedAt     DateTime?
+
+  // ReAct 迭代执行支持
+  maxSteps        Int          @default(30)    // 本轮最大步数
+  actualSteps     Int          @default(0)     // 实际执行步数
+  stopReason      String?      // "llm_done" | "max_steps" | "aborted" | "error"
 
   @@unique([projectId, round])
   @@map("orchestrator_rounds")

@@ -8,7 +8,7 @@ import { createOpenAIProvider } from "./openai-provider"
 import { createLoggedProvider } from "./call-logger"
 import { prisma } from "@/lib/infra/prisma"
 
-export type { LlmProvider, LlmMessage, LlmResponse, LlmCallOptions } from "./provider"
+export type { LlmProvider, LlmMessage, LlmResponse, LlmCallOptions, OpenAIFunctionDef } from "./provider"
 export { parseLlmJson } from "./prompts"
 export { loadSystemPrompt, invalidatePromptCache } from "./system-prompt"
 export {
@@ -28,15 +28,31 @@ export type {
   VerifierContext,
 } from "./prompts"
 
+// ReAct function calling
+export {
+  mcpToolToFunction,
+  mcpToolsToFunctions,
+  getControlFunctions,
+  isControlFunction,
+} from "./function-calling"
+
+// Tool input mapper
+export {
+  buildToolInput,
+  buildToolInputFromFunctionArgs,
+} from "./tool-input-mapper"
+
 /**
  * Get a logged LLM provider for a specific role in a project.
  * Reads configuration from the LlmProfile table.
  */
 export async function getLlmProvider(
   projectId: string,
-  role: "planner" | "analyzer" | "reviewer",
+  role: "planner" | "analyzer" | "reviewer" | "react",
 ): Promise<LlmProvider> {
-  const profile = await prisma.llmProfile.findUnique({ where: { id: role } })
+  // react role 复用 planner 的 LLM profile
+  const profileId = role === "react" ? "planner" : role
+  const profile = await prisma.llmProfile.findUnique({ where: { id: profileId } })
 
   if (!profile || !profile.baseUrl || !profile.model) {
     throw new Error(
@@ -52,6 +68,6 @@ export async function getLlmProvider(
     defaultTimeoutMs: profile.timeoutMs,
   })
 
-  const phaseMap = { planner: "planning", analyzer: "analyzing", reviewer: "reviewing" } as const
+  const phaseMap = { planner: "planning", analyzer: "analyzing", reviewer: "reviewing", react: "executing" } as const
   return createLoggedProvider(base, { projectId, role, phase: phaseMap[role] })
 }

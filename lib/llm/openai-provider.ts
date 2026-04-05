@@ -38,6 +38,13 @@ export function createOpenAIProvider(config: OpenAIConfig): LlmProvider {
         body.response_format = { type: "json_object" }
       }
 
+      if (options?.functions) {
+        body.functions = options.functions
+      }
+      if (options?.function_call) {
+        body.function_call = options.function_call
+      }
+
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), timeoutMs)
 
@@ -68,15 +75,21 @@ export function createOpenAIProvider(config: OpenAIConfig): LlmProvider {
         }
 
         const data = (await res.json()) as {
-          choices: Array<{ message: { content: string } }>
+          choices: Array<{
+            message: {
+              content: string | null
+              function_call?: { name: string; arguments: string }
+            }
+          }>
           model: string
           usage?: { prompt_tokens?: number; completion_tokens?: number }
         }
 
-        const content = data.choices?.[0]?.message?.content ?? ""
+        const message = data.choices?.[0]?.message
+        const content = message?.content ?? ""
         const durationMs = Date.now() - start
 
-        return {
+        const result: LlmResponse = {
           content,
           model: data.model ?? model,
           provider: "openai-compatible",
@@ -84,6 +97,15 @@ export function createOpenAIProvider(config: OpenAIConfig): LlmProvider {
           outputTokens: data.usage?.completion_tokens,
           durationMs,
         }
+
+        if (message?.function_call) {
+          result.functionCall = {
+            name: message.function_call.name,
+            arguments: message.function_call.arguments,
+          }
+        }
+
+        return result
       } finally {
         clearTimeout(timer)
       }
