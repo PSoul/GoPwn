@@ -37,14 +37,15 @@
 
 | 现有组件 | 变化 |
 |---------|------|
-| `planning-worker.ts` (handlePlanRound) | **替换**为 `react-worker.ts` (handleReactRound) |
-| `execution-worker.ts` (handleExecuteTool) | **废弃**——工具执行内联到 ReAct 循环中 |
-| `analysis-worker.ts` (handleAnalyzeResult) | **保留**但改为被 ReAct worker 同步或异步调用 |
-| `buildPlannerPrompt()` | **替换**为 `buildReactSystemPrompt()` |
-| `buildToolInput()` | **迁移**到 ReAct worker 内部，逻辑不变 |
-| pg-boss job `plan_round` | **替换**为 `react_round` |
-| pg-boss job `execute_tool` | **废弃** |
-| pg-boss job `analyze_result` | **保留**——ReAct 步骤完成后异步触发 |
+| `lib/workers/planning-worker.ts` | **删除**——被 `react-worker.ts` 替代 |
+| `lib/workers/execution-worker.ts` | **删除**——工具执行内联到 ReAct 循环中 |
+| `analysis-worker.ts` (handleAnalyzeResult) | **保留**，被 ReAct worker 异步调用 |
+| `lib/llm/prompts.ts` 中 `buildPlannerPrompt()` | **删除**——被 `react-prompt.ts` 替代 |
+| `lib/llm/prompts.ts` 中 `buildAnalyzerPrompt()` / `buildReviewerPrompt()` | **保留**不变 |
+| `buildToolInput()` | **提取**到 `lib/llm/tool-input-mapper.ts` 公共模块 |
+| pg-boss job `plan_round` | **删除**——替换为 `react_round` |
+| pg-boss job `execute_tool` | **删除** |
+| pg-boss job `analyze_result` | **保留** |
 
 ---
 
@@ -263,24 +264,23 @@ model OrchestratorRound {
 **修改文件**：`worker.ts`
 
 ```typescript
-// 移除
-// boss.subscribe("plan_round", handlePlanRound)
-// boss.subscribe("execute_tool", handleExecuteTool)
+// 删除 plan_round 和 execute_tool 的 import 和 subscribe
 
 // 新增
+import { handleReactRound } from "@/lib/workers/react-worker"
 boss.subscribe("react_round", handleReactRound, {
   teamConcurrency: 1,  // 同一项目同时只跑一个 round
   teamSize: 1,
 })
 
-// 保留
+// 保留不变
 boss.subscribe("analyze_result", handleAnalyzeResult)
 boss.subscribe("verify_finding", handleVerifyFinding)
 boss.subscribe("round_completed", handleRoundCompleted)
 boss.subscribe("settle_closure", handleSettleClosure)
 ```
 
-**Job 超时**：`react_round` job 需要更长超时（单个 round 可能 30 步×5 分钟），设为 30 分钟。
+**Job 超时**：`react_round` job 需要更长超时（单个 round 可能 30 步×5 分钟），设为 30 分钟。pg-boss 配置中 `expireInSeconds` 设为 1800。
 
 ### 8. 项目启动流程变化
 
@@ -446,12 +446,13 @@ pendingAnalyses.push(analysisPromise)
 - Round 结束时等待所有 pending analyses 完成（最多 30s）
 - Analyzer 提取的 assets/findings 会写入数据库，下一步的 system prompt 动态注入最新状态
 
-### 15. 迁移策略
+### 15. 无迁移——直接替换
 
-1. **数据库**：新增字段使用 `?`（optional），不破坏现有数据
-2. **Worker**：新增 `react_round` handler，保留旧 handler 一段时间
-3. **项目启动**：新项目使用 `react_round`，旧项目（已有 round 数据）继续用旧模式直到完成
-4. **前端**：通过 `stepIndex !== null` 判断是 ReAct 模式还是旧模式，渲染不同 UI
+这不是渐进式迁移，是直接替换：
+- 删除旧的 planning-worker、execution-worker、buildPlannerPrompt
+- 新建 react-worker 和相关模块
+- 数据库新增字段用 `?`（optional），旧数据不受影响
+- 前端通过 `stepIndex !== null` 区分新旧数据的展示方式
 
 ---
 
@@ -463,6 +464,7 @@ pendingAnalyses.push(analysisPromise)
 | `lib/workers/react-worker.ts` | ReAct 循环核心 |
 | `lib/llm/function-calling.ts` | MCP 工具 → OpenAI function 转换 |
 | `lib/llm/react-prompt.ts` | ReAct agent system prompt |
+| `lib/llm/tool-input-mapper.ts` | 从 execution-worker 提取的 buildToolInput 公共模块 |
 | `lib/workers/react-context.ts` | 上下文管理（压缩、注入） |
 | `lib/domain/scope-policy.ts` | Scope 边界判断 |
 | `app/api/projects/[projectId]/rounds/[round]/steps/route.ts` | 步骤查询 API |
@@ -472,18 +474,22 @@ pendingAnalyses.push(analysisPromise)
 |------|------|
 | `prisma/schema.prisma` | McpRun + OrchestratorRound 新增字段 |
 | `lib/llm/openai-provider.ts` | 支持 functions / function_call 参数 |
-| `worker.ts` | 注册 react_round handler，保留旧 handler |
-| `lib/services/project-service.ts` | 启动时发布 react_round job |
-| `lib/workers/lifecycle-worker.ts` | reviewer 适配 ReAct 上下文 |
-| `lib/repositories/mcp-run-repo.ts` | 支持 stepIndex/thought 字段 |
-| `components/projects/project-mcp-runs-panel.tsx` | 按 step 分组展示 |
+| `lib/llm/prompts.ts` | 删除 `buildPlannerPrompt` 及 `PlannerContext`/`LlmPlanResponse` 类型，保留 analyzer/reviewer |
+| `lib/llm/index.ts` | 删除 `buildPlannerPrompt` 导出，新增 function-calling 导出 |
+| `worker.ts` | 删除 plan_round/execute_tool 注册，新增 react_round |
+| `lib/services/project-service.ts` | 启动时发布 `react_round` job（替换 `plan_round`） |
+| `lib/services/approval-service.ts` | 审批通过后的 `execute_tool` 发布逻辑暂时注释（初版全自动无审批），后续扩展时改为恢复 ReAct 循环 |
+| `lib/domain/lifecycle.ts` | 新增 `idle→executing` 直接转换 |
+| `lib/workers/lifecycle-worker.ts` | ① reviewer CONTINUE 时发布 `react_round`（替换 `plan_round`） ② 适配 ReAct 上下文（stopReason, 最后 thought） |
+| `lib/repositories/mcp-run-repo.ts` | 支持 stepIndex/thought/functionArgs 字段 |
+| `components/projects/project-mcp-runs-panel.tsx` | 按 round→step 分组展示 |
 | `components/projects/project-orchestrator-panel.tsx` | ReAct 摘要展示 |
 | `app/api/projects/[projectId]/orchestrator/route.ts` | 返回 ReAct 字段 |
-| `lib/infra/event-bus.ts` | 新增事件类型定义 |
+| `scripts/publish-job.ts` | 更新调试脚本中的 job name |
 
-### 废弃文件（保留但不再被新流程调用）
+### 删除文件
 | 文件 | 原因 |
 |------|------|
-| `lib/workers/planning-worker.ts` | 被 react-worker 替代 |
-| `lib/workers/execution-worker.ts` | 工具执行内联到 ReAct 循环 |
-| `lib/llm/prompts.ts` 中 `buildPlannerPrompt` | 被 react-prompt 替代 |
+| `lib/workers/planning-worker.ts` | 被 react-worker.ts 完全替代 |
+| `lib/workers/execution-worker.ts` | 工具执行内联到 ReAct 循环，buildToolInput 提取到 tool-input-mapper.ts |
+| `tests/lib/workers/planning-worker.test.ts` | 对应源文件已删除 |
