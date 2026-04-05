@@ -37,7 +37,7 @@ MCP Tools (四肢)    真实探测、证据采集、结构化结果回传
 
 ```bash
 # Clone
-git clone https://github.com/PSoul/LLMPentest.git
+git clone https://github.com/PSoul/GoPwn.git
 cd LLMPentest && npm install
 
 # Start PostgreSQL
@@ -173,4 +173,4 @@ MIT
 ## Links
 
 - Website: [gopwn.ai](https://gopwn.ai)
-- GitHub: [PSoul/LLMPentest](https://github.com/PSoul/LLMPentest)
+- GitHub: [PSoul/GoPwn](https://github.com/PSoul/GoPwn)
