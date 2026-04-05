@@ -12,6 +12,7 @@ vi.mock("@/lib/repositories/evidence-repo", () => ({
   create: vi.fn().mockResolvedValue({ id: "evidence-001" }),
 }))
 vi.mock("@/lib/repositories/finding-repo", () => ({
+  findByProject: vi.fn().mockResolvedValue([]),
   create: vi.fn().mockResolvedValue({ id: "finding-001" }),
 }))
 vi.mock("@/lib/repositories/audit-repo", () => ({ create: vi.fn() }))
