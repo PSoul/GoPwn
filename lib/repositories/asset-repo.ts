@@ -105,3 +105,40 @@ export async function addFingerprint(assetId: string, data: {
 export async function countByProject(projectId: string) {
   return prisma.asset.count({ where: { projectId } })
 }
+
+/** Find all port assets that are children of the given IP asset */
+export async function findPortsByIpAsset(ipAssetId: string) {
+  return prisma.asset.findMany({
+    where: { parentId: ipAssetId, kind: "port" },
+    include: {
+      children: { where: { kind: "service" } }, // service assets
+    },
+    orderBy: { value: "asc" },
+  })
+}
+
+/** Find webapp/api_endpoint assets that are descendants of ports under this IP */
+export async function findWebAppsByIpAsset(ipAssetId: string) {
+  // Get port IDs first
+  const ports = await prisma.asset.findMany({
+    where: { parentId: ipAssetId, kind: "port" },
+    select: { id: true },
+  })
+  const portIds = ports.map((p) => p.id)
+  if (portIds.length === 0) return []
+
+  // Find webapp/api_endpoint with parent being one of the ports (or their services)
+  const services = await prisma.asset.findMany({
+    where: { parentId: { in: portIds }, kind: "service" },
+    select: { id: true },
+  })
+  const parentIds = [...portIds, ...services.map((s) => s.id)]
+
+  return prisma.asset.findMany({
+    where: {
+      parentId: { in: parentIds },
+      kind: { in: ["webapp", "api_endpoint"] },
+    },
+    orderBy: { value: "asc" },
+  })
+}
