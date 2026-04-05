@@ -85,18 +85,7 @@ export async function handleExecuteTool(data: { projectId: string; mcpRunId: str
         data: { mcpRunId, toolName: mcpRun.toolName, error: result.content.slice(0, 500) },
       })
 
-      // Even on error, if there's substantial output, try to analyze it
-      if (result.content && result.content.length > 50) {
-        const queue = createPgBossJobQueue()
-        await queue.publish("analyze_result", {
-          projectId,
-          mcpRunId,
-          rawOutput: result.content,
-          toolName: mcpRun.toolName,
-          target: mcpRun.target,
-        })
-        log.info("mcp_response", `工具报告错误但有输出 (${result.content.length} 字符)，已提交分析`)
-      }
+      // Tool errors are execution failures, not security findings — skip analysis
     } else {
       // Success — save output and queue analysis
       await mcpRunRepo.updateStatus(mcpRunId, "succeeded", {
