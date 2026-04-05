@@ -60,8 +60,8 @@ export function AppSidebar({ pathname }: { pathname: string }) {
             <ShieldCheck className="h-4 w-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-lg font-semibold text-slate-950 dark:text-white">平台控制台</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">授权外网安全评估平台</p>
+            <p className="truncate text-lg font-semibold text-slate-950 dark:text-white">GoPwn</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Penetration Testing Platform</p>
           </div>
         </Link>
       </SidebarHeader>

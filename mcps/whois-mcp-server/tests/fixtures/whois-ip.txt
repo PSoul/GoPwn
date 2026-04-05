@@ -1,0 +1,31 @@
+
+#
+# ARIN WHOIS data and services are subject to the Terms of Use
+#
+
+NetRange:       8.8.8.0 - 8.8.8.255
+CIDR:           8.8.8.0/24
+NetName:        LVLT-GOGL-8-8-8
+NetHandle:      NET-8-8-8-0-2
+Parent:         NET8 (NET-8-0-0-0-0)
+NetType:        Reallocated
+OriginAS:       AS15169
+Organization:   Google LLC (GOGL)
+RegDate:        2014-03-14
+Updated:        2014-03-14
+Ref:            https://rdap.arin.net/registry/ip/8.8.8.0
+
+OrgName:        Google LLC
+OrgId:          GOGL
+Address:        1600 Amphitheatre Parkway
+City:           Mountain View
+StateProv:      CA
+PostalCode:     94043
+Country:        US
+RegDate:        2000-03-30
+Updated:        2019-10-31
+Ref:            https://rdap.arin.net/registry/entity/GOGL
+
+#
+# ARIN WHOIS data and services are subject to the Terms of Use
+#

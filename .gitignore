@@ -27,16 +27,27 @@ test-results/
 # Debug & temp files
 debug/
 scripts/
-*.png
 *.afg
+*.png
 tmp-review/
 output/
 cookies.txt
 tmp-*.txt
 result.txt
 
-# Legacy data store
+# Screenshots (generated, not source)
+screenshots/
+
+# Legacy
 .prototype-store/
+prompts/
+
+# Template projects (reference only, not part of codebase)
+后台模板/
+登录框模板/
+
+# Misc notes
+思考.txt
 
 # Git worktrees
 .worktrees/

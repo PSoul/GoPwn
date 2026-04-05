@@ -1,136 +1,112 @@
-# LLM 渗透测试平台
+# GoPwn
 
-AI Agent 驱动的授权安全评估全栈平台。
+> The Next Generation of Penetration Testing.
 
-## 核心架构
+GoPwn 是一个开源的 AI Agent 驱动渗透测试平台。LLM 作为大脑进行推理和规划，MCP 工具作为四肢执行真实探测，平台作为中枢负责调度和审计。从信息收集到漏洞验证，全流程自动编排。
+
+## Architecture
 
 ```
-LLM = 大脑     ReAct 迭代推理、工具选择、审阅、解释、风险判断
-MCP = 四肢     接触目标、调用外部工具、采集证据、回传结构化结果
-平台 = 中枢     审批、调度、持久化、结果归一化、审计、状态推进
+LLM (大脑)          ReAct 迭代推理、工具选择、审阅、风险判断
+    ↕ ReAct Loop
+Platform (中枢)     调度、审批、持久化、结果归一化、审计
+    ↕ MCP stdio
+MCP Tools (四肢)    真实探测、证据采集、结构化结果回传
 ```
 
-### ReAct 执行引擎
+平台采用 **ReAct（Reason + Act）执行引擎**：每轮次内，LLM 逐步推理并选取 MCP 工具执行，获取真实结果后继续推理，直到调用 `done`（完成本轮）或 `report_finding`（报告漏洞）。轮次间由 LLM 审阅决定是否继续深入。
 
-平台采用 **ReAct（Reason+Act）迭代执行模式**：在每一轮次内，LLM 通过 OpenAI Function Calling（现代 `tools` 格式）逐步推理并选取 MCP 工具，获取真实执行结果后继续推理，直到调用 `done`（完成本轮）或 `report_finding`（报告漏洞）为止。
+## Features
 
-## 当前状态
+- **ReAct 自主编排** — LLM 动态选择工具和策略，不是固定流水线
+- **36+ MCP 安全工具** — 14 个 MCP Server 覆盖 DNS、Web、端口、漏洞验证、截图取证
+- **多轮迭代执行** — LLM 审阅后自动推进下一轮，直到充分覆盖攻击面
+- **实时可视化** — SSE 流式推送，实时展示 LLM 推理链和工具执行结果
+- **审批与审计** — 高风险操作自动暂停等待审批，完整审计记录
+- **Docker 靶场** — 内置 13 个靶场（DVWA / Juice Shop / WebGoat / Redis / SSH 等）
 
-- 版本: `v1.0.0`
-- 数据层: PostgreSQL via Prisma 7.x (`@prisma/adapter-pg`)
-- 测试: 206+ 单元测试 + 14 E2E 测试
-- MCP: 14 个本地 MCP Server（36+ 工具）
-- 靶场: 13 个 Docker 容器（DVWA / Juice Shop / WebGoat / Redis / SSH / Tomcat / Elasticsearch / MongoDB 等）
-- 执行引擎: **ReAct 迭代执行** — LLM 通过 OpenAI tools 格式逐步推理并选取工具
-- LLM 分析: 三级 LLM profile（orchestrator / reviewer / analyzer）
+## Quick Start
 
-## 技术栈
-
-| 层 | 技术 |
-|---|------|
-| 框架 | Next.js 15 (App Router) |
-| 前端 | React 19, Tailwind CSS, shadcn/ui |
-| 后端 | Next.js API Routes, TypeScript |
-| 数据库 | PostgreSQL 16 + Prisma 7.x (`@prisma/adapter-pg`) |
-| MCP | `@modelcontextprotocol/sdk`, stdio 连接器 |
-| 测试 | Vitest, Playwright |
-| 容器 | Docker Compose (靶场 + PostgreSQL) |
-
-## 快速启动
-
-### 前置要求
+### Prerequisites
 
 - Node.js 20+
-- Docker Desktop (用于 PostgreSQL + 靶场)
+- Docker Desktop
 - npm
 
-### 1. 安装依赖
+### Setup
 
 ```bash
-npm install
-```
+# Clone
+git clone https://github.com/PSoul/LLMPentest.git
+cd LLMPentest && npm install
 
-### 2. 启动 PostgreSQL
+# Start PostgreSQL
+cd docker/postgres && docker compose up -d && cd ../..
 
-```bash
-cd docker/postgres && docker compose up -d
-```
-
-### 3. 初始化数据库
-
-```bash
+# Initialize database
 npx prisma migrate dev
-```
 
-### 4. 启动开发服务器
-
-```bash
+# Launch
 npm run dev
 ```
 
-访问 `http://127.0.0.1:3000`
+Open http://localhost:3000
 
-### 5. 默认账号
+### Default Account
 
-| 字段 | 值 |
-|------|---|
-| 账号 | `admin@company.local` |
-| 密码 | `Prototype@2026` |
-| 验证码 | `7K2Q` |
+| Field | Value |
+|-------|-------|
+| Account | `admin@company.local` |
+| Password | `Prototype@2026` |
 
-## 使用流程
+### LLM Configuration
 
-1. 登录平台
-2. 新建项目 — 填写项目名称、目标、说明
-3. 点击 **开始项目** — 触发 ReAct 执行引擎
-4. 运行中可查看每步 LLM 推理链与工具执行结果；高风险操作会暂停请求审批
-5. 轮次完成后 LLM 审阅决定是否继续下一轮
-6. 项目完成后自动生成最终报告
-
-## 仓库结构
-
-```
-app/                    页面 (21) + API 路由 (51)
-components/             业务 UI 组件
-lib/                    核心业务层（9 个领域子目录）
-  workers/              后台作业 Worker（ReAct / 审阅 / 分析 / 验证）
-  services/             应用服务（项目 / 审批 / 资产 / 设置）
-  repositories/         数据访问层
-  domain/               领域模型（生命周期状态机 / 阶段 / 错误）
-  llm/                  LLM prompt 工程与调用
-  mcp/                  MCP 注册与执行引擎
-  hooks/                React Hooks（SSE 订阅 / ReAct 步骤）
-  infra/                基础设施（Prisma / 事件总线 / 作业队列）
-  types/                TypeScript 类型定义
-mcps/                   14 个本地 MCP Server (36+ 工具)
-docker/
-  local-labs/           13 个 Docker 靶场定义
-  postgres/             PostgreSQL 开发容器
-prisma/
-  schema.prisma         25 个数据模型
-tests/                  单元测试 + API 测试
-e2e/                    Playwright E2E 测试
-docs/                   设计文档与操作手册
-```
-
-## 常用命令
+Configure in `/settings/llm` or via environment variables:
 
 ```bash
-npm run dev              # 启动开发服务器
-npm run build            # 生产构建
-npm run test             # 运行单元测试 (vitest)
-npm run e2e              # 运行 E2E 测试 (playwright)
-npm run lint             # 代码检查
+LLM_API_KEY=your-key
+LLM_BASE_URL=https://api.siliconflow.cn/v1
+LLM_ORCHESTRATOR_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
+LLM_REVIEWER_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
 ```
 
-## Docker 靶场
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 15 (App Router) |
+| Frontend | React 19, Tailwind CSS, shadcn/ui |
+| Backend | Next.js API Routes, TypeScript |
+| Database | PostgreSQL 16 + Prisma 7.x |
+| MCP | `@modelcontextprotocol/sdk`, stdio |
+| Testing | Vitest (200+ unit) + Playwright (14 E2E) |
+| Containers | Docker Compose |
+
+## MCP Tools
+
+14 MCP Servers covering:
+
+| Capability | Servers | Tools |
+|-----------|---------|-------|
+| DNS / Subdomain / Cert | subfinder, whois | 3 |
+| Web Probing | httpx, wafw00f | 3 |
+| HTTP / API Discovery | curl, dirsearch | 4 |
+| Port / Service / Network | fscan, netcat | 3 |
+| Controlled Validation | curl (http-validation) | 2 |
+| Screenshot & Evidence | Playwright MCP | 2 |
+| Encoding & Crypto | encode | 4 |
+| Intelligence | fofa, github-recon | 4 |
+| Vulnerability Scanning | afrog | 2 |
+| Script Execution | script-mcp-server | 4 |
+
+## Docker Labs
 
 ```bash
 cd docker/local-labs && docker compose up -d
 ```
 
-| 靶场 | 端口 | 协议 |
-|------|------|------|
+| Lab | Port | Protocol |
+|-----|------|----------|
 | DVWA | 8081 | HTTP |
 | Juice Shop | 3000 | HTTP |
 | WebGoat | 18080 / 19090 | HTTP |
@@ -142,70 +118,59 @@ cd docker/local-labs && docker compose up -d
 | Elasticsearch | 9201 | HTTP |
 | WordPress | 8082 | HTTP |
 
-## LLM 配置
+## Project Structure
 
-在 `/settings/llm` 页面配置，或通过环境变量：
-
-```bash
-LLM_API_KEY=your-key
-LLM_BASE_URL=https://api.siliconflow.cn/v1
-LLM_ORCHESTRATOR_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
-LLM_REVIEWER_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
+```
+app/                    Pages (21) + API Routes (51)
+components/             UI Components
+lib/                    Core Business Logic
+  workers/              Background Workers (ReAct / Review / Analyze)
+  services/             Application Services
+  repositories/         Data Access Layer
+  domain/               Domain Models (Lifecycle State Machine)
+  llm/                  LLM Prompts & Invocation
+  mcp/                  MCP Registry & Execution Engine
+  hooks/                React Hooks (SSE / ReAct Steps)
+  infra/                Infrastructure (Prisma / Event Bus / Job Queue)
+  types/                TypeScript Types
+mcps/                   14 Local MCP Servers (36+ tools)
+docker/
+  local-labs/           13 Docker Lab Environments
+  postgres/             PostgreSQL Dev Container
+prisma/
+  schema.prisma         25 Data Models
+tests/                  Unit & API Tests
+e2e/                    Playwright E2E Tests
+docs/                   Design Docs & Guides
 ```
 
-## MCP 工具体系
+## Commands
 
-14 个本地 MCP Server 覆盖以下能力族：
+```bash
+npm run dev              # Dev server
+npm run build            # Production build
+npm run test             # Unit tests (vitest)
+npm run e2e              # E2E tests (playwright)
+npm run lint             # Lint
+npm run worker:dev       # Background worker (dev)
+```
 
-| 能力族 | MCP Server | 工具数 |
-|--------|-----------|--------|
-| DNS / 子域 / 证书 | subfinder, whois | 3 |
-| Web 页面探测 | httpx, wafw00f | 3 |
-| HTTP / API 结构发现 | curl, dirsearch | 4 |
-| 端口 / 服务 / 网络 | fscan, netcat | 3 |
-| 受控验证类 | curl (http-validation) | 2 |
-| 截图与证据采集 | Playwright MCP | 2 |
-| 编解码与密码学 | encode | 4 |
-| 情报收集 | fofa, github-recon | 4 |
-| 漏洞扫描 | afrog | 2 |
-| 自主脚本执行 | script-mcp-server | 4 |
+## Documentation
 
-## 核心能力
+| Document | Purpose |
+|----------|---------|
+| [API Reference](docs/api-reference.md) | 51 API Endpoints |
+| [ReAct Engine](docs/react-engine.md) | ReAct Engine Design |
+| [Architecture](docs/v2-architecture.md) | Platform Architecture |
+| [Development Guide](docs/development-guide.md) | Dev Guide |
+| [Prompt Engineering](docs/prompt-engineering.md) | Prompt Design |
+| [Brand Guidelines](docs/brand-guidelines.md) | Brand & Naming |
 
-### AI Agent
-- **ReAct 迭代执行引擎** — LLM 通过 OpenAI tools 格式逐步选取工具，实时响应结果
-- 三级 LLM profile（orchestrator / reviewer / analyzer）
-- LLM 语义化工具输出分析（自动提取 assets / evidence / findings）
-- 滑动窗口上下文压缩（TOKEN_BUDGET=80k，RECENT_WINDOW=5 步）
-- 控制函数：`done`（结束轮次）、`report_finding`（报告漏洞）
+## License
 
-### 项目生命周期
-- 状态机: idle → executing → reviewing → settling → completed
-- 手动启动 → LLM 多轮自动编排 → 审批阻塞/恢复 → 自动收束
-- 重复作业防护（singletonKey + 状态守卫）
+MIT
 
-### 安全
-- HMAC 签名 session cookie
-- CSRF 双重提交 cookie
-- 滑动窗口速率限制（登录 5/min, API 60/min）
-- bcrypt 密码验证
-- 多用户 RBAC（admin / researcher / approver）
+## Links
 
-## 已验证的真实闭环
-
-- **DVWA** — 多轮自动编排，发现 Apache 版本泄露
-- **DVWA Redis** — TCP 通用协议探测 + 未授权访问检测
-- **Juice Shop** — Web 探测 + 审批恢复 + 结果沉淀
-- **WebGoat** — Actuator 匿名暴露发现 + 报告导出
-
-## 文档索引
-
-| 文档 | 用途 |
-|------|------|
-| `code_index.md` | 全量代码索引 |
-| `roadmap.md` | 阶段规划与完成记录 |
-| `docs/api-reference.md` | API 接口参考（51 端点） |
-| `docs/react-engine.md` | ReAct 引擎设计文档 |
-| `docs/v2-architecture.md` | 平台架构设计 |
-| `docs/development-guide.md` | 开发指南 |
-| `docs/prompt-engineering.md` | Prompt 工程设计原则 |
+- Website: [gopwn.ai](https://gopwn.ai)
+- GitHub: [PSoul/LLMPentest](https://github.com/PSoul/LLMPentest)

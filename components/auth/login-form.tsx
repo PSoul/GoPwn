@@ -55,9 +55,9 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"section
                   平台账号登录
                 </div>
                 <div className="space-y-2">
-                  <h1 className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">进入授权外网安全评估平台</h1>
+                  <h1 className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">进入 GoPwn</h1>
                   <p className="max-w-md text-sm leading-6 text-slate-600 dark:text-slate-300">
-                    通过标准后台入口进入研究员工作台。所有高风险动作均保留审批与审计链路。
+                    AI Agent 驱动的下一代渗透测试平台。
                   </p>
                 </div>
               </div>
@@ -116,9 +116,9 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"section
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(14,165,233,0.24),_transparent_30%)] dark:bg-[radial-gradient(circle_at_top_right,_rgba(56,189,248,0.2),_transparent_24%)]" />
             <div className="relative flex h-full flex-col justify-between">
               <div className="space-y-4">
-                <p className="text-xs uppercase tracking-[0.3em] text-sky-700 dark:text-sky-300">LLM 驱动安全评估</p>
+                <p className="text-xs uppercase tracking-[0.3em] text-sky-700 dark:text-sky-300">GoPwn</p>
                 <h2 className="max-w-sm text-2xl font-semibold leading-tight text-slate-950 dark:text-white">
-                  以 LLM 为大脑、MCP 工具为四肢的自动化渗透测试平台。
+                  The Next Generation of Penetration Testing.
                 </h2>
               </div>
 

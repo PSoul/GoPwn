@@ -5,8 +5,8 @@ import { ThemeProvider } from "@/components/theme-provider"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
-  title: "授权外网安全评估平台",
-  description: "基于 AI 规划内核的授权外网安全评估平台前端原型",
+  title: "GoPwn — 渗透测试平台",
+  description: "GoPwn: AI Agent 驱动的下一代渗透测试平台",
 }
 
 export default function RootLayout({

@@ -1,0 +1,10 @@
+Can detect the following WAFs:
+
+Cloudflare (Cloudflare Inc.)
+Akamai Ghost (Akamai Technologies)
+AWS Elastic Load Balancer (Amazon)
+ModSecurity (SpiderLabs)
+Sucuri CloudProxy (Sucuri Inc.)
+Imperva SecureSphere (Imperva Inc.)
+Barracuda Application Firewall (Barracuda Networks)
+F5 BIG-IP ASM (F5 Networks)
