@@ -4,11 +4,13 @@ import { AlertTriangle } from "lucide-react"
 
 import { ProjectMcpRunsPanel } from "@/components/projects/project-mcp-runs-panel"
 import { ProjectOperationsPanel } from "@/components/projects/project-operations-panel"
+import { ProjectOrchestratorPanel } from "@/components/projects/project-orchestrator-panel"
 import { requireAuth } from "@/lib/infra/auth"
 import { getProject } from "@/lib/services/project-service"
 import { listByProject as listApprovals } from "@/lib/services/approval-service"
 import { getLlmProfiles, getGlobalConfig } from "@/lib/services/settings-service"
 import * as mcpRunRepo from "@/lib/repositories/mcp-run-repo"
+import { prisma } from "@/lib/infra/prisma"
 
 export default async function ProjectOperationsPage({
   params,
@@ -25,11 +27,19 @@ export default async function ProjectOperationsPage({
     notFound()
   }
 
-  const [mcpRuns, approvals, llmProfiles, globalConfig] = await Promise.all([
+  const [mcpRuns, approvals, llmProfiles, globalConfig, plans, rounds] = await Promise.all([
     mcpRunRepo.findByProject(projectId),
     listApprovals(projectId),
     getLlmProfiles(),
     getGlobalConfig(),
+    prisma.orchestratorPlan.findMany({
+      where: { projectId },
+      orderBy: { round: "desc" },
+    }),
+    prisma.orchestratorRound.findMany({
+      where: { projectId },
+      orderBy: { round: "desc" },
+    }),
   ])
 
   const plannerProfile = llmProfiles.find((p) => p.id === "planner")
@@ -63,6 +73,8 @@ export default async function ProjectOperationsPage({
         approvals={approvals}
         globalConfig={globalConfig ?? undefined}
       />
+
+      <ProjectOrchestratorPanel plans={plans} rounds={rounds} />
 
       <ProjectMcpRunsPanel
         projectId={project.id}

@@ -68,6 +68,14 @@ export const MCP_RUN_STATUS_LABELS: Record<McpRunStatus, string> = {
   cancelled: "已取消",
 }
 
+export const STOP_REASON_LABELS: Record<string, string> = {
+  llm_done: "LLM 主动停止",
+  llm_no_action: "LLM 结束推理",
+  max_steps: "达到步数上限",
+  aborted: "用户中止",
+  error: "执行错误",
+}
+
 export const ASSET_KIND_LABELS: Record<AssetKind, string> = {
   domain: "域名",
   subdomain: "子域名",
