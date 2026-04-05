@@ -9,7 +9,7 @@ type Props = {
 
 export function AssetWebTable({ assets }: Props) {
   if (assets.length === 0) {
-    return <p className="text-sm text-zinc-600 py-8 text-center">暂未发现 Web 应用或 API 端点</p>
+    return <p className="text-sm text-slate-500 dark:text-slate-400 py-8 text-center">暂未发现 Web 应用或 API 端点</p>
   }
 
   return (
@@ -30,7 +30,7 @@ export function AssetWebTable({ assets }: Props) {
           return (
             <TableRow key={asset.id}>
               <TableCell className="font-mono text-sm max-w-[300px] truncate">
-                <a href={asset.value} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+                <a href={asset.value} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">
                   {asset.value}
                 </a>
               </TableCell>
@@ -42,13 +42,13 @@ export function AssetWebTable({ assets }: Props) {
               <TableCell className="text-sm max-w-[200px] truncate">
                 {asset.label !== asset.value ? asset.label : ""}
               </TableCell>
-              <TableCell className="text-sm text-zinc-400">
+              <TableCell className="text-sm text-slate-500 dark:text-slate-400">
                 {metadata?.technology as string ?? ""}
               </TableCell>
               <TableCell className="text-sm font-mono">
                 {metadata?.statusCode as string ?? ""}
               </TableCell>
-              <TableCell className="text-sm text-zinc-500">
+              <TableCell className="text-sm text-slate-500 dark:text-slate-400">
                 {new Date(asset.firstSeenAt).toLocaleDateString("zh-CN")}
               </TableCell>
             </TableRow>

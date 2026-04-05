@@ -12,7 +12,7 @@ type Props = {
 
 export function AssetDomainsTable({ projectId, assets, ipLookup }: Props) {
   if (assets.length === 0) {
-    return <p className="text-sm text-zinc-600 py-8 text-center">暂未发现域名资产</p>
+    return <p className="text-sm text-slate-500 dark:text-slate-400 py-8 text-center">暂未发现域名资产</p>
   }
 
   return (
@@ -43,18 +43,18 @@ export function AssetDomainsTable({ projectId, assets, ipLookup }: Props) {
                     return ipAssetId ? (
                       <Link
                         href={`/projects/${projectId}/assets/ip/${ipAssetId}`}
-                        className="text-blue-400 hover:underline font-mono text-sm"
+                        className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-sm"
                       >
                         {resolvedIp}
                       </Link>
                     ) : (
-                      <span className="font-mono text-sm text-zinc-400">{resolvedIp}</span>
+                      <span className="font-mono text-sm text-slate-500 dark:text-slate-400">{resolvedIp}</span>
                     )
                   })()
-                : <span className="text-zinc-600 text-sm">未解析</span>
+                : <span className="text-slate-500 dark:text-slate-400 text-sm">未解析</span>
               }
             </TableCell>
-            <TableCell className="text-sm text-zinc-500">
+            <TableCell className="text-sm text-slate-500 dark:text-slate-400">
               {new Date(asset.firstSeenAt).toLocaleDateString("zh-CN")}
             </TableCell>
           </TableRow>

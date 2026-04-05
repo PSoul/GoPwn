@@ -32,8 +32,8 @@ export default async function ProjectOperationsPage({
     getGlobalConfig(),
   ])
 
-  const orchestratorProfile = llmProfiles.find((p) => p.id === "orchestrator")
-  const llmNotConfigured = !orchestratorProfile?.model
+  const plannerProfile = llmProfiles.find((p) => p.id === "planner")
+  const llmNotConfigured = !plannerProfile?.model
 
   const readOnlyReason =
     project.lifecycle === "completed" ? "当前项目已完成，如需继续测试请新建项目。"

@@ -54,7 +54,7 @@ export function ProjectOverview({ project, initialFindings, initialAssets }: Pro
 
       {/* Security Findings Summary */}
       <section>
-        <h3 className="text-sm font-medium text-zinc-400 mb-3">安全发现</h3>
+        <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-3">安全发现</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           {(["critical", "high", "medium", "low", "info"] as Severity[]).map((sev) => {
             const count = findingsBySeverity.get(sev) ?? 0
@@ -62,12 +62,12 @@ export function ProjectOverview({ project, initialFindings, initialAssets }: Pro
               <Link
                 key={sev}
                 href={`/projects/${project.id}/findings`}
-                className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 hover:border-zinc-700 transition-colors"
+                className="rounded-xl border border-slate-200/80 bg-white p-3 hover:border-slate-300 transition-colors dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700"
               >
                 <div className="flex items-center justify-between mb-1">
                   <StatusBadge tone={severityTone[sev]}>{SEVERITY_LABELS[sev]}</StatusBadge>
                 </div>
-                <p className="text-2xl font-semibold text-zinc-100">{count}</p>
+                <p className="text-2xl font-semibold text-slate-900 dark:text-white">{count}</p>
               </Link>
             )
           })}
@@ -76,7 +76,7 @@ export function ProjectOverview({ project, initialFindings, initialAssets }: Pro
 
       {/* Asset Discovery Summary */}
       <section>
-        <h3 className="text-sm font-medium text-zinc-400 mb-3">资产发现</h3>
+        <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-3">资产发现</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {(["domain", "subdomain", "ip", "port", "service", "webapp", "api_endpoint"] as AssetKind[]).map((kind) => {
             const count = assetsByKind.get(kind) ?? 0
@@ -86,10 +86,10 @@ export function ProjectOverview({ project, initialFindings, initialAssets }: Pro
               <Link
                 key={kind}
                 href={`/projects/${project.id}/assets?tab=${tab}`}
-                className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 hover:border-zinc-700 transition-colors"
+                className="rounded-xl border border-slate-200/80 bg-white p-3 hover:border-slate-300 transition-colors dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700"
               >
-                <p className="text-xs text-zinc-500 mb-1">{ASSET_KIND_LABELS[kind]}</p>
-                <p className="text-2xl font-semibold text-zinc-100">{count}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{ASSET_KIND_LABELS[kind]}</p>
+                <p className="text-2xl font-semibold text-slate-900 dark:text-white">{count}</p>
               </Link>
             )
           })}
@@ -98,22 +98,22 @@ export function ProjectOverview({ project, initialFindings, initialAssets }: Pro
 
       {/* Recent Activity */}
       <section>
-        <h3 className="text-sm font-medium text-zinc-400 mb-3">最近活动</h3>
+        <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-3">最近活动</h3>
         <div className="space-y-2">
           {initialFindings.slice(0, 5).map((f) => (
             <Link
               key={f.id}
               href={`/projects/${project.id}/vuln/${f.id}`}
-              className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 hover:border-zinc-700 transition-colors"
+              className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white p-3 hover:border-slate-300 transition-colors dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700"
             >
-              <ShieldAlert className="h-4 w-4 text-zinc-500 shrink-0" />
-              <span className="text-sm text-zinc-300 truncate flex-1">{f.title}</span>
+              <ShieldAlert className="h-4 w-4 text-slate-400 dark:text-slate-500 shrink-0" />
+              <span className="text-sm text-slate-700 dark:text-slate-300 truncate flex-1">{f.title}</span>
               <StatusBadge tone={severityTone[f.severity]}>{SEVERITY_LABELS[f.severity]}</StatusBadge>
-              <span className="text-xs text-zinc-600">{new Date(f.createdAt).toLocaleDateString("zh-CN")}</span>
+              <span className="text-xs text-slate-500 dark:text-slate-500">{new Date(f.createdAt).toLocaleDateString("zh-CN")}</span>
             </Link>
           ))}
           {initialFindings.length === 0 && (
-            <p className="text-sm text-zinc-600 py-4 text-center">暂无安全发现</p>
+            <p className="text-sm text-slate-500 py-4 text-center">暂无安全发现</p>
           )}
         </div>
       </section>

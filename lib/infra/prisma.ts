@@ -4,7 +4,12 @@ import { PrismaPg } from "@prisma/adapter-pg"
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
 
 function createClient() {
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
+  // pg.PoolConfig — limit connections to prevent pool exhaustion under high concurrency
+  const adapter = new PrismaPg({
+    connectionString: process.env.DATABASE_URL!,
+    max: 10,
+    idleTimeoutMillis: 30_000,
+  })
   return new PrismaClient({ adapter })
 }
 

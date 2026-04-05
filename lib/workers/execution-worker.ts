@@ -180,6 +180,17 @@ async function buildToolInput(toolName: string, target: string, action: string):
     } else if (name === "port" || name === "ports") {
       if (parsed.port == null) continue
       input[name] = propType === "number" ? parsed.port : String(parsed.port)
+    } else if (name === "rawRequest") {
+      // http_raw_request requires a full HTTP request string
+      // If action looks like a raw HTTP request, use it; otherwise construct one
+      if (action && (action.startsWith("GET ") || action.startsWith("POST ") || action.startsWith("HEAD "))) {
+        input[name] = action
+      } else {
+        const parsedUrl = target.startsWith("http") ? new URL(target) : null
+        const path = parsedUrl?.pathname ?? "/"
+        const host = parsedUrl?.host ?? target
+        input[name] = `GET ${path} HTTP/1.1\r\nHost: ${host}\r\n\r\n`
+      }
     } else if (ACTION_PARAM_NAMES.has(name)) {
       input[name] = action
     } else if (name === "query") {

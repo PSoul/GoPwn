@@ -9,7 +9,7 @@ type Props = {
 
 export function AssetHostsTable({ projectId, assets }: Props) {
   if (assets.length === 0) {
-    return <p className="text-sm text-zinc-600 py-8 text-center">暂未发现主机与端口资产</p>
+    return <p className="text-sm text-slate-500 dark:text-slate-400 py-8 text-center">暂未发现主机与端口资产</p>
   }
 
   // Build rows: for port/service assets, extract host and port from value
@@ -59,13 +59,13 @@ export function AssetHostsTable({ projectId, assets }: Props) {
             <TableCell>
               <Link
                 href={`/projects/${projectId}/assets/ip/${ip.id}`}
-                className="text-blue-400 hover:underline font-mono text-sm"
+                className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-sm"
               >
                 {ip.value}
               </Link>
             </TableCell>
-            <TableCell colSpan={4} className="text-zinc-600 text-sm">端口扫描中...</TableCell>
-            <TableCell className="text-sm text-zinc-500">
+            <TableCell colSpan={4} className="text-slate-500 dark:text-slate-400 text-sm">端口扫描中...</TableCell>
+            <TableCell className="text-sm text-slate-500 dark:text-slate-400">
               {new Date(ip.firstSeenAt).toLocaleDateString("zh-CN")}
             </TableCell>
           </TableRow>
@@ -76,7 +76,7 @@ export function AssetHostsTable({ projectId, assets }: Props) {
               {row.ipAssetId ? (
                 <Link
                   href={`/projects/${projectId}/assets/ip/${row.ipAssetId}`}
-                  className="text-blue-400 hover:underline font-mono text-sm"
+                  className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-sm"
                 >
                   {row.host}
                 </Link>
@@ -85,10 +85,10 @@ export function AssetHostsTable({ projectId, assets }: Props) {
               )}
             </TableCell>
             <TableCell className="font-mono text-sm">{row.port}</TableCell>
-            <TableCell className="text-sm text-zinc-400">{row.protocol}</TableCell>
+            <TableCell className="text-sm text-slate-500 dark:text-slate-400">{row.protocol}</TableCell>
             <TableCell className="text-sm">{row.service}</TableCell>
-            <TableCell className="text-sm text-zinc-400 max-w-[200px] truncate">{row.banner}</TableCell>
-            <TableCell className="text-sm text-zinc-500">
+            <TableCell className="text-sm text-slate-500 dark:text-slate-400 max-w-[200px] truncate">{row.banner}</TableCell>
+            <TableCell className="text-sm text-slate-500 dark:text-slate-400">
               {new Date(row.firstSeenAt).toLocaleDateString("zh-CN")}
             </TableCell>
           </TableRow>

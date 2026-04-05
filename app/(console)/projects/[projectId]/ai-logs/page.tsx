@@ -24,8 +24,8 @@ export default async function ProjectAiLogsPage({
 
   const isRunning = project.lifecycle === "executing" || project.lifecycle === "planning"
   const llmProfiles = await getLlmProfiles()
-  const orchestratorProfile = llmProfiles.find((p) => p.id === "orchestrator")
-  const llmNotConfigured = !orchestratorProfile?.model
+  const plannerProfile = llmProfiles.find((p) => p.id === "planner")
+  const llmNotConfigured = !plannerProfile?.model
 
   return (
     <div className="space-y-4">

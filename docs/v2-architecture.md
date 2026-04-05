@@ -133,9 +133,20 @@ LLM 的系统提示从文件加载（默认 `mcps/pentest-agent-prompt.md`），
 1. **无水平扩展测试**: 虽然架构支持多 Worker，但未实测
 2. **能力推断**: `inferCapability()` 基于名称/描述模式匹配，新工具可能需要调整
 3. **证据存储**: 原始输出存 DB 文本列，大文件应考虑对象存储
-4. **Finding 去重**: 跨轮次无内建去重机制
+4. ~~**Finding 去重**: 跨轮次无内建去重机制~~ **[Phase 24b 已修复]** — normalizeTitle 模糊匹配去重
 5. **可观测性**: 无 Prometheus 指标，依赖日志和审计事件
 6. **连接池**: 每个 MCP server 一个 stdio 进程，不支持并行工具调用
+
+### 3.5 Phase 24b 稳定性修复 (2026-04-05)
+
+| 问题 | 修复 |
+|------|------|
+| IPv6 连接超时 | `instrumentation.ts` 设置 `dns.setDefaultResultOrder("ipv4first")` |
+| MCP 进程超时卡死 | stdio-connector RPC timeout 时 SIGKILL 子进程 |
+| DB 连接池耗尽 | PrismaPg 配置 `max: 10, idleTimeoutMillis: 30000` |
+| round_completed 不触发 | `updateStatus` 转 terminal 时自动检查并发布 |
+| Finding 重复 | `normalizeTitle()` 模糊匹配（去除空格/标点/通用词差异） |
+| 工具参数错误 | `buildToolInput` 增加 `rawRequest` 自动构造 |
 
 ---
 

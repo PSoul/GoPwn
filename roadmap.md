@@ -2,9 +2,41 @@
 
 ## Project Snapshot
 
-- Date: `2026-04-04`
-- Current focus: Phase 24 概念精简 + 实时仪表盘已完成 — 用户概念从 11 个压缩到 4 个（Project/Asset/Vulnerability/Approval-inline），Evidence 降级为内部概念，SSE 实时推送基础设施就绪，项目首页改为 Live Dashboard（3-Tab: 漏洞/资产/执行日志），导航精简为 5 项。下一步: 生产可用性加固（竞态条件修复、查询优化、SSE 健壮性增强）。
+- Date: `2026-04-05`
+- Current focus: Phase 24b 前端重设计 + 平台稳定性修复已完成 — 项目工作区重设计为 5-Tab（概览/资产/漏洞/执行控制/AI日志），资产按类型分 3 子 Tab（域名/主机与端口/Web与API），IP 详情页支持跨页导航，11 个平台 bug 修复（IPv6/超时强杀/连接池/round 触发/去重等）。下一步: 生产可用性加固（竞态条件修复、查询优化、SSE 健壮性增强）。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
+
+## Phase 24b: 前端重设计 + 平台稳定性修复 (Frontend Redesign + Platform Stability)
+
+- Status: Completed on `2026-04-05`
+- Branch: `fix/frontend-audit-p1p2`
+- Goal: 重设计项目详情页布局，修复 E2E 测试发现的 11 个平台 bug（含 2 个 P0）。
+
+### 交付清单
+
+1. **项目工作区重设计** — 从 3-Tab Live Dashboard 重设计为 5-Tab 架构（概览/资产/漏洞/执行控制/AI日志），每个 Tab 独立路由
+2. **资产页 3 子 Tab** — 域名与子域名、主机与端口（含父子层级关系）、Web 与 API，每类独立表格
+3. **IP 详情页** — 显示开放端口/关联漏洞/相关 Web 应用，支持从域名表/主机表跨页导航
+4. **漏洞页优化** — 移除不合理的"状态"列，按严重程度排序，增强去重（标准化标题模糊匹配）
+5. **P0: IPv6 修复** — `instrumentation.ts` 设置 `dns.setDefaultResultOrder("ipv4first")`
+6. **P0: 超时强杀** — stdio-connector RPC timeout 时 SIGKILL 强杀 MCP 子进程
+7. **P1: 连接池** — PrismaPg 配置 `max: 10, idleTimeoutMillis: 30000`
+8. **P1: round 触发** — mcp-run-repo updateStatus 转 terminal 状态时自动检查并发布 round_completed
+9. **P2: 去重增强** — finding-repo normalizeTitle 模糊匹配（去除空格/标点/通用词差异）
+10. **P2: 参数修复** — execution-worker 增加 rawRequest 自动构造
+11. **UI 主题适配** — 概览页/资产表/漏洞表全部适配 light/dark 双主题
+12. **LLM profile 修复** — operations/ai-logs 页从查找 "orchestrator" 改为 "planner"
+
+### 验收标准
+
+- [x] `next build` 编译通过
+- [x] 项目工作区 5 个 Tab 全部可访问
+- [x] 资产页 3 个子 Tab 按类型分类显示
+- [x] IP 详情页跨页导航正常
+- [x] Light/dark 主题颜色正确
+- [ ] E2E 测试全部通过（待验证）
+
+---
 
 ## Phase 24: 概念精简 + 实时仪表盘 (Concept Simplification + Realtime Dashboard)
 

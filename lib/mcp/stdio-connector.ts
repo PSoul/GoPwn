@@ -108,6 +108,12 @@ export function createStdioConnector(config: StdioConfig): McpConnector {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         pending.delete(id)
+        // Kill the hung process to prevent zombie MCP servers
+        if (proc && !proc.killed) {
+          console.warn(`[stdio-connector] Killing hung process after ${timeoutMs}ms timeout: ${command} ${method}`)
+          proc.kill("SIGKILL")
+          proc = null
+        }
         reject(new Error(`MCP RPC timeout after ${timeoutMs}ms: ${method}`))
       }, timeoutMs)
 

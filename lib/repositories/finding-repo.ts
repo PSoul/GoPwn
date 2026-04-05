@@ -22,6 +22,19 @@ export async function findSuspected(projectId: string) {
   })
 }
 
+/**
+ * Normalize a finding title for dedup comparison.
+ * Strips whitespace, punctuation variations, and common LLM rephrasing patterns.
+ */
+function normalizeTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[\s\-_]+/g, " ")           // normalize whitespace/dashes
+    .replace(/[（(].*?[)）]/g, "")        // strip parenthetical notes
+    .replace(/漏洞|vulnerability|issue/gi, "")
+    .trim()
+}
+
 export async function create(data: {
   projectId: string
   assetId?: string
@@ -32,15 +45,29 @@ export async function create(data: {
   affectedTarget?: string
   recommendation?: string
 }) {
-  // De-duplicate: if same title + affectedTarget already exists in this project,
-  // update severity/summary instead of creating a duplicate
-  const existing = await prisma.finding.findFirst({
+  // De-duplicate: check exact match first, then fuzzy match on normalized title
+  const target = data.affectedTarget ?? ""
+
+  // Exact match
+  let existing = await prisma.finding.findFirst({
     where: {
       projectId: data.projectId,
       title: data.title,
-      affectedTarget: data.affectedTarget ?? "",
+      affectedTarget: target,
     },
   })
+
+  // Fuzzy match: find all findings for same target, compare normalized titles
+  if (!existing) {
+    const candidates = await prisma.finding.findMany({
+      where: {
+        projectId: data.projectId,
+        affectedTarget: target,
+      },
+    })
+    const normalizedNew = normalizeTitle(data.title)
+    existing = candidates.find((c) => normalizeTitle(c.title) === normalizedNew) ?? null
+  }
 
   if (existing) {
     // Only upgrade severity, never downgrade
