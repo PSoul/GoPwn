@@ -38,6 +38,14 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
     return
   }
 
+  // Guard: skip if project is not in a state that can transition to reviewing.
+  // This prevents duplicate round_completed jobs (from both react-worker and mcp-run-repo)
+  // from triggering double reviews.
+  if (project.lifecycle !== "executing" && project.lifecycle !== "waiting_approval") {
+    log.info("skipped", `项目状态 ${project.lifecycle} 无法进入审阅，跳过（可能是重复的 round_completed 作业）`)
+    return
+  }
+
   try {
     // Update round status
     await prisma.orchestratorRound.update({

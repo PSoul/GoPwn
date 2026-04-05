@@ -12,17 +12,17 @@ MCP = 四肢     接触目标、调用外部工具、采集证据、回传结构
 
 ### ReAct 执行引擎
 
-平台采用 **ReAct（Reason+Act）迭代执行模式**：在每一轮次内，LLM 通过 OpenAI Function Calling 逐步推理并选取 MCP 工具，获取真实执行结果后继续推理，直到调用 `finish_round`（完成本轮）或 `request_approval`（请求审批）为止。这一模式替代了原有的批量"计划→执行→审阅"三阶段流程，使 LLM 能够根据每一步的实际结果动态调整下一步行动。
+平台采用 **ReAct（Reason+Act）迭代执行模式**：在每一轮次内，LLM 通过 OpenAI Function Calling（现代 `tools` 格式）逐步推理并选取 MCP 工具，获取真实执行结果后继续推理，直到调用 `done`（完成本轮）或 `report_finding`（报告漏洞）为止。
 
 ## 当前状态
 
-- 版本: `v0.9.2`
-- 数据层: PostgreSQL via Prisma 7.x (`@prisma/adapter-pg`)，唯一数据层
+- 版本: `v1.0.0`
+- 数据层: PostgreSQL via Prisma 7.x (`@prisma/adapter-pg`)
 - 测试: 206+ 单元测试 + 14 E2E 测试
 - MCP: 14 个本地 MCP Server（36+ 工具）
 - 靶场: 13 个 Docker 容器（DVWA / Juice Shop / WebGoat / Redis / SSH / Tomcat / Elasticsearch / MongoDB 等）
-- 执行引擎: **ReAct 迭代执行**（Reason+Act）— LLM 在每轮内通过 OpenAI Function Calling 逐步推理并选取工具，实时响应执行结果
-- LLM 分析: 三级 LLM profile（orchestrator/reviewer/analyzer），语义化工具输出解析
+- 执行引擎: **ReAct 迭代执行** — LLM 通过 OpenAI tools 格式逐步推理并选取工具
+- LLM 分析: 三级 LLM profile（orchestrator / reviewer / analyzer）
 
 ## 技术栈
 
@@ -74,7 +74,7 @@ npm run dev
 
 | 字段 | 值 |
 |------|---|
-| 账号 | `researcher@company.local` |
+| 账号 | `admin@company.local` |
 | 密码 | `Prototype@2026` |
 | 验证码 | `7K2Q` |
 
@@ -82,29 +82,25 @@ npm run dev
 
 1. 登录平台
 2. 新建项目 — 填写项目名称、目标、说明
-3. 点击 **开始项目** — 触发 ReAct 执行引擎：LLM 在每轮内逐步推理并调用 MCP 工具
+3. 点击 **开始项目** — 触发 ReAct 执行引擎
 4. 运行中可查看每步 LLM 推理链与工具执行结果；高风险操作会暂停请求审批
-5. 轮次完成后 LLM 审阅决定是否继续下一轮，直至目标完成或达到最大轮数
-6. 项目完成后自动生成最终结论报告
+5. 轮次完成后 LLM 审阅决定是否继续下一轮
+6. 项目完成后自动生成最终报告
 
 ## 仓库结构
 
 ```
-app/                    页面 (21) + API 路由 (48)
+app/                    页面 (21) + API 路由 (51)
 components/             业务 UI 组件
 lib/                    核心业务层（9 个领域子目录）
-  orchestration/        编排服务（多轮规划、执行、上下文构建）
-  mcp/                  MCP 注册、执行引擎、调度器
-  mcp-connectors/       MCP 连接器实现（stdio/real/local）
-  llm/                  LLM prompt 工程与调用日志
-  llm-provider/         LLM 客户端（OpenAI-compatible）
-  gateway/              MCP 调度网关
-  project/              项目 repository 与结果
-  analysis/             工具输出分析与失败诊断
-  infra/                基础设施（Prisma、transforms、local-lab）
-  settings/             配置管理
-  auth/                 认证与会话
-  data/                 资产/证据/审批 repository
+  workers/              后台作业 Worker（ReAct / 审阅 / 分析 / 验证）
+  services/             应用服务（项目 / 审批 / 资产 / 设置）
+  repositories/         数据访问层
+  domain/               领域模型（生命周期状态机 / 阶段 / 错误）
+  llm/                  LLM prompt 工程与调用
+  mcp/                  MCP 注册与执行引擎
+  hooks/                React Hooks（SSE 订阅 / ReAct 步骤）
+  infra/                基础设施（Prisma / 事件总线 / 作业队列）
   types/                TypeScript 类型定义
 mcps/                   14 个本地 MCP Server (36+ 工具)
 docker/
@@ -114,8 +110,7 @@ prisma/
   schema.prisma         25 个数据模型
 tests/                  单元测试 + API 测试
 e2e/                    Playwright E2E 测试
-prompts/                阶段开发 prompt
-docs/                   合同、操作文档、设计 spec
+docs/                   设计文档与操作手册
 ```
 
 ## 常用命令
@@ -126,18 +121,13 @@ npm run build            # 生产构建
 npm run test             # 运行单元测试 (vitest)
 npm run e2e              # 运行 E2E 测试 (playwright)
 npm run lint             # 代码检查
-npm run test:all         # 单元 + E2E 全量测试
 ```
 
 ## Docker 靶场
 
-### 启动靶场
-
 ```bash
 cd docker/local-labs && docker compose up -d
 ```
-
-### 靶场列表
 
 | 靶场 | 端口 | 协议 |
 |------|------|------|
@@ -169,7 +159,6 @@ LLM_REVIEWER_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
 
 | 能力族 | MCP Server | 工具数 |
 |--------|-----------|--------|
-| 目标解析类 | 内置 seed-normalizer | 1 |
 | DNS / 子域 / 证书 | subfinder, whois | 3 |
 | Web 页面探测 | httpx, wafw00f | 3 |
 | HTTP / API 结构发现 | curl, dirsearch | 4 |
@@ -180,32 +169,20 @@ LLM_REVIEWER_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
 | 情报收集 | fofa, github-recon | 4 |
 | 漏洞扫描 | afrog | 2 |
 | 自主脚本执行 | script-mcp-server | 4 |
-| 报告导出类 | 内置 report-exporter | 1 |
-
-新 MCP 接入流程：参考 `docs/contracts/mcp-server-contract.md` 和 `docs/templates/mcp-connector-template.md`
 
 ## 核心能力
 
-### AI Agent 能力
-- **ReAct 迭代执行引擎** — LLM 通过 OpenAI Function Calling 逐步选取工具，实时响应结果，动态调整行动（替代批量规划）
-- 30+ 可调配置参数（参考 Claude Code / Codex / Aider 设计）
-- 平台环境感知（OS / Shell / 可用工具）自动注入 LLM 决策上下文
-- LLM 语义化工具输出分析（analyzer 自动提取 assets/evidence/findings）
-- 失败智能分析（9 类错误分类 + 重试建议 + 替代工具推荐）
-- 高风险工具请求人工审批（`request_approval` 控制函数）
-- 滑动窗口上下文压缩（TOKEN_BUDGET=80k，RECENT_WINDOW=5 步保留全量）
+### AI Agent
+- **ReAct 迭代执行引擎** — LLM 通过 OpenAI tools 格式逐步选取工具，实时响应结果
+- 三级 LLM profile（orchestrator / reviewer / analyzer）
+- LLM 语义化工具输出分析（自动提取 assets / evidence / findings）
+- 滑动窗口上下文压缩（TOKEN_BUDGET=80k，RECENT_WINDOW=5 步）
+- 控制函数：`done`（结束轮次）、`report_finding`（报告漏洞）
 
 ### 项目生命周期
-- 状态机: `idle -> running -> paused -> stopped`
-- 手动开始 -> LLM 多轮自动编排 -> 审批阻塞 / 恢复 -> 自动收束
-- 队列跑空自动补报告导出 + 生成最终结论
-- 审批恢复后继续推进后续动作
-
-### 调度与执行
-- Durable worker lease + orphan task 恢复
-- Cooperative cancellation（运行中任务可停止）
-- 项目级 pause / resume / cancel / retry
-- MCP 编排范围约束（URL / IP 目标不误派 DNS 动作）
+- 状态机: idle → executing → reviewing → settling → completed
+- 手动启动 → LLM 多轮自动编排 → 审批阻塞/恢复 → 自动收束
+- 重复作业防护（singletonKey + 状态守卫）
 
 ### 安全
 - HMAC 签名 session cookie
@@ -216,12 +193,10 @@ LLM_REVIEWER_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
 
 ## 已验证的真实闭环
 
-以下靶场已通过完整的 `LLM 编排 -> MCP 执行 -> 发现 -> 报告` 闭环验证：
-
-- **DVWA** — 多轮自动编排，发现 Apache 版本泄露 + 过时版本
-- **DVWA Redis** — TCP 通用协议探测 + 未授权访问检测，4 资产、23 证据、1 高危发现（Redis 未授权访问）
-- **Juice Shop** — 真实 LLM 编排 + Web 探测 + 审批恢复 + 结果沉淀
-- **WebGoat** — 多次闭环验证，含 Actuator 匿名暴露发现 + 报告导出
+- **DVWA** — 多轮自动编排，发现 Apache 版本泄露
+- **DVWA Redis** — TCP 通用协议探测 + 未授权访问检测
+- **Juice Shop** — Web 探测 + 审批恢复 + 结果沉淀
+- **WebGoat** — Actuator 匿名暴露发现 + 报告导出
 
 ## 文档索引
 
@@ -229,49 +204,8 @@ LLM_REVIEWER_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
 |------|------|
 | `code_index.md` | 全量代码索引 |
 | `roadmap.md` | 阶段规划与完成记录 |
-| `docs/contracts/mcp-server-contract.md` | MCP Server 注册合同 |
-| `docs/templates/mcp-connector-template.md` | MCP 接入模板 |
-| `docs/operations/local-docker-labs.md` | Docker 靶场操作文档 |
-| `docs/operations/llm-settings.md` | LLM 配置说明 |
-| `docs/operations/mcp-onboarding-guide.md` | MCP 接入操作指南 |
-| `docs/prompt-engineering.md` | Prompt 工程设计原则 |
+| `docs/api-reference.md` | API 接口参考（51 端点） |
+| `docs/react-engine.md` | ReAct 引擎设计文档 |
+| `docs/v2-architecture.md` | 平台架构设计 |
 | `docs/development-guide.md` | 开发指南 |
-
-## 开发阶段历史
-
-| Phase | 内容 | 状态 |
-|-------|------|------|
-| 1-3 | 前端原型 + Mock API + 真实后端核心 | 已完成 |
-| 4-5 | MCP 编排执行 + 真实连接器 + 调度器 | 已完成 |
-| 6-7 | 真实 LLM 编排 + Docker 验证 + MCP 扩展 | 已完成 |
-| 8-9 | 调度控制 + 项目生命周期 + 自动收束 | 已完成 |
-| 10-11 | 生产级 MCP 编排 + 前端闭环 | 已完成 |
-| 12 | 漏洞驾驶舱重构 + LLM 日志系统 | 已完成 |
-| 13-14 | 生产加固 (SSE / CSRF / 速率限制) + AI 聊天窗 | 已完成 |
-| 15 | 多用户认证 + RBAC | 已完成 |
-| 16 | Docker 靶场扩展 (TCP) + 自主脚本 MCP | 已完成 |
-| 17a-d | Prisma 数据层迁移 (PostgreSQL 唯一数据层) | 已完成 |
-| 17b | Agent 大脑进化 (配置 / 环境感知 / 压缩 / 反思) | 已完成 |
-| 19 | 架构重构 (类型拆分 / facade 删除 / 模块分解) | 已完成 |
-| 20 | 架构持续精简 + 二级模块拆分 | 已完成 |
-| 21 | UI/UX 全站审查 + 5 轮真实使用 Debug | 已完成 |
-| 22 | 真实渗透测试闭环验证 (多轮收敛 / 超时分离 / 覆盖检测) | 已完成 |
-| 22b | LLM Writeback — 语义分析替代工具特定解析器 | 已完成 |
-| 23 | 深度架构演进 (死代码清理 / 连接器工厂 / lib 领域化重组) | 已完成 |
-| 23b | TCP 通用化 + llmCode 持久化 + 多轮上下文增强 | 已完成 |
-| ReAct | ReAct 迭代执行引擎 (批量规划→迭代推理 / Function Calling / 滑动窗口压缩) | 已完成 |
-
-## 接手指南
-
-如果你是新接手的开发者或 LLM：
-
-1. 读 `README.md`（本文件）了解全貌
-2. 读 `code_index.md` 了解代码结构
-3. 读 `roadmap.md` 了解阶段边界和当前优先级
-4. 读 `prompts/phase20-continued-refactoring.md` 了解下一步开发方向
-
-## 备注
-
-- 当前版本适合作为可演示、可验证、可继续迭代的原型平台，尚未达到生产部署标准
-- MCP Server 开发建议在独立仓库进行，完成后通过注册合同接入平台
-- `.prototype-store/` 为历史遗留目录，数据已全部迁移到 PostgreSQL
+| `docs/prompt-engineering.md` | Prompt 工程设计原则 |

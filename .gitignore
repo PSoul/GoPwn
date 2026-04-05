@@ -1,26 +1,59 @@
 
-# 环境变量（.env.example 保留在版本控制中）
-*.log
-*.txt
-*.txt
+# Dependencies
+node_modules/
+
+# Build output
+.next/
+dist/
+out/
+tsconfig.tsbuildinfo
+
+# Prisma generated
+/lib/generated/prisma
+
+# Environment
 .env
 .env.local
 .env.production.local
-.next/
-.prototype-store/
-.worktrees/
-/lib/generated/prisma
+
+# Test output
 coverage/
-dist/
-node_modules/
-out/
-output/
 playwright-report/
 test-results/
+
+# Logs
+*.log
+
+# Debug & temp files
+debug/
+scripts/
+*.png
+*.afg
 tmp-review/
-tsconfig.tsbuildinfo
-screenshots/
+output/
+cookies.txt
+tmp-*.txt
+result.txt
+
+# Legacy data store
+.prototype-store/
+
+# Git worktrees
+.worktrees/
+
+# Playwright MCP cache
+.playwright-mcp/
+
+# MCP server build artifacts
 mcps/*/bin/
 mcps/*/reports/
-*.afg
-*.txt
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

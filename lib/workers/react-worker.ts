@@ -63,6 +63,11 @@ export async function handleReactRound(data: {
   try {
     // Transition to executing (skip if already executing — e.g. retry after failure)
     if (project.lifecycle !== "executing") {
+      const ALLOWED_STARTS = ["idle", "planning", "failed", "reviewing"] as const
+      if (!(ALLOWED_STARTS as readonly string[]).includes(project.lifecycle)) {
+        log.info("skipped", `项目状态 ${project.lifecycle} 无法启动 ReAct，跳过`)
+        return
+      }
       const event =
         project.lifecycle === "failed" ? "RETRY_REACT" as const
         : project.lifecycle === "reviewing" ? "CONTINUE_REACT" as const
