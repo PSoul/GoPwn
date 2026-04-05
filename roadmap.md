@@ -3,8 +3,48 @@
 ## Project Snapshot
 
 - Date: `2026-04-05`
-- Current focus: Phase 24b 前端重设计 + 平台稳定性修复已完成 — 项目工作区重设计为 5-Tab（概览/资产/漏洞/执行控制/AI日志），资产按类型分 3 子 Tab（域名/主机与端口/Web与API），IP 详情页支持跨页导航，11 个平台 bug 修复（IPv6/超时强杀/连接池/round 触发/去重等）。下一步: 生产可用性加固（竞态条件修复、查询优化、SSE 健壮性增强）。
+- Current focus: feature/react-iterative-execution 已完成 — 批量"计划→执行→审阅"三阶段模型替换为 ReAct（Reason+Act）迭代执行引擎；LLM 在每轮内通过 OpenAI Function Calling 逐步选取 MCP 工具、获取结果、决定下一动作；新增 react-worker / react-context / react-prompt / use-react-steps / steps API；删除 planning-worker / execution-worker；生命周期新增 START_REACT / CONTINUE_REACT / RETRY_REACT 事件。下一步: 生产可用性加固（竞态条件修复、查询优化、SSE 健壮性增强）。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
+
+## feature/react-iterative-execution: ReAct 迭代执行引擎 (ReAct Iterative Execution Engine)
+
+- Status: Completed on `2026-04-05`
+- Branch: `feature/react-iterative-execution`
+- Goal: 将批量"计划→执行→审阅"三阶段模型替换为 ReAct（Reason+Act）迭代执行引擎，LLM 在每轮内通过 OpenAI Function Calling 逐步推理并选取工具，获取实际结果后再决定下一步动作，彻底消除提前批量规划的局限性。
+
+### 交付清单
+
+1. **ReAct Worker** — 新增 `lib/workers/react-worker.ts` 处理 `react_round` 作业；单轮内最多 30 步（`MAX_STEPS_PER_ROUND`），每步：LLM function call 选择工具 → 执行 MCP 工具（超时 5 分钟）→ 将结果以 `tool` 角色回填消息列表 → LLM 继续推理；通过 `finish_round` / `request_approval` 控制函数终止轮次
+2. **上下文管理器** — 新增 `lib/workers/react-context.ts`（`ReactContextManager`）；维护迭代消息历史，实现滑动窗口压缩（最近 5 步保留全量输出，更早步骤压缩至摘要），Token 预算 80 k
+3. **ReAct 提示词** — 新增 `lib/llm/react-prompt.ts`；根据项目目标/渗透阶段/轮次/历史摘要动态构建 Thought→Action→Observation 系统提示；`lib/llm/prompts.ts` 移除 planner 提示词；`lib/llm/index.ts` 更新导出
+4. **Function Calling 适配** — `lib/llm/function-calling.ts` 将 MCP 工具列表转换为 OpenAI functions 格式，提供 `finish_round` / `request_approval` 两个控制函数
+5. **生命周期扩展** — `lib/domain/lifecycle.ts` 新增 `START_REACT` / `CONTINUE_REACT` / `RETRY_REACT` 三个事件；`idle` / `reviewing` / `failed` 状态均可直接转入 `executing`，跳过 `planning` 状态
+6. **项目服务更新** — `lib/services/project-service.ts` 的 `startProject()` 直接发布 `react_round` 作业，不再经过规划阶段
+7. **生命周期 Worker 更新** — `lib/workers/lifecycle-worker.ts` 轮次审阅通过后发布下一轮 `react_round` 作业（`CONTINUE_REACT`），替代原 `plan_round` 发布逻辑
+8. **Steps API** — 新增 `app/api/projects/[projectId]/rounds/[round]/steps/route.ts`，返回指定轮次的 ReAct 步骤记录（工具调用历史与推理链）
+9. **前端 Hook** — 新增 `lib/hooks/use-react-steps.ts`；订阅 SSE 事件流，实时维护 `ReactStepEvent[]` 和 `ReactRoundProgress`，供操作面板消费
+10. **UI 适配** — `components/projects/project-orchestrator-panel.tsx` 标题改为"ReAct 执行轮次"并接入 ReAct 步骤数据；`components/projects/project-mcp-runs-panel.tsx` 适配 ReAct 迭代产生的 mcp-run 记录
+11. **删除旧文件** — `lib/workers/planning-worker.ts` / `lib/workers/execution-worker.ts` 及其配套测试文件已删除
+
+### 验收标准
+
+- [x] `next build` 编译通过，无 TypeScript 错误
+- [x] 启动项目直接进入 `executing` 状态（跳过 `planning`）
+- [x] 单轮 ReAct 循环正常运行（LLM 逐步选工具 → 执行 → 回填结果）
+- [x] `finish_round` / `request_approval` 控制函数正确终止轮次
+- [x] 轮次审阅通过后自动发布下一轮 `react_round` 作业
+- [x] `use-react-steps` Hook 正确接收并展示步骤事件
+- [x] planning-worker / execution-worker 及其测试已删除，无残留引用
+- [ ] 端到端渗透测试闭环验证（待 Docker 靶场验证）
+
+### 下一步优先项
+
+- 对 DVWA / Juice Shop / WebGoat 进行完整的 ReAct 模式端到端验证
+- 调整 `MAX_STEPS_PER_ROUND` 和 `TOKEN_BUDGET` 的最优值
+- 为 ReAct 步骤增加持久化存储（当前仅通过 SSE 实时推送，重载后丢失）
+- 考虑引入 ReAct 步骤级别的审批暂停（高风险工具在推理链中途请求人工确认）
+
+---
 
 ## Phase 24b: 前端重设计 + 平台稳定性修复 (Frontend Redesign + Platform Stability)
 

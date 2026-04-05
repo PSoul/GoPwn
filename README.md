@@ -5,19 +5,23 @@ AI Agent 驱动的授权安全评估全栈平台。
 ## 核心架构
 
 ```
-LLM = 大脑     计划、编排、审阅、解释、风险判断
+LLM = 大脑     ReAct 迭代推理、工具选择、审阅、解释、风险判断
 MCP = 四肢     接触目标、调用外部工具、采集证据、回传结构化结果
 平台 = 中枢     审批、调度、持久化、结果归一化、审计、状态推进
 ```
 
+### ReAct 执行引擎
+
+平台采用 **ReAct（Reason+Act）迭代执行模式**：在每一轮次内，LLM 通过 OpenAI Function Calling 逐步推理并选取 MCP 工具，获取真实执行结果后继续推理，直到调用 `finish_round`（完成本轮）或 `request_approval`（请求审批）为止。这一模式替代了原有的批量"计划→执行→审阅"三阶段流程，使 LLM 能够根据每一步的实际结果动态调整下一步行动。
+
 ## 当前状态
 
-- 版本: `v0.8.0`
+- 版本: `v0.9.2`
 - 数据层: PostgreSQL via Prisma 7.x (`@prisma/adapter-pg`)，唯一数据层
 - 测试: 206+ 单元测试 + 14 E2E 测试
 - MCP: 14 个本地 MCP Server（36+ 工具）
 - 靶场: 13 个 Docker 容器（DVWA / Juice Shop / WebGoat / Redis / SSH / Tomcat / Elasticsearch / MongoDB 等）
-- 编排: 多轮 LLM 自动编排循环，支持自动续跑、并行执行、轮间自我反思
+- 执行引擎: **ReAct 迭代执行**（Reason+Act）— LLM 在每轮内通过 OpenAI Function Calling 逐步推理并选取工具，实时响应执行结果
 - LLM 分析: 三级 LLM profile（orchestrator/reviewer/analyzer），语义化工具输出解析
 
 ## 技术栈
@@ -78,9 +82,10 @@ npm run dev
 
 1. 登录平台
 2. 新建项目 — 填写项目名称、目标、说明
-3. 点击 **开始项目** — LLM 自动生成首轮编排计划并驱动 MCP 调度
-4. 运行中可暂停 / 继续，停止后进入终态
-5. 队列跑空时平台自动补报告导出并生成最终结论
+3. 点击 **开始项目** — 触发 ReAct 执行引擎：LLM 在每轮内逐步推理并调用 MCP 工具
+4. 运行中可查看每步 LLM 推理链与工具执行结果；高风险操作会暂停请求审批
+5. 轮次完成后 LLM 审阅决定是否继续下一轮，直至目标完成或达到最大轮数
+6. 项目完成后自动生成最终结论报告
 
 ## 仓库结构
 
@@ -182,13 +187,13 @@ LLM_REVIEWER_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
 ## 核心能力
 
 ### AI Agent 能力
+- **ReAct 迭代执行引擎** — LLM 通过 OpenAI Function Calling 逐步选取工具，实时响应结果，动态调整行动（替代批量规划）
 - 30+ 可调配置参数（参考 Claude Code / Codex / Aider 设计）
 - 平台环境感知（OS / Shell / 可用工具）自动注入 LLM 决策上下文
 - LLM 语义化工具输出分析（analyzer 自动提取 assets/evidence/findings）
 - 失败智能分析（9 类错误分类 + 重试建议 + 替代工具推荐）
-- 低 / 中风险工具批量并行执行，高风险串行审批
-- 轮间确定性自我反思（无额外 LLM 调用）
-- Token 预算上下文压缩
+- 高风险工具请求人工审批（`request_approval` 控制函数）
+- 滑动窗口上下文压缩（TOKEN_BUDGET=80k，RECENT_WINDOW=5 步保留全量）
 
 ### 项目生命周期
 - 状态机: `idle -> running -> paused -> stopped`
@@ -254,6 +259,7 @@ LLM_REVIEWER_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
 | 22b | LLM Writeback — 语义分析替代工具特定解析器 | 已完成 |
 | 23 | 深度架构演进 (死代码清理 / 连接器工厂 / lib 领域化重组) | 已完成 |
 | 23b | TCP 通用化 + llmCode 持久化 + 多轮上下文增强 | 已完成 |
+| ReAct | ReAct 迭代执行引擎 (批量规划→迭代推理 / Function Calling / 滑动窗口压缩) | 已完成 |
 
 ## 接手指南
 
