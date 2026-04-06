@@ -30,19 +30,21 @@ function normalizeTitle(title: string): string {
   let t = title.toLowerCase()
 
   // Map common Chinese terms to English equivalents for cross-language dedup
+  // IMPORTANT: Do NOT use /g flag here — .test() on a /g regex retains lastIndex
+  // across calls, causing intermittent match failures on subsequent normalizeTitle() invocations.
   const zhEnMap: [RegExp, string][] = [
-    [/cookie\s*安全属性缺失|cookie\s*security\s*attributes?\s*missing/gi, "cookie-no-secure-flag"],
-    [/服务器?版本[信息]?暴露|server\s*version\s*(info(rmation)?\s*)?disclos(ure|ed)|server\s*header\s*leak/gi, "server-version-disclosure"],
-    [/目录(浏览|列举|遍历)|directory\s*(listing|browsing|traversal)/gi, "directory-listing"],
-    [/信息泄[露漏]|information\s*(disclos(ure|ed)|leak(age)?)/gi, "info-disclosure"],
-    [/缺少.*安全头|missing\s*security\s*headers?|安全头[缺未].*配置/gi, "missing-security-headers"],
-    [/x-frame-options\s*(缺失|missing|未设置)/gi, "missing-x-frame-options"],
-    [/x-content-type-options\s*(缺失|missing|未设置)/gi, "missing-x-content-type-options"],
-    [/弱口令|weak\s*password|弱密码|default\s*(credential|password)/gi, "weak-password"],
-    [/未授权访问|unauth(orized|enticated)\s*access/gi, "unauthorized-access"],
-    [/sql\s*注入|sql\s*injection/gi, "sql-injection"],
-    [/跨站脚本|xss|cross[- ]site\s*scripting/gi, "xss"],
-    [/http\s*only.*cookie|cookie.*http\s*only/gi, "cookie-no-httponly"],
+    [/cookie\s*安全属性缺失|cookie\s*security\s*attributes?\s*missing/i, "cookie-no-secure-flag"],
+    [/服务器?版本[信息]?暴露|server\s*version\s*(info(rmation)?\s*)?disclos(ure|ed)|server\s*header\s*leak/i, "server-version-disclosure"],
+    [/目录(浏览|列举|遍历)|directory\s*(listing|browsing|traversal)/i, "directory-listing"],
+    [/信息泄[露漏]|information\s*(disclos(ure|ed)|leak(age)?)/i, "info-disclosure"],
+    [/缺少.*安全头|missing\s*security\s*headers?|安全头[缺未].*配置/i, "missing-security-headers"],
+    [/x-frame-options\s*(缺失|missing|未设置)/i, "missing-x-frame-options"],
+    [/x-content-type-options\s*(缺失|missing|未设置)/i, "missing-x-content-type-options"],
+    [/弱口令|weak\s*password|弱密码|default\s*(credential|password)/i, "weak-password"],
+    [/未授权访问|unauth(orized|enticated)\s*access/i, "unauthorized-access"],
+    [/sql\s*注入|sql\s*injection/i, "sql-injection"],
+    [/跨站脚本|xss|cross[- ]site\s*scripting/i, "xss"],
+    [/http\s*only.*cookie|cookie.*http\s*only/i, "cookie-no-httponly"],
   ]
 
   for (const [re, replacement] of zhEnMap) {

@@ -81,7 +81,7 @@ export async function startProject(projectId: string) {
     projectId,
     timestamp: new Date().toISOString(),
     data: { lifecycle: nextLifecycle },
-  })
+  }).catch(() => {})
 
   await auditRepo.create({
     projectId,
@@ -99,21 +99,29 @@ export async function stopProject(projectId: string) {
 
   await projectRepo.updateLifecycle(projectId, stoppingState)
 
-  // Abort all in-flight LLM calls for this project
-  abortAllForProject(projectId)
+  // Best-effort cleanup — failures must not prevent transition to "stopped"
+  try {
+    // Abort all in-flight LLM calls for this project
+    abortAllForProject(projectId)
 
-  // Cancel all pending/scheduled MCP runs for this project
-  const { cancelPendingByProject } = await import("@/lib/repositories/mcp-run-repo")
-  await cancelPendingByProject(projectId)
+    // Cancel all pending/scheduled MCP runs for this project
+    const { cancelPendingByProject } = await import("@/lib/repositories/mcp-run-repo")
+    await cancelPendingByProject(projectId)
 
-  // Cancel all pending pg-boss jobs for this project (prevents task pollution)
-  const queue = createPgBossJobQueue()
-  const cancelledJobs = await queue.cancelByProject(projectId)
-  if (cancelledJobs > 0) {
-    console.info(`[stop] cancelled ${cancelledJobs} pg-boss jobs for project ${projectId}`)
+    // Cancel pending approvals so they don't linger in the UI
+    const { cancelPendingByProject: cancelApprovals } = await import("@/lib/repositories/approval-repo")
+    await cancelApprovals(projectId)
+
+    // Cancel all pending pg-boss jobs for this project (prevents task pollution)
+    const cancelledJobs = await createPgBossJobQueue().cancelByProject(projectId)
+    if (cancelledJobs > 0) {
+      console.info(`[stop] cancelled ${cancelledJobs} pg-boss jobs for project ${projectId}`)
+    }
+  } catch (err) {
+    console.error(`[stop] cleanup error for project ${projectId}, proceeding to stopped:`, err instanceof Error ? err.message : err)
   }
 
-  // Now transition to fully stopped
+  // Now transition to fully stopped — this MUST succeed
   const stoppedState = transition(stoppingState, "STOPPED")
   await projectRepo.updateLifecycle(projectId, stoppedState)
 
@@ -122,7 +130,7 @@ export async function stopProject(projectId: string) {
     projectId,
     timestamp: new Date().toISOString(),
     data: { lifecycle: stoppedState },
-  })
+  }).catch(() => {})
 
   await auditRepo.create({
     projectId,
@@ -132,12 +140,21 @@ export async function stopProject(projectId: string) {
   })
 
   // Generate settlement report in background (best-effort)
-  await queue.publish("settle_closure", { projectId }).catch(() => {})
+  await createPgBossJobQueue().publish("settle_closure", { projectId }).catch(() => {})
 
   return { lifecycle: stoppedState }
 }
 
 export async function deleteProject(projectId: string) {
-  await getProject(projectId) // throws if not found
+  const project = await getProject(projectId) // throws if not found
+
+  await auditRepo.create({
+    projectId,
+    category: "project",
+    action: "deleted",
+    actor: "user",
+    detail: `Deleted project "${project.name}"`,
+  })
+
   await projectRepo.deleteById(projectId)
 }

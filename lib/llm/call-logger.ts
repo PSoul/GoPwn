@@ -45,7 +45,7 @@ export function createLoggedProvider(provider: LlmProvider, ctx: LogContext): Ll
           loggedResponse = (response.content || "") + fcSummary
         }
 
-        await llmLogRepo.complete(log.id, loggedResponse.slice(0, 100_000), response.durationMs)
+        await llmLogRepo.complete(log.id, loggedResponse.slice(0, 100_000), response.durationMs, response.model)
 
         await publishEvent({
           type: "llm_call_completed",

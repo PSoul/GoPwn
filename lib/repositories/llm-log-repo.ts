@@ -20,10 +20,10 @@ export async function create(data: {
   })
 }
 
-export async function complete(id: string, response: string, durationMs: number) {
+export async function complete(id: string, response: string, durationMs: number, model?: string) {
   return prisma.llmCallLog.update({
     where: { id },
-    data: { response, durationMs, status: "completed" },
+    data: { response, durationMs, status: "completed", ...(model ? { model } : {}) },
   })
 }
 

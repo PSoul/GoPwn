@@ -12,11 +12,12 @@ export async function listByProject(projectId: string) {
 export async function decide(approvalId: string, decision: ApprovalStatus, note?: string) {
   const approval = await approvalRepo.findById(approvalId)
   if (!approval) throw new NotFoundError("Approval", approvalId)
-  if (approval.status !== "pending") {
+
+  // Atomic update — only succeeds if approval is still pending (prevents TOCTOU race)
+  const updated = await approvalRepo.decide(approvalId, decision, note)
+  if (updated === 0) {
     throw new DomainError(`Approval already resolved: ${approval.status}`, "ALREADY_RESOLVED", 409)
   }
-
-  await approvalRepo.decide(approvalId, decision, note)
 
   if (decision === "approved" && approval.mcpRunId) {
     // TODO(react): ReAct 模式下审批逻辑待重新设计。
@@ -44,7 +45,7 @@ export async function decide(approvalId: string, decision: ApprovalStatus, note?
     projectId: approval.projectId,
     timestamp: new Date().toISOString(),
     data: { approvalId, decision, mcpRunId: approval.mcpRunId },
-  })
+  }).catch(() => {})
 
   await auditRepo.create({
     projectId: approval.projectId,

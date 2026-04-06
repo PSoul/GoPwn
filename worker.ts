@@ -11,7 +11,7 @@ import * as mcpRunRepo from "@/lib/repositories/mcp-run-repo"
 import { createPipelineLogger } from "@/lib/infra/pipeline-logger"
 
 async function recoverStaleProjects(queue: JobQueue) {
-  const staleStates = ["planning", "executing", "reviewing", "settling"] as const
+  const staleStates = ["planning", "executing", "reviewing", "settling", "stopping"] as const
   const staleProjects = await projectRepo.findByLifecycles(staleStates)
 
   if (staleProjects.length === 0) return
@@ -70,6 +70,12 @@ async function recoverStaleProjects(queue: JobQueue) {
       case "settling":
         log.warn("stale_recovery", `恢复卡死项目: settling → 重新触发结算`)
         await queue.publish("settle_closure", { projectId: project.id })
+        break
+
+      case "stopping":
+        // stopProject crashed mid-way — force transition to stopped
+        log.warn("stale_recovery", `恢复卡死项目: stopping → 强制转为 stopped`)
+        await projectRepo.updateLifecycle(project.id, "stopped")
         break
     }
   }

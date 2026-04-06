@@ -19,6 +19,18 @@ import {
   type VerifierContext,
 } from "@/lib/llm"
 
+const POC_TIMEOUT_MS = 120_000 // 2 min per PoC execution
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`PoC execution timeout after ${ms}ms: ${label}`)), ms)
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v) },
+      (e) => { clearTimeout(timer); reject(e) },
+    )
+  })
+}
+
 export async function handleVerifyFinding(data: { projectId: string; findingId: string }) {
   const { projectId, findingId } = data
   const log = createPipelineLogger(projectId, "verify_finding")
@@ -30,8 +42,8 @@ export async function handleVerifyFinding(data: { projectId: string; findingId: 
     return
   }
 
-  // Only verify suspected findings
-  if (finding.status !== "suspected") {
+  // Only verify suspected or interrupted-verifying findings
+  if (finding.status !== "suspected" && finding.status !== "verifying") {
     log.info("skipped", `Finding ${findingId} 状态为 ${finding.status}，跳过验证`)
     return
   }
@@ -108,12 +120,16 @@ export async function handleVerifyFinding(data: { projectId: string; findingId: 
     const pocTimer = log.startTimer()
     log.info("mcp_call", `执行 PoC: ${codeToolName}(${finding.affectedTarget})`)
 
-    // Execute the PoC via MCP
-    const result = await callTool(codeToolName, {
-      code: pocSpec.code,
-      language: pocSpec.language,
-      target: finding.affectedTarget,
-    })
+    // Execute the PoC via MCP (with timeout to prevent indefinite hangs)
+    const result = await withTimeout(
+      callTool(codeToolName, {
+        code: pocSpec.code,
+        language: pocSpec.language,
+        target: finding.affectedTarget,
+      }),
+      POC_TIMEOUT_MS,
+      `${codeToolName}(${finding.affectedTarget})`,
+    )
 
     await mcpRunRepo.updateStatus(mcpRun.id, result.isError ? "failed" : "succeeded", {
       rawOutput: result.content,

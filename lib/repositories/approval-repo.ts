@@ -44,13 +44,25 @@ export async function create(data: {
   })
 }
 
+/**
+ * Atomically decide an approval — only updates if still pending.
+ * Returns the number of rows updated (0 = already decided, 1 = success).
+ */
 export async function decide(id: string, status: ApprovalStatus, note?: string) {
-  return prisma.approval.update({
-    where: { id },
+  const result = await prisma.approval.updateMany({
+    where: { id, status: "pending" },
     data: {
       status,
       decidedAt: new Date(),
       decisionNote: note ?? "",
     },
+  })
+  return result.count
+}
+
+export async function cancelPendingByProject(projectId: string) {
+  return prisma.approval.updateMany({
+    where: { projectId, status: "pending" },
+    data: { status: "rejected", decidedAt: new Date(), decisionNote: "Auto-cancelled: project stopped" },
   })
 }
