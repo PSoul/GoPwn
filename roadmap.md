@@ -2,9 +2,43 @@
 
 ## Project Snapshot
 
-- Date: `2026-04-06`
-- Current focus: 深度代码审计已完成 — 修复 5 个 CRITICAL 级 BUG、5 个 HIGH 级问题、4 个 MEDIUM 级改进，清理 XBOW 残留。下一步: TCP 服务识别增强、MCP 工具参数校验修复。
+- Date: `2026-04-07`
+- Current focus: E2E 全流程测试已完成 — 31 个 Playwright E2E 测试全部通过（含真实渗透测试 8.2 分钟），219 个单元/集成测试全部通过。下一步: TCP 服务识别增强、MCP 工具参数校验修复、fscan/httpx 二进制集成。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
+
+## feat/e2e-frontend-tests: 完整 E2E 测试套件 (Comprehensive E2E Test Suite)
+
+- Status: Completed on `2026-04-07`
+- Branch: `feat/e2e-frontend-tests`
+- Goal: 建立覆盖全流程的 E2E 测试，包括前端页面渲染、API 功能验证、以及对 Docker 靶场的真实渗透测试。
+
+### 交付清单
+
+1. **E2E 帮助函数** — `e2e/helpers.ts` 提供 `loginAsResearcher()` / `createProject()` 复用登录和项目创建逻辑
+2. **前端冒烟测试** — `e2e/prototype-smoke.spec.ts` 8 个测试覆盖登录页、仪表盘、资产中心、项目 CRUD、设置页、MCP 调度
+3. **漏洞中心测试** — `e2e/vuln-cockpit.spec.ts` 6 个测试覆盖侧边导航、统计卡片、项目列表、AI 聊天组件
+4. **API 与项目测试** — `e2e/full-pipeline.spec.ts` 10 个测试（4 API + 6 浏览器）覆盖健康检查、认证、项目页面
+5. **设置页测试** — `e2e/settings.spec.ts` 6 个测试覆盖设置中心、LLM 设置、MCP 工具、审批策略、审计日志、系统状态
+6. **真实渗透测试** — `e2e/real-pipeline.spec.ts` 对 Docker 靶场执行完整 ReAct 管线测试（8.2 分钟）
+7. **数据库 Seed 脚本修复** — 正确配置 LLM profile IDs（planner/analyzer/reviewer），从环境变量读取凭据
+
+### 真实渗透测试结果
+
+| 指标 | 数值 |
+|------|------|
+| MCP 工具调用 | 118 次 |
+| 发现资产 | 130 个 |
+| 发现漏洞 | 78 个 |
+| 证据记录 | 78 条 |
+| 主要发现 | DVWA 默认凭据、Elasticsearch 未授权访问与明文凭据泄露、开放代理 |
+
+### 验收标准
+
+- [x] 30 个前端 E2E 测试通过
+- [x] 1 个真实渗透测试通过（8.2 分钟，无作弊）
+- [x] 219 个单元/集成测试通过（无回归）
+
+---
 
 ## fix/deep-code-audit: 深度代码审计与修复 (Deep Code Audit & Fixes)
 

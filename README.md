@@ -21,7 +21,7 @@ MCP Tools (四肢)    真实探测、证据采集、结构化结果回传
 ## 核心特性
 
 - **ReAct 自主编排** — LLM 动态选择工具和策略，不是固定流水线
-- **36+ MCP 安全工具** — 14 个 MCP Server 覆盖 DNS、Web、端口、漏洞验证、截图取证
+- **38 MCP 安全工具** — 13 个 MCP Server 覆盖 DNS、Web、端口、漏洞验证、截图取证
 - **多轮迭代执行** — LLM 审阅后自动推进下一轮，直到充分覆盖攻击面
 - **实时可视化** — SSE 流式推送，实时展示 LLM 推理链和工具执行结果
 - **审批与审计** — 高风险操作自动暂停等待审批，完整审计记录
@@ -81,7 +81,7 @@ LLM_REVIEWER_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
 | 后端 | Next.js API Routes, TypeScript |
 | 数据库 | PostgreSQL 16 + Prisma 7.x |
 | MCP | `@modelcontextprotocol/sdk`, stdio |
-| 测试 | Vitest (200+ 单元) + Playwright (14 E2E) |
+| 测试 | Vitest (219 单元/集成) + Playwright (31 E2E) |
 | 容器 | Docker Compose |
 
 ## MCP 工具体系
@@ -117,7 +117,7 @@ cd docker/local-labs && docker compose up -d
 | MySQL | 13307 | TCP |
 | MongoDB | 27017 | TCP |
 | Tomcat | 8888 | HTTP |
-| Elasticsearch | 9201 | HTTP |
+| Elasticsearch | 9200 | HTTP |
 | WordPress | 8082 | HTTP |
 
 ## 项目结构
@@ -135,7 +135,7 @@ lib/                    核心业务逻辑
   hooks/                React Hooks（SSE / ReAct 步骤）
   infra/                基础设施（Prisma / 事件总线 / 作业队列）
   types/                TypeScript 类型定义
-mcps/                   14 个本地 MCP Server (36+ 工具)
+mcps/                   13 个本地 MCP Server (38 工具)
 docker/
   local-labs/           13 个 Docker 靶场
   postgres/             PostgreSQL 开发容器

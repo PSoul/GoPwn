@@ -21,7 +21,7 @@ The platform uses a **ReAct (Reason + Act) execution engine**: within each round
 ## Features
 
 - **ReAct Autonomous Orchestration** — LLM dynamically selects tools and strategies, not a fixed pipeline
-- **36+ MCP Security Tools** — 14 MCP Servers covering DNS, Web, ports, vulnerability validation, screenshot evidence
+- **38 MCP Security Tools** — 13 MCP Servers covering DNS, Web, ports, vulnerability validation, screenshot evidence
 - **Multi-Round Iterative Execution** — LLM reviews and automatically advances to next round until attack surface is covered
 - **Real-Time Visualization** — SSE streaming, real-time display of LLM reasoning chains and tool execution results
 - **Approval & Auditing** — High-risk operations auto-pause for approval, complete audit trail
@@ -81,12 +81,12 @@ LLM_REVIEWER_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
 | Backend | Next.js API Routes, TypeScript |
 | Database | PostgreSQL 16 + Prisma 7.x |
 | MCP | `@modelcontextprotocol/sdk`, stdio |
-| Testing | Vitest (200+ unit) + Playwright (14 E2E) |
+| Testing | Vitest (219 unit/integration) + Playwright (31 E2E) |
 | Containers | Docker Compose |
 
 ## MCP Tools
 
-14 MCP Servers covering:
+13 MCP Servers covering:
 
 | Capability | Servers | Tools |
 |-----------|---------|-------|
@@ -117,7 +117,7 @@ cd docker/local-labs && docker compose up -d
 | MySQL | 13307 | TCP |
 | MongoDB | 27017 | TCP |
 | Tomcat | 8888 | HTTP |
-| Elasticsearch | 9201 | HTTP |
+| Elasticsearch | 9200 | HTTP |
 | WordPress | 8082 | HTTP |
 
 ## Project Structure
@@ -135,7 +135,7 @@ lib/                    Core Business Logic
   hooks/                React Hooks (SSE / ReAct Steps)
   infra/                Infrastructure (Prisma / Event Bus / Job Queue)
   types/                TypeScript Types
-mcps/                   14 Local MCP Servers (36+ tools)
+mcps/                   13 Local MCP Servers (38 tools)
 docker/
   local-labs/           13 Docker Lab Environments
   postgres/             PostgreSQL Dev Container
