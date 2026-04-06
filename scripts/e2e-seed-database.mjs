@@ -24,21 +24,22 @@ async function main() {
 
   try {
     console.log("[E2E Seed] Truncating all tables...")
-    await client.query(`
-      TRUNCATE TABLE llm_call_logs, audit_logs, work_logs, orchestrator_rounds,
-        orchestrator_plans, findings, evidence, assets, approvals, mcp_runs,
-        scheduler_tasks, project_conclusions, project_scheduler_controls,
-        project_form_presets, project_details, projects, mcp_tool_contracts,
-        mcp_server_contracts, mcp_tools, llm_profiles, global_approval_control,
-        approval_policies, scope_rules, users CASCADE
+    // Dynamically get all user tables to avoid hardcoded table name mismatch
+    const tableResult = await client.query(`
+      SELECT tablename FROM pg_tables
+      WHERE schemaname = 'public' AND tablename NOT LIKE '_prisma%'
     `)
+    const tables = tableResult.rows.map(r => `"${r.tablename}"`).join(", ")
+    if (tables) {
+      await client.query(`TRUNCATE TABLE ${tables} CASCADE`)
+    }
 
     console.log("[E2E Seed] Seeding researcher user...")
     const passwordHash = bcrypt.hashSync("Prototype@2026", 10)
     const now = new Date()
     await client.query(`
-      INSERT INTO users (id, account, password, "displayName", role, status, "createdAt", "updatedAt")
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO users (id, account, password, "displayName", role, "createdAt", "updatedAt")
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       ON CONFLICT (id) DO NOTHING
     `, [
       "user-seed-researcher",
@@ -46,24 +47,27 @@ async function main() {
       passwordHash,
       "研究员席位 A",
       "researcher",
-      "active",
       now,
       now,
     ])
 
     console.log("[E2E Seed] Seeding default LLM profiles...")
+    // Worker expects profile IDs: planner (also used by react), analyzer, reviewer
+    const apiKey = process.env.LLM_API_KEY || ""
+    const baseUrl = process.env.LLM_BASE_URL || ""
+    const model = process.env.LLM_ORCHESTRATOR_MODEL || "gpt-4o"
     const profiles = [
-      { id: "llm-orchestrator", provider: "openai-compatible", label: "编排模型", model: "gpt-4o", enabled: false },
-      { id: "llm-reviewer", provider: "openai-compatible", label: "审阅模型", model: "gpt-4o-mini", enabled: false },
-      { id: "llm-extractor", provider: "openai-compatible", label: "提取模型", model: "gpt-4o-mini", enabled: false },
+      { id: "planner", provider: "openai-compatible", model },
+      { id: "analyzer", provider: "openai-compatible", model },
+      { id: "reviewer", provider: "openai-compatible", model },
     ]
 
     for (const p of profiles) {
       await client.query(`
-        INSERT INTO llm_profiles (id, provider, label, "apiKey", "baseUrl", model, "timeoutMs", temperature, enabled)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        INSERT INTO llm_profiles (id, provider, "apiKey", "baseUrl", model, "timeoutMs", temperature)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT (id) DO NOTHING
-      `, [p.id, p.provider, p.label, "", "", p.model, 30000, 0.2, p.enabled])
+      `, [p.id, p.provider, apiKey, baseUrl, p.model, 120000, 0.2])
     }
 
     console.log("[E2E Seed] Database ready for E2E tests.")

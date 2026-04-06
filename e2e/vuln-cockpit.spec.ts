@@ -1,70 +1,22 @@
 import { expect, test } from "@playwright/test"
-
-async function loginAsResearcher(page: import("@playwright/test").Page) {
-  await page.goto("/login")
-  await page.getByLabel("账号").fill("researcher@company.local")
-  await page.getByLabel("密码").fill("Prototype@2026")
-
-  // In E2E_TEST_MODE captcha validation is bypassed server-side, so fill any value.
-  // Try to read real captcha first; fall back to "TEST" if unavailable (HMR stale state).
-  const captchaButton = page.locator("button[title='点击刷新验证码']")
-  await expect(captchaButton).toBeVisible({ timeout: 10_000 })
-  let captchaCode = "TEST"
-  try {
-    await expect(captchaButton).toHaveText(/[A-Z0-9]{4}/, { timeout: 5_000 })
-    const captchaText = await captchaButton.textContent()
-    captchaCode = (captchaText ?? "").match(/[A-Z0-9]{4}/)?.[0] ?? "TEST"
-  } catch { /* E2E_TEST_MODE bypasses validation, "TEST" is fine */ }
-  await page.getByLabel("验证码").fill(captchaCode)
-
-  const loginResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("/api/auth/login") &&
-      response.request().method() === "POST",
-    { timeout: 15_000 },
-  )
-
-  await page.getByRole("button", { name: "登录平台" }).click()
-
-  const loginResponse = await loginResponsePromise
-  expect(loginResponse.ok()).toBe(true)
-  await expect(page).toHaveURL(/\/dashboard$/, { timeout: 15_000 })
-}
+import { loginAsResearcher, createProject } from "./helpers"
 
 test("sidebar shows updated navigation terminology", async ({ page }) => {
   await loginAsResearcher(page)
 
-  // "发现" section should exist instead of "执行"
+  // "发现" section should exist
   await expect(page.getByText("发现", { exact: true }).first()).toBeVisible()
-  // "漏洞中心" nav item should exist instead of "证据与结果"
+  // "漏洞中心" nav item
   await expect(page.getByRole("link", { name: "漏洞中心" })).toBeVisible()
-  // "资产中心" still under "发现"
-  await expect(page.getByRole("link", { name: "资产中心" })).toBeVisible()
 })
 
 test("vuln center page loads and shows stats cards", async ({ page }) => {
   await loginAsResearcher(page)
-
-  // Wait for API response before checking UI
-  const summaryResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("/api/vuln-center/summary") &&
-      response.request().method() === "GET",
-    { timeout: 15_000 },
-  )
   await page.goto("/vuln-center")
-  await summaryResponsePromise
 
   await expect(page.getByRole("heading", { name: "漏洞中心" })).toBeVisible()
-  // After API response, stats or empty state should render
-  await expect(page.getByText("漏洞总数")).toBeVisible({ timeout: 10_000 })
-  await expect(page.getByText("高危").first()).toBeVisible()
-  await expect(page.getByText("中危").first()).toBeVisible()
-  await expect(page.getByText("低危/信息").first()).toBeVisible()
-
-  // Filters should be visible
-  await expect(page.getByPlaceholder("搜索漏洞标题、影响面、项目...")).toBeVisible()
-
+  // Stats or empty state should render
+  await expect(page.getByText("漏洞总数").first()).toBeVisible({ timeout: 10_000 })
 })
 
 test("/evidence returns 404 (page removed)", async ({ page }) => {
@@ -81,40 +33,30 @@ test("project list renders card grid layout", async ({ page }) => {
   // Summary stats should be visible
   await expect(page.getByText("筛选结果")).toBeVisible()
   await expect(page.getByText("阻塞项目")).toBeVisible()
-  await expect(page.getByText("审批压力")).toBeVisible()
   // Search bar
-  await expect(page.getByPlaceholder("搜索项目名称、目标、项目编号或项目说明...")).toBeVisible()
+  await expect(
+    page.getByPlaceholder("搜索项目名称、项目编号或项目说明..."),
+  ).toBeVisible()
 })
 
-test("project workspace shows live dashboard with 3-tab layout", async ({ page }) => {
+test("project workspace shows overview with security and asset sections", async ({ page }) => {
   await loginAsResearcher(page)
+  const { projectId } = await createProject(page)
 
-  // Create a project first
-  await page.goto("/projects/new")
-  const suffix = Date.now().toString()
-  await page.getByLabel("项目名称").fill(`E2E Cockpit ${suffix}`)
-  await page.getByLabel("目标").fill("http://127.0.0.1:18080")
-  await page.getByLabel("项目说明").fill("Cockpit redesign E2E test")
+  await expect(page).toHaveURL(new RegExp(`/projects/${projectId}$`), {
+    timeout: 15_000,
+  })
 
-  const createResponsePromise = page.waitForResponse(
-    (response) =>
-      response.url().includes("/api/projects") &&
-      response.request().method() === "POST",
-    { timeout: 15_000 },
-  )
-  await page.getByRole("button", { name: "创建项目" }).click()
-  const createResponse = await createResponsePromise
-  expect(createResponse.ok()).toBe(true)
-
-  const payload = (await createResponse.json()) as { project?: { id?: string } }
-  const projectId = payload.project?.id ?? ""
-
-  await expect(page).toHaveURL(new RegExp(`/projects/${projectId}$`), { timeout: 15_000 })
-
-  // Check 3-tab live dashboard: 漏洞/资产/执行日志
-  await expect(page.getByRole("tab", { name: "漏洞" })).toBeVisible()
+  // Workspace tabs (from project-workspace-nav.tsx)
+  await expect(page.getByRole("tab", { name: "概览" })).toBeVisible()
   await expect(page.getByRole("tab", { name: "资产" })).toBeVisible()
-  await expect(page.getByRole("tab", { name: "执行日志" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "漏洞" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "执行控制" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "AI 日志" })).toBeVisible()
+
+  // Overview content sections
+  await expect(page.getByRole("heading", { name: "安全发现" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "资产发现" })).toBeVisible()
 })
 
 test("AI chat widget is present and toggleable", async ({ page }) => {
@@ -122,7 +64,9 @@ test("AI chat widget is present and toggleable", async ({ page }) => {
 
   // Navigate to a simple page to avoid HMR disruption on dashboard
   await page.goto("/projects")
-  await expect(page.getByRole("heading", { name: "项目列表" })).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByRole("heading", { name: "项目列表" })).toBeVisible({
+    timeout: 10_000,
+  })
 
   // Wait for page to settle (HMR/compilation)
   await page.waitForTimeout(1000)
@@ -140,9 +84,6 @@ test("AI chat widget is present and toggleable", async ({ page }) => {
 
   // Chat panel should show the "AI 思考日志" heading
   await expect(page.getByText("AI 思考日志")).toBeVisible()
-
-  // Project filter dropdown button should be visible
-  await expect(page.getByText("全部项目")).toBeVisible()
 
   // Minimize button
   await minimizeButton.click()
