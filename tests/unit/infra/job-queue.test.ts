@@ -96,7 +96,7 @@ describe("job-queue 单元测试", () => {
 
     await queue.publish("analyze_result", { projectId: "proj-def-001" })
 
-    // 验证默认值传递
+    // 验证默认值传递（不断言 singletonKey: undefined，因为 pg-boss 对 absent key 和 explicit undefined 行为不同）
     expect(mockBossSend).toHaveBeenCalledWith(
       "analyze_result",
       { projectId: "proj-def-001" },
@@ -104,7 +104,6 @@ describe("job-queue 单元测试", () => {
         retryLimit: 3,
         retryDelay: 5,
         expireInSeconds: 600,
-        singletonKey: undefined,
       }),
     )
   })

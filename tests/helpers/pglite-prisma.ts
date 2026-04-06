@@ -22,6 +22,9 @@ export async function createTestDb() {
   const server = new PGLiteSocketServer({ db: pglite, port: 0 })
   await server.start()
   const port = (server as unknown as { port: number }).port
+  if (typeof port !== "number" || port === 0) {
+    throw new Error("Failed to get PGLiteSocketServer port")
+  }
 
   // 3. Apply schema DDL
   const ddl = fs.readFileSync(

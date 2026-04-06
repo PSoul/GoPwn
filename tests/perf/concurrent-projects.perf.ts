@@ -26,10 +26,13 @@ vi.mock("@/lib/repositories/finding-repo", () => ({
   findByProject: vi.fn().mockResolvedValue([]),
   create: vi.fn().mockResolvedValue({ id: "finding-conc-001" }),
 }))
-vi.mock("@/lib/repositories/mcp-run-repo", () => ({
-  create: vi.fn().mockResolvedValue({ id: "run-conc-001" }),
-  updateStatus: vi.fn().mockResolvedValue({}),
-}))
+vi.mock("@/lib/repositories/mcp-run-repo", () => {
+  let runCounter = 0
+  return {
+    create: vi.fn().mockImplementation(async () => ({ id: `run-conc-${++runCounter}` })),
+    updateStatus: vi.fn().mockResolvedValue({}),
+  }
+})
 vi.mock("@/lib/repositories/mcp-tool-repo", () => ({
   findEnabled: vi.fn().mockResolvedValue([
     { id: "tool-001", toolName: "fscan_port_scan", description: "端口扫描", capability: "port_scanning", riskLevel: "low", inputSchema: { properties: { target: { type: "string" } } } },

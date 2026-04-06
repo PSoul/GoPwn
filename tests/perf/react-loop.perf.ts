@@ -137,10 +137,10 @@ function setupMocks() {
     mockProject({ lifecycle: "idle" }) as never,
   )
 
-  // 每次测试创建新的 delayed provider
-  const responses = buildLlmResponses(LLM_DELAY_MS)
-  const provider = createDelayedLlmProvider({ delayMs: LLM_DELAY_MS, responses })
-  vi.mocked(getLlmProvider).mockResolvedValue(provider)
+  // 每次 getLlmProvider 调用返回独立的 provider 实例（避免状态共享）
+  vi.mocked(getLlmProvider).mockImplementation(async () => {
+    return createDelayedLlmProvider({ delayMs: LLM_DELAY_MS, responses: buildLlmResponses(LLM_DELAY_MS) })
+  })
 
   // MCP 工具 mock 使用延迟
   const mcpTool = createDelayedMcpTool({ delayMs: MCP_DELAY_MS, output: "PORT 80 open\nPORT 443 open" })
