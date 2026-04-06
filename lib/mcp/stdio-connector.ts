@@ -49,6 +49,7 @@ export function createStdioConnector(config: StdioConfig): McpConnector {
         p.reject(new Error(`MCP server process error: ${err.message}`))
       }
       pending.clear()
+      buffer = "" // Reset buffer on error to prevent corruption on next spawn
       proc = null
     })
 
@@ -58,6 +59,7 @@ export function createStdioConnector(config: StdioConfig): McpConnector {
         p.reject(new Error("MCP server process exited"))
       }
       pending.clear()
+      buffer = "" // Reset buffer to prevent stale data from corrupting next process
       proc = null
     })
 

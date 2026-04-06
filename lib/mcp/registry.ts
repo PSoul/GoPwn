@@ -14,13 +14,22 @@ const connectorCache = new Map<string, McpConnector>()
  * Get or create a connector for a given server.
  */
 async function getConnector(serverName: string): Promise<McpConnector | null> {
+  // Always check server enabled status (not just on cache miss)
+  const servers = await mcpToolRepo.findAllServers()
+  const server = servers.find((s) => s.serverName === serverName && s.enabled)
+  if (!server) {
+    // Server disabled or removed — evict from cache and close connector
+    if (connectorCache.has(serverName)) {
+      const old = connectorCache.get(serverName)!
+      connectorCache.delete(serverName)
+      await old.close().catch(() => {})
+    }
+    return null
+  }
+
   if (connectorCache.has(serverName)) {
     return connectorCache.get(serverName)!
   }
-
-  const servers = await mcpToolRepo.findAllServers()
-  const server = servers.find((s) => s.serverName === serverName && s.enabled)
-  if (!server) return null
 
   let connector: McpConnector
 
