@@ -4,15 +4,17 @@ import { promisify } from "node:util"
 const DEFAULT_TIMEOUT_MS = 10_000
 const DEFAULT_DOCKER_TIMEOUT_SECONDS = 10
 const BODY_PREVIEW_LIMIT = 700
-const SELECTED_HEADER_NAMES = new Set([
-  "cache-control",
-  "content-type",
-  "location",
-  "server",
-  "set-cookie",
-  "www-authenticate",
-  "x-frame-options",
-  "x-powered-by",
+// Blacklist: exclude noise headers that add no security value
+const IGNORED_HEADER_NAMES = new Set([
+  "accept-ranges",
+  "age",
+  "connection",
+  "content-length",
+  "date",
+  "etag",
+  "keep-alive",
+  "transfer-encoding",
+  "vary",
 ])
 
 function previewBody(text) {
@@ -29,7 +31,7 @@ function buildSelectedHeadersFromEntries(entries) {
   return entries
     .filter(([key]) => {
       const normalizedKey = key.toLowerCase()
-      return SELECTED_HEADER_NAMES.has(normalizedKey) || normalizedKey.startsWith("x-")
+      return !IGNORED_HEADER_NAMES.has(normalizedKey)
     })
     .map(([key, value]) => `${key}: ${value}`)
 }

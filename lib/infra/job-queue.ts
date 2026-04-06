@@ -1,4 +1,5 @@
 import { PgBoss } from "pg-boss"
+import { prisma } from "@/lib/infra/prisma"
 
 export type JobOptions = {
   retryLimit?: number
@@ -19,6 +20,7 @@ export interface JobQueue {
   stop(): Promise<void>
   publish(jobName: string, data: unknown, options?: JobOptions): Promise<string | null>
   subscribe<T = unknown>(jobName: string, handler: (data: T) => Promise<void>, options?: SubscribeOptions): Promise<void>
+  cancelByProject(projectId: string): Promise<number>
 }
 
 let bossInstance: PgBoss | null = null
@@ -81,6 +83,14 @@ export function createPgBossJobQueue(): JobQueue {
           }
         },
       )
+    },
+
+    async cancelByProject(projectId: string): Promise<number> {
+      const result = await prisma.$executeRawUnsafe(
+        `DELETE FROM pgboss.job WHERE state IN ('created', 'retry', 'active') AND data->>'projectId' = $1`,
+        projectId,
+      )
+      return result
     },
   }
 }

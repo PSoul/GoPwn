@@ -7,7 +7,7 @@ function createClient() {
   // pg.PoolConfig — limit connections to prevent pool exhaustion under high concurrency
   const adapter = new PrismaPg({
     connectionString: process.env.DATABASE_URL!,
-    max: 10,
+    max: 30,
     idleTimeoutMillis: 30_000,
   })
   return new PrismaClient({ adapter })

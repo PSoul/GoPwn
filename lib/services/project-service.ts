@@ -106,6 +106,13 @@ export async function stopProject(projectId: string) {
   const { cancelPendingByProject } = await import("@/lib/repositories/mcp-run-repo")
   await cancelPendingByProject(projectId)
 
+  // Cancel all pending pg-boss jobs for this project (prevents task pollution)
+  const queue = createPgBossJobQueue()
+  const cancelledJobs = await queue.cancelByProject(projectId)
+  if (cancelledJobs > 0) {
+    console.info(`[stop] cancelled ${cancelledJobs} pg-boss jobs for project ${projectId}`)
+  }
+
   // Now transition to fully stopped
   const stoppedState = transition(stoppingState, "STOPPED")
   await projectRepo.updateLifecycle(projectId, stoppedState)
@@ -125,7 +132,6 @@ export async function stopProject(projectId: string) {
   })
 
   // Generate settlement report in background (best-effort)
-  const queue = createPgBossJobQueue()
   await queue.publish("settle_closure", { projectId }).catch(() => {})
 
   return { lifecycle: stoppedState }

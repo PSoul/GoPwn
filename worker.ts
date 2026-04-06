@@ -104,22 +104,22 @@ async function main() {
   await queue.subscribe("react_round", async (data) => {
     const { handleReactRound } = await import("@/lib/workers/react-worker")
     await handleReactRound(data as { projectId: string; round: number })
-  })
+  }, { localConcurrency: 3 })
 
   await queue.subscribe("analyze_result", async (data) => {
     const { handleAnalyzeResult } = await import("@/lib/workers/analysis-worker")
     await handleAnalyzeResult(data as { projectId: string; mcpRunId: string; rawOutput: string; toolName: string; target: string })
-  })
+  }, { localConcurrency: 5 })
 
   await queue.subscribe("verify_finding", async (data) => {
     const { handleVerifyFinding } = await import("@/lib/workers/verification-worker")
     await handleVerifyFinding(data as { projectId: string; findingId: string })
-  })
+  }, { localConcurrency: 5 })
 
   await queue.subscribe("round_completed", async (data) => {
     const { handleRoundCompleted } = await import("@/lib/workers/lifecycle-worker")
     await handleRoundCompleted(data as { projectId: string; round: number })
-  })
+  }, { localConcurrency: 3 })
 
   await queue.subscribe("settle_closure", async (data) => {
     const { handleSettleClosure } = await import("@/lib/workers/lifecycle-worker")
