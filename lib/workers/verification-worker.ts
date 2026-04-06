@@ -85,6 +85,9 @@ export async function handleVerifyFinding(data: { projectId: string; findingId: 
     // Find a code execution tool — not hardcoded to "execute_code"
     const { findByCapability } = await import("@/lib/repositories/mcp-tool-repo")
     const codeTools = await findByCapability("code_execution")
+    if (codeTools.length === 0) {
+      log.warn("no_code_tool", "未找到 code_execution 类型的工具，使用 fallback 名称 execute_code")
+    }
     const codeToolName = codeTools[0]?.toolName ?? "execute_code"
 
     // Create MCP run for the PoC execution

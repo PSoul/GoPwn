@@ -151,7 +151,7 @@ export async function handleReactRound(data: {
       }
 
       const { name: fnName, arguments: fnArgsStr } = response.functionCall
-      const toolCallId = response.toolCallId ?? ""
+      const toolCallId = response.toolCallId || undefined
       const thought = response.content || ""
       lastThought = thought
 
@@ -161,7 +161,7 @@ export async function handleReactRound(data: {
       if (fnName === "done") {
         stopReason = "llm_done"
         let doneArgs: { summary?: string; phase_suggestion?: string } = {}
-        try { doneArgs = JSON.parse(fnArgsStr) } catch { /* ignore */ }
+        try { doneArgs = JSON.parse(fnArgsStr) } catch { log.warn("parse_args", `done 参数解析失败: ${fnArgsStr.slice(0, 200)}`) }
         log.info("llm_done", `LLM 主动停止: ${doneArgs.summary ?? ""}`)
 
         if (doneArgs.phase_suggestion) {
@@ -182,7 +182,7 @@ export async function handleReactRound(data: {
         let findingArgs: { title: string; severity: string; target: string; detail: string; recommendation?: string } = {
           title: "Unknown", severity: "info", target: "", detail: "",
         }
-        try { findingArgs = JSON.parse(fnArgsStr) } catch { /* ignore */ }
+        try { findingArgs = JSON.parse(fnArgsStr) } catch { log.warn("parse_args", `report_finding 参数解析失败: ${fnArgsStr.slice(0, 200)}`) }
 
         await findingRepo.create({
           projectId,
@@ -212,7 +212,7 @@ export async function handleReactRound(data: {
 
       // === MCP Tool Execution ===
       let fnArgs: Record<string, unknown> = {}
-      try { fnArgs = JSON.parse(fnArgsStr) } catch { /* ignore */ }
+      try { fnArgs = JSON.parse(fnArgsStr) } catch { log.warn("parse_args", `${fnName} 参数解析失败: ${fnArgsStr.slice(0, 200)}`) }
 
       // Extract target from function args
       const targetValue = String(fnArgs.target ?? fnArgs.url ?? fnArgs.host ?? fnArgs.address ?? "")

@@ -1,8 +1,6 @@
 import { execFile } from "node:child_process"
 import { promisify } from "node:util"
 
-const execFileAsync = promisify(execFile)
-
 const DEFAULT_TIMEOUT_MS = 8_000
 const DEFAULT_DOCKER_TIMEOUT_SECONDS = 8
 // Blacklist: exclude noise headers that add no security value

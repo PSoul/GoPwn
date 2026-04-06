@@ -21,10 +21,6 @@ export async function findById(id: string) {
   })
 }
 
-export async function findByCode(code: string) {
-  return prisma.project.findUnique({ where: { code } })
-}
-
 export async function create(data: {
   code: string
   name: string

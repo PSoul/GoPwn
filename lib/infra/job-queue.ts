@@ -24,7 +24,7 @@ export interface JobQueue {
 }
 
 let bossInstance: PgBoss | null = null
-let started = false
+let startPromise: Promise<unknown> | null = null
 
 export function getBoss(): PgBoss {
   if (!bossInstance) {
@@ -34,12 +34,13 @@ export function getBoss(): PgBoss {
 }
 
 /**
- * Ensure pg-boss is started. Safe to call multiple times — only starts once.
+ * Ensure pg-boss is started. Safe to call concurrently — deduplicates via shared promise.
  */
 async function ensureStarted(boss: PgBoss): Promise<void> {
-  if (started) return
-  await boss.start()
-  started = true
+  if (!startPromise) {
+    startPromise = boss.start()
+  }
+  await startPromise
 }
 
 export function createPgBossJobQueue(): JobQueue {
@@ -52,7 +53,8 @@ export function createPgBossJobQueue(): JobQueue {
 
     async stop() {
       await boss.stop()
-      started = false
+      bossInstance = null
+      startPromise = null
     },
 
     async publish(jobName, data, options) {

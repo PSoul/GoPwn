@@ -44,8 +44,10 @@ export const POST = apiHandler(async (req, ctx) => {
         rawOutput: result.content,
       })
     })
-    .catch(async () => {
-      await mcpRunRepo.updateStatus(run.id, "failed", { rawOutput: "Tool execution error" })
+    .catch(async (err) => {
+      await mcpRunRepo.updateStatus(run.id, "failed", {
+        rawOutput: `Tool execution error: ${err instanceof Error ? err.message : String(err)}`,
+      }).catch(() => {}) // prevent unhandled rejection if status update also fails
     })
 
   return json({ run }, 201)

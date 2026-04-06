@@ -53,6 +53,7 @@ export async function upsert(data: {
       capability: data.capability,
       boundary: data.boundary,
       riskLevel: data.riskLevel,
+      requiresApproval: data.requiresApproval,
       description: data.description,
       inputSchema: data.inputSchema,
       timeout: data.timeout,
@@ -72,6 +73,7 @@ export async function upsertServer(data: {
   cwd?: string
   envJson?: string
   endpoint?: string
+  enabled?: boolean
 }) {
   return prisma.mcpServer.upsert({
     where: { serverName: data.serverName },
@@ -83,6 +85,7 @@ export async function upsertServer(data: {
       cwd: data.cwd,
       envJson: data.envJson,
       endpoint: data.endpoint,
+      enabled: data.enabled,
     },
   })
 }

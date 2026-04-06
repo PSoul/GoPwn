@@ -240,7 +240,15 @@ export class ReactContextManager {
           m.content === step.output
         ) {
           step.toolMsgIdx = i
-          step.assistantMsgIdx = i - 1
+          // Find the actual assistant message that contains this tool_call_id
+          let assistantIdx = i - 1
+          for (let j = i - 1; j >= 0; j--) {
+            if (newMessages[j].role === "assistant" && newMessages[j].tool_calls?.some((tc) => tc.id === step.toolCallId)) {
+              assistantIdx = j
+              break
+            }
+          }
+          step.assistantMsgIdx = assistantIdx
           break
         }
       }

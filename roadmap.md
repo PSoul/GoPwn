@@ -2,9 +2,55 @@
 
 ## Project Snapshot
 
-- Date: `2026-04-05`
-- Current focus: Phase 24c E2E Bug 修复 + 前端优化已完成 — OpenAI tools 格式升级、Function Call 日志记录、项目列表表格化、资产折叠分组、协议自动检测、布局精简、IPv4 DNS 修复、重复作业防护。下一步: TCP 服务识别增强（LLM prompt 优化）、MCP 工具参数校验修复。
+- Date: `2026-04-06`
+- Current focus: 深度代码审计已完成 — 修复 5 个 CRITICAL 级 BUG、5 个 HIGH 级问题、4 个 MEDIUM 级改进，清理 XBOW 残留。下一步: TCP 服务识别增强、MCP 工具参数校验修复。
 - Working mode: 平台主仓库继续负责运行时与桥接；新的 MCP server 优先在独立脚手架仓库中开发、校验和整理文档。
+
+## fix/deep-code-audit: 深度代码审计与修复 (Deep Code Audit & Fixes)
+
+- Status: Completed on `2026-04-06`
+- Branch: `fix/deep-code-audit`
+- Goal: 全面审计核心代码（infra/workers/services/repositories/API），修复隐藏 BUG、消除死代码、改善可观测性。
+
+### 修复清单
+
+**CRITICAL（影响正确性）：**
+1. `lifecycle-worker.ts:186` — 错误恢复路径使用 `"CONTINUE"` 而非 `"CONTINUE_REACT"`，导致 ReAct 项目转入错误的 `planning` 状态
+2. `react-context.ts:242-243` — 压缩后消息索引用 `i-1` 假设前驱位置，改为按 `tool_call_id` 精确匹配
+3. `mcp-tool-repo.ts:51-58` — upsert update 缺少 `requiresApproval` 字段，工具审批配置无法更新
+4. `mcp-tool-repo.ts:79-85` — upsertServer update 缺少 `enabled` 字段，MCP 服务器启停状态无法变更
+5. `mcp-runs/route.ts:41-49` — Floating promise 内嵌 `.catch()` 失败时产生 unhandled rejection
+
+**HIGH（边界条件可触发）：**
+6. `pg-listener.ts:20-21` — LISTEN 查询失败时 pg 连接泄漏
+7. `job-queue.ts:54-56` — `stop()` 后 bossInstance 未重置导致无法重启
+8. `api-client.ts:29` — 成功路径 `res.json()` 解析失败抛原生错误而非 ApiError
+9. `approvals/route.ts:14` — PATCH 解构用 `status` 而 PUT 用 `decision`，语义不一致
+10. `pg-listener.ts:19` — DATABASE_URL 缺少非空断言
+11. `tool-input-mapper.ts:62` — buildFallbackScript 代码注入（前一次 code-simplifier 已修复）
+
+**MEDIUM（可观测性改善）：**
+12. `event-bus.ts` — payload 截断加日志
+13. `pipeline-logger.ts` — DB 写入失败加日志
+14. `analysis-worker.ts` — round 统计和 evidence 保存失败加日志
+15. `react-worker.ts` — JSON.parse 失败加日志
+
+**死代码处理：**
+- 删除: `llm-log-repo.appendResponse()`、`project-repo.findByCode()`、`settings-service` re-export `mcpToolRepo`
+- 保留: `finding-repo.findSuspected()`、`finding-repo.countByProjectAndSeverity()`（有用的查询 API）
+- 接入: `pipeline-log-repo.cleanupOld()` → worker.ts 每 6 小时定时清理
+
+**其他：**
+- 清理全部 XBOW 残留（目录、npm scripts、gitignore、memory）
+- `.gitignore` 添加 `*.txt` 忽略规则
+
+### 验收标准
+
+- [x] `npx tsc --noEmit` 零错误
+- [x] `npx vitest run` 13 个测试全部通过
+- [x] 无 XBOW 相关引用残留
+
+---
 
 ## feature/react-iterative-execution: ReAct 迭代执行引擎 (ReAct Iterative Execution Engine)
 

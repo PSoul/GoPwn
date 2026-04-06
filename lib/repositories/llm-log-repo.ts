@@ -20,13 +20,6 @@ export async function create(data: {
   })
 }
 
-export async function appendResponse(id: string, response: string) {
-  return prisma.llmCallLog.update({
-    where: { id },
-    data: { response },
-  })
-}
-
 export async function complete(id: string, response: string, durationMs: number) {
   return prisma.llmCallLog.update({
     where: { id },

@@ -15,9 +15,11 @@ export type ProjectEvent = {
 export async function publishEvent(event: ProjectEvent) {
   const payload = JSON.stringify(event)
   // PostgreSQL NOTIFY payload limit is 8000 bytes. Truncate data if needed.
-  const safePayload = payload.length > 7900
-    ? JSON.stringify({ ...event, data: { truncated: true } })
-    : payload
+  let safePayload = payload
+  if (payload.length > 7900) {
+    console.warn(`[event-bus] payload truncated for ${event.type}@${event.projectId}: ${payload.length} bytes`)
+    safePayload = JSON.stringify({ ...event, data: { truncated: true } })
+  }
   await prisma.$executeRawUnsafe(`SELECT pg_notify('project_events', $1)`, safePayload)
 }
 

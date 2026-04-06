@@ -16,10 +16,15 @@ export async function createPgListener(
   }
 
   const client = new pg.Client({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: process.env.DATABASE_URL!,
   })
   await client.connect()
-  await client.query(`LISTEN "${channel}"`)
+  try {
+    await client.query(`LISTEN "${channel}"`)
+  } catch (err) {
+    await client.end().catch(() => {})
+    throw err
+  }
 
   client.on("notification", (msg) => {
     if (msg.channel === channel && msg.payload) {

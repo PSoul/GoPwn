@@ -35,7 +35,7 @@ export function createPipelineLogger(
         data: data ?? undefined,
         duration,
       })
-      .catch(() => {}) // best-effort, never block pipeline
+      .catch((e) => { console.warn(`[pipeline-log] DB write failed: ${e instanceof Error ? e.message : e}`) })
   }
 
   return {

@@ -176,7 +176,7 @@ export async function handleAnalyzeResult(data: {
           newFindingCount: { increment: newFindingCount },
           executedCount: { increment: 1 },
         },
-      }).catch(() => {})
+      }).catch((e) => { log.warn("stats_update", `更新 round 统计失败: ${e instanceof Error ? e.message : e}`) })
     }
 
     await publishEvent({
@@ -213,7 +213,7 @@ export async function handleAnalyzeResult(data: {
       toolName,
       rawOutput: rawOutput.slice(0, 100_000),
       summary: `Analysis failed: ${message.slice(0, 200)}`,
-    }).catch(() => {})
+    }).catch((e) => { log.warn("fallback_evidence", `保存 fallback evidence 也失败: ${e instanceof Error ? e.message : e}`) })
 
     throw err // pg-boss will retry
   }

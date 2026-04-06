@@ -26,5 +26,7 @@ export async function apiFetch<T>(
     throw new ApiError(body.error ?? body.message ?? res.statusText, res.status);
   }
 
-  return res.json() as Promise<T>;
+  return res.json().catch(() => {
+    throw new ApiError("Invalid JSON response", res.status);
+  }) as Promise<T>;
 }

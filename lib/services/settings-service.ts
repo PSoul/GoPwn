@@ -1,6 +1,4 @@
 import { prisma } from "@/lib/infra/prisma"
-import * as mcpToolRepo from "@/lib/repositories/mcp-tool-repo"
-
 export async function getLlmProfiles() {
   return prisma.llmProfile.findMany()
 }
@@ -51,5 +49,3 @@ export async function getSystemStatus() {
     llmProfiles: profileCount,
   }
 }
-
-export { mcpToolRepo }

@@ -51,14 +51,19 @@ export function looksLikeCode(text: string): boolean {
   return matches >= 2
 }
 
+/** Escape a value for safe embedding in a single-quoted JS string literal */
+function escapeForSingleQuote(s: string): string {
+  return s.replace(/\\/g, "\\\\").replace(/'/g, "\\'")
+}
+
 /** Generate a basic probe script when the LLM gave natural language instead of code */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function buildFallbackScript(target: string, _action: string): string {
   if (/^tcp:\/\//i.test(target) || (!target.startsWith("http") && /:\d+$/.test(target))) {
     const cleaned = target.replace(/^tcp:\/\//, "")
     const parts = cleaned.split(":")
-    const host = parts.slice(0, -1).join(":") || parts[0]
-    const port = parts[parts.length - 1] || "80"
+    const host = escapeForSingleQuote(parts.slice(0, -1).join(":") || parts[0])
+    const port = parseInt(parts[parts.length - 1] || "80", 10) || 80
     return `
 const net = require('net');
 const client = new net.Socket();
@@ -81,9 +86,10 @@ setTimeout(() => { client.destroy(); }, 15000);
   }
 
   const url = target.startsWith("http") ? target : `http://${target}`
+  const safeUrl = escapeForSingleQuote(url)
   return `
 const http = require('${url.startsWith("https") ? "https" : "http"}');
-const req = http.get('${url}', { timeout: 10000 }, (res) => {
+const req = http.get('${safeUrl}', { timeout: 10000 }, (res) => {
   let body = '';
   res.on('data', (c) => body += c);
   res.on('end', () => {
@@ -99,15 +105,12 @@ req.on('timeout', () => { req.destroy(); console.log(JSON.stringify({ error: 'ti
 `.trim()
 }
 
-/**
- * Build MCP tool input from the action description and tool schema.
- * Parses the tool's inputSchema to map target/action to expected parameter names and types.
- */
-export async function buildToolInput(toolName: string, target: string, action: string): Promise<Record<string, unknown>> {
-  const { findByToolName } = await import("@/lib/repositories/mcp-tool-repo")
-  const tool = await findByToolName(toolName)
-  const schema = (tool?.inputSchema ?? {}) as Record<string, unknown>
-  const properties = (schema.properties ?? {}) as Record<string, { type?: string; items?: unknown }>
+/** Core mapping logic: build input from schema properties, target, and action */
+function buildToolInputFromSchema(
+  properties: Record<string, { type?: string; items?: unknown }>,
+  target: string,
+  action: string,
+): Record<string, unknown> {
   const propNames = Object.keys(properties)
 
   if (propNames.length === 0) {
@@ -164,6 +167,18 @@ export async function buildToolInput(toolName: string, target: string, action: s
 }
 
 /**
+ * Build MCP tool input from the action description and tool schema.
+ * Parses the tool's inputSchema to map target/action to expected parameter names and types.
+ */
+export async function buildToolInput(toolName: string, target: string, action: string): Promise<Record<string, unknown>> {
+  const { findByToolName } = await import("@/lib/repositories/mcp-tool-repo")
+  const tool = await findByToolName(toolName)
+  const schema = (tool?.inputSchema ?? {}) as Record<string, unknown>
+  const properties = (schema.properties ?? {}) as Record<string, { type?: string; items?: unknown }>
+  return buildToolInputFromSchema(properties, target, action)
+}
+
+/**
  * Build MCP tool input from LLM's function call arguments.
  * In ReAct mode, the LLM directly provides structured arguments via function calling.
  * Merges LLM args with schema-based fallback to fill in any missing required fields.
@@ -178,7 +193,6 @@ export async function buildToolInputFromFunctionArgs(
     return buildToolInput(toolName, target, action)
   }
 
-  // Check if any required fields are missing — if so, merge with fallback
   const { findByToolName } = await import("@/lib/repositories/mcp-tool-repo")
   const tool = await findByToolName(toolName)
   const schema = (tool?.inputSchema ?? {}) as Record<string, unknown>
@@ -193,11 +207,11 @@ export async function buildToolInputFromFunctionArgs(
     return functionArgs
   }
 
-  // Merge: LLM args + fallback for missing fields
-  const fallback = await buildToolInput(toolName, target, action)
+  // Merge: use schema-based mapping for missing fields, LLM args take precedence
+  const properties = (schema.properties ?? {}) as Record<string, { type?: string; items?: unknown }>
+  const fallback = buildToolInputFromSchema(properties, target, action)
   const merged = { ...fallback, ...functionArgs }
 
-  // Remove fields that are still undefined/null after merge
   for (const key of Object.keys(merged)) {
     if (merged[key] === undefined || merged[key] === null) {
       delete merged[key]

@@ -140,10 +140,24 @@ async function main() {
     }
   }, 5 * 60 * 1000)
 
+  // Periodic pipeline log cleanup (every 6 hours — purge debug logs older than 30 days)
+  const cleanupInterval = setInterval(async () => {
+    try {
+      const { cleanupOld } = await import("@/lib/repositories/pipeline-log-repo")
+      const deleted = await cleanupOld(30)
+      if (deleted > 0) {
+        logger.info({ deleted }, "cleaned old pipeline debug logs")
+      }
+    } catch (err) {
+      logger.error({ err }, "periodic pipeline log cleanup failed")
+    }
+  }, 6 * 60 * 60 * 1000)
+
   // Keep alive
   async function shutdown(signal: string) {
     logger.info({ signal }, "shutting down")
     clearInterval(staleInterval)
+    clearInterval(cleanupInterval)
     const { closeAll } = await import("@/lib/mcp/registry")
     await closeAll().catch((err) => logger.error({ err }, "error closing MCP connectors"))
     await queue.stop()

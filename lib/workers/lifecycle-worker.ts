@@ -60,7 +60,7 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
 
     const succeeded = runs.filter((r) => r.status === "succeeded")
     const failed = runs.filter((r) => r.status === "failed")
-    const unverified = findings.filter((f) => f.status === "suspected" || f.status === "verifying")
+    const unverifiedCount = findings.filter((f) => f.status === "suspected" || f.status === "verifying").length
 
     const roundSummary = [
       `工具执行: ${succeeded.length} 成功, ${failed.length} 失败 (共 ${runs.length})`,
@@ -105,7 +105,7 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
       roundSummary: fullRoundSummary,
       totalAssets,
       totalFindings: findings.length,
-      unverifiedFindings: unverified.length,
+      unverifiedFindings: unverifiedCount,
     }
 
     const abortController = new AbortController()
@@ -158,7 +158,7 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
           failed: failed.length,
           totalAssets,
           totalFindings: findings.length,
-          unverifiedFindings: unverified.length,
+          unverifiedFindings: unverifiedCount,
         },
       },
     })
@@ -183,7 +183,7 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
         // Force back to reviewing first (if not already), then CONTINUE
         const current = await projectRepo.findById(projectId)
         if (current && current.lifecycle === "reviewing") {
-          await projectRepo.updateLifecycle(projectId, transition("reviewing", "CONTINUE"))
+          await projectRepo.updateLifecycle(projectId, transition("reviewing", "CONTINUE_REACT"))
         } else {
           // Fallback: try executing → reviewing → planning chain
           await projectRepo.updateLifecycle(projectId, transition("executing", "ALL_DONE"))
