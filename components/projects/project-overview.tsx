@@ -4,7 +4,7 @@ import Link from "next/link"
 import { ShieldAlert } from "lucide-react"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { ProjectSummary } from "@/components/projects/project-summary"
-import type { Project, Finding, Asset, Approval, Severity, AssetKind } from "@/lib/generated/prisma"
+import type { Project, Finding, Asset, Severity, AssetKind } from "@/lib/generated/prisma"
 import { SEVERITY_LABELS, ASSET_KIND_LABELS } from "@/lib/types/labels"
 
 type Tone = "neutral" | "info" | "success" | "warning" | "danger"
@@ -21,7 +21,6 @@ type Props = {
   project: Project
   initialFindings: Finding[]
   initialAssets: Asset[]
-  initialApprovals: Approval[]
 }
 
 export function ProjectOverview({ project, initialFindings, initialAssets }: Props) {

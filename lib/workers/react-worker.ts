@@ -164,7 +164,8 @@ export async function handleReactRound(data: {
         try { doneArgs = JSON.parse(fnArgsStr) } catch { log.warn("parse_args", `done 参数解析失败: ${fnArgsStr.slice(0, 200)}`) }
         log.info("llm_done", `LLM 主动停止: ${doneArgs.summary ?? ""}`)
 
-        if (doneArgs.phase_suggestion) {
+        const VALID_PHASES: readonly string[] = ["recon", "discovery", "assessment", "verification", "reporting"]
+        if (doneArgs.phase_suggestion && VALID_PHASES.includes(doneArgs.phase_suggestion)) {
           await projectRepo.updatePhaseAndRound(projectId, doneArgs.phase_suggestion as PentestPhase, round)
         }
 

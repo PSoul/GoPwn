@@ -3,7 +3,8 @@ import { prisma } from "@/lib/infra/prisma"
 
 export const GET = apiHandler(async (req) => {
   const url = new URL(req.url)
-  const limit = Math.min(Number(url.searchParams.get("limit") ?? "50"), 100)
+  const rawLimit = Number(url.searchParams.get("limit") ?? "50")
+  const limit = Math.min(Number.isNaN(rawLimit) ? 50 : rawLimit, 100)
   const projectId = url.searchParams.get("projectId") ?? undefined
 
   const logs = await prisma.llmCallLog.findMany({

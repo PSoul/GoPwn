@@ -16,40 +16,43 @@ export function useProjectEvents(
   const [lastEvent, setLastEvent] = useState<ProjectEvent | null>(null)
   const [connected, setConnected] = useState(false)
   const esRef = useRef<EventSource | null>(null)
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const onEventRef = useRef(onEvent)
+  onEventRef.current = onEvent
 
-  const connect = useCallback(() => {
+  useEffect(() => {
     if (!projectId) return
 
-    const es = new EventSource(`/api/projects/${projectId}/events`)
-    esRef.current = es
+    function connect() {
+      const es = new EventSource(`/api/projects/${projectId}/events`)
+      esRef.current = es
 
-    es.onopen = () => setConnected(true)
+      es.onopen = () => setConnected(true)
 
-    es.onmessage = (msg) => {
-      try {
-        const event = JSON.parse(msg.data) as ProjectEvent
-        setLastEvent(event)
-        onEvent?.(event)
-      } catch {
-        // ignore parse errors
+      es.onmessage = (msg) => {
+        try {
+          const event = JSON.parse(msg.data) as ProjectEvent
+          setLastEvent(event)
+          onEventRef.current?.(event)
+        } catch {
+          // ignore parse errors
+        }
+      }
+
+      es.onerror = () => {
+        setConnected(false)
+        es.close()
+        reconnectTimer.current = setTimeout(connect, 3000)
       }
     }
 
-    es.onerror = () => {
-      setConnected(false)
-      es.close()
-      // Reconnect after 3s
-      setTimeout(connect, 3000)
-    }
-  }, [projectId, onEvent])
-
-  useEffect(() => {
     connect()
     return () => {
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current)
       esRef.current?.close()
       esRef.current = null
     }
-  }, [connect])
+  }, [projectId])
 
   return { lastEvent, connected }
 }

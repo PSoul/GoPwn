@@ -10,12 +10,16 @@ export const GET = apiHandler(async (req, ctx) => {
   const limit = parseInt(url.searchParams.get("limit") ?? "100", 10)
   const offset = parseInt(url.searchParams.get("offset") ?? "0", 10)
 
+  const roundNum = round != null ? parseInt(round, 10) : undefined
+  const safeLimit = Number.isNaN(limit) ? 100 : Math.min(limit, 200)
+  const safeOffset = Number.isNaN(offset) ? 0 : offset
+
   const [logs, total] = await Promise.all([
     pipelineLogRepo.findByProject(projectId, {
-      round: round != null ? parseInt(round, 10) : undefined,
+      round: roundNum != null && !Number.isNaN(roundNum) ? roundNum : undefined,
       level,
-      limit: Math.min(limit, 200),
-      offset,
+      limit: safeLimit,
+      offset: safeOffset,
     }),
     pipelineLogRepo.countByProject(projectId, level),
   ])

@@ -37,7 +37,6 @@ export default async function ProjectDetailPage({
         project={project}
         initialFindings={findings}
         initialAssets={assets}
-        initialApprovals={approvals}
       />
       <ProjectReportExportPanel projectId={projectId} totalExports={0} />
     </div>

@@ -101,8 +101,8 @@ async function checkAndPublishRoundCompletion(projectId: string, round: number) 
         startAfter: startAfter.toISOString(),
       })
     }
-  } catch {
-    // Best-effort — don't break the status update caller
+  } catch (err) {
+    console.warn("[mcp-run-repo] checkAndPublishRoundCompletion failed:", err instanceof Error ? err.message : err)
   }
 }
 

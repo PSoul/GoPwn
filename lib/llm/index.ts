@@ -34,7 +34,6 @@ export {
   mcpToolToFunction,
   mcpToolsToFunctions,
   getControlFunctions,
-  isControlFunction,
 } from "./function-calling"
 
 // Tool input mapper

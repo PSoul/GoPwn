@@ -17,7 +17,7 @@ export function createLoggedProvider(provider: LlmProvider, ctx: LogContext): Ll
     name: provider.name,
 
     async chat(messages: LlmMessage[], options?: LlmCallOptions): Promise<LlmResponse> {
-      const prompt = messages.map((m) => `[${m.role}] ${m.content}`).join("\n---\n")
+      const prompt = messages.map((m) => `[${m.role}] ${m.content ?? ""}`).join("\n---\n")
 
       const log = await llmLogRepo.create({
         projectId: ctx.projectId,

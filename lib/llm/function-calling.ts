@@ -65,7 +65,3 @@ export function getControlFunctions(): OpenAIFunctionDef[] {
     },
   ]
 }
-
-export function isControlFunction(name: string): boolean {
-  return name === "done" || name === "report_finding"
-}
