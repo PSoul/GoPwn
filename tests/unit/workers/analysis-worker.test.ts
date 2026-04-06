@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { MOCK_ANALYSIS_RESPONSE } from "./_helpers"
+import { MOCK_ANALYSIS_RESPONSE } from "../../helpers/factories"
 
 const mockLlmChat = vi.hoisted(() => vi.fn())
 
@@ -121,5 +121,65 @@ describe("analysis-worker", () => {
     expect(evidenceRepo.create).toHaveBeenCalled()
     expect(assetRepo.upsert).not.toHaveBeenCalled()
     expect(findingRepo.create).not.toHaveBeenCalled()
+  })
+
+  it("重复 finding 去重：已有相同标题+目标的 finding 时传递给 LLM 上下文", async () => {
+    // 模拟已存在一个 finding
+    const existingFinding = {
+      title: "Open HTTP Port",
+      severity: "info",
+      affectedTarget: "127.0.0.1:80",
+    }
+    vi.mocked(findingRepo.findByProject).mockResolvedValueOnce([existingFinding] as never)
+
+    // LLM 返回相同的 finding（LLM 应通过上下文感知已存在的 findings 来去重）
+    mockLlmChat.mockResolvedValueOnce({
+      content: JSON.stringify({
+        assets: [],
+        findings: [{ title: "Open HTTP Port", severity: "info", affectedTarget: "127.0.0.1:80", summary: "same port", recommendation: "" }],
+        evidenceSummary: "Port 80 open",
+      }),
+      provider: "test", model: "test", durationMs: 500,
+    })
+
+    await handleAnalyzeResult({
+      projectId: "proj-test-001",
+      mcpRunId: "run-002",
+      rawOutput: "port 80 open",
+      toolName: "fscan_port_scan",
+      target: "127.0.0.1",
+    })
+
+    // 验证 LLM 调用时传入了 existingFindings（去重依赖 LLM 的上下文感知）
+    const llmCallArgs = mockLlmChat.mock.calls[0]
+    const prompt = llmCallArgs[0].map((m: { content: string }) => m.content).join("\n")
+    expect(prompt).toContain("Open HTTP Port")
+  })
+
+  it("非 info 级别的 finding 会排队验证", async () => {
+    mockLlmChat.mockResolvedValueOnce({
+      content: JSON.stringify({
+        assets: [],
+        findings: [
+          { title: "SQL Injection", severity: "high", affectedTarget: "127.0.0.1/login", summary: "found sqli", recommendation: "fix" },
+        ],
+        evidenceSummary: "Found sqli",
+      }),
+      provider: "test", model: "test", durationMs: 500,
+    })
+
+    await handleAnalyzeResult({
+      projectId: "proj-test-001",
+      mcpRunId: "run-003",
+      rawOutput: "sql error",
+      toolName: "sqlmap_scan",
+      target: "127.0.0.1",
+    })
+
+    const { createPgBossJobQueue } = await import("@/lib/infra/job-queue")
+    const queue = createPgBossJobQueue()
+    expect(queue.publish).toHaveBeenCalledWith("verify_finding", expect.objectContaining({
+      projectId: "proj-test-001",
+    }))
   })
 })

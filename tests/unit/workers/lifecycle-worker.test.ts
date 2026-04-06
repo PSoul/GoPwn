@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { mockProject, MOCK_REVIEW_RESPONSE } from "./_helpers"
+import { mockProject, MOCK_REVIEW_RESPONSE } from "../../helpers/factories"
 
 const mockLlmChat = vi.hoisted(() => vi.fn())
 
@@ -119,5 +119,47 @@ describe("lifecycle-worker: handleSettleClosure", () => {
     await handleSettleClosure({ projectId: "proj-test-001" })
 
     expect(projectRepo.updateLifecycle).toHaveBeenCalled()
+  })
+
+  it("项目不存在 → 直接返回", async () => {
+    vi.mocked(projectRepo.findById).mockResolvedValue(null as never)
+
+    await handleSettleClosure({ projectId: "proj-nonexist" })
+
+    expect(projectRepo.updateLifecycle).not.toHaveBeenCalled()
+  })
+})
+
+describe("lifecycle-worker: handleRoundCompleted 边界用例", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockLlmChat.mockResolvedValue({
+      content: MOCK_REVIEW_RESPONSE,
+      provider: "test-provider", model: "test-model", durationMs: 1000,
+    })
+  })
+
+  it("项目不存在 → 直接返回", async () => {
+    vi.mocked(projectRepo.findById).mockResolvedValue(null as never)
+
+    await handleRoundCompleted({ projectId: "proj-nonexist", round: 1 })
+
+    expect(mockLlmChat).not.toHaveBeenCalled()
+  })
+
+  it("项目处于 stopping 状态 → 跳过", async () => {
+    vi.mocked(projectRepo.findById).mockResolvedValue(mockProject({ lifecycle: "stopping" }) as never)
+
+    await handleRoundCompleted({ projectId: "proj-test-001", round: 1 })
+
+    expect(mockLlmChat).not.toHaveBeenCalled()
+  })
+
+  it("非 executing/waiting_approval 状态 → 跳过（防止重复审阅）", async () => {
+    vi.mocked(projectRepo.findById).mockResolvedValue(mockProject({ lifecycle: "reviewing" }) as never)
+
+    await handleRoundCompleted({ projectId: "proj-test-001", round: 1 })
+
+    expect(mockLlmChat).not.toHaveBeenCalled()
   })
 })

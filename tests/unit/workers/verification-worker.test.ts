@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { mockFinding } from "./_helpers"
+import { mockFinding } from "../../helpers/factories"
 
 const mockLlmChat = vi.hoisted(() => vi.fn())
 
 vi.mock("@/lib/repositories/finding-repo", () => ({
   findById: vi.fn(),
-  updateStatus: vi.fn(),
-  createPoc: vi.fn(),
+  updateStatus: vi.fn().mockResolvedValue({}),
+  createPoc: vi.fn().mockResolvedValue({}),
 }))
 vi.mock("@/lib/repositories/mcp-run-repo", () => ({
   create: vi.fn().mockResolvedValue({ id: "run-poc-001" }),
@@ -94,5 +94,35 @@ describe("verification-worker", () => {
     await handleVerifyFinding({ projectId: "proj-test-001", findingId: "finding-test-001" })
 
     expect(mockCallTool).not.toHaveBeenCalled()
+  })
+
+  it("PoC 执行超时 → finding 回退为 suspected", async () => {
+    vi.mocked(findingRepo.findById).mockResolvedValue(mockFinding() as never)
+    mockCallTool.mockRejectedValueOnce(new Error("PoC execution timeout after 120000ms: execute_code(http://127.0.0.1:8080/login)"))
+
+    await expect(handleVerifyFinding({ projectId: "proj-test-001", findingId: "finding-test-001" })).rejects.toThrow("timeout")
+
+    // 超时后应该回退为 suspected
+    expect(findingRepo.updateStatus).toHaveBeenCalledWith("finding-test-001", "suspected")
+  })
+
+  it("verifying 状态的 finding 可以继续验证（中断恢复）", async () => {
+    vi.mocked(findingRepo.findById).mockResolvedValue(mockFinding({ status: "verifying" }) as never)
+    mockCallTool.mockResolvedValue({ content: '{"verified": true, "detail": "confirmed"}', isError: false })
+
+    await handleVerifyFinding({ projectId: "proj-test-001", findingId: "finding-test-001" })
+
+    // verifying 状态应该继续验证流程
+    expect(mockLlmChat).toHaveBeenCalledTimes(1)
+    expect(findingRepo.updateStatus).toHaveBeenCalledWith("finding-test-001", "verified")
+  })
+
+  it("Finding 不存在 → 直接返回", async () => {
+    vi.mocked(findingRepo.findById).mockResolvedValue(null as never)
+
+    await handleVerifyFinding({ projectId: "proj-test-001", findingId: "finding-nonexist" })
+
+    expect(mockCallTool).not.toHaveBeenCalled()
+    expect(mockLlmChat).not.toHaveBeenCalled()
   })
 })
