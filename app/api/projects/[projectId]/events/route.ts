@@ -10,25 +10,41 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
     async start(controller) {
       controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "connected", projectId })}\n\n`))
 
-      const listener = await createPgListener("project_events", (payload) => {
-        try {
-          const event = JSON.parse(payload)
-          if (event.projectId === projectId) {
-            controller.enqueue(encoder.encode(`data: ${payload}\n\n`))
-          }
-        } catch { /* skip malformed */ }
-      })
+      let heartbeat: ReturnType<typeof setInterval> | null = null
 
-      const heartbeat = setInterval(() => {
-        try { controller.enqueue(encoder.encode(": heartbeat\n\n")) }
-        catch { clearInterval(heartbeat) }
-      }, 15000)
+      try {
+        const listener = await createPgListener(
+          "project_events",
+          (payload) => {
+            try {
+              const event = JSON.parse(payload)
+              if (event.projectId === projectId) {
+                controller.enqueue(encoder.encode(`data: ${payload}\n\n`))
+              }
+            } catch { /* skip malformed */ }
+          },
+          // onError: PG connection dropped — close stream so client reconnects
+          () => {
+            if (heartbeat) clearInterval(heartbeat)
+            try { controller.close() } catch {}
+          },
+        )
 
-      req.signal.addEventListener("abort", () => {
-        clearInterval(heartbeat)
-        listener.close().catch(() => {})
+        heartbeat = setInterval(() => {
+          try { controller.enqueue(encoder.encode(": heartbeat\n\n")) }
+          catch { if (heartbeat) clearInterval(heartbeat) }
+        }, 15000)
+
+        req.signal.addEventListener("abort", () => {
+          if (heartbeat) clearInterval(heartbeat)
+          listener.close().catch(() => {})
+          try { controller.close() } catch {}
+        })
+      } catch (err) {
+        // PG connection failed — close the stream immediately
+        console.error("[sse] failed to create pg listener:", err instanceof Error ? err.message : err)
         try { controller.close() } catch {}
-      })
+      }
     },
   })
 

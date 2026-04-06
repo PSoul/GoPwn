@@ -207,7 +207,7 @@ export async function handleReactRound(data: {
           projectId,
           timestamp: new Date().toISOString(),
           data: { round, stepIndex, toolName: "report_finding", status: "succeeded", outputPreview: findingArgs.title },
-        })
+        }).catch(() => {})
         continue
       }
 
@@ -232,17 +232,17 @@ export async function handleReactRound(data: {
           projectId,
           timestamp: new Date().toISOString(),
           data: { target: targetValue, reason: "out of scope" },
-        })
+        }).catch(() => {})
         continue
       }
 
-      // Publish step started event
+      // Publish step started event (fire-and-forget — don't block pipeline on UI notification)
       await publishEvent({
         type: "react_step_started",
         projectId,
         timestamp: new Date().toISOString(),
         data: { round, stepIndex, thought: thought.slice(0, 300), toolName: fnName, target: targetValue },
-      })
+      }).catch(() => {})
 
       // Create mcp_run record
       const tool = await mcpToolRepo.findByToolName(fnName)
@@ -320,7 +320,7 @@ export async function handleReactRound(data: {
         projectId,
         timestamp: new Date().toISOString(),
         data: { round, stepIndex, toolName: fnName, status: toolStatus, outputPreview: toolOutput.slice(0, 300) },
-      })
+      }).catch(() => {})
 
       // Refresh assets/findings every 5 steps for updated system prompt
       if ((stepIndex + 1) % 5 === 0) {
@@ -361,7 +361,7 @@ export async function handleReactRound(data: {
       projectId,
       timestamp: new Date().toISOString(),
       data: { round, stopReason, lastThought: lastThought.slice(0, 500) },
-    })
+    }).catch(() => {})
 
     await auditRepo.create({
       projectId,
@@ -388,7 +388,7 @@ export async function handleReactRound(data: {
         projectId,
         timestamp: new Date().toISOString(),
         data: { round, error: message.slice(0, 500) },
-      })
+      }).catch(() => {})
     } catch {
       // swallow — don't break the error handler
     }

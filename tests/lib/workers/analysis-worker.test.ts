@@ -16,7 +16,7 @@ vi.mock("@/lib/repositories/finding-repo", () => ({
   create: vi.fn().mockResolvedValue({ id: "finding-001" }),
 }))
 vi.mock("@/lib/repositories/audit-repo", () => ({ create: vi.fn() }))
-vi.mock("@/lib/infra/event-bus", () => ({ publishEvent: vi.fn() }))
+vi.mock("@/lib/infra/event-bus", () => ({ publishEvent: vi.fn().mockResolvedValue(undefined) }))
 vi.mock("@/lib/infra/job-queue", () => ({
   createPgBossJobQueue: vi.fn().mockReturnValue({ publish: vi.fn().mockResolvedValue("job-001") }),
 }))

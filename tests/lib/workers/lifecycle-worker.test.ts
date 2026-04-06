@@ -29,7 +29,7 @@ vi.mock("@/lib/infra/prisma", () => ({
     },
   },
 }))
-vi.mock("@/lib/infra/event-bus", () => ({ publishEvent: vi.fn() }))
+vi.mock("@/lib/infra/event-bus", () => ({ publishEvent: vi.fn().mockResolvedValue(undefined) }))
 vi.mock("@/lib/infra/job-queue", () => ({
   createPgBossJobQueue: vi.fn().mockReturnValue({ publish: vi.fn().mockResolvedValue("job-001") }),
 }))

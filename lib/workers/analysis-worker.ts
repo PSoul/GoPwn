@@ -190,7 +190,7 @@ export async function handleAnalyzeResult(data: {
         newFindings: newFindingCount,
         evidenceId: evidence.id,
       },
-    })
+    }).catch(() => {})
 
     await auditRepo.create({
       projectId,

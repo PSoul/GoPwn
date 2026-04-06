@@ -33,7 +33,7 @@ export function createLoggedProvider(provider: LlmProvider, ctx: LogContext): Ll
         projectId: ctx.projectId,
         timestamp: new Date().toISOString(),
         data: { logId: log.id, role: ctx.role, phase: ctx.phase },
-      })
+      }).catch(() => {})
 
       try {
         const response = await provider.chat(messages, options)
@@ -52,7 +52,7 @@ export function createLoggedProvider(provider: LlmProvider, ctx: LogContext): Ll
           projectId: ctx.projectId,
           timestamp: new Date().toISOString(),
           data: { logId: log.id, durationMs: response.durationMs, model: response.model },
-        })
+        }).catch(() => {})
 
         return response
       } catch (err) {

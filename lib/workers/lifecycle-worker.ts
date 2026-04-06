@@ -161,7 +161,7 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
           unverifiedFindings: unverifiedCount,
         },
       },
-    })
+    }).catch(() => {})
 
     await auditRepo.create({
       projectId,
@@ -292,7 +292,7 @@ export async function handleSettleClosure(data: { projectId: string }) {
         totalRounds: project.currentRound,
         totalRuns: runs.length,
       },
-    })
+    }).catch(() => {})
 
     log.info("completed", `项目结算完成: ${verified.length} 已验证漏洞 / ${findings.length} 总发现`)
   } catch (err) {
@@ -306,7 +306,7 @@ export async function handleSettleClosure(data: { projectId: string }) {
       projectId,
       timestamp: new Date().toISOString(),
       data: { error: message.slice(0, 500) },
-    })
+    }).catch(() => {})
 
     throw err
   }

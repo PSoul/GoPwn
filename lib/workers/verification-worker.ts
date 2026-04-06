@@ -159,7 +159,7 @@ export async function handleVerifyFinding(data: { projectId: string; findingId: 
         verified,
         newStatus,
       },
-    })
+    }).catch(() => {})
 
     await auditRepo.create({
       projectId,
@@ -182,7 +182,7 @@ export async function handleVerifyFinding(data: { projectId: string; findingId: 
       projectId,
       timestamp: new Date().toISOString(),
       data: { findingId, error: message.slice(0, 500) },
-    })
+    }).catch(() => {})
 
     throw err // pg-boss will retry
   }

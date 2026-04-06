@@ -21,7 +21,7 @@ vi.mock("@/lib/infra/prisma", () => ({
     project: { findUnique: vi.fn().mockResolvedValue({ name: "Test", lifecycle: "executing", currentPhase: "verification", currentRound: 2 }) },
   },
 }))
-vi.mock("@/lib/infra/event-bus", () => ({ publishEvent: vi.fn() }))
+vi.mock("@/lib/infra/event-bus", () => ({ publishEvent: vi.fn().mockResolvedValue(undefined) }))
 vi.mock("@/lib/infra/abort-registry", () => ({ registerAbort: vi.fn(), unregisterAbort: vi.fn() }))
 vi.mock("@/lib/infra/pipeline-logger", () => ({
   createPipelineLogger: vi.fn().mockReturnValue({
