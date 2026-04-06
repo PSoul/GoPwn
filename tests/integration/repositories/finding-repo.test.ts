@@ -116,6 +116,30 @@ describe("finding-repo", () => {
     })
   })
 
+  describe("不同 host 不应去重", () => {
+    it("不同 host 的相同漏洞标题不应去重", async () => {
+      const first = await repo.create({
+        projectId: seedProjectId,
+        severity: "high",
+        title: "SQL Injection",
+        affectedTarget: "http://host-a.com/login",
+      })
+
+      const second = await repo.create({
+        projectId: seedProjectId,
+        severity: "high",
+        title: "SQL Injection",
+        affectedTarget: "http://host-b.com/login",
+      })
+
+      // 不同 host 应创建两条独立的 finding，不去重
+      expect(second.id).not.toBe(first.id)
+
+      const findings = await repo.findByProject(seedProjectId)
+      expect(findings).toHaveLength(2)
+    })
+  })
+
   describe("findByProject", () => {
     it("应返回指定项目的所有 findings", async () => {
       await repo.create({ projectId: seedProjectId, severity: "high", title: "Bug A" })

@@ -154,6 +154,13 @@ describe("analysis-worker", () => {
     const llmCallArgs = mockLlmChat.mock.calls[0]
     const prompt = llmCallArgs[0].map((m: { content: string }) => m.content).join("\n")
     expect(prompt).toContain("Open HTTP Port")
+
+    // 验证 findingRepo.create 被调用时传入了正确的字段
+    expect(findingRepo.create).toHaveBeenCalledWith(expect.objectContaining({
+      title: "Open HTTP Port",
+      severity: "info",
+      affectedTarget: "127.0.0.1:80",
+    }))
   })
 
   it("非 info 级别的 finding 会排队验证", async () => {

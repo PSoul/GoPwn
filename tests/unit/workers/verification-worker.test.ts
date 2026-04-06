@@ -67,7 +67,12 @@ describe("verification-worker", () => {
     await handleVerifyFinding({ projectId: "proj-test-001", findingId: "finding-test-001" })
 
     expect(findingRepo.updateStatus).toHaveBeenCalledWith("finding-test-001", "verified")
-    expect(findingRepo.createPoc).toHaveBeenCalled()
+    expect(findingRepo.createPoc).toHaveBeenCalledWith(expect.objectContaining({
+      findingId: "finding-test-001",
+      succeeded: true,
+      language: expect.any(String),
+      code: expect.any(String),
+    }))
   })
 
   it("PoC 执行失败 → finding 回退为 suspected", async () => {

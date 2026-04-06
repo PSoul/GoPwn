@@ -118,7 +118,7 @@ describe("lifecycle-worker: handleSettleClosure", () => {
 
     await handleSettleClosure({ projectId: "proj-test-001" })
 
-    expect(projectRepo.updateLifecycle).toHaveBeenCalled()
+    expect(projectRepo.updateLifecycle).toHaveBeenCalledWith("proj-test-001", "completed")
   })
 
   it("项目不存在 → 直接返回", async () => {

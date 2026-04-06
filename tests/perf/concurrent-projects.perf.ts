@@ -122,7 +122,7 @@ function buildSimpleResponses(): LlmResponse[] {
 function setupForProject(projectId: string) {
   // findById 根据 projectId 返回对应项目
   vi.mocked(projectRepo.findById).mockImplementation(async (id: string) => {
-    if (id === projectId || true) {
+    if (id === projectId) {
       return mockProject({ id, lifecycle: "idle" }) as never
     }
     return null as never
@@ -179,7 +179,7 @@ describe("concurrent-projects 性能测试", () => {
     expect(fulfilled.length).toBe(5)
   })
 
-  it("5 并发 vs 5 串行耗时比 < 3x", async () => {
+  it("5 并发 vs 5 串行耗时比 < 1.5x", async () => {
     // 串行执行 5 个项目
     setupForConcurrent()
     const serialStart = performance.now()
@@ -205,8 +205,7 @@ describe("concurrent-projects 性能测试", () => {
     console.log(`[perf] 并发 5 项目: ${concurrentTime.toFixed(1)}ms`)
     console.log(`[perf] 并发/串行比: ${ratio.toFixed(2)}x`)
 
-    // 并发耗时不应超过串行的 3 倍（理想情况下应更快，但 mock 环境存在开销）
-    // 注意：在 mock 环境中 setTimeout 是并发友好的，所以并发通常更快
-    expect(ratio).toBeLessThan(3)
+    // mock 环境下并发应更快，并发/串行比应 < 1.5x
+    expect(ratio).toBeLessThan(1.5)
   })
 })

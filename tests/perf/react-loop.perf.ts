@@ -158,7 +158,7 @@ describe("react-loop 性能测试", () => {
     vi.clearAllMocks()
   })
 
-  it("单轮 3-step ReAct 框架开销合理 (< 2000ms)", async () => {
+  it("单轮 3-step ReAct 框架开销合理 (< 1200ms)", async () => {
     setupMocks()
 
     const start = performance.now()
@@ -170,7 +170,7 @@ describe("react-loop 性能测试", () => {
     console.log(`[perf] 单轮 3-step ReAct 总耗时: ${elapsed.toFixed(1)}ms (mock 延迟 ~500ms)`)
     console.log(`[perf] 框架开销: ${(elapsed - 500).toFixed(1)}ms`)
 
-    expect(elapsed).toBeLessThan(2000)
+    expect(elapsed).toBeLessThan(1200)
   })
 
   it("连续 10 轮 P50/P95 合理", async () => {
@@ -197,8 +197,8 @@ describe("react-loop 性能测试", () => {
     console.log(`[perf]   最小: ${sorted[0].toFixed(1)}ms`)
     console.log(`[perf]   最大: ${sorted[sorted.length - 1].toFixed(1)}ms`)
 
-    // P95 应在合理范围内（宽松阈值避免 CI 抖动）
-    expect(p95).toBeLessThan(5000)
-    expect(p50).toBeLessThan(3000)
+    // P95 应在合理范围内（mock 延迟 500ms，允许合理框架开销）
+    expect(p95).toBeLessThan(2000)
+    expect(p50).toBeLessThan(1500)
   })
 })

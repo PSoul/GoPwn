@@ -1,5 +1,5 @@
 /**
- * 性能测试 — job-queue 包装层逻辑
+ * 单元测试 — job-queue 包装层逻辑
  *
  * 由于 pg-boss 依赖真实 PostgreSQL，这里 mock pg-boss 实例，
  * 测试 createPgBossJobQueue 包装层的调度逻辑和参数传递。
@@ -36,15 +36,14 @@ vi.mock("@/lib/infra/prisma", () => ({
 
 import { createPgBossJobQueue } from "@/lib/infra/job-queue"
 
-describe("job-queue 性能测试", () => {
+describe("job-queue 单元测试", () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it("100 次 publish 调用 < 500ms", async () => {
+  it("100 次 publish 均正确调用 boss.send", async () => {
     const queue = createPgBossJobQueue()
 
-    const start = performance.now()
     const promises: Promise<string | null>[] = []
     for (let i = 0; i < 100; i++) {
       promises.push(
@@ -52,14 +51,9 @@ describe("job-queue 性能测试", () => {
       )
     }
     await Promise.all(promises)
-    const elapsed = performance.now() - start
 
-    console.log(`[perf] 100 次 publish 耗时: ${elapsed.toFixed(1)}ms`)
-    console.log(`[perf] 平均每次: ${(elapsed / 100).toFixed(2)}ms`)
-
-    // mock 下 100 次异步调用应该很快（框架开销）
-    // 宽松阈值：500ms（避免 CI 环境慢机器偶发失败）
-    expect(elapsed).toBeLessThan(500)
+    // 验证 boss.send 被调用了 100 次
+    expect(mockBossSend).toHaveBeenCalledTimes(100)
   })
 
   it("cancelByProject 正确调用底层 API", async () => {

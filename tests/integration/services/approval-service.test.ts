@@ -180,6 +180,10 @@ describe("approval-service", () => {
   })
 
   describe("TOCTOU 并发验证", () => {
+    // 注意：此测试验证的是 repo 层的 check-and-act 模式（先检查状态再更新），
+    // 而非真正的数据库级并发竞态。PGlite 使用单连接串行化执行 SQL，
+    // 因此两个 Promise 实际上是交替执行而非真正并行。
+    // 真正的 TOCTOU 防护需要数据库级别的行锁或乐观锁，需在多连接环境下测试。
     it("两个并发 decide 只有一个应成功，另一个抛出 ALREADY_RESOLVED", async () => {
       const approval = await createPendingApproval()
 
