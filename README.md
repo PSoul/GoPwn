@@ -164,6 +164,7 @@ npm run worker:dev       # 后台 Worker (开发模式)
 | [API 参考](docs/api-reference.md) | 51 个 API 端点 |
 | [ReAct 引擎](docs/react-engine.md) | ReAct 引擎设计 |
 | [平台架构](docs/v2-architecture.md) | 整体架构设计 |
+| [生产部署](docs/operations/deployment.md) | 部署指南（Docker / 裸机 / PM2） |
 | [开发指南](docs/development-guide.md) | 开发指南 |
 | [Prompt 工程](docs/prompt-engineering.md) | Prompt 设计原则 |
 | [品牌规范](docs/brand-guidelines.md) | 品牌与命名 |

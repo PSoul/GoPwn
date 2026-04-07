@@ -1,29 +1,13 @@
 services:
-  app:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - DATABASE_URL=postgresql://pentest:pentest@db:5432/pentest
-      - PROTOTYPE_SESSION_SECRET=${PROTOTYPE_SESSION_SECRET:-}
-      - LLM_API_KEY=${LLM_API_KEY:-}
-      - LLM_BASE_URL=${LLM_BASE_URL:-}
-      - LLM_ORCHESTRATOR_MODEL=${LLM_ORCHESTRATOR_MODEL:-}
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - app-data:/app/.prototype-store
-    restart: unless-stopped
-
+  # ---------- PostgreSQL ----------
   db:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: pentest
-      POSTGRES_PASSWORD: pentest
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-pentest}
       POSTGRES_DB: pentest
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - pg-data:/var/lib/postgresql/data
     healthcheck:
@@ -33,6 +17,55 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # ---------- Database migration ----------
+  migrate:
+    build:
+      context: .
+      target: web
+    command: npx prisma migrate deploy
+    environment:
+      - DATABASE_URL=postgresql://pentest:${DB_PASSWORD:-pentest}@db:5432/pentest
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  # ---------- Next.js Web ----------
+  web:
+    build:
+      context: .
+      target: web
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - DATABASE_URL=postgresql://pentest:${DB_PASSWORD:-pentest}@db:5432/pentest
+      - PROTOTYPE_SESSION_SECRET=${PROTOTYPE_SESSION_SECRET:-change-me}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_BASE_URL=${LLM_BASE_URL:-}
+      - LLM_ORCHESTRATOR_MODEL=${LLM_ORCHESTRATOR_MODEL:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # ---------- Worker (ReAct + Analysis + Verification) ----------
+  worker:
+    build:
+      context: .
+      target: worker
+    environment:
+      - DATABASE_URL=postgresql://pentest:${DB_PASSWORD:-pentest}@db:5432/pentest
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_BASE_URL=${LLM_BASE_URL:-}
+      - LLM_ORCHESTRATOR_MODEL=${LLM_ORCHESTRATOR_MODEL:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
 volumes:
-  app-data:
   pg-data:
