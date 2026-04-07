@@ -32,13 +32,13 @@ export function mapToAssets(results: ScanResult[]): Asset[] {
           service: r.type === 'SERVICE' ? String(r.details.service ?? undefined) : undefined,
           fingerprint:
             r.type === 'SERVICE' && r.details.fingerprints
-              ? (r.details.fingerprints as string[]).join(', ')
+              ? (Array.isArray(r.details.fingerprints) ? r.details.fingerprints.join(', ') : String(r.details.fingerprints))
               : undefined,
         });
       } else if (r.type === 'SERVICE') {
         existing.service = String(r.details.service ?? existing.service);
         if (r.details.fingerprints) {
-          existing.fingerprint = (r.details.fingerprints as string[]).join(', ');
+          existing.fingerprint = Array.isArray(r.details.fingerprints) ? r.details.fingerprints.join(', ') : String(r.details.fingerprints);
         }
       }
     }

@@ -30,8 +30,8 @@ export function mapToNetwork(results: ScanResult[]): NetworkRecord[] {
       };
       if (r.details.version) record.version = String(r.details.version);
       if (r.details.fingerprints) {
-        const fps = r.details.fingerprints as string[];
-        record.fingerprint = fps.join(', ');
+        const fps = r.details.fingerprints;
+        record.fingerprint = Array.isArray(fps) ? fps.join(', ') : String(fps);
       }
       portMap.set(key, record);
     }
