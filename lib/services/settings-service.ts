@@ -19,8 +19,8 @@ export async function upsertLlmProfile(id: string, data: {
 }
 
 export async function getGlobalConfig() {
-  return prisma.globalConfig.findUnique({ where: { id: "global" } })
-    ?? prisma.globalConfig.create({ data: { id: "global" } })
+  const config = await prisma.globalConfig.findUnique({ where: { id: "global" } })
+  return config ?? prisma.globalConfig.create({ data: { id: "global" } })
 }
 
 export async function updateGlobalConfig(data: {
