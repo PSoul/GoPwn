@@ -1,6 +1,6 @@
 # API 参考
 
-> 最后更新: 2026-04-05 | 51 个 API 路由
+> 最后更新: 2026-04-07 | 51 个 API 路由
 
 ---
 
@@ -28,7 +28,7 @@ curl -b cookies.txt -H "x-csrf-token: $CSRF" http://localhost:3001/api/...
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/api/projects` | 项目列表 |
-| POST | `/api/projects` | 创建项目 `{name, targetInput, description}` |
+| POST | `/api/projects` | 创建项目 `{name, targetInput, description}` — description 会注入所有 LLM prompt |
 | GET | `/api/projects/[id]` | 项目详情（含 detail、assets、findings） |
 | DELETE | `/api/projects/[id]` | 删除项目 |
 

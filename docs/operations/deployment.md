@@ -184,3 +184,5 @@ curl http://localhost:3000/api/health
 3. **MCP 子进程** — Worker 会为每个启用的 MCP Server 启动一个子进程，正常关闭时会自动清理
 4. **会话密钥** — 生产环境必须设置 `PROTOTYPE_SESSION_SECRET`，否则 cookie 签名不安全
 5. **数据库密码** — 默认密码是 `pentest`，生产环境务必修改
+6. **LLM API** — Provider 使用 SSE 流式调用，支持任意 OpenAI 兼容 API（包括反向代理），无需配置额外参数
+7. **fscan 版本** — 内置 fscan MCP server 已适配 v2.0 参数格式，请使用 fscan 2.0+ 二进制文件

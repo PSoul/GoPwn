@@ -4,7 +4,7 @@
 
 **[中文](README.md)**
 
-GoPwn is an open-source AI Agent-driven penetration testing platform. LLM serves as the brain for reasoning and planning, MCP tools serve as the hands for real-world probing, and the platform serves as the central hub for orchestration and auditing. Fully automated from reconnaissance to vulnerability verification.
+GoPwn is an open-source AI Agent-driven penetration testing platform. LLM serves as the brain for reasoning and planning, MCP tools serve as the hands for real-world probing, and the platform serves as the central hub for orchestration and auditing. Fully automated from reconnaissance to vulnerability verification. Supports any OpenAI-compatible LLM API (SSE streaming), with project description-driven intelligent scope judgment.
 
 ## Architecture
 
@@ -22,8 +22,11 @@ The platform uses a **ReAct (Reason + Act) execution engine**: within each round
 
 - **ReAct Autonomous Orchestration** — LLM dynamically selects tools and strategies, not a fixed pipeline
 - **38 MCP Security Tools** — 13 MCP Servers covering DNS, Web, ports, vulnerability validation, screenshot evidence
+- **SSE Streaming LLM** — Full support for OpenAI-compatible API SSE streaming, compatible with various model proxies
+- **Intelligent Scope Judgment** — Project description injected into LLM prompts, context-aware relevance assessment for discovered assets
 - **Multi-Round Iterative Execution** — LLM reviews and automatically advances to next round until attack surface is covered
 - **Real-Time Visualization** — SSE streaming, real-time display of LLM reasoning chains and tool execution results
+- **Full Observability** — MCP tool execution logs (timing/results/errors), LLM call logs, audit trails
 - **Approval & Auditing** — High-risk operations auto-pause for approval, complete audit trail
 - **Docker Labs** — Built-in 13 lab environments (DVWA / Juice Shop / WebGoat / Redis / SSH, etc.)
 
@@ -81,7 +84,7 @@ LLM_REVIEWER_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
 | Backend | Next.js API Routes, TypeScript |
 | Database | PostgreSQL 16 + Prisma 7.x |
 | MCP | `@modelcontextprotocol/sdk`, stdio |
-| Testing | Vitest (219 unit/integration) + Playwright (31 E2E) |
+| Testing | Vitest (444 unit/integration + 13 perf benchmarks) + Playwright (31 E2E) |
 | Containers | Docker Compose |
 
 ## MCP Tools

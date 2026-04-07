@@ -1,6 +1,6 @@
 # ReAct 迭代执行引擎
 
-> 最后更新: 2026-04-05
+> 最后更新: 2026-04-07
 > 本文档是 ReAct（Reason+Act）执行引擎的完整技术参考。
 
 ---
@@ -106,6 +106,7 @@ ReAct 模型的优势：
 | 常量 | 值 | 说明 |
 |------|------|------|
 | `MAX_STEPS_PER_ROUND` | 30 | 单轮最大步数硬限制 |
+| `MAX_EMPTY_RETRIES` | 3 | LLM 连续空响应最大重试次数 |
 | `TOOL_TIMEOUT_MS` | 300,000 (5 min) | 单个 MCP 工具执行超时 |
 | `ANALYSIS_WAIT_MS` | 30,000 (30 s) | 轮末等待异步分析完成 |
 
@@ -152,12 +153,25 @@ handleReactRound({ projectId, round })
 └─ 9. 发布 round_completed 作业 → 触发 lifecycle-worker 审阅
 ```
 
+**LLM 空响应重试**:
+
+如果 LLM 返回完全空的响应（`content: null` 且无 tool_calls），react-worker 会：
+1. 将空响应作为 assistant 消息加入上下文
+2. 注入 tool 消息提示 LLM 重新选择工具
+3. 最多重试 `MAX_EMPTY_RETRIES`（3 次），超过则向上抛出错误
+
 **LLM 无 tool_calls 的处理**:
 
 如果 LLM 返回纯文本而非 tool_calls（部分模型可能如此），react-worker 会：
 1. 将文本作为 assistant 消息加入上下文
 2. 记录 `stopReason = "llm_no_action"`
 3. 结束本轮
+
+**MCP 工具执行日志**:
+
+每次 MCP 工具执行完成后，react-worker 记录详细日志：
+- 成功：`mcp_result` INFO 日志，含执行耗时（ms）、输出长度、输出预览（前 200 字符）
+- 失败：`mcp_error` ERROR 日志，含执行耗时、参数 JSON、错误详情（前 300 字符）
 
 ### 3.2 ReactContextManager (react-context.ts)
 
@@ -220,6 +234,7 @@ handleReactRound({ projectId, round })
 ```typescript
 type ReactContext = {
   projectName: string
+  projectDescription?: string                // 项目描述，用于智能 scope 判断
   targets: Array<{ value: string; type: string }>
   currentPhase: PentestPhase
   round: number
@@ -227,27 +242,36 @@ type ReactContext = {
   maxSteps: number
   stepIndex: number
   scopeDescription: string
-  assets: Array<{ kind: AssetKind; value: string }>
-  findings: Array<{ title: string; severity: string }>
+  assets: Array<{ kind: AssetKind; value: string; label: string }>
+  findings: Array<{ title: string; severity: string; affectedTarget: string; status: string }>
+  availableTools?: Array<{                   // MCP 工具列表（含参数提示）
+    name: string
+    description: string
+    parameterHints?: string                  // 从 inputSchema 提取的参数摘要
+  }>
 }
 ```
 
-**提示词结构（8 个区块）**:
+**提示词结构（9 个区块）**:
 
-1. **角色定义** — 你是一个渗透测试 ReAct Agent，通过 Thought→Action→Observation 循环工作
-2. **项目信息** — 项目名称、阶段（PHASE_LABELS）、轮次、步数进度
-3. **目标列表** — 所有渗透目标及类型
-4. **作用域规则** — scopeDescription 或默认同域/同子网规则
-5. **已发现资产** — 按 kind 分组列出
-6. **已发现漏洞** — 按 severity 排序列出
-7. **共享方法论** — 从 `mcps/pentest-agent-prompt.md` 动态加载（loadSystemPrompt）
-8. **行为准则** — 6 条核心规则：
-   - 先思考再行动（每步写出 Thought）
-   - 基于证据决策（不猜测、不伪造）
-   - 新目标立即跟进（发现新资产马上测试）
-   - 够了就停（调用 `done()` 结束本轮）
-   - 不做重复测试
+1. **共享方法论** — 从 `mcps/pentest-agent-prompt.md` 动态加载（loadSystemPrompt）
+2. **角色定义** — ReAct Agent 核心执行规则：每次响应必须调用 tool，禁止纯文本
+3. **项目信息** — 项目名称、项目描述（若有）、阶段、轮次、步数进度
+4. **目标列表** — 所有渗透目标及类型
+5. **作用域规则** — scopeDescription + 组织关联资产的软性 scope 指导
+6. **已发现资产** — 按 kind 分组列出
+7. **已发现漏洞** — 按 severity 排序列出
+8. **可用工具** — MCP 工具列表（含参数提示：必填/可选、枚举值、描述）
+9. **行为准则** — 9 条核心规则：
+   - 每步必须调用工具
+   - 根据实际结果决策
+   - 发现新目标先判断关联性再测试（强关联深入、弱关联跳过）
+   - 充分时调用 done()
+   - 不重复测试
    - 优先高价值目标
+   - 阶段意识
+   - 工具参数准确（可选参数使用工具默认值，仅项目描述要求时覆盖）
+   - 错误恢复
 
 ### 3.4 function-calling.ts
 
@@ -580,7 +604,7 @@ react_round
 
 ### 当前限制
 
-1. **Function Calling 格式**: 已升级为 OpenAI 现代 `tools` 格式（Phase 24c）。旧的 `functions` 格式被 API 忽略导致 `llm_no_action`。部分非 OpenAI 兼容模型可能仍不稳定
+1. **LLM Provider**: 已迁移至 SSE 流式调用，解决了部分 API 代理在非流式模式下返回 `content: null` 的问题。支持 `reasoning_content` 字段回退（reasoning 模型）。空响应自动重试最多 3 次
 2. **上下文压缩信息损失**: 超过 5 步的历史被压缩为一行摘要，LLM 可能重复执行已完成的测试
 3. **无步骤级审批**: 当前版本所有工具调用自动批准。高风险工具（如 execute_code）在循环中途无法暂停请求人工确认
 4. **SSE 事件不可回放**: 页面重载后丢失实时步骤状态，需通过 Steps API 查询历史

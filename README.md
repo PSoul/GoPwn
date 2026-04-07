@@ -4,7 +4,7 @@
 
 **[English](README.en.md)**
 
-GoPwn 是一个开源的 AI Agent 驱动渗透测试平台。LLM 作为大脑进行推理和规划，MCP 工具作为四肢执行真实探测，平台作为中枢负责调度和审计。从信息收集到漏洞验证，全流程自动编排。
+GoPwn 是一个开源的 AI Agent 驱动渗透测试平台。LLM 作为大脑进行推理和规划，MCP 工具作为四肢执行真实探测，平台作为中枢负责调度和审计。从信息收集到漏洞验证，全流程自动编排。支持任意 OpenAI 兼容 LLM API（SSE 流式调用），项目描述驱动智能 Scope 判断。
 
 ## 架构
 
@@ -22,8 +22,11 @@ MCP Tools (四肢)    真实探测、证据采集、结构化结果回传
 
 - **ReAct 自主编排** — LLM 动态选择工具和策略，不是固定流水线
 - **38 MCP 安全工具** — 13 个 MCP Server 覆盖 DNS、Web、端口、漏洞验证、截图取证
+- **SSE 流式 LLM** — 完整支持 OpenAI 兼容 API 的 SSE 流式调用，兼容各类模型代理
+- **智能 Scope 判断** — 项目描述注入 LLM Prompt，基于上下文智能判断新发现资产的关联性
 - **多轮迭代执行** — LLM 审阅后自动推进下一轮，直到充分覆盖攻击面
 - **实时可视化** — SSE 流式推送，实时展示 LLM 推理链和工具执行结果
+- **完整可观测性** — MCP 工具执行日志（耗时/结果/错误）、LLM 调用日志、审计记录
 - **审批与审计** — 高风险操作自动暂停等待审批，完整审计记录
 - **Docker 靶场** — 内置 13 个靶场（DVWA / Juice Shop / WebGoat / Redis / SSH 等）
 
@@ -81,12 +84,12 @@ LLM_REVIEWER_MODEL=Pro/deepseek-ai/DeepSeek-V3.2
 | 后端 | Next.js API Routes, TypeScript |
 | 数据库 | PostgreSQL 16 + Prisma 7.x |
 | MCP | `@modelcontextprotocol/sdk`, stdio |
-| 测试 | Vitest (219 单元/集成) + Playwright (31 E2E) |
+| 测试 | Vitest (444 单元/集成 + 13 性能基准) + Playwright (31 E2E) |
 | 容器 | Docker Compose |
 
 ## MCP 工具体系
 
-14 个 MCP Server 覆盖以下能力：
+13 个 MCP Server 覆盖以下能力：
 
 | 能力 | 服务 | 工具数 |
 |------|------|--------|
@@ -135,7 +138,7 @@ lib/                    核心业务逻辑
   hooks/                React Hooks（SSE / ReAct 步骤）
   infra/                基础设施（Prisma / 事件总线 / 作业队列）
   types/                TypeScript 类型定义
-mcps/                   13 个本地 MCP Server (38 工具)
+mcps/                   13 个本地 MCP Server (38 工具, fscan v2.0 兼容)
 docker/
   local-labs/           13 个 Docker 靶场
   postgres/             PostgreSQL 开发容器

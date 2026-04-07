@@ -1,21 +1,21 @@
 # 开发指南
 
-> 最后更新: 2026-04-06
+> 最后更新: 2026-04-07
 
 ---
 
 ## 环境搭建
 
 ### 前置要求
-- Node.js 22+
+- Node.js 20+
 - PostgreSQL 16（Docker 或本地）
-- pnpm（包管理器）
+- npm（包管理器）
 
 ### 快速开始
 
 ```bash
 # 1. 安装依赖
-pnpm install
+npm install
 
 # 2. 启动 PostgreSQL
 cd docker/postgres && docker compose up -d
@@ -96,7 +96,7 @@ lib/                 核心业务逻辑
 ├── project/         项目 repository 与结果
 ├── settings/        配置管理（agent-config、LLM schema）
 └── types/           TypeScript 类型定义
-mcps/                14 个本地 MCP 服务器
+mcps/                13 个本地 MCP 服务器 (38 工具, fscan v2.0 兼容)
 prisma/              数据库 schema
 tests/               单元测试
 e2e/                 E2E 测试（2 套件）
@@ -156,7 +156,12 @@ Worker 单元测试位于 `tests/lib/workers/`：
 
 ### 新增 ReAct 可用工具
 
-在 `lib/llm/function-calling.ts` 中注册新的 function schema，参考已有工具的定义格式。`tool-input-mapper.ts` 负责将 function 参数映射为具体 MCP 调用参数，两处均需同步更新。
+MCP 工具自动发现和注册，无需手动编写 function schema。流程：
+1. 在 `mcps/` 下创建新的 MCP server（参考 `mcps/mcp-servers.json` 配置）
+2. 重启 Worker 或调用 `POST /api/settings/mcp/sync`
+3. 工具的 `inputSchema`（JSON Schema）自动转换为 OpenAI functions 格式
+4. `tool-input-mapper.ts` 负责 LLM 参数 → MCP 工具输入的映射
+5. 工具参数提示（必填/可选、枚举值等）自动从 schema 提取并注入 ReAct prompt
 
 ### 调试 ReAct 步骤
 
@@ -203,10 +208,12 @@ GET /api/projects/{id}/events
 ## 新增 MCP 工具流程
 
 1. 在 `mcps/` 下创建新服务器目录
-2. 实现 `index.mjs`（stdio JSON-RPC 接口）
-3. 启动项目时自动发现（`discoverAndRegisterMcpServers()`）
-4. 或手动注册：`POST /api/settings/mcp-servers/register`
-5. 在 `lib/llm/function-calling.ts` 中添加对应的 function schema，使 LLM 可在 ReAct 循环中调用
+2. 在 `mcps/mcp-servers.json` 中添加服务器配置
+3. 重启 Worker 或调用 `POST /api/settings/mcp/sync` 触发自动发现
+4. 工具自动注册到数据库（含 inputSchema）、自动推断能力族
+5. 下次 ReAct 循环自动可用（无需手动编写 function schema）
+
+**注意**：MCP server 环境变量中的 `*_PATH` 相对路径会在启动时自动解析为绝对路径（`mcp-bootstrap.ts`）。
 
 ---
 
