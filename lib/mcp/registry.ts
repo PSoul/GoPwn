@@ -10,46 +10,61 @@ import * as mcpToolRepo from "@/lib/repositories/mcp-tool-repo"
 // Cache connectors by server name to avoid re-spawning processes
 const connectorCache = new Map<string, McpConnector>()
 
+// Prevent concurrent getConnector() from spawning duplicate processes
+const inflightConnectors = new Map<string, Promise<McpConnector | null>>()
+
 /**
  * Get or create a connector for a given server.
+ * Uses an inflight map to prevent concurrent calls from creating duplicate processes.
  */
 async function getConnector(serverName: string): Promise<McpConnector | null> {
-  // Always check server enabled status (not just on cache miss)
-  const servers = await mcpToolRepo.findAllServers()
-  const server = servers.find((s) => s.serverName === serverName && s.enabled)
-  if (!server) {
-    // Server disabled or removed — evict from cache and close connector
-    if (connectorCache.has(serverName)) {
-      const old = connectorCache.get(serverName)!
-      connectorCache.delete(serverName)
-      await old.close().catch(() => {})
-    }
+  // Fast path: already cached and healthy
+  if (connectorCache.has(serverName)) {
+    // Still verify server is enabled
+    const servers = await mcpToolRepo.findAllServers()
+    const server = servers.find((s) => s.serverName === serverName && s.enabled)
+    if (server) return connectorCache.get(serverName)!
+    // Server disabled — evict
+    const old = connectorCache.get(serverName)!
+    connectorCache.delete(serverName)
+    await old.close().catch(() => {})
     return null
   }
 
-  if (connectorCache.has(serverName)) {
-    return connectorCache.get(serverName)!
+  // Prevent duplicate spawns: if another call is already creating this connector, wait for it
+  if (inflightConnectors.has(serverName)) {
+    return inflightConnectors.get(serverName)!
   }
 
-  let connector: McpConnector
+  const promise = createConnector(serverName)
+  inflightConnectors.set(serverName, promise)
+  try {
+    return await promise
+  } finally {
+    inflightConnectors.delete(serverName)
+  }
+}
+
+async function createConnector(serverName: string): Promise<McpConnector | null> {
+  const servers = await mcpToolRepo.findAllServers()
+  const server = servers.find((s) => s.serverName === serverName && s.enabled)
+  if (!server) return null
 
   if (server.transport === "stdio" && server.command) {
     const envVars = server.envJson ? JSON.parse(server.envJson) as Record<string, string> : undefined
-    connector = createStdioConnector({
+    const connector = createStdioConnector({
       command: server.command,
       args: server.args,
       cwd: server.cwd ?? undefined,
       env: envVars,
       timeoutMs: 120_000,
     })
-  } else {
-    // Unsupported transport type for now
-    console.warn(`[mcp-registry] Unsupported transport "${server.transport}" for ${serverName}`)
-    return null
+    connectorCache.set(serverName, connector)
+    return connector
   }
 
-  connectorCache.set(serverName, connector)
-  return connector
+  console.warn(`[mcp-registry] Unsupported transport "${server.transport}" for ${serverName}`)
+  return null
 }
 
 /**

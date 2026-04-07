@@ -128,6 +128,11 @@ export function createStdioConnector(config: StdioConfig): McpConnector {
         if (err) {
           clearTimeout(timer)
           pending.delete(id)
+          // Kill the broken process to prevent orphaned zombies
+          if (proc && !proc.killed) {
+            proc.kill("SIGKILL")
+            proc = null
+          }
           reject(err)
         }
       })

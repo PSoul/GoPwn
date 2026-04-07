@@ -174,7 +174,17 @@ async function main() {
   process.on("SIGINT", () => shutdown("SIGINT"))
 }
 
-main().catch((err) => {
-  logger.fatal({ err }, "fatal error")
+// Catch-all handlers to ensure MCP child processes are cleaned up
+async function fatalShutdown(reason: string, err: unknown) {
+  logger.fatal({ err }, `fatal: ${reason}`)
+  try {
+    const { closeAll } = await import("@/lib/mcp/registry")
+    await closeAll()
+  } catch { /* best effort */ }
   process.exit(1)
-})
+}
+
+process.on("uncaughtException", (err) => fatalShutdown("uncaughtException", err))
+process.on("unhandledRejection", (err) => fatalShutdown("unhandledRejection", err))
+
+main().catch((err) => fatalShutdown("main() failed", err))
