@@ -3,11 +3,9 @@ import { SectionCard } from "@/components/shared/section-card"
 import { SettingsHubGrid } from "@/components/settings/settings-hub-grid"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
 import { SystemStatusGrid } from "@/components/settings/system-status-grid"
-import { requireAuth } from "@/lib/infra/auth"
 import { getSystemStatus } from "@/lib/services/settings-service"
 
 export default async function SettingsPage() {
-  await requireAuth()
   const status = await getSystemStatus()
 
   const sections = [

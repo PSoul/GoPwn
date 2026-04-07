@@ -17,6 +17,8 @@ import { loadSystemPrompt } from "./system-prompt"
 
 export type AnalyzerContext = {
   projectName: string
+  projectDescription?: string
+  scopeTargets?: string[]
   toolName: string
   target: string
   rawOutput: string
@@ -26,6 +28,7 @@ export type AnalyzerContext = {
 
 export type ReviewerContext = {
   projectName: string
+  projectDescription?: string
   currentPhase: PentestPhase
   round: number
   maxRounds: number
@@ -89,15 +92,25 @@ export async function buildAnalyzerPrompt(ctx: AnalyzerContext): Promise<LlmMess
     ? ctx.existingFindings!.map((f) => `  [${f.severity}] ${f.title} → ${f.affectedTarget}`).join("\n")
     : "  (无)"
 
+  const scopeTargetList = (ctx.scopeTargets ?? []).length > 0
+    ? ctx.scopeTargets!.map((t) => `  - ${t}`).join("\n")
+    : ""
+
+  const projectContext = [
+    `## 项目: ${ctx.projectName}`,
+    ctx.projectDescription ? `## 项目说明: ${ctx.projectDescription}` : "",
+    scopeTargetList ? `## 授权目标\n${scopeTargetList}` : "",
+    `## 工具: ${ctx.toolName}`,
+    `## 目标: ${ctx.target}`,
+  ].filter(Boolean).join("\n")
+
   return [
     { role: "system", content: systemPrompt },
     {
       role: "user",
       content: `# 工具输出分析
 
-## 项目: ${ctx.projectName}
-## 工具: ${ctx.toolName}
-## 目标: ${ctx.target}
+${projectContext}
 
 ## 已有资产（避免重复）
 ${existingAssets}
@@ -117,6 +130,12 @@ ${ctx.rawOutput.length > 15_000 ? `\n(输出已截断，原始长度 ${ctx.rawOu
 2. **安全发现**（漏洞、配置问题、信息泄露等）
 3. **证据摘要**（对这次工具执行结果的总结）
 
+### 资产提取的关联性要求
+只提取与项目目标**有关联**的资产：
+- **提取**：目标的子域名、同网段 IP、同一组织的关联域名（如子公司、收购品牌）、目标服务器上发现的端口/服务/路径
+- **不提取**：第三方 CDN 域名（如 cloudflare.com、akamai.com）、通用 SaaS 服务域名、与项目目标所属组织无关的外部地址
+- 判断依据：参考上方的项目说明和授权目标，如果项目说明中指明了组织名称，则该组织的已知关联资产属于合理范围
+
 请以 JSON 格式回复：
 \`\`\`json
 {
@@ -126,6 +145,7 @@ ${ctx.rawOutput.length > 15_000 ? `\n(输出已截断，原始长度 ${ctx.rawOu
       "value": "标准化值",
       "label": "显示标签",
       "parentValue": "父级资产的value（可选）",
+      "relevance": "与项目目标的关联说明（可选，对非直接子域名/同IP的资产建议填写）",
       "fingerprints": [{"category": "protocol|product|version|framework", "value": "指纹值"}]
     }
   ],
@@ -160,7 +180,7 @@ export async function buildReviewerPrompt(ctx: ReviewerContext): Promise<LlmMess
       role: "user",
       content: `# 轮次审查决策
 
-## 项目: ${ctx.projectName}
+## 项目: ${ctx.projectName}${ctx.projectDescription ? `\n## 项目说明: ${ctx.projectDescription}` : ""}
 ## 当前阶段: ${phaseLabel} (${ctx.currentPhase})
 ## 轮次: ${ctx.round}/${ctx.maxRounds}
 

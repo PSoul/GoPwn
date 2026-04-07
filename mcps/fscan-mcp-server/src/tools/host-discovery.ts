@@ -13,10 +13,12 @@ export function registerHostDiscovery(server: McpServer) {
       noPing: z.boolean().optional().default(false).describe('Skip ping, use ICMP directly'),
     },
     async ({ target, timeout, noPing }) => {
-      const args = ['-h', target, '-m', 'icmp', '-time', String(timeout), '-nobr', '-nopoc'];
+      // fscan 2.0: 没有 icmp 模式，主机发现是默认行为的第一步
+      // 用 -nobr -nopoc 限制为仅发现，不做暴力破解和 POC
+      const args = ['-h', target, '-time', String(timeout), '-nobr', '-nopoc'];
       if (noPing) args.push('-np');
 
-      const results = await runFscan({ args, timeoutMs: timeout * 10_000 });
+      const results = await runFscan({ args, timeoutMs: Math.max(timeout * 10_000, 60_000) });
       const assets = mapToAssets(results);
 
       return {

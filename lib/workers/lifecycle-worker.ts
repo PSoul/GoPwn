@@ -11,9 +11,9 @@ import * as auditRepo from "@/lib/repositories/audit-repo"
 import { prisma } from "@/lib/infra/prisma"
 import { publishEvent } from "@/lib/infra/event-bus"
 import { createPgBossJobQueue } from "@/lib/infra/job-queue"
-import { registerAbort, unregisterAbort } from "@/lib/infra/abort-registry"
+import { registerAbort, unregisterAbort, abortAllForProject } from "@/lib/infra/abort-registry"
 import { createPipelineLogger } from "@/lib/infra/pipeline-logger"
-import { transition } from "@/lib/domain/lifecycle"
+import { transition, isTerminalOrSettling } from "@/lib/domain/lifecycle"
 import {
   getLlmProvider,
   buildReviewerPrompt,
@@ -33,7 +33,7 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
     return
   }
 
-  if (project.lifecycle === "stopped" || project.lifecycle === "stopping") {
+  if (isTerminalOrSettling(project.lifecycle)) {
     log.info("skipped", `项目已 ${project.lifecycle}，跳过审阅`)
     return
   }
@@ -99,6 +99,7 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
     // Call LLM reviewer
     const reviewerCtx: ReviewerContext = {
       projectName: project.name,
+      projectDescription: project.description || undefined,
       currentPhase: project.currentPhase,
       round,
       maxRounds: project.maxRounds,
@@ -178,11 +179,16 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
 
     // On reviewer failure, try to continue anyway with next round
     // (don't block the pipeline on reviewer errors)
+    // 但如果项目已终止/结算，不要继续
+    const current = await projectRepo.findById(projectId)
+    if (!current || isTerminalOrSettling(current.lifecycle)) {
+      log.info("skipped", `审阅失败但项目已 ${current?.lifecycle ?? "deleted"}，不继续`)
+      return
+    }
     if (round < project.maxRounds) {
       try {
         // Force back to reviewing first (if not already), then CONTINUE
-        const current = await projectRepo.findById(projectId)
-        if (current && current.lifecycle === "reviewing") {
+        if (current.lifecycle === "reviewing") {
           await projectRepo.updateLifecycle(projectId, transition("reviewing", "CONTINUE_REACT"))
         } else {
           // Fallback: try executing → reviewing → planning chain
@@ -203,10 +209,10 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
       // Max rounds reached — settle the project even if reviewer failed
       // (don't mark as "failed" just because the reviewer LLM had an issue)
       try {
-        const current = await projectRepo.findById(projectId)
-        if (current && current.lifecycle === "reviewing") {
+        const latest = await projectRepo.findById(projectId)
+        if (latest && latest.lifecycle === "reviewing") {
           await projectRepo.updateLifecycle(projectId, transition("reviewing", "SETTLE"))
-        } else if (current && current.lifecycle === "executing") {
+        } else if (latest && latest.lifecycle === "executing") {
           await projectRepo.updateLifecycle(projectId, transition("executing", "ALL_DONE"))
           await projectRepo.updateLifecycle(projectId, transition("reviewing", "SETTLE"))
         }
@@ -232,6 +238,12 @@ export async function handleSettleClosure(data: { projectId: string }) {
   const project = await projectRepo.findById(projectId)
   if (!project) {
     log.error("failed", `项目 ${projectId} 不存在`)
+    return
+  }
+
+  // 如果项目已经完成或已停止，跳过重复结算
+  if (project.lifecycle === "completed" || project.lifecycle === "stopped") {
+    log.info("skipped", `项目已 ${project.lifecycle}，跳过结算`)
     return
   }
 
@@ -278,6 +290,18 @@ export async function handleSettleClosure(data: { projectId: string }) {
     // Mark project as completed (skip if already stopped — report still generated above)
     if (project.lifecycle === "settling") {
       await projectRepo.updateLifecycle(projectId, transition("settling", "SETTLED"))
+    }
+
+    // 关键：取消所有待执行作业，防止 LLM 持续调用
+    try {
+      abortAllForProject(projectId)
+      const queue = createPgBossJobQueue()
+      const cancelledJobs = await queue.cancelByProject(projectId)
+      if (cancelledJobs > 0) {
+        log.info("cleanup", `结算后取消 ${cancelledJobs} 个待执行作业`)
+      }
+    } catch (err) {
+      log.warn("cleanup", `结算清理作业失败: ${err instanceof Error ? err.message : err}`)
     }
 
     await publishEvent({

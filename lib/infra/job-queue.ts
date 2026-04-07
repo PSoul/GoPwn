@@ -88,8 +88,10 @@ export function createPgBossJobQueue(): JobQueue {
     },
 
     async cancelByProject(projectId: string): Promise<number> {
+      // 只取消排队中的作业（created/retry），不删除正在执行的（active）
+      // active 状态的作业通过 abort registry 信号终止
       const result = await prisma.$executeRawUnsafe(
-        `DELETE FROM pgboss.job WHERE state IN ('created', 'retry', 'active') AND data->>'projectId' = $1`,
+        `DELETE FROM pgboss.job WHERE state IN ('created', 'retry') AND data->>'projectId' = $1`,
         projectId,
       )
       return result

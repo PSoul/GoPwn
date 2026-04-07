@@ -2,11 +2,9 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
 import { SystemControlPanel } from "@/components/settings/system-control-panel"
-import { requireAuth } from "@/lib/infra/auth"
 import { getGlobalConfig } from "@/lib/services/settings-service"
 
 export default async function ApprovalPolicySettingsPage() {
-  await requireAuth()
   const config = await getGlobalConfig()
 
   return (

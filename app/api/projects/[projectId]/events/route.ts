@@ -1,8 +1,16 @@
+import { requireAuth } from "@/lib/infra/auth"
 import { createPgListener } from "@/lib/infra/pg-listener"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(req: Request, { params }: { params: Promise<{ projectId: string }> }) {
+  // 鉴权：SSE 长连接必须在代码层验证，不能仅依赖 middleware
+  try {
+    await requireAuth()
+  } catch {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
+  }
+
   const { projectId } = await params
   const encoder = new TextEncoder()
 

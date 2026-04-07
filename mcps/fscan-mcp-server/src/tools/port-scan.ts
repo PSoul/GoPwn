@@ -15,10 +15,14 @@ export function registerPortScan(server: McpServer) {
       timeout: z.number().optional().default(3).describe('Timeout in seconds'),
     },
     async ({ target, ports, threads, timeout }) => {
-      const args = ['-h', target, '-m', 'portscan', '-t', String(threads), '-time', String(timeout), '-nobr', '-nopoc'];
+      // fscan 2.0: 端口扫描是默认行为，不需要 -m 参数。用 -nobr -nopoc 跳过暴力破解和 POC 扫描
+      const args = ['-h', target, '-t', String(threads), '-time', String(timeout), '-nobr', '-nopoc'];
       if (ports) args.push('-p', ports);
 
-      const results = await runFscan({ args, timeoutMs: 3 * 60_000 });
+      // 全端口扫描可能耗时较长，根据端口范围动态调整超时
+      const isFullRange = ports === '1-65535' || ports === 'all';
+      const timeoutMs = isFullRange ? 5 * 60_000 : 3 * 60_000;
+      const results = await runFscan({ args, timeoutMs });
       const network = mapToNetwork(results);
       const assets = mapToAssets(results);
 

@@ -3,7 +3,7 @@
  * then discovers tools from each server via stdio.
  */
 
-import { readFileSync } from "fs"
+import { readFileSync, existsSync } from "fs"
 import { resolve } from "path"
 import * as mcpToolRepo from "@/lib/repositories/mcp-tool-repo"
 import { syncToolsFromServers } from "@/lib/mcp/registry"
@@ -42,13 +42,16 @@ export async function loadServersFromManifest(): Promise<{ loaded: number; error
         ? resolve(process.cwd(), config.cwd)
         : undefined
 
+      // 解析 env 中的路径值：如果值指向一个存在的文件，转为绝对路径
+      const resolvedEnv = config.env ? resolveEnvPaths(config.env) : undefined
+
       await mcpToolRepo.upsertServer({
         serverName,
         transport: "stdio",
         command: config.command,
         args: config.args,
         cwd,
-        envJson: config.env ? JSON.stringify(config.env) : undefined,
+        envJson: resolvedEnv ? JSON.stringify(resolvedEnv) : undefined,
       })
       loaded++
     } catch (err) {
@@ -84,4 +87,24 @@ export async function bootstrapMcp(): Promise<{
   }
 
   return { servers, tools }
+}
+
+/**
+ * 解析 env 中的路径：以 _PATH 结尾的变量，如果其值指向一个存在的文件，转为绝对路径。
+ * 解决子进程 cwd 与项目根目录不同导致相对路径找不到二进制的问题。
+ */
+function resolveEnvPaths(env: Record<string, string>): Record<string, string> {
+  const resolved: Record<string, string> = {}
+  for (const [key, value] of Object.entries(env)) {
+    if (key.endsWith("_PATH") && value && !value.startsWith("/") && !(/^[A-Z]:\\/i.test(value))) {
+      // 相对路径 → 尝试从项目根解析
+      const abs = resolve(process.cwd(), value)
+      if (existsSync(abs)) {
+        resolved[key] = abs
+        continue
+      }
+    }
+    resolved[key] = value
+  }
+  return resolved
 }

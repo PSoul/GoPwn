@@ -9,6 +9,7 @@ import * as auditRepo from "@/lib/repositories/audit-repo"
 import { publishEvent } from "@/lib/infra/event-bus"
 import { registerAbort, unregisterAbort } from "@/lib/infra/abort-registry"
 import { createPipelineLogger } from "@/lib/infra/pipeline-logger"
+import { isTerminalOrSettling } from "@/lib/domain/lifecycle"
 import { callTool } from "@/lib/mcp"
 import { prisma } from "@/lib/infra/prisma"
 import {
@@ -54,7 +55,7 @@ export async function handleVerifyFinding(data: { projectId: string; findingId: 
     select: { name: true, lifecycle: true, currentPhase: true, currentRound: true },
   })
 
-  if (!project || project.lifecycle === "stopped" || project.lifecycle === "stopping") {
+  if (!project || isTerminalOrSettling(project.lifecycle)) {
     log.warn("skipped", `项目已 ${project?.lifecycle ?? "deleted"}，跳过验证`)
     return
   }

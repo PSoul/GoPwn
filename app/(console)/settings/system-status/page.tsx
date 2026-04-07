@@ -2,11 +2,9 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
 import { SystemStatusGrid } from "@/components/settings/system-status-grid"
-import { requireAuth } from "@/lib/infra/auth"
 import { getSystemStatus } from "@/lib/services/settings-service"
 
 export default async function SystemStatusSettingsPage() {
-  await requireAuth()
   const status = await getSystemStatus()
 
   const items = [

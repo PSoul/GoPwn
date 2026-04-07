@@ -87,6 +87,15 @@ export async function updateStatus(id: string, status: McpRunStatus, extra?: {
  */
 async function checkAndPublishRoundCompletion(projectId: string, round: number) {
   try {
+    // 如果项目已终止/结算，不再发布 round_completed 作业
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { lifecycle: true },
+    })
+    if (!project) return
+    const { isTerminalOrSettling } = await import("@/lib/domain/lifecycle")
+    if (isTerminalOrSettling(project.lifecycle)) return
+
     const runs = await prisma.mcpRun.findMany({
       where: { projectId, round },
       select: { status: true },

@@ -8,12 +8,10 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { requireAuth } from "@/lib/infra/auth"
 import { getDashboardData } from "@/lib/services/dashboard-service"
 import { LIFECYCLE_LABELS } from "@/lib/types/labels"
 
 export default async function DashboardPage() {
-  await requireAuth()
   const data = await getDashboardData()
 
   const metrics = [

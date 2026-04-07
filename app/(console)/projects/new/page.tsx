@@ -1,10 +1,6 @@
 import { ProjectForm } from "@/components/projects/project-form"
 import { PageHeader } from "@/components/shared/page-header"
-import { requireAuth } from "@/lib/infra/auth"
-
 export default async function NewProjectPage() {
-  await requireAuth()
-
   return (
     <div className="space-y-5">
       <PageHeader

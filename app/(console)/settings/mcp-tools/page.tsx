@@ -2,11 +2,9 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { McpGatewayClient } from "@/components/settings/mcp-gateway-client"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
-import { requireAuth } from "@/lib/infra/auth"
 import * as mcpToolRepo from "@/lib/repositories/mcp-tool-repo"
 
 export default async function McpToolsSettingsPage() {
-  await requireAuth()
   const [tools, servers] = await Promise.all([
     mcpToolRepo.findAll(),
     mcpToolRepo.findAllServers(),

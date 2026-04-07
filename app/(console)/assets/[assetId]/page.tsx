@@ -5,7 +5,6 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { requireAuth } from "@/lib/infra/auth"
 import { getAsset } from "@/lib/services/asset-service"
 import { ASSET_KIND_LABELS } from "@/lib/types/labels"
 
@@ -14,7 +13,6 @@ export default async function AssetDetailPage({
 }: {
   params: Promise<{ assetId: string }>
 }) {
-  await requireAuth()
   const { assetId } = await params
 
   let asset

@@ -12,6 +12,7 @@ import { createPgBossJobQueue } from "@/lib/infra/job-queue"
 import { registerAbort, unregisterAbort } from "@/lib/infra/abort-registry"
 import { createPipelineLogger } from "@/lib/infra/pipeline-logger"
 import { prisma } from "@/lib/infra/prisma"
+import { isTerminalOrSettling } from "@/lib/domain/lifecycle"
 import {
   getLlmProvider,
   buildAnalyzerPrompt,
@@ -32,13 +33,13 @@ export async function handleAnalyzeResult(data: {
   const log = createPipelineLogger(projectId, "analyze_result")
   log.info("started", `分析 ${toolName} → ${target} 的输出`)
 
-  // Get project info
+  // Get project info (include description and targets for scope context)
   const project = await prisma.project.findUnique({
     where: { id: projectId },
-    select: { name: true, lifecycle: true },
+    select: { name: true, description: true, lifecycle: true, targets: { select: { value: true } } },
   })
 
-  if (!project || project.lifecycle === "stopped" || project.lifecycle === "stopping") {
+  if (!project || isTerminalOrSettling(project.lifecycle)) {
     log.warn("skipped", `项目已 ${project?.lifecycle ?? "deleted"}，跳过分析`)
     return
   }
@@ -50,6 +51,8 @@ export async function handleAnalyzeResult(data: {
 
     const analyzerCtx: AnalyzerContext = {
       projectName: project.name,
+      projectDescription: project.description || undefined,
+      scopeTargets: project.targets.map((t) => t.value),
       toolName,
       target,
       rawOutput,

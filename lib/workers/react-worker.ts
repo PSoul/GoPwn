@@ -14,7 +14,7 @@ import { publishEvent } from "@/lib/infra/event-bus"
 import { createPgBossJobQueue } from "@/lib/infra/job-queue"
 import { registerAbort, unregisterAbort } from "@/lib/infra/abort-registry"
 import { createPipelineLogger } from "@/lib/infra/pipeline-logger"
-import { transition } from "@/lib/domain/lifecycle"
+import { transition, isTerminalOrSettling } from "@/lib/domain/lifecycle"
 import { callTool } from "@/lib/mcp"
 import { getLlmProvider } from "@/lib/llm"
 import { buildReactSystemPrompt, type ReactContext } from "@/lib/llm/react-prompt"
@@ -25,8 +25,26 @@ import { ReactContextManager } from "./react-context"
 import type { Severity, PentestPhase, RiskLevel, Prisma } from "@/lib/generated/prisma"
 
 const MAX_STEPS_PER_ROUND = 30
-const TOOL_TIMEOUT_MS = 300_000 // 5 min per tool
-const ANALYSIS_WAIT_MS = 30_000 // wait for pending analyses at round end
+const MAX_EMPTY_RETRIES = 3      // LLM 连续空响应最大重试次数
+
+/** 从 inputSchema 中提取关键参数摘要，帮助 LLM 正确填写参数 */
+function buildParameterHints(inputSchema: unknown): string | undefined {
+  const schema = inputSchema as Record<string, unknown> | null
+  if (!schema?.properties) return undefined
+  const props = schema.properties as Record<string, { type?: string; description?: string; enum?: string[] }>
+  const required = new Set((schema.required ?? []) as string[])
+  const hints: string[] = []
+  for (const [name, prop] of Object.entries(props)) {
+    if (name === "target") continue // target 太明显，省略
+    const req = required.has(name) ? "必填" : "可选"
+    const enumStr = prop.enum ? ` [${prop.enum.join("|")}]` : ""
+    const desc = prop.description ? `: ${prop.description}` : ""
+    hints.push(`${name}(${req}${enumStr})${desc}`)
+  }
+  return hints.length > 0 ? hints.join(", ") : undefined
+}
+const TOOL_TIMEOUT_MS = 300_000  // 5 min per tool
+const ANALYSIS_WAIT_MS = 30_000  // wait for pending analyses at round end
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -52,7 +70,7 @@ export async function handleReactRound(data: {
     return
   }
 
-  if (project.lifecycle === "stopped" || project.lifecycle === "stopping") {
+  if (isTerminalOrSettling(project.lifecycle)) {
     log.info("skipped", `项目已 ${project.lifecycle}，跳过`)
     return
   }
@@ -98,6 +116,7 @@ export async function handleReactRound(data: {
     // Build initial context with available tool names
     const reactCtx: ReactContext = {
       projectName: project.name,
+      projectDescription: project.description || undefined,
       targets: project.targets.map((t) => ({ value: t.value, type: t.type })),
       currentPhase: project.currentPhase,
       round,
@@ -107,7 +126,11 @@ export async function handleReactRound(data: {
       scopeDescription: scopePolicy.describe(),
       assets: assets.map((a) => ({ kind: a.kind, value: a.value, label: a.label })),
       findings: findings.map((f) => ({ title: f.title, severity: f.severity, affectedTarget: f.affectedTarget, status: f.status })),
-      availableTools: enabledTools.map((t) => ({ name: t.toolName, description: t.description || "" })),
+      availableTools: enabledTools.map((t) => ({
+        name: t.toolName,
+        description: t.description || "",
+        parameterHints: buildParameterHints(t.inputSchema),
+      })),
     }
 
     const systemPrompt = await buildReactSystemPrompt(reactCtx)
@@ -120,25 +143,54 @@ export async function handleReactRound(data: {
 
     let stopReason: string = "max_steps"
     let lastThought: string = ""
+    let consecutiveEmptyRetries = 0
 
     // === ReAct Loop ===
     for (let stepIndex = 0; stepIndex < MAX_STEPS_PER_ROUND; stepIndex++) {
-      // Check abort
+      // Check abort signal or project terminal state
       if (abortController.signal.aborted) {
         stopReason = "aborted"
         log.info("aborted", `项目被停止，结束循环`)
         break
+      }
+      // 每 5 步检查项目是否已被外部停止/结算（防止 abort registry 竞态）
+      if (stepIndex > 0 && stepIndex % 5 === 0) {
+        const fresh = await projectRepo.findById(projectId)
+        if (!fresh || isTerminalOrSettling(fresh.lifecycle)) {
+          stopReason = "project_terminated"
+          log.info("aborted", `项目已 ${fresh?.lifecycle ?? "deleted"}，结束循环`)
+          break
+        }
       }
 
       // Call LLM with function calling
       const timer = log.startTimer()
       log.info("llm_call", `Step ${stepIndex}: 调用 LLM`)
 
-      const response = await llm.chat(ctxManager.getMessages(), {
-        functions: allFunctions,
-        function_call: "auto",
-        signal: abortController.signal,
-      })
+      let response
+      try {
+        response = await llm.chat(ctxManager.getMessages(), {
+          functions: allFunctions,
+          function_call: "auto",
+          signal: abortController.signal,
+        })
+        consecutiveEmptyRetries = 0 // 成功调用，重置计数
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err)
+        // LLM 空响应错误 → 重试几次，可能是 API 临时异常
+        if (errMsg.includes("LLM 返回空响应") && consecutiveEmptyRetries < MAX_EMPTY_RETRIES) {
+          consecutiveEmptyRetries++
+          log.warn("llm_empty", `LLM 空响应 (重试 ${consecutiveEmptyRetries}/${MAX_EMPTY_RETRIES}, ${timer.elapsed()}ms): ${errMsg}`)
+          ctxManager.addAssistantMessage("")
+          ctxManager.addToolResult({
+            stepIndex, toolName: "system", target: "", functionName: "system",
+            output: "上一次调用未收到任何响应，请重新选择工具并调用。",
+            status: "failed", thought: "", toolCallId: undefined,
+          })
+          continue
+        }
+        throw err // 超过重试次数或其他错误，向上抛出
+      }
 
       // Parse LLM response
       if (!response.functionCall) {
@@ -265,6 +317,7 @@ export async function handleReactRound(data: {
       // Execute MCP tool
       let toolOutput: string
       let toolStatus: "succeeded" | "failed" = "succeeded"
+      const toolTimer = log.startTimer()
 
       try {
         const toolInput = await buildToolInputFromFunctionArgs(fnName, fnArgs, targetValue, thought)
@@ -279,6 +332,14 @@ export async function handleReactRound(data: {
       } catch (err) {
         toolOutput = `Error: ${err instanceof Error ? err.message : String(err)}`
         toolStatus = "failed"
+      }
+
+      // 记录 MCP 工具执行结果
+      const toolElapsed = toolTimer.elapsed()
+      if (toolStatus === "failed") {
+        log.error("mcp_error", `Step ${stepIndex}: ${fnName} → ${targetValue} 失败 (${toolElapsed}ms): ${toolOutput.slice(0, 300)}`, { args: fnArgs, error: toolOutput.slice(0, 500) })
+      } else {
+        log.info("mcp_result", `Step ${stepIndex}: ${fnName} → ${targetValue} 成功 (${toolElapsed}ms), 输出 ${toolOutput.length} 字符`, { outputPreview: toolOutput.slice(0, 200) }, toolElapsed)
       }
 
       // Save result

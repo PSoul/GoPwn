@@ -2,11 +2,9 @@ import { PageHeader } from "@/components/shared/page-header"
 import { SectionCard } from "@/components/shared/section-card"
 import { LlmSettingsPanel } from "@/components/settings/llm-settings-panel"
 import { SettingsSubnav } from "@/components/settings/settings-subnav"
-import { requireAuth } from "@/lib/infra/auth"
 import { getLlmProfiles } from "@/lib/services/settings-service"
 
 export default async function LlmSettingsPage() {
-  await requireAuth()
   const profiles = await getLlmProfiles()
 
   return (

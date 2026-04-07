@@ -28,4 +28,4 @@ export const POST = apiHandler(async (req) => {
   return json({
     user: { id: user.id, account: user.account, displayName: user.displayName, role: user.role },
   })
-})
+}, { public: true })

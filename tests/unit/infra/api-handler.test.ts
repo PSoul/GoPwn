@@ -1,4 +1,10 @@
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, vi } from "vitest"
+
+// Mock requireAuth 跳过鉴权（单元测试关注 handler 错误处理逻辑）
+vi.mock("@/lib/infra/auth", () => ({
+  requireAuth: vi.fn().mockResolvedValue({ userId: "test", account: "test", role: "admin" }),
+}))
+
 import { apiHandler, json } from "@/lib/infra/api-handler"
 import { NotFoundError } from "@/lib/domain/errors"
 
@@ -41,6 +47,18 @@ describe("apiHandler", () => {
     expect(res.status).toBe(500)
     const body = await res.json()
     expect(body.code).toBe("INTERNAL")
+  })
+
+  it("public handler 不需要鉴权", async () => {
+    const { requireAuth } = await import("@/lib/infra/auth")
+    vi.mocked(requireAuth).mockClear()
+    const handler = apiHandler(async () => json({ public: true }), { public: true })
+    const res = await handler(
+      new Request("http://localhost/api/test"),
+      dummyCtx,
+    )
+    expect(res.status).toBe(200)
+    expect(requireAuth).not.toHaveBeenCalled()
   })
 })
 

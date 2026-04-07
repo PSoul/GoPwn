@@ -27,7 +27,7 @@ export function AppShell({
           {children}
         </div>
       </SidebarInset>
-      <AiChatWidget />
+      {user && <AiChatWidget />}
     </SidebarProvider>
   )
 }

@@ -3,7 +3,6 @@ import { notFound } from "next/navigation"
 import { ProjectApprovalBar } from "@/components/projects/project-approval-bar"
 import { ProjectOverview } from "@/components/projects/project-overview"
 import { ProjectReportExportPanel } from "@/components/projects/project-report-export-panel"
-import { requireAuth } from "@/lib/infra/auth"
 import { getProject } from "@/lib/services/project-service"
 import { listByProject as listAssets } from "@/lib/services/asset-service"
 import * as findingRepo from "@/lib/repositories/finding-repo"
@@ -14,7 +13,6 @@ export default async function ProjectDetailPage({
 }: {
   params: Promise<{ projectId: string }>
 }) {
-  await requireAuth()
   const { projectId } = await params
 
   let project

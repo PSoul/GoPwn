@@ -3,7 +3,6 @@ import { notFound } from "next/navigation"
 import { AlertTriangle } from "lucide-react"
 
 import { ProjectLlmLogPanel } from "@/components/projects/project-llm-log-panel"
-import { requireAuth } from "@/lib/infra/auth"
 import { getProject } from "@/lib/services/project-service"
 import { getLlmProfiles } from "@/lib/services/settings-service"
 
@@ -12,7 +11,6 @@ export default async function ProjectAiLogsPage({
 }: {
   params: Promise<{ projectId: string }>
 }) {
-  await requireAuth()
   const { projectId } = await params
 
   let project

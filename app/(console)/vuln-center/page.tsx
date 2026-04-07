@@ -2,13 +2,10 @@ import Link from "next/link"
 
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
-import { requireAuth } from "@/lib/infra/auth"
 import { prisma } from "@/lib/infra/prisma"
 import { SEVERITY_LABELS, FINDING_STATUS_LABELS } from "@/lib/types/labels"
 
 export default async function VulnCenterPage() {
-  await requireAuth()
-
   const findings = await prisma.finding.findMany({
     include: { asset: true, project: true },
     orderBy: { createdAt: "desc" },

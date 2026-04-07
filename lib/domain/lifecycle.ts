@@ -44,6 +44,11 @@ export function isTerminal(lifecycle: ProjectLifecycle): boolean {
   return lifecycle === "completed" || lifecycle === "stopped"
 }
 
+/** 项目已结束或正在收尾，不应再接受新的作业 */
+export function isTerminalOrSettling(lifecycle: ProjectLifecycle): boolean {
+  return lifecycle === "completed" || lifecycle === "stopped" || lifecycle === "settling" || lifecycle === "stopping"
+}
+
 export function isActive(lifecycle: ProjectLifecycle): boolean {
   return !isTerminal(lifecycle) && lifecycle !== "idle" && lifecycle !== "failed"
 }

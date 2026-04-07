@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation"
 
 import { FindingDetail } from "@/components/projects/finding-detail"
-import { requireAuth } from "@/lib/infra/auth"
 import * as findingRepo from "@/lib/repositories/finding-repo"
 
 export default async function FindingDetailPage({
@@ -9,7 +8,6 @@ export default async function FindingDetailPage({
 }: {
   params: Promise<{ projectId: string; findingId: string }>
 }) {
-  await requireAuth()
   const { projectId, findingId } = await params
   const finding = await findingRepo.findById(findingId)
 

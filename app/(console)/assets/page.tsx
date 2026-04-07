@@ -3,12 +3,10 @@ import Link from "next/link"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
-import { requireAuth } from "@/lib/infra/auth"
 import { listProjects } from "@/lib/services/project-service"
 import { listByProject as listAssets } from "@/lib/services/asset-service"
 
 export default async function AssetsPage() {
-  await requireAuth()
   const projects = await listProjects()
 
   const allAssets = (

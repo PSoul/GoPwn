@@ -6,7 +6,6 @@ import { ProjectMcpRunsPanel } from "@/components/projects/project-mcp-runs-pane
 import { ProjectOperationsPanel } from "@/components/projects/project-operations-panel"
 import { ProjectOrchestratorPanel } from "@/components/projects/project-orchestrator-panel"
 import { ProjectPipelineLogPanel } from "@/components/projects/project-pipeline-log-panel"
-import { requireAuth } from "@/lib/infra/auth"
 import { getProject } from "@/lib/services/project-service"
 import { listByProject as listApprovals } from "@/lib/services/approval-service"
 import { getLlmProfiles, getGlobalConfig } from "@/lib/services/settings-service"
@@ -18,7 +17,6 @@ export default async function ProjectOperationsPage({
 }: {
   params: Promise<{ projectId: string }>
 }) {
-  await requireAuth()
   const { projectId } = await params
 
   let project

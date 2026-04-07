@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation"
-import { requireAuth } from "@/lib/infra/auth"
 import * as assetRepo from "@/lib/repositories/asset-repo"
 import * as findingRepo from "@/lib/repositories/finding-repo"
 import { IpDetail } from "@/components/projects/ip-detail"
@@ -9,7 +8,6 @@ export default async function IpDetailPage({
 }: {
   params: Promise<{ projectId: string; assetId: string }>
 }) {
-  await requireAuth()
   const { projectId, assetId } = await params
 
   const ipAsset = await assetRepo.findById(assetId)
