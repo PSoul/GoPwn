@@ -33,6 +33,7 @@ vi.mock("@/lib/repositories/audit-repo", () => ({ create: vi.fn() }))
 vi.mock("@/lib/infra/prisma", () => ({
   prisma: {
     orchestratorRound: {
+      findUnique: vi.fn().mockResolvedValue(null),
       upsert: vi.fn().mockResolvedValue({}),
       update: vi.fn().mockResolvedValue({}),
     },

@@ -125,8 +125,8 @@ export async function handleVerifyFinding(data: { projectId: string; findingId: 
     const result = await withTimeout(
       callTool(codeToolName, {
         code: pocSpec.code,
-        language: pocSpec.language,
-        target: finding.affectedTarget,
+        description: `PoC verification: ${finding.title} @ ${finding.affectedTarget}`,
+        timeout_seconds: 60,
       }),
       POC_TIMEOUT_MS,
       `${codeToolName}(${finding.affectedTarget})`,
@@ -139,12 +139,25 @@ export async function handleVerifyFinding(data: { projectId: string; findingId: 
     })
 
     // Parse PoC result to determine if verified
+    // execute_code 返回 {exitCode, stdout, stderr, ...}，PoC 脚本的 verified 标志在 stdout 中
     let verified = false
     try {
-      const pocResult = JSON.parse(result.content)
-      verified = pocResult.verified === true
+      const execResult = JSON.parse(result.content)
+      const stdout = execResult.stdout ?? ""
+      // PoC 脚本应在 stdout 中输出 {"verified": true/false, "detail": "..."}
+      try {
+        const pocOutput = JSON.parse(stdout)
+        verified = pocOutput.verified === true
+      } catch {
+        // stdout 不是纯 JSON，尝试从中提取
+        verified = stdout.includes('"verified":true') || stdout.includes('"verified": true')
+      }
+      // exitCode 非 0 通常意味着脚本执行失败，不算验证成功
+      if (execResult.exitCode !== 0 && execResult.exitCode !== null) {
+        verified = false
+      }
     } catch {
-      // If we can't parse, check for common success indicators
+      // MCP 返回的不是 JSON，降级为文本匹配
       verified = result.content.includes('"verified":true') || result.content.includes('"verified": true')
     }
 

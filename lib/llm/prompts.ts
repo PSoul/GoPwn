@@ -36,6 +36,14 @@ export type ReviewerContext = {
   totalAssets: number
   totalFindings: number
   unverifiedFindings: number
+  /** 已确认的 high/critical 级别 finding 数量 */
+  confirmedHighFindings: number
+  /** 本轮新增的 finding 数量（去重后净增） */
+  newFindingsThisRound: number
+  /** 连续多少轮没有新增已确认 finding */
+  roundsWithoutNewFindings: number
+  /** 按严重性分组的 finding 统计 */
+  findingsBySeverity?: Record<string, number>
 }
 
 export type VerifierContext = {
@@ -174,6 +182,11 @@ export async function buildReviewerPrompt(ctx: ReviewerContext): Promise<LlmMess
   const systemPrompt = await loadSystemPrompt()
   const phaseLabel = PHASE_LABELS[ctx.currentPhase]
 
+  // 构建 severity 统计摘要
+  const severityStats = ctx.findingsBySeverity
+    ? Object.entries(ctx.findingsBySeverity).map(([sev, cnt]) => `${sev}: ${cnt}`).join(", ")
+    : ""
+
   return [
     { role: "system", content: systemPrompt },
     {
@@ -186,8 +199,10 @@ export async function buildReviewerPrompt(ctx: ReviewerContext): Promise<LlmMess
 
 ## 本轮统计
 - 已发现资产总数: ${ctx.totalAssets}
-- 安全发现总数: ${ctx.totalFindings}
-- 待验证发现: ${ctx.unverifiedFindings}
+- 安全发现总数: ${ctx.totalFindings}${severityStats ? ` (${severityStats})` : ""}
+- 已确认高危/严重发现: ${ctx.confirmedHighFindings}
+- 本轮新增发现: ${ctx.newFindingsThisRound}
+- 连续无新增发现的轮数: ${ctx.roundsWithoutNewFindings}
 
 ## 本轮执行摘要
 ${ctx.roundSummary}
@@ -204,12 +219,27 @@ ${ctx.roundSummary}
 }
 \`\`\`
 
-判断依据：
-- 如果还有明显未覆盖的攻击面，选择 continue
-- 如果已发现的漏洞需要验证，推进到 verification 阶段
-- 如果所有发现都已验证且攻击面已充分覆盖，选择 settle
-- 如果已达到最大轮次的 80%，倾向于 settle
-- 如果有待验证的发现，先 continue 到 verification`,
+## 判断依据（按优先级排列）
+
+**必须 settle 的情况（满足任一即 settle）：**
+1. 已达到最大轮次的 80%（当前 ${ctx.round}/${ctx.maxRounds}，阈值 ${Math.ceil(ctx.maxRounds * 0.8)}）
+2. 连续 2 轮以上没有新增发现（当前连续 ${ctx.roundsWithoutNewFindings} 轮无新增），说明攻击面已收敛
+3. 已确认高危发现 ≥ 3 个且本轮无新增发现，说明主要漏洞已定位
+
+**应该 settle 的情况：**
+4. 当前阶段已到 reporting 或 verification 后期，说明测试充分
+5. 项目说明中列出的服务均已测试覆盖，且无新攻击面
+
+**应该 continue 的情况：**
+6. 项目说明中明确列出的服务还有未深入测试的（对照已有发现，看哪些服务只做了端口识别但没做漏洞验证）
+7. 本轮发现了全新的攻击面（新服务类型、新应用），值得深入
+8. 已知存在弱口令类漏洞的服务（如 Tomcat、MySQL、SSH）还没尝试过弱口令测试
+
+**重要原则：**
+- "待验证发现数量多"**不是**继续的理由——这只说明分析器产生了很多疑似项，不代表需要更多轮次
+- 同一漏洞被重复报告多次（如 Redis 未授权、ES 未授权）不应作为"还有工作要做"的理由
+- 质量优于数量：3 个已确认的高危发现比 80 个待验证的 info 级发现更有价值
+- 渗透测试的目标是发现关键风险，不是穷举所有可能`,
     },
   ]
 }
@@ -252,9 +282,12 @@ ${ctx.evidence.rawOutput.slice(0, 5000)}
 要求：
 - 代码必须安全、非破坏性
 - 代码必须有明确的成功/失败输出（JSON 格式）
-- 优先使用 JavaScript (Node.js)，因为执行环境是 Node
-- 如果是 HTTP 类验证，用 fetch API
-- 输出必须包含 { "verified": true/false, "detail": "..." }`,
+- **必须使用 JavaScript (Node.js)**，只能使用 Node.js 内建模块（net, http, https, dns, crypto, fs, child_process 等），**不能 require 任何第三方 npm 包**（如 mysql2, pg, mongodb, ssh2 等都不可用）
+- 如果是 HTTP 类验证，用 Node.js 内建的 fetch API 或 http 模块
+- 对于 TCP 协议验证（MySQL、Redis、MongoDB 等），使用 net 模块的 Socket 直接发送协议数据
+- 输出必须包含 { "verified": true/false, "detail": "..." }
+- **端口号必须严格使用目标地址中的端口**（例如目标是 127.0.0.1:13306 就连 13306，不要用默认端口 3306）
+- 如果目标地址格式是 "127.0.0.1 (SSH)" 这样不含端口号，需要参考原始证据中工具输出的端口信息`,
     },
   ]
 }

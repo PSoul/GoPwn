@@ -62,7 +62,9 @@ describe("verification-worker", () => {
 
   it("正常路径：LLM 生成 PoC → 执行 → verified", async () => {
     vi.mocked(findingRepo.findById).mockResolvedValue(mockFinding() as never)
-    mockCallTool.mockResolvedValue({ content: '{"verified": true, "detail": "confirmed"}', isError: false })
+    // execute_code 返回 {exitCode, stdout, stderr, ...}，PoC 脚本在 stdout 输出 verified 标志
+    const execResult = JSON.stringify({ exitCode: 0, stdout: '{"verified":true,"detail":"confirmed"}', stderr: "", durationMs: 500, truncated: false })
+    mockCallTool.mockResolvedValue({ content: execResult, isError: false })
 
     await handleVerifyFinding({ projectId: "proj-test-001", findingId: "finding-test-001" })
 
@@ -113,7 +115,8 @@ describe("verification-worker", () => {
 
   it("verifying 状态的 finding 可以继续验证（中断恢复）", async () => {
     vi.mocked(findingRepo.findById).mockResolvedValue(mockFinding({ status: "verifying" }) as never)
-    mockCallTool.mockResolvedValue({ content: '{"verified": true, "detail": "confirmed"}', isError: false })
+    const execResult = JSON.stringify({ exitCode: 0, stdout: '{"verified":true,"detail":"confirmed"}', stderr: "", durationMs: 500, truncated: false })
+    mockCallTool.mockResolvedValue({ content: execResult, isError: false })
 
     await handleVerifyFinding({ projectId: "proj-test-001", findingId: "finding-test-001" })
 

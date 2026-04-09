@@ -46,6 +46,28 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
     return
   }
 
+  // Guard: skip if this round_completed is for a round that doesn't match the project's current state.
+  // Prevents stale/duplicate round jobs from triggering multiple reviews.
+  const currentRound = await prisma.orchestratorRound.findFirst({
+    where: { projectId, status: "executing" },
+    orderBy: { round: "desc" },
+    select: { round: true },
+  })
+  // 如果有正在执行的 round 且不是当前 round，说明这是过期的作业
+  if (currentRound && currentRound.round !== round) {
+    log.info("skipped", `当前执行中的是第 ${currentRound.round} 轮，跳过第 ${round} 轮的重复 round_completed`)
+    return
+  }
+  // 如果这个 round 已经被审阅过（status=completed 且有 completedAt），跳过
+  const thisRound = await prisma.orchestratorRound.findUnique({
+    where: { projectId_round: { projectId, round } },
+    select: { status: true, stopReason: true },
+  })
+  if (thisRound && thisRound.status === "completed" && thisRound.stopReason) {
+    log.info("skipped", `第 ${round} 轮已完成审阅（${thisRound.stopReason}），跳过重复处理`)
+    return
+  }
+
   try {
     // Update round status
     await prisma.orchestratorRound.update({
@@ -61,6 +83,34 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
     const succeeded = runs.filter((r) => r.status === "succeeded")
     const failed = runs.filter((r) => r.status === "failed")
     const unverifiedCount = findings.filter((f) => f.status === "suspected" || f.status === "verifying").length
+    const confirmedHighFindings = findings.filter(
+      (f) => (f.severity === "high" || f.severity === "critical") && f.status === "verified"
+    ).length
+
+    // 计算本轮新增 finding 数量（从 round 统计中获取）
+    const currentRoundStats = await prisma.orchestratorRound.findUnique({
+      where: { projectId_round: { projectId, round } },
+      select: { newFindingCount: true },
+    })
+    const newFindingsThisRound = currentRoundStats?.newFindingCount ?? 0
+
+    // 计算连续无新增 finding 的轮数
+    const allRounds = await prisma.orchestratorRound.findMany({
+      where: { projectId, status: "completed" },
+      orderBy: { round: "desc" },
+      select: { round: true, newFindingCount: true },
+    })
+    let roundsWithoutNewFindings = 0
+    for (const r of allRounds) {
+      if ((r.newFindingCount ?? 0) === 0) roundsWithoutNewFindings++
+      else break
+    }
+
+    // 按 severity 统计
+    const findingsBySeverity: Record<string, number> = {}
+    for (const f of findings) {
+      findingsBySeverity[f.severity] = (findingsBySeverity[f.severity] ?? 0) + 1
+    }
 
     const roundSummary = [
       `工具执行: ${succeeded.length} 成功, ${failed.length} 失败 (共 ${runs.length})`,
@@ -107,6 +157,10 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
       totalAssets,
       totalFindings: findings.length,
       unverifiedFindings: unverifiedCount,
+      confirmedHighFindings,
+      newFindingsThisRound,
+      roundsWithoutNewFindings,
+      findingsBySeverity,
     }
 
     const abortController = new AbortController()
@@ -125,6 +179,18 @@ export async function handleRoundCompleted(data: { projectId: string; round: num
     log.info("llm_response", `审阅决策: ${decision.decision}`, { nextPhase: decision.nextPhase, reasoning: decision.reasoning }, timer.elapsed())
 
     const queue = createPgBossJobQueue()
+
+    // 硬性收敛条件：即使 LLM 说 continue，满足以下条件也强制 settle
+    const forceSettle =
+      roundsWithoutNewFindings >= 3 ||                     // 连续 3 轮无新增 finding
+      (round >= Math.ceil(project.maxRounds * 0.8)) ||     // 已达 80% 轮次
+      (round >= 3 && confirmedHighFindings >= 3 && newFindingsThisRound === 0)  // 3轮+3高危+本轮无新增
+
+    if (forceSettle && decision.decision === "continue") {
+      log.info("force_settle", `强制收敛: round=${round}, roundsNoNew=${roundsWithoutNewFindings}, confirmedHigh=${confirmedHighFindings}, newThisRound=${newFindingsThisRound}`)
+      decision.decision = "settle"
+      decision.reasoning = `[系统强制收敛] ${decision.reasoning}`
+    }
 
     if (decision.decision === "settle" || round >= project.maxRounds) {
       // Time to wrap up
