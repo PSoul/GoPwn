@@ -75,6 +75,16 @@ export async function handleReactRound(data: {
     return
   }
 
+  // Guard: 防止同一 round 被并行执行
+  const existingRound = await prisma.orchestratorRound.findUnique({
+    where: { projectId_round: { projectId, round } },
+    select: { status: true },
+  })
+  if (existingRound && existingRound.status === "executing") {
+    log.info("skipped", `第 ${round} 轮已在执行中，跳过重复作业`)
+    return
+  }
+
   const abortController = new AbortController()
   registerAbort(projectId, abortController)
 

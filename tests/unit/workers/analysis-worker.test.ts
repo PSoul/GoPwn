@@ -29,7 +29,7 @@ vi.mock("@/lib/infra/pipeline-logger", () => ({
 }))
 vi.mock("@/lib/infra/prisma", () => ({
   prisma: {
-    project: { findUnique: vi.fn().mockResolvedValue({ name: "Test", lifecycle: "executing" }) },
+    project: { findUnique: vi.fn().mockResolvedValue({ name: "Test", description: "", lifecycle: "executing", targets: [{ value: "127.0.0.1" }] }) },
     mcpRun: { findUnique: vi.fn().mockResolvedValue({ round: 1 }) },
     orchestratorRound: { update: vi.fn().mockResolvedValue({}) },
   },

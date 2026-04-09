@@ -25,7 +25,9 @@ vi.mock("@/lib/infra/prisma", () => ({
   prisma: {
     orchestratorRound: {
       update: vi.fn().mockResolvedValue({}),
-      findUnique: vi.fn().mockResolvedValue({ actualSteps: 5, stopReason: "llm_done" }),
+      findUnique: vi.fn().mockResolvedValue({ actualSteps: 5, newFindingCount: 1 }),
+      findFirst: vi.fn().mockResolvedValue(null),
+      findMany: vi.fn().mockResolvedValue([]),
     },
   },
 }))

@@ -43,6 +43,9 @@ describe("prompts: buildReviewerPrompt", () => {
       totalAssets: 10,
       totalFindings: 3,
       unverifiedFindings: 2,
+      confirmedHighFindings: 1,
+      newFindingsThisRound: 2,
+      roundsWithoutNewFindings: 0,
     })
 
     expect(messages).toHaveLength(2)
